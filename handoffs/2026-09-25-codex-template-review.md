@@ -1,0 +1,17 @@
+# 2026-09-25 · Codex · template-review
+
+- **Branch / commit:** `codex/template-review` @ HEAD (the commit containing this note; pushed: no at authoring, final push result reported separately). Reviewed baseline: `c61a02e0c99bc01ed5b4d2c8a191a2ac5e73fd97`.
+- **Changes:** `handoffs/2026-09-25-codex-template-review.md` only. Mode: Parallel; Codex reviews, Claude/user accepts. User request supplies scope and acceptance; no workflow fixes applied.
+- **Checks run:** Read all four requested files plus CLAUDE.md/config/README; compared both modes. `codex.cmd exec --help` confirms launcher flags. `git worktree add -b codex/template-review ...` succeeded; `.git` is a file and Git common metadata remains in the original checkout. Initial status clean. Dispatch execution and OneDrive copying NOT RUN; this session has unrestricted filesystem access, so it does not establish restricted-sandbox compatibility.
+- **Known issues:** Ranked findings below; references use the reviewed baseline.
+- **Next action / owner:** Codex commits/pushes this note; Claude/user chooses workflow fixes and validates Dispatch in the intended sandbox.
+
+1. **P2 — Parallel lacks a permissions fallback** (`HANDOFF.md:59-60`; `AGENTS.md:25`). Worktree creation, shared Git metadata writes, and authenticated network push depend on session permissions; the mandatory sequence provides no blocked-operation owner. The blanket OneDrive sandbox claim is also environment-specific. **Fix:** preflight permissions, worktree/common Git paths and remote access; if blocked, preserve edits and let Claude/user perform the exact blocked Git operation. Do not weaken the sandbox. This session created the worktree successfully. [Official sandbox guidance](https://learn.chatgpt.com/docs/sandboxing) confirms commands inherit session boundaries.
+
+2. **P2 — Mirror exclusion misses worktree metadata** (`AGENTS.md:26`). `/XD .git` excludes directories, but linked worktrees have a `.git` file; the command can copy that pointer into OneDrive despite the stated exclusion. **Fix:** also exclude `.git` with `/XF`; explicitly choose whether sync runs only from the accepted base checkout or also from task worktrees.
+
+3. **P2 — Push precedes the handoff commit** (`HANDOFF.md:60-61`). Following the numbered sequence leaves the new note committed locally after the last push, unavailable to a remote receiver. **Fix:** write note, commit all handoff content, push, verify remote tip, then notify. Define `handoffs/TEMPLATE.md:3` as the implementation SHA or containing commit, and push status as observed at authoring, avoiding a self-referential SHA/update cycle.
+
+4. **P2 — Mandatory records conflict with scope** (`AGENTS.md:37,66,108`; `HANDOFF.md:58`; `TASK.md:3`). AGENTS requires mode in TASK.md, while Parallel permits notes and TASK describes itself as complex/risky-only. Mandatory FRICTION edits may also fall outside the allowlist or overlap the other agent. **Fix:** permit a single task record in TASK.md or the agent's note; put friction in the report when FRICTION.md is not owned/allowlisted. This also avoids duplicated task context and merge churn.
+
+5. **P3 — Generic commit instructions obscure Dispatch ownership** (`AGENTS.md:44-46,79`; compare `AGENTS.md:39`). Trivial routing tells either agent to commit, although Dispatch forbids Codex commits. **Fix:** add one qualifier: all commit/push steps follow the selected mode's ownership; Claude commits in Dispatch.
