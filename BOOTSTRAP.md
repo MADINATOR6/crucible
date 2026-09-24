@@ -1,11 +1,12 @@
 # Bootstrap a real repository
 
 Not copied into projects. In Claude Code opened in the target repository, say:
-"Follow C:\Users\Madison\code\claude-codex-collab\BOOTSTRAP.md for this repo."
+"Follow <path to your claude-codex-collab clone>/BOOTSTRAP.md for this repo."
+(On this author's PC: `C:\Users\Madison\code\claude-codex-collab`. Clone https://github.com/MADINATOR6/claude-codex-collab elsewhere.)
 
 ---
 
-Apply the Claude Code + Codex workflow from `C:\Users\Madison\code\claude-codex-collab` to this repository.
+Apply the Claude Code + Codex workflow from the folder containing this BOOTSTRAP.md (the template) to this repository.
 
 1. Run `git status`. Note existing uncommitted work and do not modify, stage or commit it.
 2. Bring in AGENTS.md, CLAUDE.md, HANDOFF.md, TASK.md, FRICTION.md, handoffs/TEMPLATE.md and .codex/config.toml. If a file already exists, merge it: keep project-specific content, add missing workflow rules, remove only exact duplicates. For an existing CLAUDE.md, put `@AGENTS.md` first and keep its Claude-specific lines. Never overwrite blindly.
