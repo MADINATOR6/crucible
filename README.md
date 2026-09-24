@@ -8,6 +8,7 @@ A lightweight workflow template for running Claude Code and Codex on the same re
 | `CLAUDE.md` | Imports AGENTS.md and adds Claude's handoff duties. |
 | `HANDOFF.md` | Dispatch launcher, Codex implementer instruction, report format, parallel-mode rules. |
 | `TASK.md` | Per-task spec: mode, goal, write allowlist, Done When, verification. |
+| `scripts/codex-dispatch.ps1` | One-command Dispatch launcher: path guard, capture, token usage, report. |
 | `handoffs/` | One note per parallel-mode handoff, from `TEMPLATE.md`. |
 | `FRICTION.md` | Log of real workflow friction. |
 | `.codex/config.toml` | Codex reasoning effort (medium). |

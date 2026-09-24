@@ -8,17 +8,15 @@ How work passes between Claude Code and Codex. AGENTS.md is authoritative for wo
 1. [ ] `git status` clean or pre-existing paths recorded; TASK.md filled and committed-or-saved; note HEAD.
 2. [ ] TASK.md has a write allowlist, out-of-scope list, resolved business rules, and each Done When item assigned to Codex or Claude.
 3. [ ] Say whether temporary scripts or fixtures are allowed, and where. Synthetic data only unless the user authorised real data.
-4. [ ] Set `$handoffCaptureDir` to an existing absolute directory outside the repo and OneDrive, with a short path such as `C:\Users\<you>\codex-captures`. Capture file names add about 50 characters; if long paths are disabled, paths over 260 characters make the launcher silently capture nothing.
-
-### Launcher (PowerShell, repo root)
+### Launcher (repo root)
 
 ```powershell
-if (-not $handoffCaptureDir -or -not (Test-Path -LiteralPath $handoffCaptureDir -PathType Container)) { throw 'Set handoffCaptureDir to an existing absolute directory.' }; $b = Join-Path $handoffCaptureDir ('codex-' + [guid]::NewGuid().ToString('N')); codex.cmd exec -s workspace-write -c model_reasoning_effort=medium --json --output-last-message ($b + '.report.md') 'Read HANDOFF.md and follow its Implementer instruction for TASK.md.' 1> ($b + '.events.jsonl') 2> ($b + '.stderr.log'); $x = $LASTEXITCODE; Set-Content -LiteralPath ($b + '.exit.txt') -Value $x -Encoding ascii; "Codex exit=$x; capture=$b"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\codex-dispatch.ps1
 ```
 
-Keep the prompt on one line: `codex.cmd` splits a multi-line prompt into separate arguments and exits with `unexpected argument`. Put longer instructions in a file and pass `'Read <path> and follow it.'` Use `model_reasoning_effort=high` only when AGENTS.md's escalation rules apply. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
+Options: `-Effort high` only when AGENTS.md's escalation rules apply; `-PromptFile <path>` for other instructions (`codex.cmd` breaks on multi-line prompts, so the script passes a one-line "read this file" prompt); `-CaptureDir` (default `%USERPROFILE%\codex-captures`, outside the repo and OneDrive). The bypass applies to that one process. The script refuses capture paths near the 260-character limit, prints Codex's token usage and report, and exits 3 if no report was written. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
 
-A stderr line `Reading additional input from stdin...` wrapped as a PowerShell NativeCommandError is harmless. Exit 0 is not acceptance: confirm the `.report.md` file exists. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
+Exit 0 is not acceptance. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
 
 ### After return (Claude)
 Match the report's task and baseline to this run → inspect the diff for correctness and scope → resolve every non-PASS item → run Claude-owned checks → deeper review if risky → commit only task-owned changes → mirror sync if used.

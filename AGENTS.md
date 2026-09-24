@@ -8,7 +8,7 @@ Not set.
 
 # Folder Map
 
-Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `handoffs/`, `.codex/`.
+Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `handoffs/`, `scripts/codex-dispatch.ps1`, `.codex/`.
 
 # Commands
 
