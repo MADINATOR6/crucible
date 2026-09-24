@@ -4,3 +4,6 @@ Real friction only, never hypothetical. Count 1: log it, take no action. Count 2
 
 | Problem | Count | Last Seen |
 |---|---:|---|
+| Dispatch capture dir path over 260 chars: launcher exited 0 but captured nothing (long paths disabled). Fixed in HANDOFF.md checklist. | 1 | 2026-09-25 |
+| PowerShell `Get-Content`/`Set-Content` edit garbled `→`/`–` in UTF-8 files. Rule added to AGENTS.md Windows. | 1 | 2026-09-25 |
+| Unverified test command (`node --test test/` fails on a directory) nearly reached TASK.md; caught by a dry run. Existing "only verified commands" rule worked. | 1 | 2026-09-25 |

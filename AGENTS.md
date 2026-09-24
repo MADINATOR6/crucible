@@ -18,6 +18,8 @@ Not set. Add a dev, test, lint, typecheck or build command only after it has run
 
 In PowerShell, always call `codex.cmd`, `npm.cmd` and `npx.cmd`, never plain `codex`, `npm` or `npx`. The execution policy and Codex's sandbox block the `.ps1` launchers that plain names resolve to. Keep sandbox protections intact.
 
+Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM with `-Encoding utf8`, which corrupts characters like `→` and `–`. Edit text files with the agent's file-editing tools, not `Get-Content`/`Set-Content` round-trips.
+
 # Mobile Sync
 
 - Phone and iPad see a one-way, read-only copy of this repo in OneDrive: `%OneDrive%\AgentWorkspace\<repo folder name>`. It excludes `.git`, `node_modules`, `.env*`, `*.pem` and `*.key`.

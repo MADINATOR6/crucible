@@ -8,7 +8,7 @@ How work passes between Claude Code and Codex. AGENTS.md is authoritative for wo
 1. [ ] `git status` clean or pre-existing paths recorded; TASK.md filled and committed-or-saved; note HEAD.
 2. [ ] TASK.md has a write allowlist, out-of-scope list, resolved business rules, and each Done When item assigned to Codex or Claude.
 3. [ ] Say whether temporary scripts or fixtures are allowed, and where. Synthetic data only unless the user authorised real data.
-4. [ ] Set `$handoffCaptureDir` to an existing absolute directory outside the repo and OneDrive.
+4. [ ] Set `$handoffCaptureDir` to an existing absolute directory outside the repo and OneDrive, with a short path such as `C:\Users\<you>\codex-captures`. Capture file names add about 50 characters; if long paths are disabled, paths over 260 characters make the launcher silently capture nothing.
 
 ### Launcher (PowerShell, repo root)
 
@@ -18,7 +18,7 @@ if (-not $handoffCaptureDir -or -not (Test-Path -LiteralPath $handoffCaptureDir 
 
 Use `model_reasoning_effort=high` only when AGENTS.md's escalation rules apply. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
 
-Exit 0 is not acceptance. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
+A stderr line `Reading additional input from stdin...` wrapped as a PowerShell NativeCommandError is harmless. Exit 0 is not acceptance: confirm the `.report.md` file exists. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
 
 ### After return (Claude)
 Match the report's task and baseline to this run → review every non-PASS item → run Claude-owned checks → review the diff if risky → commit → mirror sync if used.
