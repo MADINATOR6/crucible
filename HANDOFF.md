@@ -21,7 +21,7 @@ Keep the prompt on one line: `codex.cmd` splits a multi-line prompt into separat
 A stderr line `Reading additional input from stdin...` wrapped as a PowerShell NativeCommandError is harmless. Exit 0 is not acceptance: confirm the `.report.md` file exists. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
 
 ### After return (Claude)
-Match the report's task and baseline to this run → review every non-PASS item → run Claude-owned checks → review the diff if risky → commit → mirror sync if used.
+Match the report's task and baseline to this run → inspect the diff for correctness and scope → resolve every non-PASS item → run Claude-owned checks → deeper review if risky → commit only task-owned changes → mirror sync if used.
 
 ### Implementer instruction (Codex)
 
@@ -33,7 +33,7 @@ Implement TASK.md. Claude owns planning, final review, commits, push and mirror 
 4. Respect the sandbox. Never broaden permissions or install tools to get around a restriction; report it.
 5. Ambiguous data rules, destructive behaviour, conflicting requirements or needed scope growth: stop that part, report UNKNOWN / CHECKED / NEEDED with a proposed resolution, and continue only independent work.
 6. Run Codex-owned checks from Done When. A check is PASS only with evidence from this run; static reading cannot prove runtime behaviour.
-7. On a failed check: diagnose, one focused repair, rerun. Second failure: stop and report both attempts. Never blanket-revert pre-existing work.
+7. Follow AGENTS.md Failure Handling; report failed checks, repair attempts and remaining blockers. Never blanket-revert pre-existing work.
 8. Reply with the Report format below. No file dumps, secrets or private data.
 ```
 
@@ -60,4 +60,4 @@ READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it
 3. Each tool: own worktree, own branch (`claude/<task>` or `codex/<task>`), commits only there. Worktrees cannot see each other's uncommitted files.
 4. Handoff order: write a new note `handoffs/YYYY-MM-DD-<agent>-<task>.md` from `handoffs/TEMPLATE.md` (never edit another agent's note) → commit → push → verify the remote tip with `git ls-remote origin <branch>` → tell the user.
 5. The receiver reads AGENTS.md, the handoff note, and `git log`/`git diff <base>...<branch>` before continuing.
-6. Claude reviews and merges into the base branch unless the user says otherwise.
+6. Claude reviews and merges into the base branch unless the user assigns another owner, then runs the relevant checks on the merged result before pushing the base branch or syncing its mirror.
