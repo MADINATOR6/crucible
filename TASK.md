@@ -1,6 +1,6 @@
 # Task
 
-<!-- Temporary state for complex or risky tasks. May be overwritten per task after checking it holds no uncommitted manual edits. Reference paths; do not paste files. -->
+<!-- Task spec for Dispatch-mode work (Parallel tasks use their handoff note instead). May be overwritten per task after checking it holds no uncommitted manual edits. Reference paths; do not paste files. -->
 
 ## Mode and Owner
 <!-- Dispatch or Parallel. Who implements, who reviews. -->

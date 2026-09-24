@@ -22,8 +22,8 @@ In PowerShell, always call `codex.cmd`, `npm.cmd` and `npx.cmd`, never plain `co
 
 - Phone and iPad see a one-way, read-only copy of this repo in OneDrive: `%OneDrive%\AgentWorkspace\<repo folder name>`. It excludes `.git`, `node_modules`, `.env*`, `*.pem` and `*.key`.
 - Edit files only in this repo, never in the OneDrive copy.
-- After each commit, Claude or the user refreshes the copy (Codex's sandbox cannot write to OneDrive). Exit codes 0–7 mean success:
-  `$r = (git rev-parse --show-toplevel) -replace '/','\'; if ($env:OneDrive) { robocopy $r "$env:OneDrive\AgentWorkspace\$(Split-Path -Leaf $r)" /E /XD .git node_modules /XF .env* *.pem *.key /NFL /NDL /NJH /NJS /NP }`
+- After each commit to the base branch, Claude or the user refreshes the copy. Run it only from the base-branch checkout, never from a task worktree. Codex's sandbox may not be able to write to OneDrive. Exit codes 0–7 mean success:
+  `$r = (git rev-parse --show-toplevel) -replace '/','\'; if ($env:OneDrive) { robocopy $r "$env:OneDrive\AgentWorkspace\$(Split-Path -Leaf $r)" /E /XD .git node_modules /XF .git .env* *.pem *.key /NFL /NDL /NJH /NJS /NP }`
 - Never copy secrets or confidential data. If the working tree contains any, do not run the command.
 
 # Roles
@@ -34,14 +34,14 @@ In PowerShell, always call `codex.cmd`, `npm.cmd` and `npx.cmd`, never plain `co
 
 # Modes
 
-Pick one per task and state it in TASK.md.
+Pick one per task. Record the task once: in TASK.md for Dispatch, in the handoff note for Parallel (do not edit TASK.md on task branches). All commit and push steps anywhere in this file follow the selected mode's ownership.
 
 - **Dispatch (default):** Claude writes TASK.md and launches Codex with the launcher in HANDOFF.md. Codex edits the working tree only: no staging, commits, branches or worktrees. Claude verifies and commits.
 - **Parallel:** the user runs both tools at once on separate tasks. Each works in its own worktree on its own branch (`claude/<task>`, `codex/<task>`), commits only there, never to the base branch, and never edits files the other task owns. Hand off only committed work, with a note in `handoffs/` (see HANDOFF.md). Claude reviews and merges; the user may assign review the other way.
 
 # Routing
 
-- Trivial (typo, rename, formatting, tiny isolated change): one agent → change → targeted check → commit. No plan.
+- Trivial (typo, rename, formatting, tiny isolated change): one agent → change → targeted check → commit by the mode's commit owner. No plan.
 - Normal and clear: Codex implements → verify → commit.
 - Complex or ambiguous: Claude plans → TASK.md → Codex implements → verify → commit.
 - Risky (see Risky Changes): as complex, plus Claude reviews TASK.md, the diff, changed files and relevant tests → fix → final verification → commit.
@@ -105,7 +105,7 @@ If something material is unverified, report UNKNOWN (what is uncertain), CHECKED
 
 # Friction
 
-Log real friction in FRICTION.md. Count 1: log it, take no action. Count 2: observe. Count 3+: investigate whether a change is justified and is the simplest fix.
+Log real friction in FRICTION.md. Count 1: log it, take no action. Count 2: observe. Count 3+: investigate whether a change is justified and is the simplest fix. If FRICTION.md is outside your write allowlist or another task owns it, put the friction in your report or handoff note instead.
 
 # Definition of Done
 

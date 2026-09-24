@@ -55,9 +55,9 @@ READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it
 
 ## Parallel mode (both tools running)
 
-1. The user assigns each tool a distinct task and file set. Record them in the task's TASK.md on each branch, or in the handoff notes.
-2. Each tool: own worktree, own branch (`claude/<task>` or `codex/<task>`), commits only there.
-3. Before handing off, commit and push the branch. Worktrees cannot see each other's uncommitted files.
-4. Add one new file per handoff, never edit another agent's file: `handoffs/YYYY-MM-DD-<agent>-<task>.md`, using `handoffs/TEMPLATE.md`. Commit it on your branch.
+1. The user assigns each tool a distinct task and file set. Record them in the handoff note, not TASK.md, so branches do not conflict on merge.
+2. Preflight: confirm you can create a worktree, commit, and push. If any step is blocked, do not weaken the sandbox: keep your edits in place and name the exact blocked Git command for Claude or the user to run.
+3. Each tool: own worktree, own branch (`claude/<task>` or `codex/<task>`), commits only there. Worktrees cannot see each other's uncommitted files.
+4. Handoff order: write a new note `handoffs/YYYY-MM-DD-<agent>-<task>.md` from `handoffs/TEMPLATE.md` (never edit another agent's note) → commit → push → verify the remote tip with `git ls-remote origin <branch>` → tell the user.
 5. The receiver reads AGENTS.md, the handoff note, and `git log`/`git diff <base>...<branch>` before continuing.
 6. Claude reviews and merges into the base branch unless the user says otherwise.
