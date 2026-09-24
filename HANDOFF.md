@@ -1,0 +1,63 @@
+# Handoff
+
+How work passes between Claude Code and Codex. AGENTS.md is authoritative for workflow; TASK.md defines the current task's scope. Neither agent shares conversation history with the other: everything needed to continue lives in the repo.
+
+## Dispatch mode (Claude launches Codex)
+
+### Claude checklist
+1. [ ] `git status` clean or pre-existing paths recorded; TASK.md filled and committed-or-saved; note HEAD.
+2. [ ] TASK.md has a write allowlist, out-of-scope list, resolved business rules, and each Done When item assigned to Codex or Claude.
+3. [ ] Say whether temporary scripts or fixtures are allowed, and where. Synthetic data only unless the user authorised real data.
+4. [ ] Set `$handoffCaptureDir` to an existing absolute directory outside the repo and OneDrive.
+
+### Launcher (PowerShell, repo root)
+
+```powershell
+if (-not $handoffCaptureDir -or -not (Test-Path -LiteralPath $handoffCaptureDir -PathType Container)) { throw 'Set handoffCaptureDir to an existing absolute directory.' }; $b = Join-Path $handoffCaptureDir ('codex-' + [guid]::NewGuid().ToString('N')); codex.cmd exec -s workspace-write -c model_reasoning_effort=medium --json --output-last-message ($b + '.report.md') 'Read HANDOFF.md and follow its Implementer instruction for TASK.md.' 1> ($b + '.events.jsonl') 2> ($b + '.stderr.log'); $x = $LASTEXITCODE; Set-Content -LiteralPath ($b + '.exit.txt') -Value $x -Encoding ascii; "Codex exit=$x; capture=$b"
+```
+
+Use `model_reasoning_effort=high` only when AGENTS.md's escalation rules apply. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
+
+Exit 0 is not acceptance. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
+
+### After return (Claude)
+Match the report's task and baseline to this run → review every non-PASS item → run Claude-owned checks → review the diff if risky → commit → mirror sync if used.
+
+### Implementer instruction (Codex)
+
+```text
+Implement TASK.md. Claude owns planning, final review, commits, push and mirror sync.
+1. Confirm repo root. Read AGENTS.md and TASK.md, then only the source the task needs. Record HEAD and initial git status. Stop before editing if TASK.md is empty, has no write allowlist, or overlaps pre-existing work you cannot separate.
+2. Make the smallest correct change inside the write allowlist. Do not create tests, fixtures or scratch files unless TASK.md authorises their paths.
+3. Do not stage, commit, change branches, create worktrees, push, deploy, sync OneDrive, or edit workflow files (AGENTS.md, CLAUDE.md, HANDOFF.md, .codex/). Propose workflow changes in the report instead.
+4. Respect the sandbox. Never broaden permissions or install tools to get around a restriction; report it.
+5. Ambiguous data rules, destructive behaviour, conflicting requirements or needed scope growth: stop that part, report UNKNOWN / CHECKED / NEEDED with a proposed resolution, and continue only independent work.
+6. Run Codex-owned checks from Done When. A check is PASS only with evidence from this run; static reading cannot prove runtime behaviour.
+7. On a failed check: diagnose, one focused repair, rerun. Second failure: stop and report both attempts. Never blanket-revert pre-existing work.
+8. Reply with the Report format below. No file dumps, secrets or private data.
+```
+
+### Report format
+
+```text
+Status: READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED
+Task / start HEAD: <task> / <sha>
+Changes: <path:line - what and why, one line each>
+Decisions/deviations: <none or requirement -> decision>
+Checks: <command or procedure - PASS|FAIL|NOT RUN|BLOCKED|UNKNOWN - evidence>
+Acceptance: <Done When item - status - next owner>
+UNKNOWN / CHECKED / NEEDED: <or none>
+Out-of-scope findings: <or none>
+Final git status --short: <output>
+```
+
+READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it never means approved to commit.
+
+## Parallel mode (both tools running)
+
+1. The user assigns each tool a distinct task and file set. Record them in the task's TASK.md on each branch, or in the handoff notes.
+2. Each tool: own worktree, own branch (`claude/<task>` or `codex/<task>`), commits only there.
+3. Before handing off, commit and push the branch. Worktrees cannot see each other's uncommitted files.
+4. Add one new file per handoff, never edit another agent's file: `handoffs/YYYY-MM-DD-<agent>-<task>.md`, using `handoffs/TEMPLATE.md`. Commit it on your branch.
+5. The receiver reads AGENTS.md, the handoff note, and `git log`/`git diff <base>...<branch>` before continuing.
+6. Claude reviews and merges into the base branch unless the user says otherwise.
