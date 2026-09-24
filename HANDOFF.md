@@ -16,7 +16,7 @@ How work passes between Claude Code and Codex. AGENTS.md is authoritative for wo
 if (-not $handoffCaptureDir -or -not (Test-Path -LiteralPath $handoffCaptureDir -PathType Container)) { throw 'Set handoffCaptureDir to an existing absolute directory.' }; $b = Join-Path $handoffCaptureDir ('codex-' + [guid]::NewGuid().ToString('N')); codex.cmd exec -s workspace-write -c model_reasoning_effort=medium --json --output-last-message ($b + '.report.md') 'Read HANDOFF.md and follow its Implementer instruction for TASK.md.' 1> ($b + '.events.jsonl') 2> ($b + '.stderr.log'); $x = $LASTEXITCODE; Set-Content -LiteralPath ($b + '.exit.txt') -Value $x -Encoding ascii; "Codex exit=$x; capture=$b"
 ```
 
-Use `model_reasoning_effort=high` only when AGENTS.md's escalation rules apply. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
+Keep the prompt on one line: `codex.cmd` splits a multi-line prompt into separate arguments and exits with `unexpected argument`. Put longer instructions in a file and pass `'Read <path> and follow it.'` Use `model_reasoning_effort=high` only when AGENTS.md's escalation rules apply. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
 
 A stderr line `Reading additional input from stdin...` wrapped as a PowerShell NativeCommandError is harmless. Exit 0 is not acceptance: confirm the `.report.md` file exists. On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run naming only the open items; stop after two nudges and review instead.
 
@@ -56,7 +56,7 @@ READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it
 ## Parallel mode (both tools running)
 
 1. The user assigns each tool a distinct task and file set. Record them in the handoff note, not TASK.md, so branches do not conflict on merge.
-2. Preflight: confirm you can create a worktree, commit, and push. If any step is blocked, do not weaken the sandbox: keep your edits in place and name the exact blocked Git command for Claude or the user to run.
+2. Preflight: confirm you can create a worktree, commit, and push. If any step is blocked, do not weaken the sandbox: keep your edits in place and name the exact blocked Git command for Claude or the user to run. Codex's `workspace-write` sandbox protects `.git`, so it cannot create branches, worktrees or commits: Parallel mode needs Codex in full-access mode, or Claude runs every Git step for Codex. Claude may pre-create the Codex worktree and branch and name it in the assignment.
 3. Each tool: own worktree, own branch (`claude/<task>` or `codex/<task>`), commits only there. Worktrees cannot see each other's uncommitted files.
 4. Handoff order: write a new note `handoffs/YYYY-MM-DD-<agent>-<task>.md` from `handoffs/TEMPLATE.md` (never edit another agent's note) → commit → push → verify the remote tip with `git ls-remote origin <branch>` → tell the user.
 5. The receiver reads AGENTS.md, the handoff note, and `git log`/`git diff <base>...<branch>` before continuing.
