@@ -44,7 +44,7 @@ Pick one per task. Record the task once: in TASK.md for Dispatch, in the handoff
 # Routing
 
 - Trivial (typo, rename, formatting, tiny isolated change): one agent → change → targeted check → commit by the mode's commit owner. No plan.
-- Normal and clear: Codex implements → verify → commit.
+- Normal and clear: short TASK.md (goal, write allowlist, Done When) → Codex implements → verify → commit.
 - Complex or ambiguous: Claude plans → TASK.md → Codex implements → verify → commit.
 - Risky (see Risky Changes): as complex, plus Claude reviews TASK.md, the diff, changed files and relevant tests → fix → final verification → commit.
 
