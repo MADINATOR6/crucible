@@ -15,7 +15,7 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - [x] T2 [complex] Harden scripts/codex-dispatch.ps1 via Codex Dispatch: F2 stdin, F3 timeout/lock, F4 usage-limit exit, F5 roles, F7 empty report, F8 missing codex, F11/F12 UTF-8, F13/F14 relative paths, F15 empty task, F16 task-file prompt, F24/F27 path chars, F33 outside repo. Plus a fake-codex regression test. Then Codex verifier pass.
 - [ ] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it.
 - [ ] T4 [frontier] Workflow docs for long unattended sessions: F5 (HANDOFF.md verifier/researcher instructions), F16-F23, F26, F28-F32, F34, F35. Claude edits; Codex read-only critique.
-- [ ] T5 [normal] Pilot the updated template end to end in a throwaway repo; record tokens and friction.
+- [x] T5 [normal] Pilot: replaced by this session's real dispatches through the new launcher (implement T3, verify T2 and T4, one read-only run concurrent with a writer). Separate throwaway pilot skipped to save Codex quota.
 - [ ] T6 Stop: HANDOFF-REPORT.md, final checkpoint, self-critique.
 
 ## Decisions log

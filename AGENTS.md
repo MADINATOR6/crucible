@@ -8,7 +8,7 @@ Not set.
 
 # Folder Map
 
-Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `handoffs/`, `scripts/codex-dispatch.ps1`, `.codex/`.
+Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `.codex/`.
 
 # Commands
 
@@ -31,22 +31,22 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 # Roles
 
 - **Claude Code:** planning, ambiguous or cross-cutting design, TASK.md, risky-diff review, final acceptance, commits to the base branch, push, mirror sync.
-- **Codex:** implementation of well-specified tasks, running checks, reporting evidence.
+- **Codex:** implementation of well-specified tasks, independent verification and research (read-only roles in HANDOFF.md), running checks, reporting evidence.
 - Either may do trivial tasks directly. Never have both solve the same problem.
 
 # Modes
 
-Pick one per task. Record the task once: in TASK.md for Dispatch, in the handoff note for Parallel (do not edit TASK.md on task branches). All commit and push steps anywhere in this file follow the selected mode's ownership.
+Pick one per task. Record the task once: in the task file (default TASK.md) for Dispatch, in the handoff note for Parallel (do not edit TASK.md on task branches). All commit and push steps anywhere in this file follow the selected mode's ownership.
 
-- **Dispatch (default):** Claude writes TASK.md and launches Codex with the launcher in HANDOFF.md. Codex edits the working tree only: no staging, commits, branches or worktrees. Claude verifies and commits.
+- **Dispatch (default):** Claude writes the task file and launches Codex with the launcher in HANDOFF.md. Codex edits the working tree only: no staging, commits, branches or worktrees. Claude verifies and commits.
 - **Parallel:** the user runs both tools at once on separate tasks. Each works in its own worktree on its own branch (`claude/<task>`, `codex/<task>`), commits only there, never to the base branch, and never edits files the other task owns. Hand off only committed work, with a note in `handoffs/` (see HANDOFF.md). Claude reviews and merges; the user may assign review the other way.
 
 # Routing
 
 - Trivial (typo, rename, formatting, tiny isolated change): one agent → change → targeted check → commit by the mode's commit owner. No plan.
-- Normal and clear: short TASK.md (goal, write allowlist, Done When) → Codex implements → verify → commit.
-- Complex or ambiguous: Claude plans → TASK.md → Codex implements → verify → commit.
-- Risky (see Risky Changes): as complex, plus Claude reviews TASK.md, the diff, changed files and relevant tests → fix → final verification → commit.
+- Normal and clear: short task spec (goal, write allowlist, Done When, stop conditions) → Codex implements → verify → commit.
+- Complex or ambiguous: Claude plans → task spec → Codex implements → verify → commit.
+- Risky (see Risky Changes): as complex, plus Claude reviews the task spec, the diff, changed files and relevant tests → fix → final verification → commit.
 
 # Token Efficiency
 
@@ -71,7 +71,7 @@ Pick one per task. Record the task once: in TASK.md for Dispatch, in the handoff
 
 # Tasks and Progress
 
-- One task per session; clear context between unrelated tasks.
+- One task at a time; clear context between unrelated tasks unless working through an unattended queue.
 - Track every acceptance criterion and tick it off as it is done. Before ending a turn, continue with open items or name what blocks them. A progress update is not completion.
 
 # Git and Working Tree
@@ -80,11 +80,12 @@ Pick one per task. Record the task once: in TASK.md for Dispatch, in the handoff
 - Never overwrite, revert, discard or commit unrelated changes. Isolate your task's changes.
 - Verify, then commit one coherent logical change.
 - Never run `git reset --hard`, `git clean`, blanket `git checkout`/`restore`, or force-push over others' work.
-- TASK.md may be overwritten per task after checking it holds no uncommitted manual edits. Commit it with the task it describes.
+- TASK.md may be overwritten per task after checking it holds no uncommitted manual edits. Commit it before dispatch or with the task it describes.
+- Commit messages carry no trailers (no Co-Authored-By).
 
 # Failure Handling
 
-Verification fails → diagnose → one focused repair → verify again. Fails again → stop; roll back only this task's changes, or escalate to higher effort or planning. Roll back immediately if the approach is wrong or regressions spread.
+Verification fails → diagnose → one focused repair → verify again. Fails again → stop; undo only this task's own edits (edit them back; `git restore -- <path>` only for paths with no pre-existing edits; never reset or clean), or escalate to higher effort or planning. Undo the same way at once if the approach is wrong or regressions spread.
 
 # Dependencies
 
@@ -107,7 +108,13 @@ If something material is unverified, report UNKNOWN (what is uncertain), CHECKED
 
 # Friction
 
-Log real friction in FRICTION.md. Count 1: log it, take no action. Count 2: observe. Count 3+: investigate whether a change is justified and is the simplest fix. If FRICTION.md is outside your write allowlist or another task owns it, put the friction in your report or handoff note instead.
+Log real friction in FRICTION.md: date, symptom, cost, fix proposal, count. Count 1: log only. Count 2: observe. Count 3+, or one costly failure (lost work, a blocked session): make the simplest justified fix. If FRICTION.md is outside your write allowlist or another task owns it, put the friction in your report or handoff note instead.
+
+# Unattended Sessions
+
+- MEMORY.md holds a long session's state: task queue, decisions, findings, failure modes, checkpoints. Claude reads it first and updates it at every task boundary. Its `Last task commit` is the newest commit that finished a task; plan and state commits may follow it.
+- Chain queued tasks, one at a time. Launcher exit 4 (Codex usage limit): note the reset time if given, otherwise UNKNOWN, and do non-Codex work meanwhile.
+- When stopping, Claude writes HANDOFF-REPORT.md: state, anything MEMORY.md lacks, exact next steps.
 
 # Definition of Done
 

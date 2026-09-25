@@ -17,7 +17,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\codex-dispatch.ps1
 
 Options: `-Role verify` or `-Role research` (read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`); `-TaskFile <path>` for a brief other than TASK.md; `-Effort high` only when AGENTS.md's escalation rules apply; `-TimeoutMinutes <n>` (default 60); `-CaptureDir` (default `%USERPROFILE%\codex-captures`, outside the repo and OneDrive). The script passes Codex a one-line prompt naming the role's instruction below and the task file (`codex.cmd` breaks on multi-line prompts), gives it a closed stdin, prints its token usage and report, and holds a lock so only one write dispatch runs per checkout. Claude Code: run it in the background; a dispatch can outlast the shell tool's timeout. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
 
-Exit codes: Codex's own (0 = turn completed, never acceptance); 1 refused before dispatch (the message says why); 3 no report; 4 Codex usage limit (do non-Codex work until the printed `RESETS:` time); 5 timeout (Codex's process tree was killed); 6 another write dispatch is running.
+Exit codes: Codex's own (0 = turn completed, never acceptance); 1 refused or launcher failure (the message says why; if Codex ran, inspect the captures and the diff); 3 no report; 4 Codex usage limit (do non-Codex work; `RESETS:` gives the time when Codex states one); 5 timeout (Codex's process tree was killed); 6 another write dispatch is running.
 
 On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run once with a `-TaskFile` naming only the open items; if items remain, review instead.
 
@@ -30,7 +30,7 @@ Match the report's task and baseline to this run → inspect the diff for correc
 Implement the task file named in the prompt. Claude owns planning, final review, commits, push and mirror sync.
 1. Confirm repo root. Read AGENTS.md and the task file, then only the source the task needs. Record HEAD and initial git status. Stop before editing if the task file is empty, has no write allowlist, or overlaps pre-existing work you cannot separate.
 2. Make the smallest correct change inside the write allowlist. Do not create tests, fixtures or scratch files unless the task file authorises their paths.
-3. Do not stage, commit, change branches, create worktrees, push, deploy, sync OneDrive, or edit workflow files (AGENTS.md, CLAUDE.md, HANDOFF.md, MEMORY.md, FRICTION.md, .codex/, scripts/) unless the write allowlist names them. Propose workflow changes in the report instead.
+3. Do not stage, commit, change branches, create worktrees, push, deploy or sync OneDrive. Edit workflow files (AGENTS.md, CLAUDE.md, HANDOFF.md, MEMORY.md, FRICTION.md, .codex/, scripts/) only when the write allowlist names them; otherwise propose changes in the report.
 4. Respect the sandbox. Never broaden permissions or install tools to get around a restriction; report it.
 5. Ambiguous data rules, destructive behaviour, conflicting requirements or needed scope growth: stop that part, report UNKNOWN / CHECKED / NEEDED with a proposed resolution, and continue only independent work.
 6. Run Codex-owned checks from Done When. A check is PASS only with evidence from this run; static reading cannot prove runtime behaviour.

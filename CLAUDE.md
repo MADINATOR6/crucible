@@ -1,3 +1,3 @@
 @AGENTS.md
 
-Before any Codex dispatch or parallel handoff, read HANDOFF.md and follow the section for the task's mode. After Codex returns, check its report against HANDOFF.md, verify, review the diff if risky, then commit.
+HANDOFF.md is the handoff contract (some prompts call it HANDOFF-CONTRACT.md). Read it before any Codex dispatch or parallel handoff and follow the section for the task's mode. After Codex returns, follow its After return steps.
