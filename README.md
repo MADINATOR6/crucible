@@ -14,7 +14,7 @@ A lightweight workflow template for running Claude Code and Codex on the same re
 | `FRICTION.md` | Log of real workflow friction. |
 | `.codex/config.toml` | Codex reasoning effort (medium). |
 | `BOOTSTRAP.md` | Instructions for applying this template to a repo. Not copied. |
-| `MEMORY.md` | This repo's own unattended-session state. Not copied. |
+| `MEMORY.md`, `HANDOFF-REPORT.md` | This repo's own unattended-session state and last stop report. Not copied. |
 | `scripts/test-*.ps1` | Regression tests for the two scripts (fake Codex, fake OneDrive). Not copied. |
 | `prompts/` | Standalone prompts to paste into Claude Code. Not copied. |
 

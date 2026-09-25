@@ -4,19 +4,25 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 
 ## Current state
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
-- Last task commit: f44e0c9 (T0)
-- Task: T3 mirror safety (Codex Dispatch)
-- Status: in-progress
+- Last task commit: 3389199 (T3 verifier fixes); the stop-report commit follows it
+- Task: none (queue complete)
+- Status: idle. Next session: read HANDOFF-REPORT.md, then ask the user for a new queue or the open questions below.
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
 - [x] T0 [normal] Create MEMORY.md with this queue. (f44e0c9)
 - [x] T1 [complex] Audit. 35 findings (F1-F35), 4 fully verified before the Claude session limit hit; rest triaged by Claude. Evidence: `%TEMP%\ccx-audit\journal.jsonl`, harness `%TEMP%\ccx-audit\launcher`.
 - [x] T2 [complex] Harden scripts/codex-dispatch.ps1 via Codex Dispatch: F2 stdin, F3 timeout/lock, F4 usage-limit exit, F5 roles, F7 empty report, F8 missing codex, F11/F12 UTF-8, F13/F14 relative paths, F15 empty task, F16 task-file prompt, F24/F27 path chars, F33 outside repo. Plus a fake-codex regression test. Then Codex verifier pass.
-- [x] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it.
+- [x] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it. (59629a1, verifier fixes 3389199)
 - [x] T4 [frontier] Workflow docs for long unattended sessions (fb5222d): F5 (HANDOFF.md verifier/researcher instructions), F16-F23, F26, F28-F32, F34, F35. Claude edits; Codex read-only critique.
 - [x] T5 [normal] Pilot: replaced by this session's real dispatches through the new launcher (implement T3, verify T2 and T4, one read-only run concurrent with a writer). Separate throwaway pilot skipped to save Codex quota.
-- [ ] T6 Stop: HANDOFF-REPORT.md, final checkpoint, self-critique.
+- [x] T6 Stop: HANDOFF-REPORT.md, final checkpoint, self-critique. TASK.md reset to the blank template (now with task ID/depth and Stop Conditions).
+
+## Self-critique (2026-09-25 session)
+- Went well: fake-Codex and fake-OneDrive harnesses made every script claim testable; the Codex verifier caught 2 high bugs Claude missed; a real-target dry run caught the OneDrive placeholder bug.
+- Cost: the 87-agent audit (2.7M Claude tokens, 4.5 h blocked); Codex T2 at high effort (3.6M input); about 15 min on the junction/-File host quirk.
+- Stronger version: triage audit findings before any verifier fan-out; dry-run against the real target before the first commit of a file-system script; stamp every checkpoint from Get-Date.
+- Rules added: AGENTS.md risky routing (Codex verifier + real-target dry run); friction cost threshold; no trailers.
 
 ## Decisions log
 - 2026-09-25 | HANDOFF.md is this repo's handoff contract; no separate HANDOFF-CONTRACT.md | HANDOFF.md already holds the launcher, implementer instruction, report format and sandbox limits; a second file would duplicate it | -
@@ -69,3 +75,4 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 18:58 +10:00: T4 docs committed fb5222d after a read-only Codex verifier (164k input / 125k cached / 2k output; 6 findings applied).
 - 2026-09-25 19:29 +10:00: T3 Codex PARTIAL (high; 789k input / 751k cached / 13.6k output). Claude fixed worktree check, OneDrive cloud-placeholder false refusal (found by a real-OneDrive dry run), -Create parent, test harness races. Mirror suite 18/18 + 1 SKIP via -File, 19/19 via -Command. Real OneDrive -Create -DryRun: exit 0, 20 committed files listed, nothing created. T3 committed 59629a1.
 - 2026-09-25 19:38 +10:00: T3 Codex verifier (medium; 687k input / 645k cached / 5.2k output) found 2 high bugs: staging/destination overlap, export-ignore dropping committed files. Claude fixed both (checkout-index with private index; containment refusal); mirror suite 20/20 + 1 SKIP via -File, 21/21 via -Command; real dry run lists 22 = git ls-files. Removed verifier leftovers %TEMP%\ccx-t3v (no links inside).
+- 2026-09-25 19:53 +10:00: fresh clone of pushed 3389199 passes both suites (23/23; 20/20 + 1 SKIP). Clone removed. Writing HANDOFF-REPORT.md; session stopping (queue complete).
