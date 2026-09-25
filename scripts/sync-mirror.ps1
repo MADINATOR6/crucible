@@ -12,12 +12,12 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $previousEncoding = [Console]::OutputEncoding
 $previousOutputEncoding = $OutputEncoding
 $staging = $null
-$archive = $null
 $code = 1
 
-function Invoke-Native([string]$File, [string[]]$Arguments) {
+function Invoke-Native([string]$File, [string[]]$Arguments, [hashtable]$Environment = @{}) {
   $info = New-Object Diagnostics.ProcessStartInfo
   $info.FileName = $File
+  foreach ($name in $Environment.Keys) { $info.EnvironmentVariables[$name] = $Environment[$name] }
   # Windows native argument quoting, including trailing backslashes.
   $info.Arguments = ($Arguments | ForEach-Object {
     '"' + (($_ -replace '(\\*)"', '$1$1\"') -replace '(\\+)$', '$1$1') + '"'
@@ -104,7 +104,7 @@ try {
     if ((Test-Path -LiteralPath $parent) -and -not (Test-Path -LiteralPath $parent -PathType Container)) {
       throw "Mirror parent is not a folder: $parent"
     }
-    # Git cannot contain a directory beneath a symlink. Refuse links before tar
+    # Git cannot contain a directory beneath a symlink. Refuse links before
     # extraction as well, so neither extraction nor copying can follow one.
     $tree = Invoke-Native 'git.exe' @('-C', $root, 'ls-tree', '-r', 'HEAD')
     if ($tree.Code -eq 0 -and $tree.Out -match '(?m)^120000 ') { throw 'Refusing symbolic links in HEAD.' }
@@ -113,16 +113,24 @@ try {
     do {
       $candidate = Join-Path $tempRoot ('ccx-mirror-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     } while (Test-Path -LiteralPath $candidate)
+    # /MIR would delete its own source if staging and destination contained each other.
+    $stagingPrefix = $candidate.TrimEnd('\') + '\'
+    $destPrefix = $dest.TrimEnd('\') + '\'
+    if ($stagingPrefix.StartsWith($destPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        $destPrefix.StartsWith($stagingPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+      throw 'TEMP and the mirror destination overlap; refusing.'
+    }
     [void][IO.Directory]::CreateDirectory($candidate)
     $staging = $candidate
-    $archive = Join-Path $staging 'head.tar'
     $source = Join-Path $staging 'tree'
     [void][IO.Directory]::CreateDirectory($source)
-    $packed = Invoke-Native 'git.exe' @('-C', $root, 'archive', '--format=tar', ('--output=' + $archive), 'HEAD')
-    if ($packed.Code -ne 0) { throw "git archive failed ($($packed.Code)): $($packed.Err.Trim())" }
-    # Git's tar header names are UTF-8; Windows tar otherwise uses an OEM code page.
-    $unpacked = Invoke-Native (Join-Path $env:SystemRoot 'System32\tar.exe') @('-xf', $archive, '--options', 'hdrcharset=UTF-8', '-C', $source)
-    if ($unpacked.Code -ne 0) { throw "tar failed ($($unpacked.Code)): $($unpacked.Err.Trim())" }
+    # A private index plus checkout-index writes every file committed at HEAD. Unlike git archive,
+    # export-ignore attributes (including uncommitted .git/info/attributes) cannot drop files.
+    $privateIndex = @{ GIT_INDEX_FILE = (Join-Path $staging 'index') }
+    $read = Invoke-Native 'git.exe' @('-C', $root, 'read-tree', 'HEAD') $privateIndex
+    if ($read.Code -ne 0) { throw "git read-tree HEAD failed ($($read.Code)): $($read.Err.Trim())" }
+    $written = Invoke-Native 'git.exe' @('-C', $root, 'checkout-index', '--all', ('--prefix=' + ($source -replace '\\', '/') + '/')) $privateIndex
+    if ($written.Code -ne 0) { throw "git checkout-index failed ($($written.Code)): $($written.Err.Trim())" }
     Assert-NoLinks $source -Tree
     if (-not (Get-ChildItem -LiteralPath $source -Recurse -Force -File | Select-Object -First 1)) {
       throw 'Staging folder has no files; destination was not touched.'

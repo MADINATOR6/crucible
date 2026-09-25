@@ -243,22 +243,45 @@ try {
       Assert ([IO.File]::ReadAllText((Join-Path $target 'sentinel.txt')) -ceq 'must survive') 'junction target changed'
     } finally { [IO.Directory]::Delete($link) }
   }
-  Case 'archive failure leaves destination untouched' {
+  Case 'local export-ignore cannot drop committed files' {
+    $attributes = Join-Path $repo '.git\info\attributes'
+    New-Directory (Split-Path $attributes -Parent)
+    Write-Utf8File $attributes "readme.txt export-ignore`n"
+    try {
+      Check-Result (Run-Mirror $repo) 0 'MIRROR OK'
+      Assert ((Test-Path -LiteralPath (Join-Path $dest 'readme.txt')) -and
+              [IO.File]::ReadAllText((Join-Path $dest 'readme.txt')) -ceq 'committed content') 'committed file dropped or stale'
+      Assert (-not (Test-Path -LiteralPath (Join-Path $dest 'extra.txt'))) 'extra mirror file not removed'
+    } finally { Remove-Item -LiteralPath $attributes -Force }
+  }
+  Case 'staging inside destination refused' {
+    $script:childTemp = Join-Path $dest 'tmp'
+    try {
+      New-Directory $childTemp
+      $before = Snapshot $fakeDrive
+      Check-Result (Run-Mirror $repo) 1 'TEMP and the mirror destination overlap'
+      Assert ((Snapshot $fakeDrive) -ceq $before) 'refusal changed mirror'
+    } finally {
+      Remove-Item -LiteralPath $childTemp -Recurse -Force -ErrorAction SilentlyContinue
+      $script:childTemp = Join-Path $scratch 'temp'
+    }
+  }
+  Case 'unborn HEAD leaves destination untouched' {
     $unborn = Join-Path $scratch 'unborn'
     New-Directory $unborn
     Run-Git @('init', $unborn)
     $before = Snapshot $fakeDrive
-    Check-Result (Run-Mirror $unborn '-Create') 1 'git archive failed'
-    Assert ((Snapshot $fakeDrive) -ceq $before) 'archive failure changed destination'
+    Check-Result (Run-Mirror $unborn '-Create') 1 'git read-tree HEAD failed'
+    Assert ((Snapshot $fakeDrive) -ceq $before) 'unborn HEAD changed destination'
   }
-  Case 'empty archive leaves destination untouched' {
+  Case 'empty commit leaves destination untouched' {
     $empty = Join-Path $scratch 'empty'
     New-Directory $empty
     Run-Git @('init', $empty)
     Run-Git @('-C', $empty, '-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '--allow-empty', '-m', 'empty')
     $before = Snapshot $fakeDrive
     Check-Result (Run-Mirror $empty '-Create') 1 'Staging folder has no files'
-    Assert ((Snapshot $fakeDrive) -ceq $before) 'empty archive changed destination'
+    Assert ((Snapshot $fakeDrive) -ceq $before) 'empty commit changed destination'
   }
   Case 'robocopy failure reported' {
     $failureRepo = Join-Path $scratch 'failure'
@@ -276,7 +299,7 @@ try {
       Assert (Test-Path -LiteralPath (Join-Path $fakeDrive ('AgentWorkspace\' + $repoName + '\readme.txt'))) 'mirror not created under a new AgentWorkspace'
     } finally { $script:fakeDrive = Join-Path $scratch 'OneDrive' }
   }
-  Case 'no staging folders or tar files remain' {
+  Case 'no staging folders remain' {
     Assert (@(Get-ChildItem -LiteralPath $childTemp -Force).Count -eq 0) 'staging leftovers'
   }
 } catch {

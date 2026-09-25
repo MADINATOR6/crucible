@@ -23,7 +23,7 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 # Mobile Sync
 
 - Phone and iPad can see a one-way, read-only copy of the committed base branch in OneDrive: `%OneDrive%\AgentWorkspace\<repo folder name>`. Edit files only in this repo, never in the copy.
-- After each commit to the base branch, Claude or the user refreshes it from the base-branch checkout: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync-mirror.ps1`. It copies only committed files (never gitignored, untracked or uncommitted ones), removes files deleted from the branch, skips `.env*`, `*.pem`, `*.key` and `node_modules`, and does nothing when no copy exists yet (`-Create` starts one, `-DryRun` previews). Exit 0 means synced or skipped. Codex's sandbox may not be able to write to OneDrive.
+- After each commit to the base branch, Claude or the user refreshes it from the base-branch checkout: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync-mirror.ps1`. It copies exactly what is committed at HEAD (untracked files, gitignored ones included, and uncommitted edits never reach the copy), removes files deleted from the branch, skips `.env*`, `*.pem`, `*.key` and `node_modules`, and does nothing when no copy exists yet (`-Create` starts one, `-DryRun` previews). Exit 0 means synced or skipped. Codex's sandbox may not be able to write to OneDrive.
 - Never commit secrets or confidential data: anything committed reaches the copy.
 
 # Roles
@@ -44,7 +44,7 @@ Pick one per task. Record the task once: in the task file (default TASK.md) for 
 - Trivial (typo, rename, formatting, tiny isolated change): one agent → change → targeted check → commit by the mode's commit owner. No plan.
 - Normal and clear: short task spec (goal, write allowlist, Done When, stop conditions) → Codex implements → verify → commit.
 - Complex or ambiguous: Claude plans → task spec → Codex implements → verify → commit.
-- Risky (see Risky Changes): as complex, plus Claude reviews the task spec, the diff, changed files and relevant tests → fix → final verification → commit.
+- Risky (see Risky Changes): as complex, plus Claude reviews the task spec, the diff, changed files and relevant tests, and a Codex verifier run tries to break it (file-system changes also get a read-only dry run on the real target) → fix → final verification → commit.
 
 # Token Efficiency
 
