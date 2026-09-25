@@ -1,0 +1,10 @@
+# Never commit secrets, keys or local logs (they can hold personal file names).
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+*.log
+.claude/settings.local.json
