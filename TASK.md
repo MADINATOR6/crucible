@@ -3,59 +3,54 @@
 <!-- Task spec for Dispatch-mode work (Parallel tasks use their handoff note instead). May be overwritten per task after checking it holds no uncommitted manual edits. Reference paths; do not paste files. -->
 
 ## Mode and Owner
-Dispatch. Task T2 (launcher hardening). Codex implements and runs the regression test; Claude reviews, re-runs checks, commits and pushes.
+Dispatch. Task T3 (mirror safety). Codex implements and runs the regression test; Claude reviews (risky: destructive copy), re-runs checks, updates AGENTS.md/BOOTSTRAP.md, commits and pushes.
 
 ## Goal
-Make `scripts/codex-dispatch.ps1` safe for long unattended sessions on Windows PowerShell 5.1, and add a self-contained regression test that proves it with a fake Codex (never the real one).
+Replace the robocopy one-liner in AGENTS.md "Mobile Sync" with `scripts/sync-mirror.ps1`, which mirrors only the committed tree of the current checkout into OneDrive. Audit finding F1 (confirmed): the one-liner copies the whole working tree, so gitignored secrets (for example `secrets/*.json`, `id_rsa`, `*.pfx`, `.claude/settings.local.json`) and uncommitted edits reach OneDrive, and `git status` does not show them. Also F6 (no retry limit, exit code lost), F9 (it silently creates mirrors for repos that never had one), F10 (files deleted from the repo stay in the mirror forever).
 
-Required behaviour (IDs are the audit findings):
-1. F2 stdin: Codex must never wait on the caller's stdin. Give it an empty, closed stdin.
-2. F3 timeout: new `-TimeoutMinutes` (number, default 60; fractions allowed so the test can use a few seconds). On timeout, kill the whole Codex process tree (`taskkill /T /F /PID <pid>`), print `TIMEOUT after <n> min`, exit 5. Capture files must still be written as far as available.
-3. F3 single writer: for `workspace-write` and `danger-full-access`, hold a lock file at `<absolute git dir>\codex-dispatch.lock` (use `git rev-parse --absolute-git-dir`; it works in worktrees). If a live lock exists, print `BUSY: another write dispatch is running (pid <n>)` and exit 6. A live lock is one another launcher holds open for its whole run; a lock file nobody holds open is stale whatever PID it records (Windows reuses PIDs) and is replaced. (Claude review decision, 2026-09-25.) Always remove your own lock on exit, including failure and timeout paths. `read-only` runs take no lock.
-4. F4 usage limit: after the run, scan the `error` and `turn.failed` event messages and the stderr capture for `hit your usage limit`, `Quota exceeded` or `usage not included` (case-insensitive; the apostrophe in "You've" may be U+2019). If found, print `USAGE LIMIT: <message>` and, when the message contains `try again at <time>`, also `RESETS: <time>`; exit 4 whatever Codex's exit code was. Otherwise print each distinct error/turn.failed message as `Codex error: <message>`.
-5. F5/F16 roles and task file: replace `-PromptFile` with `-Role implement|verify|research` (default `implement`) and `-TaskFile <path>` (default `TASK.md`). The prompt passed to Codex is exactly `Read HANDOFF.md and follow its <Implementer|Verifier|Researcher> instruction for <TaskFile as absolute path>.` For `verify` and `research`, the sandbox defaults to `read-only` unless `-Sandbox` is passed explicitly. `research` requires an explicit `-TaskFile`.
-6. F15: refuse to dispatch (exit 1 with a clear message) if HANDOFF.md is missing at the repo root, if the task file is missing, or if the task file has no content once HTML comments and heading lines are removed.
-7. F7: a report file that is missing OR contains only whitespace counts as no report: print the NO REPORT line; exit 3 if Codex exited 0, else Codex's code (unless rule 2 or 4 applies).
-8. F8: if `codex.cmd` is not on PATH, exit 1 with `codex.cmd not found on PATH` before creating any capture file.
-9. F33: outside a Git repository print `Not inside a Git repository.` and exit 1 (no NativeCommandError text).
-10. F13/F14: resolve `-TaskFile` and `-CaptureDir` relative to the caller's current directory, before changing to the repo root.
-11. F11/F12: print Codex's report and all launcher output as UTF-8 regardless of the console code page (for example `→` and `–` survive), and decode git output as UTF-8 so non-ASCII repo paths work. Restore the console encoding on exit. Capture files (`.events.jsonl`, `.stderr.log`) should be UTF-8 (raw bytes from Codex is fine), not UTF-16.
-12. F24/F27: paths containing `[` `]` `&` `(` `)` `'` or spaces must work. Refuse (exit 1) a capture path or task-file path containing `%` or `"`, which cmd.exe cannot pass safely.
-13. Keep existing behaviour: MAX_PATH guard before creating anything; token usage line summed from all `turn.completed` events (ignore non-JSON lines); `Codex exit=<n>; capture=<base>` line; report printed after `--- report ---`; exit Codex's code when none of the rules above apply; `-Effort medium|high`; `-Sandbox`; `-CaptureDir` default `%USERPROFILE%\codex-captures`. Update the comment header so it lists every parameter and every exit code (0, Codex's own, 3, 4, 5, 6, 1 for refusals).
+Required behaviour:
+1. Outside a Git repository: print `Not inside a Git repository.` and exit 1. In a linked worktree (`git rev-parse --git-dir` differs from `--git-common-dir`): print `Run from the base-branch checkout, not a worktree.` and exit 1.
+2. `$env:OneDrive` empty or unset: print `SKIPPED: OneDrive not set.` and exit 0.
+3. Destination is exactly `$env:OneDrive\AgentWorkspace\<leaf name of the repo root>`. Refuse (exit 1) if the leaf is empty. If the destination folder does not exist: without `-Create` print `SKIPPED: no mirror at <dest>. Pass -Create to start one.` and exit 0, creating nothing; with `-Create` create it.
+4. Source is `HEAD` only: `git archive --format=tar` into a new, uniquely named staging folder under `$env:TEMP` (short name, for example `ccx-mirror-<8 hex>`), extracted with the Windows `tar.exe`. If `git archive` or `tar` fails, or the staging folder has no files, print why and exit 1 without touching the destination.
+5. Copy with `robocopy <staging> <dest> /MIR /XD .git node_modules /XF .git .env* *.pem *.key /R:1 /W:1 /NFL /NDL /NJH /NJS /NP`. robocopy exit 0-7: print `MIRROR OK (robocopy <n>): <dest>` and exit 0. 8 or more: print `MIRROR FAILED (robocopy <n>): <dest>` and exit 1.
+6. `-DryRun`: same checks, adds `/L`, changes nothing, prints robocopy's list of what would change (drop `/NFL /NDL` in this mode).
+7. Always remove the staging folder and tar file, and nothing else, on every exit path.
+8. Never write, delete or create anything outside the destination folder (besides staging), and never delete the destination folder itself or its parent.
+9. UTF-8 safe: repo root or file names with non-ASCII characters (for example `é`) work. Decode git output as UTF-8 and restore the console encoding on exit.
+10. Comment header: usage, parameters (`-Create`, `-DryRun`), exit codes (0 OK or skipped, 1 refused or failed).
 
 ## Relevant Files
-- `scripts/codex-dispatch.ps1` (current launcher)
-- `HANDOFF.md` lines 11-19 (how the launcher is documented; read only)
-- Reference only, outside the repo: `%TEMP%\ccx-audit\launcher\patched\codex-dispatch.ps1` (an auditor's partial fix covering items 1, 6, 8-12), `%TEMP%\ccx-audit\launcher\fakebin\` (fake codex shim) and `driver.js` (spawns with an open stdin pipe and a timeout). Reuse ideas freely; do not edit them.
-- Codex facts: `codex exec` reads stdin to EOF when stdin is not a TTY and a prompt argument is given; exit 1 on usage limit; `--output-last-message` is written only when the turn completes and may be empty; `--json` failure events are `{"type":"error","message":...}` and `{"type":"turn.failed","error":{"message":...}}`.
+- `AGENTS.md` lines 23-29 (current Mobile Sync rules and one-liner; read only)
+- `scripts/codex-dispatch.ps1` and `scripts/test-codex-dispatch.ps1` (style reference for PowerShell 5.1 and the test harness pattern; read only)
 
 ## Write Allowlist
-- `scripts/codex-dispatch.ps1` (explicitly authorized for this task, although AGENTS.md's folder map lists it among workflow files)
-- `scripts/test-codex-dispatch.ps1` (new)
-- Temporary files only under `$env:TEMP\ccx-t2\` (create and delete freely). If the sandbox blocks writes there, say so and use no other location.
+- `scripts/sync-mirror.ps1` (new)
+- `scripts/test-sync-mirror.ps1` (new)
+- Temporary files only under `$env:TEMP\ccx-t3\` and the staging folders the script itself creates.
 
 ## Constraints
-- Windows PowerShell 5.1 syntax only (no `&&`, `??`, ternary). ASCII-only source in both .ps1 files (use `[char]` codes for non-ASCII test strings). Keep the launcher readable: comments only where behaviour is non-obvious.
-- Never run the real `codex exec`. The test must put a fake `codex.cmd` first on PATH for its child processes only, and must fail loudly if it ever resolves the real one.
-- The test script: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-codex-dispatch.ps1` from the repo root. It creates throwaway git repos and the fake under `$env:TEMP\ccx-t2\`, runs each case in a child `powershell -NoProfile` process, prints one `PASS <case>` or `FAIL <case>: <why>` line per case and a final `<passed>/<total> passed`, exits 0 only if all pass, cleans up its temp folder and leaves no processes running. It prints its duration (about 2-3 minutes); per-case time limits catch hangs.
-- Required test cases: success with report and token sum across 2 turns; nonzero exit without report; exit 0 without report (3); whitespace-only report (3); usage limit with reset time (4, prints USAGE LIMIT and RESETS); timeout with a fake that sleeps (5, and the fake process is gone afterwards); stdin: launcher started with an open, never-closed stdin pipe while the fake reads stdin to EOF must still finish; lock: a held lock gives 6, a stale lock (including one naming a live PID) is replaced, read-only run ignores the lock; `-Role verify` passes `-s read-only` and the Verifier prompt; `-Role research` without `-TaskFile` is refused; relative `-TaskFile` and `-CaptureDir` from a subdirectory; empty/unfilled task file refused; missing HANDOFF.md refused; outside a repo gives the friendly message; codex.cmd missing gives exit 1; UTF-8 report containing `→` and `–` printed intact (check the child's stdout bytes); repo path containing a space, `&`, `(`, `)` and `[1]`.
-- Do not stage, commit, or edit any other file. Report proposed HANDOFF.md/AGENTS.md wording changes in the report instead.
+- Windows PowerShell 5.1 syntax only. ASCII-only source (build non-ASCII test names with `[char]` codes).
+- The test never touches the real OneDrive: every case runs in a child `powershell -NoProfile` process whose `$env:OneDrive` points at a folder under `$env:TEMP\ccx-t3\`. The test must abort before running any case if that variable would resolve to the real OneDrive path.
+- Test run: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-sync-mirror.ps1` from the repo root. One `PASS <case>` / `FAIL <case>: <why>` line per case, final `<passed>/<total> passed`, exit 0 only if all pass, clean up `$env:TEMP\ccx-t3\` and any `ccx-mirror-*` staging it caused, under 2 minutes.
+- Required cases: OneDrive unset gives SKIPPED/0; missing destination without `-Create` gives SKIPPED/0 and creates nothing; `-Create` copies committed files; a gitignored secret, an untracked file and an uncommitted edit are NOT in the mirror (the mirror has the committed content); a committed file later deleted and committed disappears from the mirror on the next sync; a sibling folder `AgentWorkspace\other` and its files are untouched; committed `.env`, `x.pem`, `y.key` are still excluded; a linked worktree is refused; outside a repo is refused; `-DryRun` changes nothing; a non-ASCII file name is mirrored intact; no staging folder is left behind; robocopy failure is reported with exit 1 (for example make the destination unwritable or replace it with a file, whichever is reliable).
+- Do not stage, commit, or edit any other file. Propose AGENTS.md/BOOTSTRAP.md wording in the report.
 
 ## Out of Scope
-- HANDOFF.md, AGENTS.md, README.md, BOOTSTRAP.md edits (Claude does them after review).
-- The OneDrive mirror command.
-- Any change to Codex config, PATH outside child processes, or global settings.
+- Running the script against the real OneDrive or any existing mirror.
+- AGENTS.md, BOOTSTRAP.md, README.md edits (Claude).
 
 ## Done When
-- (Codex) Items 1-13 implemented in `scripts/codex-dispatch.ps1`.
-- (Codex) `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-codex-dispatch.ps1` prints all PASS and exits 0; paste only the summary line and any FAIL lines.
-- (Codex) `git diff --check` clean; `git status --short` shows only the two allowlisted scripts plus Claude's pre-existing edits.
-- (Claude) Re-run the test; review the diff; one real read-only Verifier dispatch through the new launcher succeeds (after HANDOFF.md gains the Verifier instruction).
+- (Codex) Items 1-10 implemented in `scripts/sync-mirror.ps1`.
+- (Codex) `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-sync-mirror.ps1` prints all PASS and exits 0; paste only the summary line and any FAIL lines.
+- (Codex) `git diff --check` clean; `git status --short` shows only the two new scripts plus Claude's pre-existing edits.
+- (Claude) Re-run the test; review the diff line by line (destructive copy); AGENTS.md Mobile Sync points to the script.
 
 ## Verify
-- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-codex-dispatch.ps1`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-sync-mirror.ps1`
 - `git diff --check`
 
 ## Stop conditions
 - A required check fails twice after one focused repair: stop and report PARTIAL with both attempts.
-- The sandbox blocks the temp folder, child processes or taskkill: stop that part, report BLOCKED with the exact denied command.
+- The sandbox blocks the temp folder, child processes, git archive, tar or robocopy: stop that part, report BLOCKED with the exact denied command.
+- Any doubt that a code path could delete outside the destination folder: stop and report UNKNOWN / CHECKED / NEEDED.
