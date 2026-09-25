@@ -4,18 +4,18 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 
 ## Current state
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
-- Last task commit: 3bfe4f5 (session start, fast-forwarded from origin)
-- Task: T0 bootstrap operating state
+- Last task commit: f44e0c9 (T0)
+- Task: T2 launcher hardening (Codex Dispatch)
 - Status: in-progress
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
-- [ ] T0 [normal] Create MEMORY.md with this queue.
-- [ ] T1 [complex] Audit the template: launcher bugs, rule contradictions, rules that would cause real failures. Adversarially verify every finding; confirmed ones become fix tasks.
-- [ ] T2 [complex] Fix confirmed launcher defects (scripts/codex-dispatch.ps1) through Codex Dispatch, then a read-only Codex verifier pass.
-- [ ] T3 [frontier] Make the workflow docs support long unattended sessions (state file, stop report, verifier/researcher dispatch, usage-limit pivot) without raising per-session token cost. Design panel first.
-- [ ] T4 [normal] Pilot the updated template end to end in a throwaway repo; record tokens and friction.
-- [ ] T5 [normal] Docs consistency pass (README, BOOTSTRAP file lists).
+- [x] T0 [normal] Create MEMORY.md with this queue. (f44e0c9)
+- [x] T1 [complex] Audit. 35 findings (F1-F35), 4 fully verified before the Claude session limit hit; rest triaged by Claude. Evidence: `%TEMP%\ccx-audit\journal.jsonl`, harness `%TEMP%\ccx-audit\launcher`.
+- [ ] T2 [complex] Harden scripts/codex-dispatch.ps1 via Codex Dispatch: F2 stdin, F3 timeout/lock, F4 usage-limit exit, F5 roles, F7 empty report, F8 missing codex, F11/F12 UTF-8, F13/F14 relative paths, F15 empty task, F16 task-file prompt, F24/F27 path chars, F33 outside repo. Plus a fake-codex regression test. Then Codex verifier pass.
+- [ ] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it.
+- [ ] T4 [frontier] Workflow docs for long unattended sessions: F5 (HANDOFF.md verifier/researcher instructions), F16-F23, F26, F28-F32, F34, F35. Claude edits; Codex read-only critique.
+- [ ] T5 [normal] Pilot the updated template end to end in a throwaway repo; record tokens and friction.
 - [ ] T6 Stop: HANDOFF-REPORT.md, final checkpoint, self-critique.
 
 ## Decisions log
@@ -23,19 +23,36 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 | No OneDrive mirror sync for this repo | `%OneDrive%\AgentWorkspace` has only claude-codex-template; creating a new mirror is outside the task | -
 - 2026-09-25 | Commits carry no trailer | User's operating prompt: no trailer, no Co-Authored-By | -
 - 2026-09-25 | Codex may edit scripts/ under a TASK.md allowlist; Claude edits workflow docs | HANDOFF.md forbids Codex from editing AGENTS.md, CLAUDE.md, HANDOFF.md, .codex/ | -
+- 2026-09-25 | Stop re-running the audit's 75 failed verifiers; Claude triages instead, Codex (separate quota) implements and verifies | The 87-agent workflow used 2.7M tokens and hit the Claude session limit (blocked 13:30-18:00) | -
+- 2026-09-25 | Session clock restarted at 18:02 when the user said "continue"; 240-min stop at 22:00 | User instruction after the limit reset | -
+- 2026-09-25 | Claude workflows capped at about 4 agents for the rest of this session | Claude session limit is the binding constraint for a 10-12 h unattended run | -
+- 2026-09-25 | TASK.md is used for this repo's Dispatch tasks and reset to the blank template at session end | It is both the shipped template and live state (F18); BOOTSTRAP fix is part of T4 | -
 
 ## Open questions
 - Delete merged remote branch `origin/claude/laptop-efficiency-tasks-6598uz`? | User decision (remote deletion) | no
-- Should `prompts/laptop-efficiency.md` live in this template repo? | User decision | no
+- Should `prompts/laptop-efficiency.md` live in this template repo? Its Phase 2 writes logs of personal file names into the repo (F25) | User decision | no
+- Existing powerlifting OneDrive mirror may already hold gitignored/untracked files (F1 verifier saw HANDOFF-REPORT.md there) | User review of `%OneDrive%\AgentWorkspace\claude-codex-template` | no
 
 ## Research findings
 - codex-cli 0.156.1 installed at `%LOCALAPPDATA%\Programs\nodejs\codex.cmd` | `codex.cmd --version` | 2026-09-25
-- Last dispatch stderr showed `Reading additional input from stdin...`: codex exec reads stdin when it is not a TTY | `%USERPROFILE%\codex-captures\codex-c92f...stderr.log` | 2026-09-25
 - The local folder `claude-codex-template` is the powerlifting-tracker repo, not this template | `git remote -v` | 2026-09-25
+- GitHub repo is private (anonymous browser gets 404); live verification = `git ls-remote origin refs/heads/main` equals local HEAD | built-in browser | 2026-09-25
+- Codex auth: `cmd /c "codex.cmd login status < NUL"` → "Logged in using ChatGPT", exit 0; costs no quota | 2026-09-25
+- Codex usage-limit text: "You've hit your usage limit" (U+2019 apostrophe) ... "try again at 12:31 PM." or "... at Sep 25th, 2026 12:30 AM." or "try again later."; also "Quota exceeded." Exec JSON carries message text only (type error / turn.failed), exit 1 | rollouts + codex-rs source (audit) | 2026-09-25
+- codex exec stdin: with a prompt argument and non-TTY stdin it reads stdin to EOF with no timeout ("Reading additional input from stdin..."); Claude Code's shell gives NUL so it returns at once; an open pipe hangs forever. `@() | & codex.cmd ...` closes it | codex-rs/exec lib.rs (audit) | 2026-09-25
+- codex exec exit codes: 0 turn completed (even if report says BLOCKED); 1 failed/interrupted/usage limit/git check; 2 CLI usage error. --output-last-message written only on completed turns, possibly empty | codex-rs source (audit) | 2026-09-25
+- `-c model_reasoning_effort=medium` is honored (rollout shows effort medium, model gpt-6-astra, approval never, workspace-write network off) | rollout (audit) | 2026-09-25
+- codex.cmd shim: args with spaces incl. & ( ) ! survive; newline truncates; `"` stripped; %VAR% expands; unquoted & | > split/redirect | stand-in tests (audit) | 2026-09-25
+- PS 5.1 `>` redirection of native output writes UTF-16LE captures under -NoProfile; console code page varies 437/65001 | audit | 2026-09-25
+- Pre-existing processes at session start (not ours; never stop): chrome, msedge, 2× codex (interactive, started 9/24 23:42 and 9/25 00:24), many node (MCP servers) | Get-Process | 2026-09-25
 
 ## Known failure modes
 - Codex usage limit mid-task: edits land, no report | Rate limit | Review the diff and run checks yourself; pivot to non-Codex work until reset (powerlifting HANDOFF-REPORT.md, 2026-09-24)
+- Claude session limit from wide workflows | 87 agents / 2.7M tokens in one workflow | Keep workflows small; triage before fan-out
+- Workflow journal/output paths exceed 260 chars; PS 5.1 Get-Item fails | Long session paths | Read with `[IO.File]::ReadAllLines('\\?\<path>')` and copy to `%TEMP%\ccx-audit`
+- Subagent test argument `a>b` run through cmd.exe created stray `b` in the repo | cmd.exe redirection | Run shim experiments with cwd outside the repo
 - Built-in browser pane cannot register service workers | Environment | Use headless Chrome for SW checks
 
 ## Checkpoint (auto-updated)
 - 2026-09-25 13:12 +10:00: session start; HEAD 3bfe4f5; T0 in progress. Session stop deadline 17:10 (240 min).
+- 2026-09-25 18:10 +10:00: resumed after Claude session limit (13:30-18:00). T0, T1 done. Removed stray 0-byte `b`. Writing T2 brief. New stop deadline 22:00.
