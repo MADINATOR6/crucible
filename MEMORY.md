@@ -5,14 +5,14 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 ## Current state
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
 - Last task commit: f44e0c9 (T0)
-- Task: T2 launcher hardening (Codex Dispatch)
+- Task: T3 mirror safety (Codex Dispatch)
 - Status: in-progress
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
 - [x] T0 [normal] Create MEMORY.md with this queue. (f44e0c9)
 - [x] T1 [complex] Audit. 35 findings (F1-F35), 4 fully verified before the Claude session limit hit; rest triaged by Claude. Evidence: `%TEMP%\ccx-audit\journal.jsonl`, harness `%TEMP%\ccx-audit\launcher`.
-- [ ] T2 [complex] Harden scripts/codex-dispatch.ps1 via Codex Dispatch: F2 stdin, F3 timeout/lock, F4 usage-limit exit, F5 roles, F7 empty report, F8 missing codex, F11/F12 UTF-8, F13/F14 relative paths, F15 empty task, F16 task-file prompt, F24/F27 path chars, F33 outside repo. Plus a fake-codex regression test. Then Codex verifier pass.
+- [x] T2 [complex] Harden scripts/codex-dispatch.ps1 via Codex Dispatch: F2 stdin, F3 timeout/lock, F4 usage-limit exit, F5 roles, F7 empty report, F8 missing codex, F11/F12 UTF-8, F13/F14 relative paths, F15 empty task, F16 task-file prompt, F24/F27 path chars, F33 outside repo. Plus a fake-codex regression test. Then Codex verifier pass.
 - [ ] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it.
 - [ ] T4 [frontier] Workflow docs for long unattended sessions: F5 (HANDOFF.md verifier/researcher instructions), F16-F23, F26, F28-F32, F34, F35. Claude edits; Codex read-only critique.
 - [ ] T5 [normal] Pilot the updated template end to end in a throwaway repo; record tokens and friction.
@@ -26,6 +26,9 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 | Stop re-running the audit's 75 failed verifiers; Claude triages instead, Codex (separate quota) implements and verifies | The 87-agent workflow used 2.7M tokens and hit the Claude session limit (blocked 13:30-18:00) | -
 - 2026-09-25 | Session clock restarted at 18:02 when the user said "continue"; 240-min stop at 22:00 | User instruction after the limit reset | -
 - 2026-09-25 | Claude workflows capped at about 4 agents for the rest of this session | Claude session limit is the binding constraint for a 10-12 h unattended run | -
+- 2026-09-25 | Dispatch lock is held-handle only: a lock file nobody holds open is stale whatever PID it records | Windows reuses PIDs; a crashed launcher's PID check gave false BUSY. Deviates from the original T2 brief; brief amended | T2
+- 2026-09-25 | `-TimeoutMinutes` is a number (fractions allowed) | Lets the timeout test run in 3 s instead of 60 s | T2
+- 2026-09-25 | Launcher test prints its duration instead of failing over 180 s | Timing asserts flake under load (verifier sandbox hit 180 s) | T2
 - 2026-09-25 | TASK.md is used for this repo's Dispatch tasks and reset to the blank template at session end | It is both the shipped template and live state (F18); BOOTSTRAP fix is part of T4 | -
 
 ## Open questions
@@ -52,7 +55,10 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - Workflow journal/output paths exceed 260 chars; PS 5.1 Get-Item fails | Long session paths | Read with `[IO.File]::ReadAllLines('\\?\<path>')` and copy to `%TEMP%\ccx-audit`
 - Subagent test argument `a>b` run through cmd.exe created stray `b` in the repo | cmd.exe redirection | Run shim experiments with cwd outside the repo
 - Built-in browser pane cannot register service workers | Environment | Use headless Chrome for SW checks
+- Codex workspace-write sandbox denies `taskkill` ("Access denied") | Sandbox | Claude runs process-kill checks outside the sandbox
 
 ## Checkpoint (auto-updated)
 - 2026-09-25 13:12 +10:00: session start; HEAD 3bfe4f5; T0 in progress. Session stop deadline 17:10 (240 min).
 - 2026-09-25 18:10 +10:00: resumed after Claude session limit (13:30-18:00). T0, T1 done. Removed stray 0-byte `b`. Writing T2 brief. New stop deadline 22:00.
+- 2026-09-25 18:55 +10:00: T2 implemented by Codex (high effort; 3.58M input / 3.49M cached / 22.8k output; BLOCKED only on sandbox-denied taskkill). Claude fixed lock PID-reuse false BUSY, fractional timeout, RESETS trailing dot; 24/24 tests pass outside sandbox. HANDOFF.md launcher docs + Verifier/Researcher instructions written (uncommitted). Codex verifier dispatch running (-Role verify -Sandbox workspace-write).
+- 2026-09-25 19:20 +10:00: Verifier (medium; 410k input / 371k cached / 3.5k output) flagged 2 intended deviations + sandbox-blocked taskkill; Claude found and fixed VoidTaskResult output leak (launcher + test). 23/23 pass in 156 s. Captures now UTF-8. Committing T2.
