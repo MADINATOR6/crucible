@@ -142,7 +142,11 @@ function Check-Code($result, [int]$expected) {
   Assert ($result.Code -eq $expected) "exit $($result.Code), expected $expected; stdout=$($result.Stdout); stderr=$($result.Stderr)"
 }
 
-Remove-Scratch
+if (Test-Path -LiteralPath $scratch) {
+  # Never delete a folder this run did not create (another run may be using it).
+  Write-Output "FAIL setup: $scratch already exists; inspect and remove it before retrying."
+  exit 1
+}
 try {
   [void](New-Item -ItemType Directory -Path $scratch)
   $fakeDir = Join-Path $scratch 'fakebin'
