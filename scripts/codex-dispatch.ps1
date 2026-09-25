@@ -47,8 +47,16 @@ function Read-LockPid([string]$Path) {
   return 0
 }
 
+function Clear-GitOverrides([Diagnostics.ProcessStartInfo]$Info) {
+  # Inherited overrides (for example from a Git hook) must not choose another repository.
+  foreach ($name in @('GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_NAMESPACE')) {
+    [void]$Info.EnvironmentVariables.Remove($name)
+  }
+}
+
 function Invoke-Git([string]$Arguments) {
   $info = New-Object Diagnostics.ProcessStartInfo
+  Clear-GitOverrides $info
   $info.FileName = 'git.exe'
   $info.Arguments = $Arguments
   $info.WorkingDirectory = (Get-Location).ProviderPath
@@ -161,6 +169,7 @@ try {
   $info.WorkingDirectory = $root
   $info.UseShellExecute = $false
   $info.CreateNoWindow = $true
+  Clear-GitOverrides $info
   $info.RedirectStandardInput = $true
   $info.RedirectStandardOutput = $true
   $info.RedirectStandardError = $true
