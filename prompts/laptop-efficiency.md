@@ -46,6 +46,7 @@ For each action I approve:
   - moves files to a dated folder or the Recycle Bin rather than deleting them permanently
   - logs every action to a `.log` file next to it
 - If the task is well specified and this repo has HANDOFF.md, you may write TASK.md and hand the script to Codex under the Dispatch mode. Review Codex's diff before I run anything.
+- Every TASK.md for this work must include this line under Constraints: `Do not use computer-use, browser or chrome tools. Only write files inside this repo.`
 - Run every script in dry-run first and show me the output before I approve `-Apply`.
 
 ## Phase 3: Keep it maintained (optional)
