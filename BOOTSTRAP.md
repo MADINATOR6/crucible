@@ -2,7 +2,7 @@
 
 Not copied into projects. In Claude Code opened in the target repository, say:
 "Follow <path to your claude-codex-collab clone>/BOOTSTRAP.md for this repo."
-(On this author's PC: `C:\Users\Madison\code\claude-codex-collab`. Clone https://github.com/MADINATOR6/claude-codex-collab elsewhere.)
+(Clone https://github.com/MADINATOR6/claude-codex-collab if you have no local copy.)
 
 ---
 
