@@ -9,12 +9,13 @@ A lightweight workflow template for running Claude Code and Codex on the same re
 | `HANDOFF.md` | The handoff contract: Dispatch launcher and exit codes, Codex implementer, verifier and researcher instructions, report format, parallel-mode rules. |
 | `TASK.md` | Per-task spec: mode, goal, write allowlist, Done When, verification, stop conditions. |
 | `scripts/codex-dispatch.ps1` | One-command Dispatch launcher: roles, closed stdin, timeout, single-writer lock, usage-limit detection, token usage, report. |
+| `scripts/sync-mirror.ps1` | Refreshes the read-only OneDrive copy from committed files only. |
 | `handoffs/` | One note per parallel-mode handoff, from `TEMPLATE.md`. |
 | `FRICTION.md` | Log of real workflow friction. |
 | `.codex/config.toml` | Codex reasoning effort (medium). |
 | `BOOTSTRAP.md` | Instructions for applying this template to a repo. Not copied. |
 | `MEMORY.md` | This repo's own unattended-session state. Not copied. |
-| `scripts/test-codex-dispatch.ps1` | Regression test for the launcher with a fake Codex. Not copied. |
+| `scripts/test-*.ps1` | Regression tests for the two scripts (fake Codex, fake OneDrive). Not copied. |
 | `prompts/` | Standalone prompts to paste into Claude Code. Not copied. |
 
 ## Two modes
@@ -28,8 +29,11 @@ Open the target repo in Claude Code and say: "Follow `<path to this repo>/BOOTST
 
 ## Test the template
 
-From this repo's root (Windows PowerShell 5.1; never calls the real Codex):
+From this repo's root (Windows PowerShell 5.1; never calls the real Codex or touches the real OneDrive):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-codex-dispatch.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-sync-mirror.ps1
 ```
+
+The mirror test skips its junction case on hosts that forbid creating junctions.

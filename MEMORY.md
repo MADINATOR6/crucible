@@ -13,8 +13,8 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - [x] T0 [normal] Create MEMORY.md with this queue. (f44e0c9)
 - [x] T1 [complex] Audit. 35 findings (F1-F35), 4 fully verified before the Claude session limit hit; rest triaged by Claude. Evidence: `%TEMP%\ccx-audit\journal.jsonl`, harness `%TEMP%\ccx-audit\launcher`.
 - [x] T2 [complex] Harden scripts/codex-dispatch.ps1 via Codex Dispatch: F2 stdin, F3 timeout/lock, F4 usage-limit exit, F5 roles, F7 empty report, F8 missing codex, F11/F12 UTF-8, F13/F14 relative paths, F15 empty task, F16 task-file prompt, F24/F27 path chars, F33 outside repo. Plus a fake-codex regression test. Then Codex verifier pass.
-- [ ] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it.
-- [ ] T4 [frontier] Workflow docs for long unattended sessions: F5 (HANDOFF.md verifier/researcher instructions), F16-F23, F26, F28-F32, F34, F35. Claude edits; Codex read-only critique.
+- [x] T3 [complex] Mirror safety: F1 (confirmed high: gitignored secrets reach OneDrive), F6, F9, F10. Committed-tree-only sync script with guards; AGENTS.md points to it.
+- [x] T4 [frontier] Workflow docs for long unattended sessions (fb5222d): F5 (HANDOFF.md verifier/researcher instructions), F16-F23, F26, F28-F32, F34, F35. Claude edits; Codex read-only critique.
 - [x] T5 [normal] Pilot: replaced by this session's real dispatches through the new launcher (implement T3, verify T2 and T4, one read-only run concurrent with a writer). Separate throwaway pilot skipped to save Codex quota.
 - [ ] T6 Stop: HANDOFF-REPORT.md, final checkpoint, self-critique.
 
@@ -56,9 +56,13 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - Subagent test argument `a>b` run through cmd.exe created stray `b` in the repo | cmd.exe redirection | Run shim experiments with cwd outside the repo
 - Built-in browser pane cannot register service workers | Environment | Use headless Chrome for SW checks
 - Codex workspace-write sandbox denies `taskkill` ("Access denied") | Sandbox | Claude runs process-kill checks outside the sandbox
+- Every OneDrive item is a reparse point (cloud tag 0x9000701A) | Files On-Demand | Treat only LinkType SymbolicLink/Junction as links
+- `mklink /J` "Access is denied" under `powershell -File` from Claude Code's shell, fine under `-Command` | Host sandbox | Junction tests SKIP when refused
 
 ## Checkpoint (auto-updated)
 - 2026-09-25 13:12 +10:00: session start; HEAD 3bfe4f5; T0 in progress. Session stop deadline 17:10 (240 min).
 - 2026-09-25 18:10 +10:00: resumed after Claude session limit (13:30-18:00). T0, T1 done. Removed stray 0-byte `b`. Writing T2 brief. New stop deadline 22:00.
 - 2026-09-25 18:55 +10:00: T2 implemented by Codex (high effort; 3.58M input / 3.49M cached / 22.8k output; BLOCKED only on sandbox-denied taskkill). Claude fixed lock PID-reuse false BUSY, fractional timeout, RESETS trailing dot; 24/24 tests pass outside sandbox. HANDOFF.md launcher docs + Verifier/Researcher instructions written (uncommitted). Codex verifier dispatch running (-Role verify -Sandbox workspace-write).
-- 2026-09-25 19:20 +10:00: Verifier (medium; 410k input / 371k cached / 3.5k output) flagged 2 intended deviations + sandbox-blocked taskkill; Claude found and fixed VoidTaskResult output leak (launcher + test). 23/23 pass in 156 s. Captures now UTF-8. Committing T2.
+- 2026-09-25 18:51 +10:00 (corrected: an earlier entry said 19:20 without checking the clock): Verifier (medium; 410k input / 371k cached / 3.5k output) flagged 2 intended deviations + sandbox-blocked taskkill; Claude found and fixed VoidTaskResult output leak (launcher + test). 23/23 pass in 156 s. Captures now UTF-8. T2 committed 33e78df.
+- 2026-09-25 18:58 +10:00: T4 docs committed fb5222d after a read-only Codex verifier (164k input / 125k cached / 2k output; 6 findings applied).
+- 2026-09-25 19:29 +10:00: T3 Codex PARTIAL (high; 789k input / 751k cached / 13.6k output). Claude fixed worktree check, OneDrive cloud-placeholder false refusal (found by a real-OneDrive dry run), -Create parent, test harness races. Mirror suite 18/18 + 1 SKIP via -File, 19/19 via -Command. Real OneDrive -Create -DryRun: exit 0, 20 committed files listed, nothing created.

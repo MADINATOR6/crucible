@@ -8,7 +8,7 @@ Not set.
 
 # Folder Map
 
-Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `.codex/`.
+Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `scripts/sync-mirror.ps1`, `.codex/`.
 
 # Commands
 
@@ -22,11 +22,9 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 
 # Mobile Sync
 
-- Phone and iPad see a one-way, read-only copy of this repo in OneDrive: `%OneDrive%\AgentWorkspace\<repo folder name>`. It excludes `.git`, `node_modules`, `.env*`, `*.pem` and `*.key`.
-- Edit files only in this repo, never in the OneDrive copy.
-- After each commit to the base branch, Claude or the user refreshes the copy. Run it only from the base-branch checkout, never from a task worktree. Codex's sandbox may not be able to write to OneDrive. Exit codes 0–7 mean success:
-  `$r = (git rev-parse --show-toplevel) -replace '/','\'; if ($env:OneDrive) { robocopy $r "$env:OneDrive\AgentWorkspace\$(Split-Path -Leaf $r)" /E /XD .git node_modules /XF .git .env* *.pem *.key /NFL /NDL /NJH /NJS /NP }`
-- Never copy secrets or confidential data. If the working tree contains any, do not run the command.
+- Phone and iPad can see a one-way, read-only copy of the committed base branch in OneDrive: `%OneDrive%\AgentWorkspace\<repo folder name>`. Edit files only in this repo, never in the copy.
+- After each commit to the base branch, Claude or the user refreshes it from the base-branch checkout: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync-mirror.ps1`. It copies only committed files (never gitignored, untracked or uncommitted ones), removes files deleted from the branch, skips `.env*`, `*.pem`, `*.key` and `node_modules`, and does nothing when no copy exists yet (`-Create` starts one, `-DryRun` previews). Exit 0 means synced or skipped. Codex's sandbox may not be able to write to OneDrive.
+- Never commit secrets or confidential data: anything committed reaches the copy.
 
 # Roles
 

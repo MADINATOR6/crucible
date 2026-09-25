@@ -50,6 +50,12 @@ Required behaviour:
 - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-sync-mirror.ps1`
 - `git diff --check`
 
+## Claude review decisions (2026-09-25)
+- `-Create` also creates a missing `AgentWorkspace` (explicit opt-in; the old one-liner created it implicitly).
+- Only symbolic links and junctions count as links. Every OneDrive item is a cloud-placeholder reparse point (tag 0x9000701A); the first version refused all real syncs.
+- Worktree check compares absolute Git paths (`--path-format=absolute`).
+- Test: 60 s per-child hang guard, duration printed instead of asserted, junction case added and reported as SKIP where the host forbids creating junctions.
+
 ## Stop conditions
 - A required check fails twice after one focused repair: stop and report PARTIAL with both attempts.
 - The sandbox blocks the temp folder, child processes, git archive, tar or robocopy: stop that part, report BLOCKED with the exact denied command.
