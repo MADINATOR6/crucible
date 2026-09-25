@@ -47,8 +47,16 @@ function Read-LockPid([string]$Path) {
   return 0
 }
 
+function Clear-GitOverrides([Diagnostics.ProcessStartInfo]$Info) {
+  # Inherited overrides (for example from a Git hook) must not choose another repository.
+  foreach ($name in @('GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_NAMESPACE')) {
+    [void]$Info.EnvironmentVariables.Remove($name)
+  }
+}
+
 function Invoke-Git([string]$Arguments) {
   $info = New-Object Diagnostics.ProcessStartInfo
+  Clear-GitOverrides $info
   $info.FileName = 'git.exe'
   $info.Arguments = $Arguments
   $info.WorkingDirectory = (Get-Location).ProviderPath
@@ -71,7 +79,8 @@ function Invoke-Git([string]$Arguments) {
 
 function Stop-CodexTree([Diagnostics.Process]$Child) {
   $killer = New-Object Diagnostics.ProcessStartInfo
-  $killer.FileName = Join-Path $env:WINDIR 'System32\taskkill.exe'
+  # System paths come from the OS, not environment variables a caller could redirect.
+  $killer.FileName = Join-Path ([Environment]::SystemDirectory) 'taskkill.exe'
   $killer.Arguments = "/T /F /PID $($Child.Id)"
   $killer.UseShellExecute = $false
   $killer.CreateNoWindow = $true
@@ -155,11 +164,12 @@ try {
   # Quote every cmd argument and disable delayed expansion; no shell redirection touches paths.
   $commandLine = ($arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
   $info = New-Object Diagnostics.ProcessStartInfo
-  $info.FileName = $env:ComSpec
+  $info.FileName = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
   $info.Arguments = '/d /v:off /s /c "' + $commandLine + '"'
   $info.WorkingDirectory = $root
   $info.UseShellExecute = $false
   $info.CreateNoWindow = $true
+  Clear-GitOverrides $info
   $info.RedirectStandardInput = $true
   $info.RedirectStandardOutput = $true
   $info.RedirectStandardError = $true

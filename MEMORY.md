@@ -18,6 +18,12 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - [x] T5 [normal] Pilot: replaced by this session's real dispatches through the new launcher (implement T3, verify T2 and T4, one read-only run concurrent with a writer). Separate throwaway pilot skipped to save Codex quota.
 - [x] T6 Stop: HANDOFF-REPORT.md, final checkpoint, self-critique. TASK.md reset to the blank template (now with task ID/depth and Stop Conditions).
 
+## Security pass (2026-09-26, branch claude/security-2026-09-26)
+- History scan (20 commits): no credentials, keys or real personal data; only synthetic @example.test emails. Codex read-only audit (576k input / 516k cached / 3.9k output) plus Claude review.
+- Fixed: mirror destination overlapping the checkout (high; repo kept inside OneDrive\AgentWorkspace would be /MIR-ed over itself); inherited GIT_DIR/GIT_WORK_TREE overrides cleared for child git and Codex; cmd.exe/taskkill.exe/robocopy.exe resolved from the OS instead of %ComSpec%/%SystemRoot%; launcher test no longer deletes an existing %TEMP%\ccx-t2; .gitignore for secrets and logs; laptop prompt logs moved outside the repo; personal path removed from BOOTSTRAP.md (still in history; repo is private, not a secret, no rewrite).
+- Not tested at runtime: the GIT_* override fix (static review only).
+- Tests: dispatch 23/23; mirror 21/21 + 1 host SKIP.
+
 ## Self-critique (2026-09-25 session)
 - Went well: fake-Codex and fake-OneDrive harnesses made every script claim testable; the Codex verifier caught 2 high bugs Claude missed; a real-target dry run caught the OneDrive placeholder bug.
 - Cost: the 87-agent audit (2.7M Claude tokens, 4.5 h blocked); Codex T2 at high effort (3.6M input); about 15 min on the junction/-File host quirk.

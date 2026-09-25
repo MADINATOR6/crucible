@@ -17,6 +17,10 @@ $code = 1
 function Invoke-Native([string]$File, [string[]]$Arguments, [hashtable]$Environment = @{}) {
   $info = New-Object Diagnostics.ProcessStartInfo
   $info.FileName = $File
+  # Inherited overrides (for example from a Git hook) must not choose another repository.
+  foreach ($name in @('GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_NAMESPACE')) {
+    [void]$info.EnvironmentVariables.Remove($name)
+  }
   foreach ($name in $Environment.Keys) { $info.EnvironmentVariables[$name] = $Environment[$name] }
   # Windows native argument quoting, including trailing backslashes.
   $info.Arguments = ($Arguments | ForEach-Object {
@@ -95,6 +99,13 @@ try {
     $parent = [IO.Path]::GetFullPath((Join-Path $env:OneDrive 'AgentWorkspace'))
     $dest = [IO.Path]::GetFullPath((Join-Path $parent $leaf))
     if ([IO.Path]::GetDirectoryName($dest) -ine $parent) { throw 'Destination escaped AgentWorkspace.' }
+    # A repo kept inside OneDrive\AgentWorkspace would otherwise be /MIR-ed over itself.
+    $rootCheck = $root.TrimEnd('\') + '\'
+    $destCheck = $dest.TrimEnd('\') + '\'
+    if ($rootCheck.StartsWith($destCheck, [StringComparison]::OrdinalIgnoreCase) -or
+        $destCheck.StartsWith($rootCheck, [StringComparison]::OrdinalIgnoreCase)) {
+      throw 'The mirror destination overlaps this checkout; refusing.'
+    }
     if (-not (Test-Path -LiteralPath $dest) -and -not $Create) {
       Write-Output "SKIPPED: no mirror at $dest. Pass -Create to start one."
       $code = 0
@@ -141,7 +152,8 @@ try {
     if (-not $DryRun -and -not (Test-Path -LiteralPath $dest)) { [void][IO.Directory]::CreateDirectory($dest) }
     $copyArgs = @($source, $dest, '/MIR', '/XD', '.git', 'node_modules', '/XF', '.git', '.env*', '*.pem', '*.key', '/R:1', '/W:1', '/NJH', '/NJS', '/NP')
     if ($DryRun) { $copyArgs += '/L' } else { $copyArgs += @('/NFL', '/NDL') }
-    $copied = Invoke-Native (Join-Path $env:SystemRoot 'System32\robocopy.exe') $copyArgs
+    # From the OS, not %SystemRoot%, which a caller could redirect to another robocopy.
+    $copied = Invoke-Native (Join-Path ([Environment]::SystemDirectory) 'robocopy.exe') $copyArgs
     if ($copied.Out.Trim()) { Write-Output $copied.Out.TrimEnd() }
     if ($copied.Err.Trim()) { Write-Output $copied.Err.TrimEnd() }
     if ($copied.Code -ge 0 -and $copied.Code -le 7) {
