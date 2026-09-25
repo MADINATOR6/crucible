@@ -299,6 +299,17 @@ try {
       Assert (Test-Path -LiteralPath (Join-Path $fakeDrive ('AgentWorkspace\' + $repoName + '\readme.txt'))) 'mirror not created under a new AgentWorkspace'
     } finally { $script:fakeDrive = Join-Path $scratch 'OneDrive' }
   }
+  Case 'checkout inside AgentWorkspace refused' {
+    $inside = Join-Path $parent 'inside'
+    New-Directory $inside
+    Run-Git @('init', $inside)
+    Write-Utf8File (Join-Path $inside 'tracked.txt') 'tracked'
+    Run-Git @('-C', $inside, 'add', 'tracked.txt')
+    Run-Git @('-C', $inside, '-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-m', 'inside')
+    Write-Utf8File (Join-Path $inside 'untracked-work.txt') 'must survive'
+    Check-Result (Run-Mirror $inside) 1 'overlaps this checkout'
+    Assert ([IO.File]::ReadAllText((Join-Path $inside 'untracked-work.txt')) -ceq 'must survive') 'untracked work was touched'
+  }
   Case 'no staging folders remain' {
     Assert (@(Get-ChildItem -LiteralPath $childTemp -Force).Count -eq 0) 'staging leftovers'
   }
