@@ -141,7 +141,8 @@ try {
     if (-not $DryRun -and -not (Test-Path -LiteralPath $dest)) { [void][IO.Directory]::CreateDirectory($dest) }
     $copyArgs = @($source, $dest, '/MIR', '/XD', '.git', 'node_modules', '/XF', '.git', '.env*', '*.pem', '*.key', '/R:1', '/W:1', '/NJH', '/NJS', '/NP')
     if ($DryRun) { $copyArgs += '/L' } else { $copyArgs += @('/NFL', '/NDL') }
-    $copied = Invoke-Native (Join-Path $env:SystemRoot 'System32\robocopy.exe') $copyArgs
+    # From the OS, not %SystemRoot%, which a caller could redirect to another robocopy.
+    $copied = Invoke-Native (Join-Path ([Environment]::SystemDirectory) 'robocopy.exe') $copyArgs
     if ($copied.Out.Trim()) { Write-Output $copied.Out.TrimEnd() }
     if ($copied.Err.Trim()) { Write-Output $copied.Err.TrimEnd() }
     if ($copied.Code -ge 0 -and $copied.Code -le 7) {

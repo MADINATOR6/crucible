@@ -71,7 +71,8 @@ function Invoke-Git([string]$Arguments) {
 
 function Stop-CodexTree([Diagnostics.Process]$Child) {
   $killer = New-Object Diagnostics.ProcessStartInfo
-  $killer.FileName = Join-Path $env:WINDIR 'System32\taskkill.exe'
+  # System paths come from the OS, not environment variables a caller could redirect.
+  $killer.FileName = Join-Path ([Environment]::SystemDirectory) 'taskkill.exe'
   $killer.Arguments = "/T /F /PID $($Child.Id)"
   $killer.UseShellExecute = $false
   $killer.CreateNoWindow = $true
@@ -155,7 +156,7 @@ try {
   # Quote every cmd argument and disable delayed expansion; no shell redirection touches paths.
   $commandLine = ($arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
   $info = New-Object Diagnostics.ProcessStartInfo
-  $info.FileName = $env:ComSpec
+  $info.FileName = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
   $info.Arguments = '/d /v:off /s /c "' + $commandLine + '"'
   $info.WorkingDirectory = $root
   $info.UseShellExecute = $false
