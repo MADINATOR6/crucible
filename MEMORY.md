@@ -44,6 +44,9 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 | Mirror source built with a private GIT_INDEX_FILE + `git checkout-index --all`, not `git archive` | archive honours export-ignore (even uncommitted .git/info/attributes), so /MIR deleted committed files from the mirror (Codex verifier) | T3 fix
 - 2026-09-25 | Mirror refuses when staging and destination contain each other | /MIR deleted its own staging source (Codex verifier) | T3 fix
 - 2026-09-25 | TASK.md is used for this repo's Dispatch tasks and reset to the blank template at session end | It is both the shipped template and live state (F18); BOOTSTRAP fix is part of T4 | -
+- 2026-09-26 | Ponytail's "write less code" ladder added to the implementer instruction as text; plugin not installed | JetBrains A/B (Jul 2026): -10.3% cost, -7.5% tokens (noise), no quality change vs -20%/-22% advertised; three lines give the same discipline with no dependency | -
+- 2026-09-26 | OmniRoute rejected | Proxies prompts, code and provider credentials through a third-party gateway to bypass usage limits; conflicts with AGENTS.md Security and likely provider terms. Launcher exit 4 already handles Codex limits | -
+- 2026-09-26 | Graphify parked until the template is applied to a large codebase | This repo is a small set of Markdown files plus two scripts; `graphify claude install` would edit Claude-owned config. Re-test then with a before/after token count | -
 
 ## Open questions
 - Delete merged remote branch `origin/claude/laptop-efficiency-tasks-6598uz`? | User decision (remote deletion) | no
