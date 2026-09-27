@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Assessment 2 Reviewer (93225)",
-    "status": "Built without the 93225 Modules. Most questions come from 93224 FNP2B slides (marked Supplementary). ECG lead placement, oxygen devices and nebuliser procedure are not covered yet. See Sources & gaps."
+    "status": "Built from the 93225 Canvas Modules (lectures, lab packages, appraisal forms, readings) plus FNP2B slides marked Supplementary. Part B checklists are the lab appraisal forms. Module 1-4 questions were machine-written and spot-checked, not fully reviewed; report anything that looks wrong."
   },
   "sources": {
     "SI": {
@@ -288,14 +288,10 @@
     }
   ],
   "gaps": [
-    "The 93225 Canvas Modules (pre-work, lectures, lab guides for Weeks 1-4) were not available on this computer. Part A covers all of that content, so this app is incomplete until they are added.",
-    "ECG lead placement: no electrode positions in any loaded source. ACS.pdf p.24 only shows a picture with chest and ankle electrodes.",
-    "Oxygen administration: no procedure steps and no flow-rate or FiO2 ranges for the Hudson (simple face) mask, Venturi mask or non-rebreather mask, which are the devices the Subject Information names (p.2, p.8).",
+    "Critical/fail-point steps: the appraisal forms mark every step U/D/S/NA and do not say which steps an assessor fails you on. Steps marked Critical in this app are ones the sources flag as safety points.",
+    "Lab 2 Student Package and the Skills in Clinical Nursing sections 11.2-11.4 and 13.2 (readings) were not in the Canvas file list; the Lab 3 package contains the 11.2-11.4 appraisal forms.",
     "Oxygen in COPD: no target SpO2 range for people with COPD in any loaded source. COPD .pdf p.22 raises the question but the answer is in a video, not on the slide.",
-    "Medication administration via nebuliser: no procedure steps. Only 'use oxygen to drive nebuliser (6 L/min high-flow regulator)' in acute severe asthma (ASTHMA.pdf p.15).",
-    "Generic procedure steps (hand hygiene, patient identification, consent, explanation, privacy, documentation) are not in any loaded source, so the skill checklists leave them out. Use your lab guide.",
     "Heart failure is named in SLO2, but no loaded source covers it. The 'HEART FAILURE.docx' notes in Downloads were left out because their origin is unknown.",
-    "Critical/fail-point steps: no loaded source marks which Part B steps an assessor would fail you on.",
     "Continuous cardiac monitoring, basic life support, suctioning and sputum collection are 93225 topics (SI p.2) with no loaded material.",
     "Inhaler technique (SLO4): only the device and class chart (ASTHMA.pdf p.20) and 'pMDIs should be used with a spacer' are covered, not the steps."
   ],

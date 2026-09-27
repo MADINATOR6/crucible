@@ -1,0 +1,254 @@
+[
+  {
+    "id": "M2-01", "type": "mcq", "week": "Module 2", "topic": "Oxygen prescription", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "A breathless adult has an SpO2 within the recommended range and no other indication for oxygen. What does the TSANZ statement say about giving oxygen solely for breathlessness?",
+    "options": [
+      {"text": "Do not give it solely for breathlessness without hypoxaemia", "correct": true, "why": "Oxygen treats hypoxaemia; it does not relieve breathlessness in its absence."},
+      {"text": "Give it whenever the patient feels breathless", "why": "Breathlessness without hypoxaemia is not an indication for oxygen."},
+      {"text": "Give it to prevent a future fall in SpO2", "why": "Supplemental oxygen in normoxic patients can mask subsequent deterioration."},
+      {"text": "Give it without a target saturation", "why": "Oxygen is a drug and its prescription includes a target SpO2 range."}
+    ],
+    "explanation": "Assess oxygenation and the cause of breathlessness; use oxygen for hypoxaemia to a prescribed target range.", "cite": [{"src": "TSANZ", "loc": "p.3"}, {"src": "TSANZ", "loc": "p.4"}, {"src": "TSANZ", "loc": "p.8"}]
+  },
+  {
+    "id": "M2-02", "type": "mcq", "week": "Module 2", "topic": "Oxygen prescription", "slo": ["SLO2", "SLO3"], "skill": "oxygen",
+    "stem": "What is the minimum information TSANZ says an oxygen prescription must specify?",
+    "options": [
+      {"text": "Delivery device, permitted flow-rate range and target SpO2 range", "correct": true, "why": "These are the statement's minimum requirements."},
+      {"text": "Device alone", "why": "This omits both the flow-rate range and the target SpO2 range."},
+      {"text": "A single flow rate alone", "why": "This omits the device and target SpO2 range."},
+      {"text": "SpO2 target alone", "why": "This omits the device and permitted flow-rate range."}
+    ], "explanation": "The oxygen prescription documents the device, flow range and saturation target in the medical record and drug chart.", "cite": [{"src": "TSANZ", "loc": "p.4"}]
+  },
+  {
+    "id": "M2-03", "type": "mcq", "week": "Module 2", "topic": "Oxygen escalation", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "An adult needs increasing oxygen flow to stay within the prescribed SpO2 range. What does that change indicate?",
+    "options": [
+      {"text": "Possible underlying deterioration requiring clinical review", "correct": true, "why": "TSANZ says increasing oxygen requirement indicates deterioration and should prompt review."},
+      {"text": "Recovery because the SpO2 is still in range", "why": "The increased oxygen requirement itself may indicate deterioration despite an adequate SpO2."},
+      {"text": "No need to record oxygen flow", "why": "The prescription includes permitted flow rates; increasing requirements matter to clinical review."},
+      {"text": "An indication to exceed the target SpO2 range", "why": "Oxygen is titrated to the target range, not above it."}
+    ], "explanation": "Interpret SpO2 alongside the oxygen needed to achieve it; rising support needs review.", "cite": [{"src": "TSANZ", "loc": "p.4"}, {"src": "TSANZ", "loc": "p.7"}]
+  },
+  {
+    "id": "M2-04", "type": "mcq", "week": "Module 2", "topic": "Oximetry limits", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "A patient with signs of acute respiratory disease has no reliable pulse-oximetry signal. What further assessment does TSANZ say to consider?",
+    "options": [
+      {"text": "Arterial blood gas measurement", "correct": true, "why": "A reliable signal cannot be obtained in symptomatic acute respiratory disease is a listed reason to consider ABG."},
+      {"text": "Rely on the last SpO2 alone", "why": "TSANZ cautions against over-reliance on oximetry and calls for clinical judgement."},
+      {"text": "Use a venous gas as an exact measure of PaO2", "why": "A venous gas does not accurately estimate PaO2."},
+      {"text": "Wait for a reliable signal before assessing oxygenation", "why": "The statement lists this situation as a reason to consider ABG."}
+    ], "explanation": "When oximetry is unreliable and acute respiratory illness is suspected, consider ABG alongside clinical assessment.", "cite": [{"src": "TSANZ", "loc": "p.4"}]
+  },
+  {
+    "id": "M2-05", "type": "saq", "week": "Module 2", "topic": "Oxygen and COPD", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "prompt": "An adult with an acute COPD exacerbation has SpO2 86%. State the TSANZ target, suitable initial oxygen interfaces, and what is needed before adopting a target of 92% or higher.",
+    "model": "Titrate oxygen to SpO2 88–92%. At SpO2 below 88%, options include a 24% or 28% Venturi mask or nasal cannulae at 1–2 L/min. If a target of at least 92% is considered, measure arterial blood gases to exclude hypercapnia first.",
+    "rubric": [
+      {"point": "COPD exacerbation target SpO2 88–92%", "cite": [{"src": "TSANZ", "loc": "p.4"}]},
+      {"point": "At SpO2 below 88%, 24% or 28% Venturi mask or nasal cannulae at 1–2 L/min, titrated to target", "cite": [{"src": "TSANZ", "loc": "p.5"}]},
+      {"point": "ABG to exclude hypercapnia before a target of at least 92%", "cite": [{"src": "TSANZ", "loc": "p.5"}]}
+    ], "cite": [{"src": "TSANZ", "loc": "p.4"}, {"src": "TSANZ", "loc": "p.5"}]
+  },
+  {
+    "id": "M2-06", "type": "mcq", "week": "Module 2", "topic": "COPD oxygen", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "An adult with COPD has SpO2 89% at initial assessment. According to the TSANZ practice point, is oxygen initially required on this finding alone?",
+    "options": [
+      {"text": "No; when SpO2 is at least 88%, oxygen is not initially required", "correct": true, "why": "The COPD practice point states this threshold explicitly."},
+      {"text": "Yes; every COPD patient needs oxygen", "why": "The statement makes oxygen dependent on the measured saturation and target."},
+      {"text": "Yes; give a non-rebreather mask at 15 L/min", "why": "At SpO2 at least 88% in COPD, oxygen is not initially required on this finding alone."},
+      {"text": "Yes; aim for a saturation above 96%", "why": "The recommended COPD target is 88–92%."}
+    ], "explanation": "The TSANZ COPD practice point distinguishes SpO2 at or above 88% from below 88% when deciding initial oxygen.", "cite": [{"src": "TSANZ", "loc": "p.4"}, {"src": "TSANZ", "loc": "p.5"}]
+  },
+  {
+    "id": "M2-07", "type": "mcq", "week": "Module 2", "topic": "Oxygen devices", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "A simple face mask has been set below 5 L/min. What is the source-based concern?",
+    "options": [
+      {"text": "Carbon dioxide rebreathing", "correct": true, "why": "TSANZ advises avoiding simple-mask flow below 5 L/min for this reason."},
+      {"text": "It becomes a Venturi mask", "why": "A Venturi mask is a different delivery system; low simple-mask flow creates rebreathing risk."},
+      {"text": "It delivers a fixed FiO2 regardless of breathing", "why": "A simple face mask is not the precise Venturi system described in the skills text."},
+      {"text": "The reservoir bag will overinflate", "why": "A simple face mask has no reservoir bag; the issue is rebreathing."}
+    ], "explanation": "Keep simple-mask flow at least 5 L/min to avoid carbon dioxide rebreathing.", "cite": [{"src": "TSANZ", "loc": "p.6"}, {"src": "S125", "loc": "p.24"}]
+  },
+  {
+    "id": "M2-08", "type": "mcq", "week": "Module 2", "topic": "Oxygen devices", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "A non-rebreather reservoir bag collapses completely on inspiration. What correction does the skills text give?",
+    "options": [
+      {"text": "Increase the oxygen litre flow", "correct": true, "why": "The source says the bag must not totally deflate and to correct it by increasing flow."},
+      {"text": "Lower the oxygen flow", "why": "This would not address a bag that is emptying; the text specifies increasing flow."},
+      {"text": "Remove the one-way valves", "why": "The valves prevent room air and exhaled air from entering the bag."},
+      {"text": "Keep the bag collapsed during inspiration", "why": "The source says the bag must not totally deflate because carbon dioxide can build up."}
+    ], "explanation": "Watch the reservoir during inspiration and raise flow if it empties completely.", "cite": [{"src": "S125", "loc": "p.25"}, {"src": "S125", "loc": "p.26"}]
+  },
+  {
+    "id": "M2-09", "type": "mcq", "week": "Module 2", "topic": "Oxygen devices", "slo": ["SLO2", "SLO3"], "skill": "oxygen",
+    "stem": "Which device does the skills text describe as delivering a precise, consistent oxygen concentration using large-bore tubing?",
+    "options": [
+      {"text": "Venturi mask", "correct": true, "why": "It is named as the high-flow system that controls FiO2 precisely."},
+      {"text": "Standard nasal cannula", "why": "This is a low-flow device with FiO2 that varies with breathing and flow."},
+      {"text": "Simple face mask", "why": "This is listed as a low-flow device; entrained room air affects FiO2."},
+      {"text": "Non-rebreather mask", "why": "The cited description of precise, consistent FiO2 names the Venturi mask."}
+    ], "explanation": "Venturi adaptors specify oxygen concentration and required flow; raising source flow beyond the adaptor specification does not increase that concentration.", "cite": [{"src": "S125", "loc": "p.18"}, {"src": "S125", "loc": "p.27"}]
+  },
+  {
+    "id": "M2-10", "type": "saq", "week": "Module 2", "topic": "Oxygen escalation", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "prompt": "An adult needs 8 L/min through a simple face mask to keep SpO2 adequate. What level of review does TSANZ recommend, and why is the oxygen requirement concerning?",
+    "model": "Seek ICU review. TSANZ uses at least 8 L/min through a simple face mask as an example of estimated FiO2 at least 0.50; most such patients need higher monitoring and supportive care. High FiO2 to keep SpO2 adequate signals severe illness and leaves limited capacity to increase FiO2 if the patient deteriorates.",
+    "rubric": [
+      {"point": "At least 8 L/min by simple mask is the TSANZ example of estimated FiO2 at least 0.50", "cite": [{"src": "TSANZ", "loc": "p.7"}]},
+      {"point": "ICU review; most need higher monitoring and supportive care", "cite": [{"src": "TSANZ", "loc": "p.7"}]},
+      {"point": "High FiO2 indicates severe illness and limited reserve for further deterioration", "cite": [{"src": "TSANZ", "loc": "p.7"}]}
+    ], "cite": [{"src": "TSANZ", "loc": "p.7"}]
+  },
+  {
+    "id": "M2-11", "type": "mcq", "week": "Module 2", "topic": "Oxygen weaning", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "A patient's SpO2 rises above the prescribed target range during oxygen therapy. What does TSANZ recommend?",
+    "options": [
+      {"text": "Reduce or stop oxygen and continue saturation monitoring", "correct": true, "why": "The statement says oxygen can be reduced or stopped above target while monitoring continues."},
+      {"text": "Continue the same flow to protect against later hypoxaemia", "why": "Excess oxygen can mask deterioration; reduce or stop it above target."},
+      {"text": "Stop all observations", "why": "Saturation monitoring should continue to detect subsequent deterioration."},
+      {"text": "Increase oxygen until SpO2 is as high as possible", "why": "The oxygen target is a range; values above it are not the goal."}
+    ], "explanation": "Titrate within the prescribed range and keep monitoring after reduction or cessation.", "cite": [{"src": "TSANZ", "loc": "p.7"}]
+  },
+  {
+    "id": "M2-12", "type": "mcq", "week": "Module 2", "topic": "Oxygen devices", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "An adult needs oxygen but wishes to keep eating and speaking comfortably. Which standard device does the skills text say interferes least with those activities?",
+    "options": [
+      {"text": "Nasal cannula", "correct": true, "why": "The source says nasal cannulae do not interfere with eating or talking."},
+      {"text": "Simple face mask", "why": "This covers the nose and mouth, whereas the nasal cannula permits eating and talking."},
+      {"text": "Non-rebreather mask", "why": "This is a mask with a reservoir; the source identifies nasal cannulae for eating and talking."},
+      {"text": "Venturi mask", "why": "The Venturi is a mask; the source identifies nasal cannulae as comfortable for eating and talking."}
+    ], "explanation": "Standard nasal cannulae are usually preferred where appropriate; titrate their flow to target saturation.", "cite": [{"src": "S125", "loc": "p.19"}, {"src": "TSANZ", "loc": "p.6"}]
+  },
+  {
+    "id": "M2-13", "type": "mcq", "week": "Module 2", "topic": "Nebuliser assessment", "slo": ["SLO2", "SLO3"], "skill": "nebuliser", "reasoning": true,
+    "stem": "A patient is too breathless for a full respiratory history before urgent nebulised medicine. Which focused comparison does the skills text recommend?",
+    "options": [
+      {"text": "Auscultate breath sounds before and after treatment", "correct": true, "why": "Pre/post auscultation helps evaluate the medicine when a full examination is impractical."},
+      {"text": "Only check breath sounds after treatment", "why": "Without a pre-treatment assessment there is no breath-sound comparison."},
+      {"text": "Delay urgent treatment until a complete history is obtained", "why": "The source allows at least chest auscultation when medication must start immediately."},
+      {"text": "Use only the medicine chart to judge response", "why": "The chart verifies the order; breath sounds before and after help evaluate clinical response."}
+    ], "explanation": "At minimum auscultate before urgent treatment, then reassess breathing and lung fields afterwards.", "cite": [{"src": "S126", "loc": "p.12"}, {"src": "S126", "loc": "p.17"}]
+  },
+  {
+    "id": "M2-14", "type": "mcq", "week": "Module 2", "topic": "Nebuliser safety", "slo": ["SLO2", "SLO3"], "skill": "nebuliser",
+    "stem": "Before giving prescribed nebulised medicine, which check does the skills text require?",
+    "options": [
+      {"text": "Confirm a valid medication order and apply the six rights", "correct": true, "why": "The preparation table explicitly requires an order and the six rights."},
+      {"text": "Give it first and check the chart afterwards", "why": "The source requires the order and six rights before administration."},
+      {"text": "Check the device but omit patient identity", "why": "Right patient is one of the six rights and identity is checked before administration."},
+      {"text": "Skip the allergy check if the medicine is inhaled", "why": "The procedure explicitly calls for checking allergies before any medication."}
+    ], "explanation": "Verify the medication order, patient identity, allergies and the six rights before delivery.", "cite": [{"src": "S126", "loc": "p.12"}, {"src": "S126", "loc": "p.14"}]
+  },
+  {
+    "id": "M2-15", "type": "saq", "week": "Module 2", "topic": "Nebuliser reassessment", "slo": ["SLO2", "SLO3", "SLO4"], "skill": "nebuliser", "reasoning": true,
+    "prompt": "After a nebulised medicine dose, what respiratory reassessment, documentation and communication does the skills text require?",
+    "model": "Reassess breathing and respiratory rate and auscultate the lung fields to judge response. Record the medicine administration and document treatment and breath sounds before and after. Continue assessments for improvement or deterioration, and communicate changes in condition to the treating doctor for review.",
+    "rubric": [
+      {"point": "Reassess breathing, respiratory rate and lung-field sounds", "cite": [{"src": "S126", "loc": "p.17"}]},
+      {"point": "Sign administration and record treatment plus pre/post breath sounds", "cite": [{"src": "S126", "loc": "p.16"}, {"src": "S126", "loc": "p.18"}]},
+      {"point": "Continue assessment and communicate changes to the treating doctor", "cite": [{"src": "S126", "loc": "p.18"}, {"src": "S126", "loc": "p.19"}]}
+    ], "cite": [{"src": "S126", "loc": "p.16"}, {"src": "S126", "loc": "p.17"}, {"src": "S126", "loc": "p.18"}, {"src": "S126", "loc": "p.19"}]
+  },
+  {
+    "id": "M2-16", "type": "mcq", "week": "Module 2", "topic": "Nebuliser selection", "slo": ["SLO2", "SLO3"], "skill": "nebuliser", "reasoning": true,
+    "stem": "A patient cannot operate an inhaler because of difficulty using their hands. Which reason for considering a nebuliser appears in the skills text?",
+    "options": [
+      {"text": "Difficulty using an inhaler is a listed circumstance for nebuliser use", "correct": true, "why": "The text specifically lists problems with the hands or confusion."},
+      {"text": "Nebulisers are required for everyone with asthma", "why": "The text says puffers with spacers work effectively and nebulisers are not recommended for most."},
+      {"text": "A nebuliser avoids the need for a medication order", "why": "The procedure still requires a valid order and the six rights."},
+      {"text": "A nebuliser means no respiratory reassessment is needed", "why": "The source requires reassessment of breathing and breath sounds afterwards."}
+    ], "explanation": "Nebuliser use may be appropriate when an inhaler cannot be used effectively; continue usual medicine and response checks.", "cite": [{"src": "S126", "loc": "p.11"}, {"src": "S126", "loc": "p.12"}, {"src": "S126", "loc": "p.17"}]
+  },
+  {
+    "id": "M2-17", "type": "mcq", "week": "Module 2", "topic": "Nebuliser hygiene", "slo": ["SLO2", "SLO3"], "skill": "nebuliser",
+    "stem": "Why does the skills text require nebuliser equipment to be cleaned after each use?",
+    "options": [
+      {"text": "To reduce infection or cross-contamination risk", "correct": true, "why": "The clinical safety alert and post-procedure table identify infection and contamination risk."},
+      {"text": "To increase the prescribed medicine dose", "why": "Cleaning protects against infection and incorrect delivery; it does not change the prescription."},
+      {"text": "To remove the need for hand hygiene", "why": "Hand hygiene remains a separate post-procedure action."},
+      {"text": "To replace respiratory reassessment", "why": "The source requires reassessment as well as cleaning."}
+    ], "explanation": "Clean and maintain the nebuliser after each use, alongside hand hygiene and patient reassessment.", "cite": [{"src": "S126", "loc": "p.8"}, {"src": "S126", "loc": "p.9"}, {"src": "S126", "loc": "p.17"}, {"src": "S126", "loc": "p.18"}]
+  },
+  {
+    "id": "M2-18", "type": "mcq", "week": "Module 2", "topic": "Suction indication", "slo": ["SLO2", "SLO3"], "reasoning": true,
+    "stem": "A patient has rattling breath sounds and cannot expectorate secretions. Which basis for upper-airway suctioning matches the skills text?",
+    "options": [
+      {"text": "Clinical need based on distress and inability to clear secretions", "correct": true, "why": "The text lists these findings and says suctioning follows clinical need."},
+      {"text": "A fixed hourly schedule regardless of findings", "why": "The source explicitly prefers clinical need over a fixed schedule."},
+      {"text": "The presence of any cough, even when secretions are cleared", "why": "The indication includes difficulty handling or expectorating secretions."},
+      {"text": "Routine suctioning to prevent all later secretions", "why": "Excessive suctioning irritates mucosa and may increase secretions."}
+    ], "explanation": "Assess distress and ability to clear secretions; suction only when clinically indicated.", "cite": [{"src": "S127", "loc": "p.11"}, {"src": "S127", "loc": "p.12"}]
+  },
+  {
+    "id": "M2-19", "type": "mcq", "week": "Module 2", "topic": "Suction route", "slo": ["SLO2", "SLO3"], "reasoning": true,
+    "stem": "A patient needing upper-airway suction has facial trauma. Which route choice is supported by the suctioning text?",
+    "options": [
+      {"text": "Avoid nasopharyngeal suctioning; consider the less traumatic oropharyngeal route", "correct": true, "why": "Facial trauma contraindicates nasopharyngeal suctioning and the oropharyngeal route is preferred as less traumatic."},
+      {"text": "Use nasopharyngeal suctioning because facial trauma makes it safer", "why": "Facial trauma is a stated contraindication."},
+      {"text": "Use either route without checking contraindications", "why": "The text lists specific contraindications to the nasal route."},
+      {"text": "Perform tracheal suctioning as the standard first route", "why": "The source distinguishes upper-airway suctioning from tracheal suctioning for lower-airway secretions."}
+    ], "explanation": "Check route contraindications; nasal suctioning is contraindicated after facial trauma.", "cite": [{"src": "S127", "loc": "p.8"}, {"src": "S127", "loc": "p.9"}]
+  },
+  {
+    "id": "M2-20", "type": "saq", "week": "Module 2", "topic": "Suction safety", "slo": ["SLO2", "SLO3"], "reasoning": true,
+    "prompt": "For upper-airway suctioning, explain when to suction, the maximum duration per attempt, and two harms of excessive or prolonged suctioning.",
+    "model": "Suction when clinical assessment shows respiratory distress or inability to cough up and expectorate secretions, rather than on a fixed schedule. Limit each attempt to 10–15 seconds. Prolonged suctioning can cause hypoxia; excessive suctioning can damage the pharyngeal mucosa, with bleeding, swelling or inflammation, and can further lower SpO2.",
+    "rubric": [
+      {"point": "Use clinical need, including distress or inability to clear secretions, rather than a fixed schedule", "cite": [{"src": "S127", "loc": "p.11"}, {"src": "S127", "loc": "p.12"}]},
+      {"point": "Limit each attempt to 10–15 seconds", "cite": [{"src": "S127", "loc": "p.11"}]},
+      {"point": "Prolonged suctioning can cause hypoxia", "cite": [{"src": "S127", "loc": "p.11"}]},
+      {"point": "Excess suctioning may injure pharyngeal mucosa or lower SpO2", "cite": [{"src": "S127", "loc": "p.11"}, {"src": "S127", "loc": "p.12"}]}
+    ], "cite": [{"src": "S127", "loc": "p.11"}, {"src": "S127", "loc": "p.12"}]
+  },
+  {
+    "id": "M2-21", "type": "mcq", "week": "Module 2", "topic": "Sputum collection", "slo": ["SLO2", "SLO3"], "reasoning": true,
+    "stem": "Secretions are needed for diagnostic testing while a patient already requires suctioning. Which item does the skills text describe attaching to the suction circuit?",
+    "options": [
+      {"text": "A sputum collection container or trap", "correct": true, "why": "The trap collects secretions during suctioning for diagnostic purposes."},
+      {"text": "A Venturi adaptor", "why": "A Venturi adaptor delivers oxygen; the sputum trap collects secretions."},
+      {"text": "A nebuliser chamber", "why": "A nebuliser chamber holds liquid medicine; the source names a sputum trap for samples."},
+      {"text": "A spacer", "why": "A spacer helps deliver puffer medication, not collect sputum during suctioning."}
+    ], "explanation": "The sputum trap connects between suction catheter and suction tubing to collect the sample.", "cite": [{"src": "S127", "loc": "p.13"}, {"src": "S127", "loc": "p.14"}, {"src": "S126", "loc": "p.7"}]
+  },
+  {
+    "id": "M2-22", "type": "mcq", "week": "Module 2", "topic": "Suction technique", "slo": ["SLO2", "SLO3"], "reasoning": true,
+    "stem": "During oral or oropharyngeal suction, when should suction be applied to the catheter according to the procedure?",
+    "options": [
+      {"text": "After insertion, intermittently around secretions", "correct": true, "why": "The procedure says not to apply suction during insertion and to apply it intermittently once positioned."},
+      {"text": "Continuously throughout insertion", "why": "Suction during insertion can traumatise the mucous membrane."},
+      {"text": "Only while withdrawing, without targeting secretions", "why": "The procedure describes intermittent suction on either side of the glottis and where secretions collect."},
+      {"text": "Before inserting, while the catheter is outside the mouth", "why": "The source directs leaving suction off during insertion and applying it where secretions are present."}
+    ], "explanation": "Insert without suction to limit mucosal trauma, then use intermittent suction at the indicated sites.", "cite": [{"src": "S127", "loc": "p.23"}, {"src": "S127", "loc": "p.24"}]
+  },
+  {
+    "id": "M2-23", "type": "mcq", "week": "Module 2", "topic": "Suction positioning", "slo": ["SLO2", "SLO3"], "reasoning": true,
+    "stem": "How does the suctioning procedure position an unconscious person for upper-airway suction?",
+    "options": [
+      {"text": "Left lateral, facing the nurse", "correct": true, "why": "This allows the tongue to fall forward and secretions to drain, reducing aspiration risk."},
+      {"text": "Flat supine with the face upward", "why": "The procedure specifies left lateral positioning to aid drainage."},
+      {"text": "Upright without any support", "why": "The source's unconscious-person instruction is left lateral."},
+      {"text": "Prone with the face down", "why": "The procedure specifies left lateral, facing the nurse."}
+    ], "explanation": "Left lateral positioning supports airway access and drainage in an unconscious person.", "cite": [{"src": "S127", "loc": "p.22"}]
+  },
+  {
+    "id": "M2-24", "type": "mcq", "week": "Module 2", "topic": "Oxygen monitoring", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "A patient with possible hypercapnia has a venous blood gas. Can its oxygen and carbon dioxide values reliably replace an arterial blood gas for assessing PaO2 and PaCO2?",
+    "options": [
+      {"text": "No; venous values do not accurately estimate PaO2 or PaCO2", "correct": true, "why": "TSANZ says a VBG cannot accurately estimate either arterial value."},
+      {"text": "Yes; venous and arterial oxygen values are interchangeable", "why": "The statement says venous gas does not accurately estimate PaO2."},
+      {"text": "Yes; venous PCO2 definitively excludes hypercapnia", "why": "Even venous PCO2 below 40 mm Hg makes hypercapnia unlikely but does not rule it out."},
+      {"text": "No blood gas is useful if SpO2 is available", "why": "TSANZ recommends considering ABG in patients at risk of hypercapnia."}
+    ], "explanation": "Use ABG when exclusion of hypercapnia is clinically relevant.", "cite": [{"src": "TSANZ", "loc": "p.4"}]
+  },
+  {
+    "id": "M2-25", "type": "saq", "week": "Module 2", "topic": "Inhaled bronchodilator", "slo": ["SLO2", "SLO3"], "skill": "nebuliser", "reasoning": true,
+    "prompt": "An adult with COPD needs an inhaled bronchodilator and also needs supplemental oxygen. State TSANZ's preferred medicine delivery method, the alternative if necessary, and what happens to nasal oxygen during treatment.",
+    "model": "Use a metered dose inhaler with spacer where possible. If a nebuliser is needed, TSANZ specifies an air-driven nebuliser. Continue supplemental nasal oxygen as required during either method.",
+    "rubric": [
+      {"point": "Prefer metered dose inhaler with spacer", "cite": [{"src": "TSANZ", "loc": "p.6"}]},
+      {"point": "Air-driven nebuliser if necessary", "cite": [{"src": "TSANZ", "loc": "p.6"}]},
+      {"point": "Continue supplemental nasal oxygen as required during bronchodilator delivery", "cite": [{"src": "TSANZ", "loc": "p.6"}]}
+    ], "cite": [{"src": "TSANZ", "loc": "p.6"}]
+  }
+]

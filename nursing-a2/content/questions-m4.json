@@ -1,0 +1,495 @@
+[
+  {
+    "id": "M4-01",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "ASSIST first screen",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "An adult with persisting acute stroke symptoms cannot hold their head erect. What does ASSIST direct?",
+    "options": [
+      {
+        "text": "Stop, place the patient NBM and review when all section 1 parameters are yes",
+        "correct": true,
+        "why": "Any no in section 1 triggers this action."
+      },
+      {
+        "text": "Proceed to the water sip",
+        "why": "The water test follows only after section 1 is passed."
+      },
+      {
+        "text": "Start the premorbid oral diet",
+        "why": "This is step 5 after preceding checks."
+      },
+      {
+        "text": "Assess only voice quality",
+        "why": "Head control is a section 1 gate."
+      }
+    ],
+    "explanation": "Any no in section 1 triggers this action.",
+    "cite": [
+      {
+        "src": "ASSIST",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M4-02",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "ASSIST risk signs",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "A stroke patient has facial droop before the water test. What does ASSIST direct?",
+    "options": [
+      {
+        "text": "Stop, place NBM and refer to speech pathology",
+        "correct": true,
+        "why": "Facial weakness or droop is a section 2 trigger."
+      },
+      {
+        "text": "Give a 10 mL water sip",
+        "why": "Section 2 must be passed first."
+      },
+      {
+        "text": "Offer a full cup of water",
+        "why": "The cup test is later."
+      },
+      {
+        "text": "Start the first meal",
+        "why": "Diet resumes only after screening steps pass."
+      }
+    ],
+    "explanation": "Facial weakness or droop is a section 2 trigger.",
+    "cite": [
+      {
+        "src": "ASSIST",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M4-03",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "ASSIST water sip",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "During the 10 mL water sip, the patient's voice quality changes. What next?",
+    "options": [
+      {
+        "text": "Stop, place NBM and refer to speech pathology",
+        "correct": true,
+        "why": "Voice change is a section 3 stop criterion."
+      },
+      {
+        "text": "Continue to the cup of water",
+        "why": "The cup follows only if no section 3 signs occur."
+      },
+      {
+        "text": "Start oral medications",
+        "why": "The tool directs NBM at this point."
+      },
+      {
+        "text": "Observe only at the first meal",
+        "why": "The patient has not passed screening."
+      }
+    ],
+    "explanation": "Voice change is a section 3 stop criterion.",
+    "cite": [
+      {
+        "src": "ASSIST",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M4-04",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "ASSIST first meal",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "After passing ASSIST, what is required at the first meal?",
+    "options": [
+      {
+        "text": "Nursing staff observe the patient",
+        "correct": true,
+        "why": "Step 5 explicitly requires first-meal observation."
+      },
+      {
+        "text": "No further observation",
+        "why": "The tool specifically requires it."
+      },
+      {
+        "text": "Repeat a 10 mL sip only",
+        "why": "That is an earlier screening step."
+      },
+      {
+        "text": "Refer everyone to speech pathology",
+        "why": "Referral is specified for failed sections."
+      }
+    ],
+    "explanation": "Step 5 explicitly requires first-meal observation.",
+    "cite": [
+      {
+        "src": "ASSIST",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M4-05",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "Silent aspiration clue",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "After oral intake resumes, temperature spikes and chest condition deteriorates. What does ASSIST advise?",
+    "options": [
+      {
+        "text": "Place NBM and refer to speech pathology",
+        "correct": true,
+        "why": "These changes may indicate silent aspiration."
+      },
+      {
+        "text": "Continue the premorbid diet",
+        "why": "The tool directs NBM."
+      },
+      {
+        "text": "Repeat only the initial alertness check",
+        "why": "The follow-up warning calls for NBM and referral."
+      },
+      {
+        "text": "Ignore it without coughing",
+        "why": "The tool flags silent aspiration without requiring cough."
+      }
+    ],
+    "explanation": "These changes may indicate silent aspiration.",
+    "cite": [
+      {
+        "src": "ASSIST",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M4-06",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "NGT initial confirmation",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "An initial NGT aspirate has pH greater than five. What must be ordered?",
+    "options": [
+      {
+        "text": "Chest x-ray confirmation",
+        "correct": true,
+        "why": "The policy requires x-ray when initial aspirate pH is greater than five."
+      },
+      {
+        "text": "Confirm by auscultation",
+        "why": "The policy says never use auscultation."
+      },
+      {
+        "text": "Use litmus paper",
+        "why": "The policy says never use litmus."
+      },
+      {
+        "text": "Begin medication administration",
+        "why": "Placement must first be confirmed."
+      }
+    ],
+    "explanation": "The policy requires x-ray when initial aspirate pH is greater than five.",
+    "cite": [
+      {
+        "src": "NGTPOL",
+        "loc": "p.13"
+      }
+    ]
+  },
+  {
+    "id": "M4-07",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "NGT no aspirate",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "No gastric aspirate can be obtained after NGT insertion. What confirmation is required?",
+    "options": [
+      {
+        "text": "Radiological confirmation",
+        "correct": true,
+        "why": "The policy requires an x-ray if aspirate cannot be obtained."
+      },
+      {
+        "text": "Air insufflation with auscultation",
+        "why": "Auscultation must never confirm position."
+      },
+      {
+        "text": "Litmus paper",
+        "why": "Litmus cannot confirm pH."
+      },
+      {
+        "text": "Assume correct placement from the external length",
+        "why": "Initial placement still requires confirmation."
+      }
+    ],
+    "explanation": "The policy requires an x-ray if aspirate cannot be obtained.",
+    "cite": [
+      {
+        "src": "NGTPOL",
+        "loc": "p.13"
+      }
+    ]
+  },
+  {
+    "id": "M4-08",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "NGT medication safety",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Before medication is given through a newly inserted NGT, which requirements apply?",
+    "options": [
+      {
+        "text": "Confirmed tube placement and a documented medical-officer direction to use it",
+        "correct": true,
+        "why": "Both are required before medications or feed."
+      },
+      {
+        "text": "Only a medication order",
+        "why": "Tube placement and direction to commence use are also required."
+      },
+      {
+        "text": "Only an audible air test",
+        "why": "Auscultation is not a valid confirmation method."
+      },
+      {
+        "text": "Only a visible nostril mark",
+        "why": "The mark is for monitoring migration, not initial confirmation."
+      }
+    ],
+    "explanation": "Both are required before medications or feed.",
+    "cite": [
+      {
+        "src": "NGTPOL",
+        "loc": "p.14"
+      }
+    ]
+  },
+  {
+    "id": "M4-09",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "NGT migration",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "The tube's nostril centimetre mark differs from its insertion record. What next?",
+    "options": [
+      {
+        "text": "Do not use it until gastric position is reconfirmed",
+        "correct": true,
+        "why": "A changed mark indicates migration and reconfirmation is required."
+      },
+      {
+        "text": "Continue feed if the patient does not cough",
+        "why": "Absence of coughing does not rule out displacement."
+      },
+      {
+        "text": "Rely on the old x-ray alone",
+        "why": "Placement can change after the image."
+      },
+      {
+        "text": "Give water through it to test patency",
+        "why": "Use must pause until position is reconfirmed."
+      }
+    ],
+    "explanation": "A changed mark indicates migration and reconfirmation is required.",
+    "cite": [
+      {
+        "src": "NGTPOL",
+        "loc": "p.15"
+      }
+    ]
+  },
+  {
+    "id": "M4-10",
+    "type": "mcq",
+    "week": "Module 4",
+    "topic": "NGT feed intolerance",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "A patient receiving NGT feed starts coughing and aspiration is suspected. What action is specified?",
+    "options": [
+      {
+        "text": "Cease feeds immediately and notify the medical officer",
+        "correct": true,
+        "why": "The policy directs both actions for suspected aspiration."
+      },
+      {
+        "text": "Increase the feed rate",
+        "why": "This conflicts with immediate cessation."
+      },
+      {
+        "text": "Continue and observe only",
+        "why": "The policy calls for cessation and notification."
+      },
+      {
+        "text": "Give crushed medication first",
+        "why": "Medication also requires safe tube use."
+      }
+    ],
+    "explanation": "The policy directs both actions for suspected aspiration.",
+    "cite": [
+      {
+        "src": "NGTPOL",
+        "loc": "p.15"
+      }
+    ]
+  },
+  {
+    "id": "M4-11",
+    "type": "saq",
+    "week": "Module 4",
+    "topic": "ASSIST sequence",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "prompt": "A trained clinician screens an adult with persisting acute stroke symptoms. Outline the ASSIST stop rules before and during water testing.",
+    "model": "First check alertness for at least 20 minutes, upright sitting and head control; any no means stop, NBM and review. Any section 2 risk sign such as facial droop, slurred speech or weak cough means stop, NBM and refer to speech pathology. During a 10 mL sip or cup of water, coughing, voice change, drooling or breathing change also means stop, NBM and refer.",
+    "rubric": [
+      {
+        "point": "Section 1 alertness, posture and head control; any no means stop and NBM",
+        "cite": [
+          {
+            "src": "ASSIST",
+            "loc": "p.1"
+          }
+        ]
+      },
+      {
+        "point": "Section 2 risk sign means NBM and speech pathology referral",
+        "cite": [
+          {
+            "src": "ASSIST",
+            "loc": "p.1"
+          }
+        ]
+      },
+      {
+        "point": "Water-test cough, voice, drool or breathing change means NBM and referral",
+        "cite": [
+          {
+            "src": "ASSIST",
+            "loc": "p.1"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "ASSIST",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M4-12",
+    "type": "saq",
+    "week": "Module 4",
+    "topic": "NGT medication",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "prompt": "Before administering a medicine through an NGT, what placement, authorisation and medicine checks does the policy require?",
+    "model": "Confirm tube position before medication, including checking for migration. A medical officer must document direction to commence tube use, and medication administration directions must be on the medication order by a pharmacist or medical officer. Confirm medication/feed compatibility, solubility and stability with pharmacists; liquid medicines are preferred to crushed medicines.",
+    "rubric": [
+      {
+        "point": "Placement confirmed before medicines and migration checked",
+        "cite": [
+          {
+            "src": "NGTPOL",
+            "loc": "p.14"
+          },
+          {
+            "src": "NGTPOL",
+            "loc": "p.15"
+          }
+        ]
+      },
+      {
+        "point": "Medical officer documents direction to commence use",
+        "cite": [
+          {
+            "src": "NGTPOL",
+            "loc": "p.14"
+          }
+        ]
+      },
+      {
+        "point": "Medication directions documented by pharmacist or medical officer",
+        "cite": [
+          {
+            "src": "NGTPOL",
+            "loc": "p.15"
+          }
+        ]
+      },
+      {
+        "point": "Pharmacist confirms compatibility, solubility and stability; liquids preferred",
+        "cite": [
+          {
+            "src": "NGTPOL",
+            "loc": "p.15"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "NGTPOL",
+        "loc": "p.14"
+      },
+      {
+        "src": "NGTPOL",
+        "loc": "p.15"
+      }
+    ]
+  }
+]

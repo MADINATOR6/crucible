@@ -1,0 +1,819 @@
+[
+  {
+    "id": "M3-01",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Irregular pulse",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "A new irregular radial pulse is found. Which assessment avoids undercounting the rate?",
+    "options": [
+      {
+        "text": "Count apically for a full minute",
+        "correct": true,
+        "why": "A radial count can undercount an irregular pulse."
+      },
+      {
+        "text": "Count only at the wrist",
+        "why": "The radial count can undercount."
+      },
+      {
+        "text": "Use only the monitor rate",
+        "why": "The lecture calls for manual assessment."
+      },
+      {
+        "text": "Wait until the next round",
+        "why": "A new irregular pulse must be reported."
+      }
+    ],
+    "explanation": "A radial count can undercount an irregular pulse.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.10"
+      }
+    ]
+  },
+  {
+    "id": "M3-02",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Low urine output",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Urine output falls in a cardiac patient. Which check helps interpret this finding?",
+    "options": [
+      {
+        "text": "Check catheter patency and fluid-balance accuracy",
+        "correct": true,
+        "why": "Both checks are specified."
+      },
+      {
+        "text": "Assume dehydration",
+        "why": "Congestion is another possible cause."
+      },
+      {
+        "text": "Give fluid without assessment",
+        "why": "The cause may be fluid overload."
+      },
+      {
+        "text": "Ignore it until pain appears",
+        "why": "Persistent low output needs urgent review."
+      }
+    ],
+    "explanation": "Both checks are specified.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.10"
+      }
+    ]
+  },
+  {
+    "id": "M3-03",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Oedema pattern",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "New unilateral leg swelling with warmth suggests what next assessment?",
+    "options": [
+      {
+        "text": "Assess for DVT",
+        "correct": true,
+        "why": "Unilateral warmth or calf pain needs a DVT assessment."
+      },
+      {
+        "text": "Assume cardiac oedema",
+        "why": "Bilateral dependent oedema better fits cardiac oedema."
+      },
+      {
+        "text": "Check weight only",
+        "why": "Pattern and other findings also matter."
+      },
+      {
+        "text": "Wait for breathlessness",
+        "why": "New oedema is always reported."
+      }
+    ],
+    "explanation": "Unilateral warmth or calf pain needs a DVT assessment.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.11"
+      }
+    ]
+  },
+  {
+    "id": "M3-04",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Postural drop",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "A cardiac patient develops a postural BP drop. What should be checked?",
+    "options": [
+      {
+        "text": "Repeat manual lying and standing BP and assess pulse, consciousness, fluid balance and bleeding",
+        "correct": true,
+        "why": "These are specified checks."
+      },
+      {
+        "text": "Check only weight",
+        "why": "Weight omits the stated checks."
+      },
+      {
+        "text": "Assume diuretic effect",
+        "why": "Bleeding and arrhythmia are also possible."
+      },
+      {
+        "text": "Wait for syncope",
+        "why": "A new drop must be reported."
+      }
+    ],
+    "explanation": "These are specified checks.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.11"
+      }
+    ]
+  },
+  {
+    "id": "M3-05",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Oxygen trend",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "SpO₂ stays stable but oxygen requirement rises. What does the trend mean?",
+    "options": [
+      {
+        "text": "Deterioration",
+        "correct": true,
+        "why": "The lecture explicitly identifies stable saturations on more oxygen as deterioration."
+      },
+      {
+        "text": "No change",
+        "why": "Oxygen need has risen."
+      },
+      {
+        "text": "Stop trending observations",
+        "why": "Trends can show slow deterioration."
+      },
+      {
+        "text": "Only weight matters",
+        "why": "The observation chart includes oxygen need."
+      }
+    ],
+    "explanation": "The lecture explicitly identifies stable saturations on more oxygen as deterioration.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.15"
+      }
+    ]
+  },
+  {
+    "id": "M3-06",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Chest pain",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Chest pain persists after a normal first ECG. What next?",
+    "options": [
+      {
+        "text": "Urgent review and repeat ECG",
+        "correct": true,
+        "why": "One normal ECG does not exclude ACS."
+      },
+      {
+        "text": "Rule out ACS",
+        "why": "The first ECG cannot exclude it."
+      },
+      {
+        "text": "Wait for troponin",
+        "why": "The lecture says not to wait."
+      },
+      {
+        "text": "Skip vital signs",
+        "why": "Full vital signs are part of the response."
+      }
+    ],
+    "explanation": "One normal ECG does not exclude ACS.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.12"
+      }
+    ]
+  },
+  {
+    "id": "M3-07",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Access-site bleeding",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Bleeding starts at a groin access site after PCI. What is the immediate response?",
+    "options": [
+      {
+        "text": "Apply direct pressure above the puncture and have someone call for help",
+        "correct": true,
+        "why": "This is the stated response."
+      },
+      {
+        "text": "Wait for swelling to settle",
+        "why": "Urgent review is required every time."
+      },
+      {
+        "text": "Check only the next routine pulse",
+        "why": "Distal pulses and vital signs are needed now."
+      },
+      {
+        "text": "Give analgesia first",
+        "why": "Bleeding requires immediate action."
+      }
+    ],
+    "explanation": "This is the stated response.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.12"
+      }
+    ]
+  },
+  {
+    "id": "M3-08",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Radial PCI complication",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Forearm pain, swelling and tightness increase after radial PCI. What next?",
+    "options": [
+      {
+        "text": "Escalate immediately",
+        "correct": true,
+        "why": "These are signs of compartment syndrome."
+      },
+      {
+        "text": "Medicate and wait",
+        "why": "The source explicitly rejects waiting."
+      },
+      {
+        "text": "Treat it as expected discomfort",
+        "why": "These are warning signs."
+      },
+      {
+        "text": "Check only the groin",
+        "why": "The radial limb needs assessment."
+      }
+    ],
+    "explanation": "These are signs of compartment syndrome.",
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.30"
+      }
+    ]
+  },
+  {
+    "id": "M3-09",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Limb electrodes",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "A standard wrist site is unavailable for a diagnostic ECG. What placement is advised?",
+    "options": [
+      {
+        "text": "Use the most distal available limb point, mirror it contralaterally and document it",
+        "correct": true,
+        "why": "The page specifies this modification."
+      },
+      {
+        "text": "Move leads to the torso without documentation",
+        "why": "Torso placement alters morphology."
+      },
+      {
+        "text": "Place electrodes asymmetrically",
+        "why": "Symmetry is recommended."
+      },
+      {
+        "text": "Omit the limb lead",
+        "why": "Modified limb placement is described."
+      }
+    ],
+    "explanation": "The page specifies this modification.",
+    "cite": [
+      {
+        "src": "CANVAS",
+        "loc": "page 3-dot-2-introduction-to-performing-an-ecg"
+      }
+    ]
+  },
+  {
+    "id": "M3-10",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "V3 placement",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "stem": "Where is V3 placed?",
+    "options": [
+      {
+        "text": "Midway between V2 and V4",
+        "correct": true,
+        "why": "This is V3."
+      },
+      {
+        "text": "Right sternal margin, fourth intercostal space",
+        "why": "This is V1."
+      },
+      {
+        "text": "Left sternal margin, fourth intercostal space",
+        "why": "This is V2."
+      },
+      {
+        "text": "Mid-axillary line level with V4",
+        "why": "This is V6."
+      }
+    ],
+    "explanation": "This is V3.",
+    "cite": [
+      {
+        "src": "LAB3SL",
+        "loc": "p.12"
+      }
+    ]
+  },
+  {
+    "id": "M3-11",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Lead reversal",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Lead II is predominantly downward and aVR upright. What quality issue should be checked?",
+    "options": [
+      {
+        "text": "Left/right arm lead reversal",
+        "correct": true,
+        "why": "The source describes reversal of these waveform directions."
+      },
+      {
+        "text": "Accept the pattern as expected",
+        "why": "Normally II is upright and aVR downward."
+      },
+      {
+        "text": "Diagnose a rhythm from this alone",
+        "why": "Misplacement can cause diagnostic error."
+      },
+      {
+        "text": "Repeat without checking electrodes",
+        "why": "Electrode position needs checking."
+      }
+    ],
+    "explanation": "The source describes reversal of these waveform directions.",
+    "cite": [
+      {
+        "src": "ECGBAR",
+        "loc": "p.2"
+      }
+    ]
+  },
+  {
+    "id": "M3-12",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Shivering artefact",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "An ECG baseline is bumpy and spiky while the patient shivers. Likely cause?",
+    "options": [
+      {
+        "text": "Skeletal muscle activity",
+        "correct": true,
+        "why": "Shivering can produce this artefact."
+      },
+      {
+        "text": "Missing lead",
+        "why": "That produces a dotted baseline."
+      },
+      {
+        "text": "Arm lead reversal",
+        "why": "That reverses waveform direction."
+      },
+      {
+        "text": "A normal flat baseline",
+        "why": "A good baseline is sharp and flat."
+      }
+    ],
+    "explanation": "Shivering can produce this artefact.",
+    "cite": [
+      {
+        "src": "ECGBAR",
+        "loc": "p.3"
+      }
+    ]
+  },
+  {
+    "id": "M3-13",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Missing lead",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "One ECG lead shows a dotted baseline. What should be checked?",
+    "options": [
+      {
+        "text": "Skin-to-monitor conduction",
+        "correct": true,
+        "why": "A missing lead indicates failed conduction."
+      },
+      {
+        "text": "Breathing movement alone",
+        "why": "This can cause a wandering baseline."
+      },
+      {
+        "text": "Normal waveform",
+        "why": "The lead is missing."
+      },
+      {
+        "text": "Only talking",
+        "why": "Talking causes muscle artefact."
+      }
+    ],
+    "explanation": "A missing lead indicates failed conduction.",
+    "cite": [
+      {
+        "src": "ECGBAR",
+        "loc": "p.4"
+      }
+    ]
+  },
+  {
+    "id": "M3-14",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Monitoring purpose",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Monitoring shows a rhythm change. What records a specific diagnostic tracing?",
+    "options": [
+      {
+        "text": "A separate 12-lead ECG",
+        "correct": true,
+        "why": "Monitoring watches rhythm but does not diagnose."
+      },
+      {
+        "text": "Monitor rate alone",
+        "why": "It is surveillance, not diagnostic ECG."
+      },
+      {
+        "text": "Telemetry alone",
+        "why": "It changes transmission method."
+      },
+      {
+        "text": "Disconnect monitoring",
+        "why": "Disconnection loses surveillance."
+      }
+    ],
+    "explanation": "Monitoring watches rhythm but does not diagnose.",
+    "cite": [
+      {
+        "src": "CANVAS",
+        "loc": "page 3-dot-3-cardiac-monitoring-and-telemetry"
+      }
+    ]
+  },
+  {
+    "id": "M3-15",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Hardwire mobility",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "A high-risk patient on hardwire cardiac monitoring needs to get to the toilet. What does the Canvas monitoring page tell you to plan?",
+    "options": [
+      {
+        "text": "How toileting and transfers will be managed: supervision, a commode at the bedside, or a switch to telemetry if they are mobile enough",
+        "correct": true,
+        "why": "The page says to think ahead about toileting and transfers for a high-risk patient, because every disconnection is a period when the rhythm is not being watched."
+      },
+      {
+        "text": "Nothing: hardwire monitoring lets the patient walk around the ward",
+        "why": "Hardwire monitoring limits movement to cable reach; the patient must be disconnected to leave the bedspace. Walking around the ward is what telemetry allows."
+      },
+      {
+        "text": "Record a 12-lead ECG instead of monitoring while they are up",
+        "why": "The page says a 12-lead ECG is recorded when a diagnosis is needed; it is not a substitute for watching the rhythm during mobility."
+      },
+      {
+        "text": "Turn off the monitor alarms until they return",
+        "why": "The page describes alarms as how staff are alerted to rhythm changes; it does not suggest turning them off."
+      }
+    ],
+    "explanation": "Hardwire: cable to a bedside monitor, so movement is limited. Telemetry: a wireless transmitter the patient carries, so they can walk around the ward. Each disconnection from hardwire is unwatched time.",
+    "cite": [
+      {
+        "src": "CANVAS",
+        "loc": "page 3-dot-3-cardiac-monitoring-and-telemetry"
+      }
+    ]
+  },
+  {
+    "id": "M3-16",
+    "type": "mcq",
+    "week": "Module 3",
+    "topic": "Burette medication port",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "stem": "Where is medication added to the described burette?",
+    "options": [
+      {
+        "text": "Top-plate needleless access site",
+        "correct": true,
+        "why": "The instruction specifies this site."
+      },
+      {
+        "text": "Air vent",
+        "why": "Medication must not go through the vent."
+      },
+      {
+        "text": "Needle through access site",
+        "why": "Needles and blunt cannulae are prohibited there."
+      },
+      {
+        "text": "Floating valve",
+        "why": "This prevents air entering the line."
+      }
+    ],
+    "explanation": "The instruction specifies this site.",
+    "cite": [
+      {
+        "src": "BURETTE1",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M3-17",
+    "type": "saq",
+    "week": "Module 3",
+    "topic": "Irregular pulse",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "prompt": "A new fast, irregular pulse is found with breathlessness. Outline the assessment and escalation.",
+    "model": "Check pulse and BP. Assess radial rate, rhythm and volume manually; if irregular, count apically for a full minute. Check BP, conscious state, 12-lead ECG and cardiac monitoring. Tell the nurse in charge, document, and seek immediate urgent review because of breathlessness.",
+    "rubric": [
+      {
+        "point": "Manual pulse and full-minute apical count if irregular",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.10"
+          }
+        ]
+      },
+      {
+        "point": "BP, conscious state, ECG and monitoring",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.10"
+          }
+        ]
+      },
+      {
+        "point": "Report and document",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.10"
+          }
+        ]
+      },
+      {
+        "point": "Urgent review with breathlessness",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.10"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.10"
+      }
+    ]
+  },
+  {
+    "id": "M3-18",
+    "type": "saq",
+    "week": "Module 3",
+    "topic": "ECG conduction",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "prompt": "A tracing has a dotted baseline in one lead. Explain likely causes and checks before interpretation.",
+    "model": "A dotted missing-lead baseline indicates failed conduction from skin to monitor. Check skin preparation, electrode gel and contact, cable tension, peeling electrodes, and damaged wires.",
+    "rubric": [
+      {
+        "point": "Recognises failed conduction",
+        "cite": [
+          {
+            "src": "ECGBAR",
+            "loc": "p.4"
+          }
+        ]
+      },
+      {
+        "point": "Checks skin preparation and electrode contact",
+        "cite": [
+          {
+            "src": "ECGBAR",
+            "loc": "p.4"
+          }
+        ]
+      },
+      {
+        "point": "Checks dry electrodes, cable tension and damaged wires",
+        "cite": [
+          {
+            "src": "ECGBAR",
+            "loc": "p.4"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "ECGBAR",
+        "loc": "p.4"
+      }
+    ]
+  },
+  {
+    "id": "M3-19",
+    "type": "saq",
+    "week": "Module 3",
+    "topic": "Burette priming",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "prompt": "Explain how to prime the administration line and why to keep the burette vertical.",
+    "model": "Use burette fluid to prime the administration line until all air is removed, then close the lower clamp. Keep the chamber vertical so the floating safety shut-off valve can function and prevent air entering the line when it empties.",
+    "rubric": [
+      {
+        "point": "Primes with burette fluid and removes all air",
+        "cite": [
+          {
+            "src": "BURETTE1",
+            "loc": "p.1"
+          }
+        ]
+      },
+      {
+        "point": "Closes lower clamp after priming",
+        "cite": [
+          {
+            "src": "BURETTE1",
+            "loc": "p.1"
+          }
+        ]
+      },
+      {
+        "point": "Keeps chamber vertical for floating valve function",
+        "cite": [
+          {
+            "src": "BURETTE1",
+            "loc": "p.1"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "BURETTE1",
+        "loc": "p.1"
+      }
+    ]
+  },
+  {
+    "id": "M3-20",
+    "type": "saq",
+    "week": "Module 3",
+    "topic": "Post-PCI checks",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "reasoning": true,
+    "prompt": "After PCI, what access-site and distal limb checks are needed, and what findings need immediate escalation?",
+    "model": "Check the access site and band for bleeding. Compare distal colour, warmth, movement, sensation and pulses with baseline. Escalate increasing forearm pain, swelling or tightness immediately. Back or flank pain with hypotension suggests retroperitoneal bleeding; new chest pain needs ECG and escalation.",
+    "rubric": [
+      {
+        "point": "Checks site for bleeding",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.30"
+          }
+        ]
+      },
+      {
+        "point": "Compares distal neurovascular findings with baseline",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.30"
+          }
+        ]
+      },
+      {
+        "point": "Escalates radial forearm pain, swelling or tightness",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.30"
+          }
+        ]
+      },
+      {
+        "point": "Recognises back or flank pain with hypotension and new chest pain",
+        "cite": [
+          {
+            "src": "L3",
+            "loc": "p.30"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "L3",
+        "loc": "p.30"
+      }
+    ]
+  }
+]

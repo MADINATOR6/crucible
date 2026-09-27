@@ -65,6 +65,8 @@ textarea{width:100%;min-height:110px}
 .steps li .t{flex:1}
 .steps li.good{background:var(--good-bg);border-color:var(--good)}
 .steps li.bad{background:var(--bad-bg);border-color:var(--bad)}
+.steps li.picked{outline:3px solid var(--accent);cursor:grabbing}
+.steps li[data-pos]{cursor:pointer}
 .crit{border-left:5px solid var(--crit)!important}
 .critbadge{font-size:11px;font-weight:700;color:var(--crit);text-transform:uppercase;letter-spacing:.04em}
 .timer{font:700 28px/1 ui-monospace,Consolas,monospace}
@@ -389,21 +391,32 @@ function skillList(s, body){
 function skillOrder(s, body){
   let cur = shuffle(s.steps.map((_,k)=>k));
   if(s.steps.length > 1) while(cur.every((v,k)=>v===k)) cur = shuffle(cur);
+  // A position is right when its text matches the source step there, so repeated steps
+  // (e.g. "Performs hand hygiene") are interchangeable.
+  const ok = (k,pos) => s.steps[k].text === s.steps[pos].text;
+  let picked = null;
   const draw = (checked) => {
     body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Put the steps in order</h2>
-      <p class="muted small">Use the arrows to move steps. Then press Check.</p>
+      <p class="muted small">Tap a step to pick it up, then tap the step it should go before (or use the arrows). Then press Check.</p>
       <ol class="steps">${cur.map((k,pos) => {
-        const cls = checked ? (k===pos?"good":"bad") : "";
-        const hint = checked && k!==pos ? `<div class="small"><b>Belongs at #${k+1}</b></div>` : "";
-        return `<li class="${cls}"><span class="n">${pos+1}.</span><span class="t">${esc(s.steps[k].text)}${hint}</span>
+        const cls = checked ? (ok(k,pos)?"good":"bad") : (picked===pos ? "picked" : "");
+        const hint = checked && !ok(k,pos) ? `<div class="small"><b>Belongs at #${k+1}</b></div>` : "";
+        return `<li class="${cls}" data-pos="${pos}"><span class="n">${pos+1}.</span><span class="t">${esc(s.steps[k].text)}${hint}</span>
           <span class="noprint"><button data-up="${pos}" aria-label="Move up" ${pos?"":"disabled"}>↑</button> <button data-dn="${pos}" aria-label="Move down" ${pos<cur.length-1?"":"disabled"}>↓</button></span></li>`;
       }).join("")}</ol>
       <div class="row" style="margin-top:10px"><button class="primary" id="oCheck">Check</button><button id="oNew">Reshuffle</button><span id="oRes"></span></div></div>`;
-    body.querySelectorAll("[data-up]").forEach(b => b.onclick = () => { const p=+b.dataset.up; [cur[p-1],cur[p]]=[cur[p],cur[p-1]]; draw(false); });
-    body.querySelectorAll("[data-dn]").forEach(b => b.onclick = () => { const p=+b.dataset.dn; [cur[p+1],cur[p]]=[cur[p],cur[p+1]]; draw(false); });
+    body.querySelectorAll("[data-up]").forEach(b => b.onclick = e => { e.stopPropagation(); const p=+b.dataset.up; [cur[p-1],cur[p]]=[cur[p],cur[p-1]]; picked=null; draw(false); });
+    body.querySelectorAll("[data-dn]").forEach(b => b.onclick = e => { e.stopPropagation(); const p=+b.dataset.dn; [cur[p+1],cur[p]]=[cur[p],cur[p+1]]; picked=null; draw(false); });
+    body.querySelectorAll("[data-pos]").forEach(li => li.onclick = () => {
+      const p = +li.dataset.pos;
+      if(picked === null){ picked = p; }
+      else if(picked !== p){ const [x] = cur.splice(picked, 1); cur.splice(p > picked ? p-1 : p, 0, x); picked = null; }
+      else picked = null;
+      draw(false);
+    });
     $("#oNew").onclick = () => skillOrder(s, body);
     $("#oCheck").onclick = () => {
-      const right = cur.filter((k,pos)=>k===pos).length, score = right/cur.length;
+      const right = cur.filter((k,pos)=>ok(k,pos)).length, score = right/cur.length;
       const r = P.skills[s.id] || {}; r.order = Math.max(r.order||0, score); P.skills[s.id] = r; save();
       draw(true); $("#oRes").textContent = `${right} / ${cur.length} in the right place`;
     };

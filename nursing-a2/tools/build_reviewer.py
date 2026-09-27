@@ -117,11 +117,14 @@ def validate(c):
             errors.append(f"{where}: type must be mcq or saq")
 
     for s in c["skills"]:
+        versions = [(f"skill {s['id']}", s.get("steps", []))]
+        versions += [(f"skill {s['id']}/{v.get('id', '?')}", v.get("steps", [])) for v in s.get("variants", [])]
+        for vwhere, steps in versions:
+            for k, st in enumerate(steps):
+                if not st.get("text"):
+                    errors.append(f"{vwhere} step {k + 1}: no text")
+                check_cites(f"{vwhere} step {k + 1}", st.get("cite"))
         where = f"skill {s['id']}"
-        for k, st in enumerate(s.get("steps", [])):
-            if not st.get("text"):
-                errors.append(f"{where} step {k + 1}: no text")
-            check_cites(f"{where} step {k + 1}", st.get("cite"))
         for k, n in enumerate(s.get("notes", [])):
             check_cites(f"{where} note {k + 1}", n.get("cite"))
     return errors, warnings
@@ -134,7 +137,8 @@ def main():
         print("WARN ", w)
     for e in errors:
         print("ERROR", e)
-    n_steps = sum(len(s.get("steps", [])) for s in content["skills"])
+    n_steps = sum(len(s.get("steps", [])) + sum(len(v.get("steps", [])) for v in s.get("variants", []))
+                  for s in content["skills"])
     print(f"{len(content['questions'])} questions, {n_steps} skill steps, {len(errors)} errors, {len(warnings)} warnings")
     if errors:
         sys.exit(1)

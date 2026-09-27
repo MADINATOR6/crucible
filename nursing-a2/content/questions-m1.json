@@ -1,0 +1,238 @@
+[
+  {
+    "id": "M1-01", "type": "mcq", "week": "Module 1", "topic": "When to reassess", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "stem": "A concern is raised during handover about a patient's change in behaviour. How should this affect A–H assessment?",
+    "options": [
+      {"text": "Conduct an A–H assessment to assess the change", "correct": true, "why": "The lecture identifies both handover concerns and changes in behaviour as indications for A–H assessment."},
+      {"text": "Wait until an emergency is confirmed", "why": "A–H is not just for emergencies; it establishes a baseline and detects change early."},
+      {"text": "Use the admission assessment without reassessing", "why": "The lecture directs repeat A–H assessment when the condition changes or there is concern."},
+      {"text": "Assess only if the concern includes abnormal vital signs", "why": "Behavioural change and handover concerns are themselves listed indications."}
+    ],
+    "explanation": "An earlier assessment is a snapshot. A new concern calls for reassessment and comparison with the patient's baseline and trends.",
+    "cite": [{"src": "L1", "loc": "p.5"}, {"src": "L1", "loc": "p.31"}]
+  },
+  {
+    "id": "M1-02", "type": "mcq", "week": "Module 1", "topic": "Airway sounds", "slo": ["SLO2"], "reasoning": true,
+    "stem": "During airway assessment, a patient with reduced consciousness has snoring respirations. Which interpretation matches the lecture?",
+    "options": [
+      {"text": "The tongue may be falling back", "correct": true, "why": "The airway section links snoring with the tongue falling back in reduced consciousness."},
+      {"text": "Snoring is the sound used to identify upper-airway secretions", "why": "The lecture associates upper-airway secretions with gurgling, rather than snoring."},
+      {"text": "Snoring is the high-pitched inspiratory sound described as stridor", "why": "The lecture distinguishes snoring from high-pitched inspiratory stridor."},
+      {"text": "Snoring demonstrates the same airway finding as clear speech in full sentences", "why": "Speech quality is assessed separately; snoring is linked to the tongue falling back."}
+    ],
+    "explanation": "Distinguishing gurgling, snoring and stridor helps interpret the airway finding rather than recording only 'noisy breathing'.",
+    "cite": [{"src": "L1", "loc": "p.9"}]
+  },
+  {
+    "id": "M1-03", "type": "mcq", "week": "Module 1", "topic": "Respiratory rate", "slo": ["SLO2"],
+    "stem": "How does Lecture 1 direct the nurse to measure respiratory rate?",
+    "options": [
+      {"text": "Count manually for a full 60 seconds without announcing the count", "correct": true, "why": "The lecture specifies a full minute without telling the patient, because awareness can alter their breathing rate."},
+      {"text": "Estimate the rate from the patient's overall appearance", "why": "The lecture explicitly says to count for a full minute and not estimate."},
+      {"text": "Ask the patient to consciously control their breathing during the count", "why": "The lecture warns that patients who know they are being counted can alter their breathing and falsify the reading."},
+      {"text": "Use SpO2 in place of a respiratory-rate count", "why": "SpO2 is listed separately; manual respiratory-rate counting remains the primary tool for measuring rate."}
+    ],
+    "explanation": "The lecture describes respiratory rate as an early, sensitive sign of deterioration and requires an actual full-minute count.",
+    "cite": [{"src": "L1", "loc": "p.12"}]
+  },
+  {
+    "id": "M1-04", "type": "mcq", "week": "Module 1", "topic": "Perfusion cues", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A circulation assessment finds cold, pale hands and delayed capillary refill. Which interpretation is supported by Lecture 1?",
+    "options": [
+      {"text": "These findings suggest reduced perfusion", "correct": true, "why": "Cold, pale extremities are linked to vasoconstriction/reduced perfusion, and delayed refill may suggest reduced perfusion."},
+      {"text": "These are the lecture's signs of good peripheral perfusion", "why": "The lecture associates warm extremities with good perfusion and cold, pale extremities with reduced perfusion."},
+      {"text": "Peripheral findings can be ignored if a central assessment has been done", "why": "The circulation section directs assessment centrally and peripherally."},
+      {"text": "Capillary refill alone completes the circulation assessment", "why": "The lecture also assesses skin, symptoms, blood pressure, extremities, oedema and peripheral pulses."}
+    ],
+    "explanation": "Cluster the peripheral findings as perfusion cues while completing the central and peripheral circulation assessment.",
+    "cite": [{"src": "L1", "loc": "p.17"}]
+  },
+  {
+    "id": "M1-05", "type": "mcq", "week": "Module 1", "topic": "New confusion", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A previously alert patient develops new confusion. Which response follows the general disability-assessment principles in Lecture 1?",
+    "options": [
+      {"text": "Treat the neurological change as urgent and escalate", "correct": true, "why": "The lecture describes any ACVPU step down from Alert as an escalation trigger and a new neurological drop as urgent until proven otherwise."},
+      {"text": "Wait for the patient to become unresponsive before escalating", "why": "New confusion is already a step down from Alert; unresponsiveness is not required."},
+      {"text": "Assume the change must be an isolated brain problem", "why": "The lecture also identifies oxygenation, perfusion and glucose as possible causes of neurological change."},
+      {"text": "Use normal pupils to dismiss the change in conscious state", "why": "Pupil assessment does not remove the separate escalation trigger of a step down from Alert."}
+    ],
+    "explanation": "New confusion is a deterioration cue. Assessment should consider oxygenation, perfusion, glucose and brain function while escalating the change.",
+    "cite": [{"src": "L1", "loc": "p.19"}]
+  },
+  {
+    "id": "M1-06", "type": "mcq", "week": "Module 1", "topic": "GCS motor response", "slo": ["SLO2"], "reasoning": true,
+    "stem": "During GCS assessment, a patient follows a simple motor command, although the movement is weak. How does the Lab 1 neurological chart classify this response?",
+    "options": [
+      {"text": "Obeys commands: motor score 6", "correct": true, "why": "The chart explicitly includes following commands even weakly under motor score 6."},
+      {"text": "Localises to pain: motor score 5", "why": "Score 5 describes a hand moving towards the source of pain, above the nipple line, rather than obeying a command."},
+      {"text": "Withdraws: motor score 4", "why": "Score 4 describes movement away from a painful stimulus."},
+      {"text": "Flexion to pain: motor score 3", "why": "Score 3 describes arm flexion/decorticate posturing in response to pain."}
+    ],
+    "explanation": "GCS motor scoring describes the best response to commands or stimuli; weak command-following still meets the chart's 'obeys commands' description.",
+    "cite": [{"src": "LAB1PKG", "loc": "p.8"}]
+  },
+  {
+    "id": "M1-07", "type": "mcq", "week": "Module 1", "topic": "Limb strength", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A limb moves actively against gravity but cannot move against added resistance. Which MRC strength grade on the Lab 1 chart matches this finding?",
+    "options": [
+      {"text": "Grade 3", "correct": true, "why": "Grade 3 is active movement against gravity."},
+      {"text": "Grade 2", "why": "Grade 2 is active movement when the effect of gravity is removed."},
+      {"text": "Grade 4", "why": "Grade 4 requires movement against gravity with some resistance."},
+      {"text": "Grade 5", "why": "Grade 5 requires movement against gravity with full resistance."}
+    ],
+    "explanation": "Distinguish movement against gravity from movement against resistance when assigning the limb-strength grade.",
+    "cite": [{"src": "LAB1PKG", "loc": "p.8"}]
+  },
+  {
+    "id": "M1-08", "type": "mcq", "week": "Module 1", "topic": "Exposure and dignity", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "stem": "Wounds and drain sites are covered by bedclothes. Which approach best follows the lecture's exposure assessment?",
+    "options": [
+      {"text": "Expose the areas needed for assessment, then cover each area promptly", "correct": true, "why": "The lecture says to assess hidden wounds and drains while exposing only what is needed and restoring dignity immediately after each area."},
+      {"text": "Leave covered areas unassessed to preserve privacy", "why": "The lecture specifically includes wounds and drains hidden by bedclothes in exposure assessment."},
+      {"text": "Keep the whole body exposed until all assessment and documentation are complete", "why": "The instruction is to cover immediately after each area is assessed."},
+      {"text": "Assess skin only where it is already visible above the bedclothes", "why": "The lecture requires looking for hidden wounds, drains and pressure-injury risk areas."}
+    ],
+    "explanation": "A thorough exposure assessment and preservation of dignity are both required.",
+    "cite": [{"src": "L1", "loc": "p.21"}]
+  },
+  {
+    "id": "M1-09", "type": "mcq", "week": "Module 1", "topic": "Fluid assessment", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A patient reports thirst, has dark amber urine and skin that tents and returns slowly. Which interpretation does the fluid-assessment section support?",
+    "options": [
+      {"text": "The findings support concern about dehydration", "correct": true, "why": "The lecture links thirst, dark amber urine and slowly returning skin turgor with dehydration."},
+      {"text": "Dark amber urine is the lecture's specific description of possible UTI", "why": "Cloudy urine, rather than dark amber urine, is linked with possible UTI in this section."},
+      {"text": "Thirst is unrelated to fluid assessment", "why": "The lecture describes thirst as a simple, reliable indicator of dehydration."},
+      {"text": "Only the current urine reading matters; trends are unnecessary", "why": "The fluid section says to watch the trend, not just the current reading."}
+    ],
+    "explanation": "Interpret these cues together and review fluid input, output and trends as directed by the fluid-assessment section.",
+    "cite": [{"src": "L1", "loc": "p.22"}]
+  },
+  {
+    "id": "M1-10", "type": "mcq", "week": "Module 1", "topic": "Glucose and cognition", "slo": ["SLO2"], "reasoning": true,
+    "stem": "Why should glucose assessment remain part of assessing a patient with altered cognition?",
+    "options": [
+      {"text": "Both low and high glucose can impair cognition and mimic neurological deterioration", "correct": true, "why": "The glucose section explicitly identifies both hypo- and hyperglycaemia as causes of impaired cognition that can mimic neurological deterioration."},
+      {"text": "Only low glucose can affect cognition", "why": "The lecture includes both low and high glucose."},
+      {"text": "Only high glucose can affect cognition", "why": "The lecture includes both high and low glucose."},
+      {"text": "Orientation assessment replaces the need to check BGL", "why": "The section includes orientation assessment as well as checking the BGL or point-of-care result."}
+    ],
+    "explanation": "Checking BGL helps interpret altered cognition alongside the rest of the A–H findings.",
+    "cite": [{"src": "L1", "loc": "p.23"}]
+  },
+  {
+    "id": "M1-11", "type": "mcq", "week": "Module 1", "topic": "Concern despite normal observations", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A nurse is seriously concerned about a patient even though observations are between the flags. Which statement matches Lecture 1?",
+    "options": [
+      {"text": "Serious concern can justify a Clinical Review or Rapid Response call", "correct": true, "why": "The lecture states that serious concern is enough to call even when observations are between the flags."},
+      {"text": "A normal chart prevents an escalation call", "why": "The lecture explicitly says a normal chart does not override clinical judgement."},
+      {"text": "Only a red-zone numerical observation permits any review", "why": "The lecture permits calls at any time on the basis of serious concern."},
+      {"text": "Family concerns cannot be escalated outside the usual treating team", "why": "The REACH section requires a local pathway for patient, carer or family escalation to a clinician not routinely involved in care."}
+    ],
+    "explanation": "Track-and-trigger observations support assessment; they do not cancel serious clinical concern.",
+    "cite": [{"src": "L1", "loc": "p.27"}]
+  },
+  {
+    "id": "M1-12", "type": "mcq", "week": "Module 1", "topic": "Auscultation positioning", "slo": ["SLO1", "SLO2"], "skill": "auscultation", "reasoning": true,
+    "stem": "A patient cannot tolerate sitting in a chair or on the side of the bed for chest auscultation but is comfortable lying at 45 degrees. What does the Module 1 reading support?",
+    "options": [
+      {"text": "Use the tolerated 45-degree position, with support if needed", "correct": true, "why": "The reading says some patients tolerate only a 45-degree angle and that this can facilitate assessment; support may be needed."},
+      {"text": "Insist on sitting despite the patient's discomfort", "why": "The reading requires consideration of clinical condition and comfort."},
+      {"text": "Abandon auscultation because only a chair is acceptable", "why": "The reading accepts sitting on the bed or lying at 45 degrees as well as sitting in a chair."},
+      {"text": "Require the patient to lie flat", "why": "The alternative described for patients unable to sit is a 45-degree angle, with comfort considered."}
+    ],
+    "explanation": "Adapt positioning to the patient's condition and comfort while enabling access for auscultation.",
+    "cite": [{"src": "AUSC", "loc": "p.2"}]
+  },
+  {
+    "id": "M1-13", "type": "mcq", "week": "Module 1", "topic": "Posterior auscultation", "slo": ["SLO2"], "skill": "auscultation",
+    "stem": "Why does the chest-auscultation reading direct the nurse to avoid placing the stethoscope over the scapula?",
+    "options": [
+      {"text": "Lung sounds cannot be heard through bone", "correct": true, "why": "This is the reading's stated reason for avoiding the scapula during posterior auscultation."},
+      {"text": "The posterior chest should not be assessed", "why": "The reading explicitly directs posterior assessment using the stepladder approach."},
+      {"text": "Only the inspiratory phase should be heard posteriorly", "why": "The reading requires a full inspiration and expiration at each stepladder point."},
+      {"text": "The posterior assessment replaces both lateral assessments", "why": "The procedure separately includes posterior, right lateral and left lateral assessment."}
+    ],
+    "explanation": "Use the posterior stepladder approach, avoiding bone, and listen through a full respiratory cycle at each point.",
+    "cite": [{"src": "AUSC", "loc": "p.3"}]
+  },
+  {
+    "id": "M1-14", "type": "mcq", "week": "Module 1", "topic": "BLS recognition", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A person is unresponsive and has slow, irregular agonal gasps. According to the Canvas BLS page, what should the nurse do?",
+    "options": [
+      {"text": "Start CPR because agonal gasps are not normal breathing", "correct": true, "why": "The page directs CPR for unresponsiveness with abnormal breathing and explicitly includes agonal gasping."},
+      {"text": "Wait because gasping proves adequate breathing", "why": "The page warns that agonal gasps are not breathing and may be mistaken for a sign of life."},
+      {"text": "Check for a pulse before deciding whether to start BLS", "why": "The page says pulse checks are not part of BLS and are unreliable."},
+      {"text": "First determine whether the cause is cardiac or respiratory", "why": "The page says this distinction is not required before responding; the BLS response is identical."}
+    ],
+    "explanation": "Unresponsiveness plus absent or abnormal breathing triggers the BLS response without delay for pulse checks or a cause diagnosis.",
+    "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]
+  },
+  {
+    "id": "M1-15", "type": "mcq", "week": "Module 1", "topic": "Oropharyngeal airway", "slo": ["SLO2"], "reasoning": true,
+    "stem": "During use of an oropharyngeal airway, the person gags and pushes the device out. What does the Canvas BLS page direct?",
+    "options": [
+      {"text": "Remove it and manage the airway manually", "correct": true, "why": "The page explicitly directs removal and manual management if the person gags or pushes it out."},
+      {"text": "Force the device back into position", "why": "The page says never to force an OPA and identifies an intact gag or cough reflex as a contraindication."},
+      {"text": "Leave it because an OPA prevents aspiration", "why": "The page states that an OPA does not protect against aspiration."},
+      {"text": "Stop manual positioning because the device replaces it", "why": "The page says manual airway positioning is still required and an OPA does not replace head tilt–chin lift."}
+    ],
+    "explanation": "The gag reflex is the decision point. The page also requires confirming placement scope with the facilitator and local policy.",
+    "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]
+  },
+  {
+    "id": "M1-16", "type": "mcq", "week": "Module 1", "topic": "AVPU", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A patient's eyes do not open spontaneously but open when spoken to. Which AVPU category is described on the Module 1 preparation page?",
+    "options": [
+      {"text": "V: Verbal", "correct": true, "why": "V describes eyes opening to a verbal stimulus rather than spontaneously."},
+      {"text": "A: Alert", "why": "A describes awareness and spontaneous eye opening."},
+      {"text": "P: Pain", "why": "P describes responding only to painful stimuli."},
+      {"text": "U: Unresponsive", "why": "U describes no spontaneous response and no response to verbal or painful stimuli."}
+    ],
+    "explanation": "AVPU provides a rapid conscious-state assessment by identifying the stimulus needed to produce a response.",
+    "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]
+  },
+  {
+    "id": "M1-17", "type": "saq", "week": "Module 1", "topic": "Holistic assessment", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "prompt": "A patient is visibly anxious during assessment. Outline how the H component of A–H can help you assess needs beyond physical observations.",
+    "model": "Observe non-verbal cues and available support people. Listen without interrupting and ask what matters most, including goals and language or health-literacy needs. Sit at eye level and acknowledge distress. Consider social circumstances, cultural and spiritual needs, functional baseline, goals of care or an advance care plan, and communication with carers.",
+    "rubric": [
+      {"point": "Observe non-verbal cues and support people; listen without interrupting", "cite": [{"src": "L1", "loc": "p.25"}]},
+      {"point": "Explore what matters most, goals and language or health-literacy needs", "cite": [{"src": "L1", "loc": "p.25"}]},
+      {"point": "Acknowledge distress at eye level and consider social, cultural, spiritual, functional and carer needs", "cite": [{"src": "L1", "loc": "p.25"}]}
+    ],
+    "cite": [{"src": "L1", "loc": "p.25"}]
+  },
+  {
+    "id": "M1-18", "type": "saq", "week": "Module 1", "topic": "Focused neurological assessment", "slo": ["SLO2"],
+    "prompt": "According to Module 1 preparation, what belongs in a focused neurological assessment, and how should limb strength be assessed and recorded?",
+    "model": "Assess level of consciousness, limb strength and pupillary response, with cranial nerves as applicable, alongside other assessments and at least vital signs. Complete GCS before limb-strength assessment. Assess each limb from upper to lower and proximal to distal, and score each limb separately on the chart.",
+    "rubric": [
+      {"point": "LOC, limb strength, pupils and cranial nerves as applicable, alongside at least vital signs", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+      {"point": "Complete GCS first, then assess limbs upper to lower and proximal to distal", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+      {"point": "Score each limb separately", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]}
+    ],
+    "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]
+  },
+  {
+    "id": "M1-19", "type": "saq", "week": "Module 1", "topic": "Auscultation documentation", "slo": ["SLO2"], "skill": "auscultation", "reasoning": true,
+    "prompt": "You have completed chest auscultation and want the next nurse to compare findings at reassessment. What should you document according to the Module 1 reading, and why?",
+    "model": "Document the areas assessed, such as anterior, posterior and lateral chest; describe sound quality or timbre; and record where any abnormal sounds were heard. Accurate recording enables clinical comparison when the patient is reassessed.",
+    "rubric": [
+      {"point": "Record the locations assessed", "cite": [{"src": "AUSC", "loc": "p.4"}]},
+      {"point": "Describe sound quality and locate abnormal sounds", "cite": [{"src": "AUSC", "loc": "p.4"}]},
+      {"point": "Explain that accurate recording supports comparison at reassessment", "cite": [{"src": "AUSC", "loc": "p.4"}]}
+    ],
+    "cite": [{"src": "AUSC", "loc": "p.4"}]
+  },
+  {
+    "id": "M1-20", "type": "saq", "week": "Module 1", "topic": "Bag-valve-mask ventilation", "slo": ["SLO2"],
+    "prompt": "According to the Canvas BLS page, what three conditions are needed for effective bag-valve-mask ventilation, how should two trained rescuers share the task, and what hazard is associated with poor technique?",
+    "model": "Effective BVM requires a patent airway, an adequate mask seal and adequate ventilation technique. Two trained rescuers are recommended: one manages the airway, mask and seal, while the other operates the bag. Poor technique or prolonged use can force air into the stomach and increase the risk of regurgitation of gastric contents.",
+    "rubric": [
+      {"point": "Patent airway, adequate mask seal and adequate ventilation technique", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+      {"point": "One trained rescuer manages airway/mask/seal; the second operates the bag", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+      {"point": "Poor technique or prolonged use can force air into the stomach and increase regurgitation risk", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]}
+    ],
+    "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]
+  }
+]
