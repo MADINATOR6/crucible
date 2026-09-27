@@ -1,9 +1,70 @@
 {
   "id": "ecg",
+  "cite": [{"src": "LAB3PKG", "loc": "p.21"}, {"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}],
+  "variants": [
+    {
+      "id": "12lead", "name": "12-lead ECG (Lab 3 appraisal form + lead positions)", "cite": [{"src": "LAB3PKG", "loc": "p.21 (Taking a 12-lead electrocardiograph)"}],
+      "steps": [
+        {"text": "Performs hand hygiene.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Gathers equipment: 12-lead ECG machine, recording paper, pre-gelled electrodes, cleansing wipes, scissors.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Introduces self to the person.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Explains the procedure to the person.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Obtains consent.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Prepares the person for privacy and ensures they are warm.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Removes objects that may cause electrical interference.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Inspects skin and hair status for electrode placement.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Positions the person in the centre of the bed with feet not touching the footboard.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Clips excess hair.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Exposes only the skin areas needed for electrode placement.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Enters data into the machine.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Uses cleansing wipes to remove excess oil from the skin.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Attaches limb electrodes to clean, dry, hair-free skin, slightly proximal to the wrists and ankles, symmetrically, avoiding bony prominences.", "critical": true, "cite": [{"src": "LAB3PKG", "loc": "p.21"}, {"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V1: 4th intercostal space, RIGHT margin of the sternum.", "critical": true, "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V2: 4th intercostal space, LEFT margin of the sternum.", "critical": true, "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V4: 5th intercostal space, mid-clavicular line.", "critical": true, "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V3: midway between V2 and V4.", "critical": true, "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V5: 5th intercostal space, anterior axillary line (same level as V4).", "critical": true, "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V6: 5th intercostal space, mid-axillary line (same level as V4).", "critical": true, "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "Attaches the predesignated wires to the corresponding electrodes.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Asks the person to remain still and relaxed.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Records the tracing.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Removes electrodes.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Cleanses the skin.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Provides health education.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Disposes of used equipment appropriately.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Documents the procedure, assessment data and ECG interpretation.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Links theory to findings; reviews ECG interpretation and assessment data.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "Initiates nursing interventions as required and reports any abnormalities.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]}
+      ]
+    },
+    {
+      "id": "monitor", "name": "Cardiac monitoring (Lab 3 appraisal form 11.4)", "cite": [{"src": "LAB3PKG", "loc": "p.22 (Section 11.4 Cardiac monitoring)"}],
+      "steps": [
+        {"text": "Performs hand hygiene.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Gathers equipment: cardiac monitor, ECG cable for hardwire monitoring, pre-gelled electrodes, cleansing wipes, scissors (telemetry: transmitter, pouch, battery pack).", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Introduces self, explains the procedure and obtains consent.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Positions the person.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Clips excess hair.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Provides privacy for skin exposure.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Selects Lead 2.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Attaches electrodes to clean, dry, hair-free skin on the chest.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Attaches wires to the electrodes.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Monitors the tracing.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Sets alarm settings.", "critical": true, "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Provides health education.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Disposes of used equipment appropriately and performs hand hygiene.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Prints out a rhythm strip; documents cardiac rhythm and assessment data.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]},
+        {"text": "Reviews rhythm and data, initiates nursing interventions and reports any abnormalities.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]}
+      ]
+    }
+  ],
   "notes": [
-    {"text": "'Taking a 12 lead ECG' and 'Continuous cardiac monitoring' are 93225 content topics.", "cite": [{"src": "SI", "loc": "p.2"}]},
-    {"text": "The cardiac lecture's ECG picture shows chest electrodes, an ankle (limb) electrode, the ECG machine and the trace. It does not give electrode positions, so they are not in this app.", "cite": [{"src": "ACS", "loc": "slide 24"}]},
-    {"text": "The ECG is listed as a cardiovascular diagnostic test, alongside echocardiogram, exercise stress test, coronary angiography, Holter monitor and cardiac CT/MRI.", "cite": [{"src": "ACS", "loc": "slide 21"}]},
-    {"text": "Rhythms a second-year student should be able to identify: normal sinus rhythm, plus the life-threatening arrhythmias VT, VF and asystole.", "cite": [{"src": "ACS", "loc": "slide 25"}]}
+    {"text": "An ECG is a graphical representation of the heart's electrical activity. Indications include chest pain suggestive of ischaemia, known or suspected arrhythmias, rhythm changes, after cardiac arrest, after syncope, ST/T changes with metabolic or electrolyte disturbance, pre-operative assessment, after pacemaker insertion, routine requirements, and medications known to cause arrhythmia.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+    {"text": "Limb leads: inconsistent limb lead placement changes how the ECG looks. Place them slightly proximal to the wrists and ankles, symmetrically, avoiding bony prominences. If a standard site is unavailable (amputation, limb tremor), use the most distal available point, mirrored on the other side. Avoid torso placement for a diagnostic 12-lead, and clearly document any modified placement on the tracing.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+    {"text": "Continuous monitoring (hardwire or telemetry, usually 3 or 5 electrodes) watches rhythm but does not diagnose. A 12-lead ECG is still recorded when a diagnosis is needed. Every disconnection of a hardwired patient is a period when the rhythm is not being watched.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-3-cardiac-monitoring-and-telemetry"}]},
+    {"text": "Precordial positions are marked critical here because wrong placement changes the recording (the Canvas page says this for limb leads). The source does not say which steps an assessor treats as fail points.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]}
   ]
 }

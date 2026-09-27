@@ -1,19 +1,67 @@
 {
   "id": "auscultation",
-  "cite": [{"src": "COPD", "loc": "slides 6-11"}],
-  "steps": [
-    {"text": "Position the patient upright.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
-    {"text": "Ask the patient to breathe through their mouth.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
-    {"text": "Listen to breath sounds with your stethoscope at each auscultation point, anterior and posterior chest.", "cite": [{"src": "COPD", "loc": "slides 7-8"}]},
-    {"text": "Compare each side with the other.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
-    {"text": "Listen for quality, intensity and adventitious sounds.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
-    {"text": "If you hear stridor (a loud strangulating sound on inspiration, clearest over the trachea), get an immediate review by a senior doctor.", "critical": true, "cite": [{"src": "COPD", "loc": "slide 9"}]}
+  "cite": [{"src": "AUSC", "loc": "p.2-3"}, {"src": "WB2", "loc": "p.~3"}],
+  "variants": [
+    {
+      "id": "procedure", "name": "Chest auscultation procedure (Module 1 reading)", "cite": [{"src": "AUSC", "loc": "p.2-3 (The procedure, steps 1-19)"}],
+      "steps": [
+        {"text": "Ensure your stethoscope has been cleaned according to local infection prevention and control guidance.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Discuss the procedure with the patient and gain informed consent.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Keep the patient warm and the area free from drafts.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Screen the bed to maintain privacy and dignity.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Decontaminate your hands.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Position the patient comfortably so you can access their chest (ideally sitting in a chair or on the side of the bed; some tolerate only 45°).", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Remove or rearrange clothing as needed to see the chest.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Warm the stethoscope between your hands if it feels cold.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Put the ear tips in pointing slightly forward, towards the nose.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Hold the chest piece between the index and middle finger of your dominant hand and place it flat on the chest with gentle pressure.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Anterior chest: use a 'stepladder' approach from the 1st to the 7th intercostal space, comparing side to side; listen for a full inspiration and expiration at each point.", "cite": [{"src": "AUSC", "loc": "p.2-3"}]},
+        {"text": "Posterior chest: stepladder approach from the 1st to the 7th intercostal space, avoiding the scapula.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Right lateral chest: ask the patient to move their right arm aside; listen upper, then middle, then lower lobe.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Repeat on the left side (upper and lower lobes).", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Replace the patient's clothing and make them comfortable.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Explain your findings and check whether the patient has any questions.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Decontaminate your stethoscope.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Decontaminate your hands.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Record findings: location of auscultation, quality, and where any abnormal sounds were heard.", "cite": [{"src": "AUSC", "loc": "p.3-4 (Box 2)"}]}
+      ]
+    },
+    {
+      "id": "workbook", "name": "Full respiratory assessment (Lab 2 workbook)", "cite": [{"src": "WB2", "loc": "p.~3 (2. Full Respiratory Assessment)"}],
+      "steps": [
+        {"text": "Perform hand hygiene and gather stethoscope and watch.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Introduce yourself, explain the assessment and obtain consent.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Position the patient upright where possible and expose only as required.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Assess general appearance, colour and work of breathing.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Count respiratory rate for one full minute; assess rhythm, depth and effort.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Inspect anterior and posterior thorax for shape, symmetry, scars and bruising.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Palpate posterior chest for temperature, tenderness, masses and expansion.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Percuss posterior chest systematically.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Auscultate posterior chest systematically and assess vocal resonance where appropriate.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Palpate anterior chest, including tracheal position and expansion.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Percuss and auscultate anterior chest and trachea systematically.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Identify and describe normal and adventitious breath sounds.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Reposition the patient, ensure comfort, clean equipment and perform hand hygiene.", "cite": [{"src": "WB2", "loc": "p.~3"}]},
+        {"text": "Document findings accurately and escalate significant changes.", "critical": true, "cite": [{"src": "WB2", "loc": "p.~3"}]}
+      ]
+    },
+    {
+      "id": "fnp2b", "name": "FNP2B tutorial summary (supplementary)", "cite": [{"src": "COPD", "loc": "slides 7-9"}],
+      "steps": [
+        {"text": "Position the patient upright.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+        {"text": "Ask the patient to breathe through their mouth.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+        {"text": "Listen to breath sounds with your stethoscope at each auscultation point, anterior and posterior chest.", "cite": [{"src": "COPD", "loc": "slides 7-8"}]},
+        {"text": "Compare each side with the other.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+        {"text": "Listen for quality, intensity and adventitious sounds.", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+        {"text": "If you hear stridor (a loud strangulating sound on inspiration, clearest over the trachea), get an immediate review by a senior doctor.", "critical": true, "cite": [{"src": "COPD", "loc": "slide 9"}]}
+      ]
+    }
   ],
   "notes": [
-    {"text": "Before you listen, LOOK: general appearance (facial expression, anxiety, agitation, position), ability to talk, colour (peripheral and central), position of the trachea, work of breathing, rate, rhythm, cough, orthopnoea.", "cite": [{"src": "COPD", "loc": "slide 6"}]},
-    {"text": "Adventitious sounds. Wheeze: continuous, high-pitched, hissing (air through narrowed airways). Crackles: interrupted, non-musical (distal airways opening on inspiration and collapsing on expiration). Pleural friction rub: grating (thickened pleura rubbing; pleurisy secondary to pneumonia or pulmonary infarction). Stridor: upper airway obstruction, needs an immediate senior doctor review.", "cite": [{"src": "COPD", "loc": "slide 9"}]},
-    {"text": "A silent chest may mean total peripheral airway obstruction. Treat it as a warning sign, not an improvement.", "cite": [{"src": "COPD", "loc": "slide 9"}]},
-    {"text": "FEEL (palpation): lumps or abnormal structures, skin temperature, rise and fall of the chest, pain. Percussion notes: resonant, hyper-resonant, dull.", "cite": [{"src": "COPD", "loc": "slides 10-11"}]},
-    {"text": "Only 'stridor' is marked critical here, because the source says it needs immediate senior review. The source does not say which steps an assessor treats as fail points.", "cite": [{"src": "COPD", "loc": "slide 9"}]}
+    {"text": "93225 summary: ideally position the patient upright and have them breathe through their mouth; listen comparing each side with the other; listen for quality, intensity and adventitious (unexpected) sounds.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+    {"text": "Stethoscope: bell for high-pitched sounds at the lung apex above the clavicle; diaphragm for low-pitched sounds over the rest of the chest. Lung sounds cannot be heard through bone, so avoid the scapula.", "cite": [{"src": "AUSC", "loc": "p.1, p.3"}]},
+    {"text": "Normal breath sounds: tracheal (very loud, high pitch, over the trachea); bronchial (loud, over the manubrium); bronchovesicular (medium, 1st-2nd intercostal spaces beside the sternum and between the scapulae); vesicular (soft, low pitch, inspiration longer than expiration, most of the lung field).", "cite": [{"src": "AUSC", "loc": "p.4 (Table 1)"}]},
+    {"text": "Crackles: from small airways, mostly on inspiration. Coarse crackles may indicate pneumonia, fine crackles may suggest pulmonary oedema; seen in pneumonia, pulmonary fibrosis, COPD, infection and heart failure. Wheeze: often expiratory, musical; high-pitched in asthma. Inspiratory wheeze (stridor) usually means upper airway obstruction. Absent breath sounds: e.g. pneumothorax, pleural effusion, consolidation.", "cite": [{"src": "AUSC", "loc": "p.3-4"}]},
+    {"text": "Stridor needs an immediate review by a senior doctor, and a silent chest may mean total peripheral airway obstruction (FNP2B tutorial).", "cite": [{"src": "COPD", "loc": "slide 9"}]}
   ]
 }

@@ -1,32 +1,118 @@
 {
   "id": "oxygen",
-  "notes": [
+  "cite": [{"src": "O2CHK", "loc": "p.1-3"}],
+  "variants": [
     {
-      "text": "Oxygen devices named for 93225: simple face mask (Hudson mask), Venturi mask and non-rebreather mask. Managing oxygen therapy with these devices is also a core clinical skill assessed in the labs.",
-      "cite": [
-        {
-          "src": "SI",
-          "loc": "p.2, p.8"
-        }
+      "id": "hudson", "name": "Hudson (simple face) mask", "cite": [{"src": "O2CHK", "loc": "p.1 (Section 12.5 appraisal form: Use of Hudson mask)"}],
+      "steps": [
+        {"text": "Identifies the indication for administering oxygen therapy via a Hudson mask.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Introduces self and establishes rapport.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Performs a respiratory assessment if baseline data is not available.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Checks that oxygen has been prescribed by a doctor. If there is no order, uses clinical judgement to decide if oxygen is required.", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.1"}, {"src": "TSANZ", "loc": "p.2 (Table 1: 'Oxygen is a drug and thus requires prescription')"}]},
+        {"text": "Prepares the equipment: oxygen supply, Hudson mask, tubing.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Provides safety education about oxygen therapy to the person and family.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Explains why oxygen therapy is required and gains consent.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Assists the person into a semi-Fowler's position if possible.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Connects the oxygen tubing to the flow meter outlet and to the mask.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Connects and sets up a humidifier if required.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Turns the oxygen on and checks it is functioning properly.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Guides the mask to the person's face and applies it from the nose downwards.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Fixes the mask to the contours of the person's face.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Secures the elastic around the person's head so the mask stays in place.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Applies padding if required to protect ears and bony prominences.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Attaches a pulse oximetry probe and sets both low and high alarms.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Assesses the person's facial skin for dampness or chafing.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Checks the delivery device regularly and troubleshoots any problems.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Monitors oxygen saturation regularly or as ordered by the doctor.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Checks and ensures all documentation is completed.", "cite": [{"src": "O2CHK", "loc": "p.1"}]},
+        {"text": "Communicates any changes in the findings to the treating doctor.", "cite": [{"src": "O2CHK", "loc": "p.1"}]}
       ]
     },
     {
-      "text": "Tutorial doctor's notes (asthma): give O2 if SpO2 on pulse oximetry is less than 92% (adults) or 95% (children).",
-      "cite": [
-        {
-          "src": "ASTHMA",
-          "loc": "slide 18"
-        }
+      "id": "nrb", "name": "Non-rebreather mask", "cite": [{"src": "O2CHK", "loc": "p.2 (Section 12.5 appraisal form: Use of non-rebreather mask)"}],
+      "steps": [
+        {"text": "Identifies the indication for administering oxygen therapy via a non-rebreather mask.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Introduces self and establishes rapport.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Performs a respiratory assessment if baseline data is not available.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Checks that oxygen has been prescribed by a doctor. If there is no order, uses clinical judgement to decide if oxygen is required.", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.2"}, {"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Prepares the equipment: oxygen supply, non-rebreather mask, tubing.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Provides safety education about oxygen therapy to the person and family.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Explains why oxygen therapy is required and gains consent.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Assists the person into a semi-Fowler's position if possible.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Connects the oxygen tubing to the flow meter outlet and to the mask.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Connects and sets up a humidifier if required.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Turns the oxygen on and checks it is functioning properly.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Inflates the reservoir bag fully (before the mask goes on the person's face).", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.2"}, {"src": "WB2", "loc": "p.~4 (device table key safety point: 'Reservoir must be inflated- prior to applying to patients face')"}]},
+        {"text": "Guides the mask to the person's face and applies it from the nose downwards.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Fixes the mask to the contours of the person's face.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Secures the elastic around the person's head so the mask stays in place.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Ensures the flow rate is sufficient to keep the reservoir bag fully inflated.", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.2"}, {"src": "S125", "loc": "p.26"}]},
+        {"text": "Applies padding if required to protect ears and bony prominences.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Attaches a pulse oximetry probe and sets both low and high alarms.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Assesses the person's facial skin for dampness or chafing.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Checks the delivery device regularly and troubleshoots any problems.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Monitors oxygen saturation regularly or as ordered by the doctor.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Checks and ensures all documentation is completed.", "cite": [{"src": "O2CHK", "loc": "p.2"}]},
+        {"text": "Communicates any changes in the findings to the treating doctor.", "cite": [{"src": "O2CHK", "loc": "p.2"}]}
       ]
     },
     {
-      "text": "Life-threatening acute asthma (Australian Asthma Handbook figure): use oxygen to drive the nebuliser (piped oxygen or a cylinder with a high-flow regulator, 6 L/min). Children: maintain SaO2 of at least 95%. Adults: titrate oxygen to a target SaO2 of 93-95%.",
-      "cite": [
-        {
-          "src": "ASTHMA",
-          "loc": "slide 15"
-        }
+      "id": "venturi", "name": "Venturi mask", "cite": [{"src": "O2CHK", "loc": "p.3 (Section 12.5 appraisal form: Use of Venturi mask)"}],
+      "steps": [
+        {"text": "Identifies the indication for administering oxygen therapy via a Venturi mask.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Introduces self and establishes rapport.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Performs a respiratory assessment if baseline data is not available.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Checks that oxygen via a Venturi mask has been prescribed by a doctor.", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.3"}, {"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Prepares the equipment: oxygen supply, Venturi mask, tubing, attachments.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Provides safety education about oxygen therapy to the person and family.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Explains why oxygen therapy is required and gains consent.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Assists the person into a semi-Fowler's position if possible.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Turns the barrel to select the oxygen concentration that has been ordered.", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.3"}, {"src": "WB2", "loc": "p.~4 (key safety point: 'Use prescribed adaptor/setting')"}]},
+        {"text": "Connects the oxygen tubing to the flow meter outlet and to the mask.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Turns the oxygen on and checks it is functioning properly.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Selects the correct flow rate for the oxygen concentration that has been ordered.", "critical": true, "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Guides the mask to the person's face and applies it from the nose downwards.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Fixes the mask to the contours of the person's face.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Secures the elastic around the person's head so the mask stays in place.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Applies padding if required to protect ears and bony prominences.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Attaches a pulse oximetry probe and sets both low and high alarms.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Performs hand hygiene.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Assesses the person's facial skin for dampness or chafing.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Checks the delivery device regularly and troubleshoots any problems.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Monitors oxygen saturation regularly or as ordered by the doctor.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Checks and ensures all documentation is completed.", "cite": [{"src": "O2CHK", "loc": "p.3"}]},
+        {"text": "Communicates any changes in the findings to the treating doctor.", "cite": [{"src": "O2CHK", "loc": "p.3"}]}
+      ]
+    },
+    {
+      "id": "np", "name": "Nasal prongs (Lab 2 workbook practice checklist)", "cite": [{"src": "WB2", "loc": "p.~5 (Nasal Prong practice)"}],
+      "steps": [
+        {"text": "Confirm patient identity, indication, prescription/target and allergies.", "critical": true, "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Perform hand hygiene, explain the procedure and obtain consent.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Perform or review a respiratory assessment and baseline observations.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Select the nasal prongs/cannula.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Connect the tubing and ensure the device is functioning.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Apply the prongs securely and comfortably.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Attach a pulse oximeter and monitor response against the target range.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Reassess respiratory effort, SpO2 and patient comfort.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Check skin integrity and device position.", "cite": [{"src": "WB2", "loc": "p.~5"}]},
+        {"text": "Document oxygen device, FiO2/flow, SpO2, response and escalation.", "cite": [{"src": "WB2", "loc": "p.~5"}]}
       ]
     }
+  ],
+  "notes": [
+    {"text": "Lab 2 is assessed with the Section 12.5 clinical skills appraisal forms for the Hudson, non-rebreather and Venturi masks. Each is marked U (unsatisfactory), D (developing), S (satisfactory) or NA.", "cite": [{"src": "CANVAS", "loc": "page 2-dot-2-preparation-activities-respiratory-nursing-skills"}, {"src": "O2CHK", "loc": "p.1-3"}]},
+    {"text": "Flow ranges on the 93225 Canvas page: nasal prongs 1-4 L of O2, and anything above 4 L needs humidification, which standard prongs can't provide. Hudson mask 5-10 L. Section 12.5 gives different ranges (see the next note and CONFLICTS).", "cite": [{"src": "CANVAS", "loc": "page 2-dot-2-preparation-activities-respiratory-nursing-skills"}]},
+    {"text": "Section 12.5 device ranges: nasal cannula 24-44% at 1-6 L/min (about 4% more per L/min; humidification may be recommended above 4 L/min; above 6 L/min FiO2 does not increase). Simple face mask 40-60% at 5-8 L/min, with a minimum of 5 L/min to prevent rebreathing CO2. Non-rebreather 95-100% at 10-15 L/min; the bag must not totally deflate. Venturi 24-50% at 4-10 L/min (e.g. blue adaptor 24% at 4 L/min; green 35% at 8 L/min).", "cite": [{"src": "S125", "loc": "p.21, 24-27"}]},
+    {"text": "TSANZ SpO2 targets: 88-92% in chronic respiratory disease with potential for hypercapnia (give O2 when SpO2 < 88%); otherwise 92-96% (give O2 when SpO2 < 92%). Senior clinician review if FiO2 ≥ 0.40 or ≥ 6 L/min via simple face mask is needed to keep the target; ICU review if FiO2 ≥ 0.50 or ≥ 8 L/min via simple face mask.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+    {"text": "Device safety points from the Lab 2 workbook: nasal prongs, check nares/ears; Hudson, ensure appropriate flow and fit; Venturi, use the prescribed adaptor/setting and maintain target saturation; non-rebreather, the reservoir must be inflated before applying to the face.", "cite": [{"src": "WB2", "loc": "p.~4"}]}
   ]
 }

@@ -92,6 +92,7 @@ td,th{border-bottom:1px solid var(--border);padding:6px;text-align:left;vertical
   </div>
   <nav id="tabs">
     <button data-tab="home">Home</button>
+    <button data-tab="guide">Study guide</button>
     <button data-tab="quiz">Part A quiz</button>
     <button data-tab="skills">Part B skills</button>
     <button data-tab="mock">Mock exam</button>
@@ -125,7 +126,12 @@ function applySupp(){ Q = QALL.filter(q => P.includeSupp || !isSupp(q)); }
 applySupp();
 const QBY = Object.fromEntries(QALL.map(q => [q.id, q]));
 const SK = C.skills || [];
+const GUIDE = C.guide || [];
 const SKBY = Object.fromEntries(SK.map(s => [s.id, s]));
+/* A skill may have several versions (e.g. one checklist per oxygen device); s.steps always holds the selected one. */
+function useVariant(s, v){ if(s.variants && s.variants.length){ s.v = Math.max(0, Math.min(v||0, s.variants.length-1)); s.steps = s.variants[s.v].steps; s.vcite = s.variants[s.v].cite; } }
+function allSteps(s){ return s.variants ? s.variants.flatMap(v => v.steps) : (s.steps||[]); }
+SK.forEach(s => useVariant(s, 0));
 
 /* ---------- helpers ---------- */
 const $ = (s, el=document) => el.querySelector(s);
@@ -172,7 +178,7 @@ function go(t){
   tab = t;
   stopTimer();
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
-  ({home:renderHome, quiz:renderQuizSetup, skills:renderSkills, mock:renderMock, cards:renderCards, search:renderSearch, sources:renderSources}[t])();
+  ({home:renderHome, guide:renderGuide, quiz:renderQuizSetup, skills:renderSkills, mock:renderMock, cards:renderCards, search:renderSearch, sources:renderSources}[t])();
   window.scrollTo(0,0);
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
@@ -200,7 +206,7 @@ function renderHome(){
     const a = done.length ? done.reduce((s,q)=>s+P.items[q.id].last,0)/done.length : null;
     return `<tr><td>${esc(t)}</td><td>${qs.length}</td><td>${done.length}</td><td>${a===null?"–":pct(a)}</td></tr>`;
   }).join("");
-  const skillRows = SK.map(s => { const r = P.skills[s.id] || {}; return `<tr><td>${esc(s.name)}</td><td>${(s.steps||[]).length || "not loaded"}</td><td>${r.order?pct(r.order):"–"}</td><td>${r.reps||0}</td></tr>`; }).join("");
+  const skillRows = SK.map(s => { const r = P.skills[s.id] || {}; return `<tr><td>${esc(s.name)}</td><td>${allSteps(s).length ? allSteps(s).length + (s.variants ? ` (${s.variants.length} versions)` : "") : "not loaded"}</td><td>${r.order?pct(r.order):"–"}</td><td>${r.reps||0}</td></tr>`; }).join("");
   const mocks = (P.mocks||[]).slice(-5).reverse().map(m => `<tr><td>${new Date(m.ts).toLocaleString("en-AU")}</td><td>${esc(m.kind)}</td><td>${esc(m.result)}</td></tr>`).join("");
   $("#main").innerHTML = `${banner()}
   <div class="card"><div class="grid">
@@ -352,16 +358,18 @@ function renderSkills(){
   if(!SKS.id){
     $("#main").innerHTML = `${banner()}<div class="card"><h2 class="big" style="margin-top:0">Part B skills</h2>
       <p class="muted small">You will be allocated two of these four. Critical safety steps are marked in red where the lab material identifies them.</p>
-      <div class="grid">${SK.map(s => `<button class="opt" data-s="${esc(s.id)}"><b>${esc(s.name)}</b><br><span class="small muted">${(s.steps||[]).length ? s.steps.length + " steps" : "steps not loaded"}</span></button>`).join("")}</div></div>`;
+      <div class="grid">${SK.map(s => `<button class="opt" data-s="${esc(s.id)}"><b>${esc(s.name)}</b><br><span class="small muted">${s.variants ? s.variants.map(v => esc(v.name.split(" (")[0])).join(" · ") : (s.steps||[]).length ? s.steps.length + " steps" : "steps not loaded"}</span></button>`).join("")}</div></div>`;
     document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { SKS = {id:b.dataset.s, mode:"list"}; renderSkills(); });
     return;
   }
   const s = SKBY[SKS.id], steps = s.steps || [];
   const modes = [["list","Checklist"],["order","Order drill"],["missing","What's missing?"],["verbal","Verbalise"]];
   $("#main").innerHTML = `<div class="card noprint"><div class="row"><button id="skBack">All skills</button><b>${esc(s.name)}</b></div>
+    ${s.variants ? `<div class="row small" style="margin-top:8px"><span class="muted">Version:</span>${s.variants.map((v,k) => `<button data-v="${k}" aria-pressed="${s.v===k}">${esc(v.name)}</button>`).join("")}</div>` : ""}
     <div class="row" style="margin-top:8px">${modes.map(([m,l]) => `<button data-m="${m}" aria-pressed="${SKS.mode===m}">${l}</button>`).join("")}</div></div><div id="skBody"></div>`;
   $("#skBack").onclick = () => { SKS = {id:null}; renderSkills(); };
   document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { SKS.mode = b.dataset.m; renderSkills(); });
+  document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { useVariant(s, +b.dataset.v); renderSkills(); });
   const body = $("#skBody");
   if(!steps.length){ body.innerHTML = noSteps(s) + skillNotes(s); return; }
   ({list:skillList, order:skillOrder, missing:skillMissing, verbal:skillVerbal}[SKS.mode])(s, body);
@@ -374,7 +382,7 @@ function stepLi(st, k, extra=""){
   return `<li class="${st.critical?"crit":""} ${extra}"><span class="n">${k+1}.</span><span class="t">${st.critical?`<span class="critbadge">Critical</span><br>`:""}${isSuppCite(st.cite)?suppTag:""}${esc(st.text)}${citeHTML(st.cite)}</span></li>`;
 }
 function skillList(s, body){
-  body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">${esc(s.name)}: checklist</h2>${citeHTML(s.cite)}
+  body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">${esc(s.name)}: checklist</h2>${s.variants ? `<p class="small"><b>${esc(s.variants[s.v].name)}</b></p>` : ""}${citeHTML(s.vcite || s.cite)}
     <ol class="steps">${s.steps.map((st,k) => stepLi(st,k)).join("")}</ol>
     <p class="muted small noprint">To print, use your browser's print command on the offline file; the page prints as a plain checklist.</p></div>${skillNotes(s)}`;
 }
@@ -506,8 +514,10 @@ function mockAReview(){
 }
 function mockB(){
   const M = P.mockB, sks = M.skills.map(id => SKBY[id]).filter(Boolean);
+  M.vars = M.vars || {};
+  sks.forEach(s => { if(s.variants && M.vars[s.id] === undefined){ M.vars[s.id] = Math.floor(Math.random()*s.variants.length); save(); } useVariant(s, M.vars[s.id]); });
   $("#main").innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Your allocated skills</h2>
-    <ol class="big">${sks.map(s=>`<li>${esc(s.name)}</li>`).join("")}</ol>
+    <ol class="big">${sks.map(s=>`<li>${esc(s.name)}${s.variants ? `<br><span class="small muted">${esc(s.variants[s.v].name)}</span>` : ""}</li>`).join("")}</ol>
     <div class="row"><span class="timer" id="tB">${M.end?"":"15:00"}</span>${M.end?"":`<button class="primary" id="bGo">Start 15-minute timer</button>`}<button id="bDone">Finish and self-check</button><button id="bQuit">Abandon</button></div></div>
     <div id="bCheck"></div>`;
   const check = () => {
@@ -522,6 +532,39 @@ function mockB(){
   if(!M.end) $("#bGo").onclick = () => { M.end = Date.now()+MOCK_MS; save(); mockB(); };
   $("#bDone").onclick = () => { stopTimer(); check(); };
   $("#bQuit").onclick = e => askFirst(e.target, "Abandon this rehearsal?", () => { stopTimer(); P.mockB = null; save(); renderMock(); });
+}
+
+/* ---------- study guide ---------- */
+let GSEC = null;
+function renderGuide(){
+  P.guideRead = P.guideRead || {};
+  if(!GUIDE.length){ $("#main").innerHTML = `<div class="card">No study guide content built.</div>`; return; }
+  if(!GSEC){
+    const groups = uniq(GUIDE.map(g => g.group));
+    const done = GUIDE.filter(g => P.guideRead[g.id]).length;
+    $("#main").innerHTML = `${banner()}<div class="card"><h2 class="big" style="margin-top:0">Study guide</h2>
+      <p class="muted small">Short, cited notes by topic, built from the 93225 Modules (and marked Supplementary where they come from other UTS slides). Read a section, then use its quiz or drill button. ${done} of ${GUIDE.length} sections marked read.</p></div>`
+      + groups.map(gr => `<div class="card"><h3 style="margin-top:0">${esc(gr)}</h3>${GUIDE.filter(g => g.group === gr).map(g =>
+        `<button class="opt" data-g="${esc(g.id)}">${P.guideRead[g.id] ? "✓ " : ""}<b>${esc(g.title)}</b>${g.summary ? `<br><span class="small muted">${esc(g.summary)}</span>` : ""}</button>`).join("")}</div>`).join("");
+    document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { GSEC = b.dataset.g; renderGuide(); window.scrollTo(0,0); });
+    return;
+  }
+  const g = GUIDE.find(x => x.id === GSEC), i = GUIDE.indexOf(g);
+  const qids = Q.filter(q => (g.skill && q.skill === g.skill) || (g.topics||[]).includes(q.topic)).map(q => q.id);
+  $("#main").innerHTML = `<div class="card noprint row"><button id="gBack">All sections</button><span class="muted small">${esc(g.group)}</span></div>
+    <div class="card"><h2 class="big" style="margin-top:0">${esc(g.title)}</h2>${g.summary ? `<p>${esc(g.summary)}</p>` : ""}
+    ${g.blocks.map(b => `<h3>${esc(b.h)}</h3><ul>${b.points.map(p => `<li style="margin:6px 0">${isSuppCite(p.cite)?suppTag:""}${esc(p.text)}${citeHTML(p.cite)}</li>`).join("")}</ul>`).join("")}
+    ${(g.context||[]).map(contextNote).join("")}</div>
+    <div class="card row noprint">
+      <button id="gRead" ${P.guideRead[g.id]?'aria-pressed="true"':""}>${P.guideRead[g.id] ? "Marked read" : "Mark as read"}</button>
+      ${qids.length ? `<button class="primary" id="gQuiz">Quiz me on this (${qids.length})</button>` : ""}
+      ${g.skill && SKBY[g.skill] ? `<button id="gDrill">Drill this skill</button>` : ""}
+      ${i+1 < GUIDE.length ? `<button id="gNext">Next: ${esc(GUIDE[i+1].title)}</button>` : ""}</div>`;
+  $("#gBack").onclick = () => { GSEC = null; renderGuide(); };
+  $("#gRead").onclick = () => { P.guideRead[g.id] = !P.guideRead[g.id]; save(); renderGuide(); };
+  if(qids.length) $("#gQuiz").onclick = () => startQuiz({ids: shuffle(qids)});
+  if($("#gDrill")) $("#gDrill").onclick = () => { SKS = {id:g.skill, mode:"list"}; go("skills"); };
+  if($("#gNext")) $("#gNext").onclick = () => { GSEC = GUIDE[i+1].id; renderGuide(); window.scrollTo(0,0); };
 }
 
 /* ---------- flashcards (Leitner boxes) ---------- */
@@ -567,7 +610,8 @@ function renderSearch(){
     if(term.length < 2){ $("#sRes").innerHTML = ""; return; }
     const hit = s => String(s||"").toLowerCase().includes(term);
     const qs = Q.filter(q => hit(q.stem) || hit(q.prompt) || hit(q.model) || hit(q.explanation) || (q.options||[]).some(o => hit(o.text) || hit(o.why)) || (q.rubric||[]).some(r => hit(r.point)));
-    const notes = SK.flatMap(s => [...(s.steps||[]), ...(s.notes||[])].filter(n => hit(n.text)).map(n => ({s, n})));
+    const notes = SK.flatMap(s => [...allSteps(s), ...(s.notes||[])].filter(n => hit(n.text)).map(n => ({s, n})))
+      .concat(GUIDE.flatMap(g => g.blocks.flatMap(b => b.points.filter(p => hit(p.text)).map(p => ({s:{name:"Study guide: " + g.title}, n:p})))));
     $("#sRes").innerHTML = `<p class="muted small">${qs.length} question${qs.length===1?"":"s"}, ${notes.length} skill note${notes.length===1?"":"s"}</p>`
       + qs.map(q => `<button class="opt" data-q="${esc(q.id)}"><span class="small muted">${esc(q.id)} · ${esc(q.topic)}</span><br>${esc(q.stem || q.prompt)}</button>`).join("")
       + notes.map(({s, n}) => `<div class="card small"><b>${esc(s.name)}</b><br>${esc(n.text)}${citeHTML(n.cite)}</div>`).join("");
@@ -586,7 +630,7 @@ function renderSources(){
     <p class="muted small">These are assessed but not covered by the loaded modules. They are deliberately not filled from general knowledge.</p>
     <ul>${(C.gaps||[]).map(g => `<li>${esc(g)}</li>`).join("")}</ul></div>
     ${(C.context||[]).length ? `<div class="card"><h2 class="big" style="margin-top:0">Context notes (not scored)</h2>${C.context.map(c => `<div class="ctx small"><b>${esc(c.label)}:</b> ${esc(c.text)}</div>`).join("")}</div>` : ""}
-    <p class="muted small">Built ${esc(C.meta.built||"")}. ${Q.length} questions, ${SK.reduce((n,s)=>n+(s.steps||[]).length,0)} skill steps.</p>`;
+    <p class="muted small">Built ${esc(C.meta.built||"")}. ${Q.length} questions, ${SK.reduce((n,s)=>n+allSteps(s).length,0)} skill steps.</p>`;
 }
 
 go("home");
