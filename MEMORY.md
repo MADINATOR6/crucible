@@ -4,9 +4,10 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 
 ## Current state
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
-- Last task commit: 3389199 (T3 verifier fixes); the stop-report commit follows it
-- Task: none (queue complete)
+- Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
+- Task: none (2026-09-27 queue complete)
 - Status: idle. Next session: read HANDOFF-REPORT.md, then ask the user for a new queue or the open questions below.
+- Open: measure Codex code size (ladder effect) on the next real Dispatch task; none existed on 2026-09-27.
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
@@ -50,9 +51,10 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-27 | Ladder reworded: "use the first that fully meets the task, then finish", "existing project dependency", "one clear line" | Codex verifier: "stop" means halt-and-report elsewhere in the implementer block; bare existence ignored suitability; "installed" could mean machine-only; "one line" rewarded dense code | -
 
 ## Open questions
-- Delete merged remote branch `origin/claude/laptop-efficiency-tasks-6598uz`? | User decision (remote deletion) | no
+- Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
 - Should `prompts/laptop-efficiency.md` live in this template repo? Its Phase 2 writes logs of personal file names into the repo (F25) | User decision | no
-- Existing powerlifting OneDrive mirror may already hold gitignored/untracked files (F1 verifier saw HANDOFF-REPORT.md there) | User review of `%OneDrive%\AgentWorkspace\claude-codex-template` | no
+- Mythos vs AGENTS.md (2026-09-27 check): Codex verifier after every task (Mythos 2) or only risky work (AGENTS Routing)? After a failed Codex retry, stop the session (Mythos 12) or Claude reviews and finishes (HANDOFF.md)? Adopt Mythos 12 stop conditions (240 min etc.) and 11 pre-dispatch diagnostics into AGENTS.md? MEMORY.md every session (Mythos 5) or unattended only (AGENTS)? | User decision | no
+- `C:\Users\Madison\code\claude-codex-template` (retired powerlifting repo) could not be recycled on 2026-09-27: "being used by another process". Intact, 186 files | User closes whatever holds it, then recycles it | no
 
 ## Research findings
 - codex-cli 0.156.1 installed at `%LOCALAPPDATA%\Programs\nodejs\codex.cmd` | `codex.cmd --version` | 2026-09-25
@@ -86,3 +88,4 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 19:29 +10:00: T3 Codex PARTIAL (high; 789k input / 751k cached / 13.6k output). Claude fixed worktree check, OneDrive cloud-placeholder false refusal (found by a real-OneDrive dry run), -Create parent, test harness races. Mirror suite 18/18 + 1 SKIP via -File, 19/19 via -Command. Real OneDrive -Create -DryRun: exit 0, 20 committed files listed, nothing created. T3 committed 59629a1.
 - 2026-09-25 19:38 +10:00: T3 Codex verifier (medium; 687k input / 645k cached / 5.2k output) found 2 high bugs: staging/destination overlap, export-ignore dropping committed files. Claude fixed both (checkout-index with private index; containment refusal); mirror suite 20/20 + 1 SKIP via -File, 21/21 via -Command; real dry run lists 22 = git ls-files. Removed verifier leftovers %TEMP%\ccx-t3v (no links inside).
 - 2026-09-25 19:53 +10:00: fresh clone of pushed 3389199 passes both suites (23/23; 20/20 + 1 SKIP). Clone removed. Writing HANDOFF-REPORT.md; session stopping (queue complete).
+- 2026-09-27 10:56 +10:00: merged claude/ladder-wording-fix (ff to 038824a, both suites pass, branch deleted local+remote); Mythos fixes 000b1a6, c5df6b5 pushed; claude-codex-smoke recycled; claude-codex-template locked (left); OneDrive copy was already gone. Log: %USERPROFILE%\powerlifting-delete.log.
