@@ -505,7 +505,7 @@
     "cite": [
       {
         "src": "STROKE",
-        "loc": "slides 10-12"
+        "loc": "slides 10-15"
       }
     ]
   },
@@ -531,7 +531,7 @@
       },
       {
         "text": "Magnesium sulfate",
-        "why": "Magnesium sulfate appears in the asthma material."
+        "why": "The endovascular slide names dual antiplatelet therapy, not magnesium sulfate."
       },
       {
         "text": "No medication is involved",

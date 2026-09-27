@@ -23,6 +23,8 @@ Why `supp` was used: the 93225 Modules were not downloaded, and the Subject Info
 
 Excluded: `Downloads/New folder/*.docx` (HEART FAILURE, STROKE, PNEUMONIA, COVID, leaflet drafts): personal notes or other-subject drafts of unknown origin. `NURSING NOTES/` (2024 HLTAAP002 / ethics material): a different course.
 
+**Conditions only (user request, 27 Sep 2026):** the app does not quiz on the tutorial case-study patients (their names, orders, findings or discharge). The case slides below remain in the inventory as source context only.
+
 ## Map: SLO × source
 
 | SLO | Sources and slides |
@@ -38,8 +40,8 @@ Excluded: `Downloads/New folder/*.docx` (HEART FAILURE, STROKE, PNEUMONIA, COVID
 |---|---|---|---|
 | Lung auscultation | 6 (5 technique + stridor escalation) | Look, adventitious sounds, silent chest, palpation/percussion | COPD slides 6-11 |
 | ECG lead placement | 0 | 4 | SI p.2; ACS slides 21, 24, 25 |
-| Oxygen administration | 0 | 4 | SI p.2, p.8; ASTHMA slides 15, 18; COPD slides 16, 19, 21 |
-| Nebuliser | 0 | 4 | ASTHMA slides 15, 18, 20; COPD slide 19 |
+| Oxygen administration | 0 | 3 | SI p.2, p.8; ASTHMA slides 15, 18 |
+| Nebuliser | 0 | 3 | ASTHMA slides 15, 18, 20 |
 
 ## Readings to double-check (small text in images)
 

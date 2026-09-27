@@ -5,7 +5,8 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 ## Current state
 - Project: claude-codex-collab. Active work (2026-09-27, branch claude/uts-nursing-assessment-reviewer-013cf5): `nursing-a2/`, the UTS 93225 Assessment 2 reviewer (user away ~10 h; assessment is Week 4 lab, from Mon 28 Sep).
 - Last task commit: 35b3032 (flashcards + search). Earlier: 0f4a88c MVP, 686bd5d phone fixes.
-- Queue: [x] Phase 1 docs [x] Phase 2 MVP [~] Phase 3 Codex review NA2-REVIEW-1 (dispatched from 16117f9) [ ] apply REVIEW.md fixes [ ] Codex 20% spot-check [x] Phase 4 flashcards/search/dark mode.
+- Queue: [x] Phase 1 docs [x] Phase 2 MVP [x] Phase 3 NA2-REVIEW-1 (60 findings: 20 fixed, 40 image-only verified visually by Claude) [x] NA2-REVIEW-2 spot-check (5/5 resolved, 5 new findings fixed) [x] Phase 4 flashcards/search/dark mode [x] user request: conditions only, no case studies (AS-08, CP-02, CP-08 removed; stems made generic). 76 questions.
+- Codex usage: REVIEW-1 1.28M input (1.20M cached) / 11.7k output; REVIEW-2 690k (607k cached) / 5.1k output. Both medium effort, exit 0.
 - Blocker: the 93225 Canvas Modules are not on this PC and Canvas needs the user's UTS login. Phone push sent 11:5x asking for "use Chrome" permission or files in nursing-a2/modules/. Content currently comes from 93224 FNP2B slides found in Downloads/New folder (marked Supplementary in the app).
 - Published phone page: https://claude.ai/artifact/BpVm69cYcRUd1VLBkPwTRJ (republish from nursing-a2/build/reviewer.artifact.html after each build).
 - Previous template-queue state: idle; see HANDOFF-REPORT.md and the open questions below.
@@ -92,5 +93,6 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 19:29 +10:00: T3 Codex PARTIAL (high; 789k input / 751k cached / 13.6k output). Claude fixed worktree check, OneDrive cloud-placeholder false refusal (found by a real-OneDrive dry run), -Create parent, test harness races. Mirror suite 18/18 + 1 SKIP via -File, 19/19 via -Command. Real OneDrive -Create -DryRun: exit 0, 20 committed files listed, nothing created. T3 committed 59629a1.
 - 2026-09-25 19:38 +10:00: T3 Codex verifier (medium; 687k input / 645k cached / 5.2k output) found 2 high bugs: staging/destination overlap, export-ignore dropping committed files. Claude fixed both (checkout-index with private index; containment refusal); mirror suite 20/20 + 1 SKIP via -File, 21/21 via -Command; real dry run lists 22 = git ls-files. Removed verifier leftovers %TEMP%\ccx-t3v (no links inside).
 - 2026-09-25 19:53 +10:00: fresh clone of pushed 3389199 passes both suites (23/23; 20/20 + 1 SKIP). Clone removed. Writing HANDOFF-REPORT.md; session stopping (queue complete).
+- 2026-09-27 12:34 +10:00: nursing-a2 reviewed twice by Codex, fixes applied, case studies removed per the user, branch pushed, phone page republished. Waiting on the user for the 93225 Modules.
 - 2026-09-27 12:14 +10:00: nursing-a2 MVP built and committed; Codex NA2-REVIEW-1 running; phone page published.
 - 2026-09-27 10:56 +10:00: merged claude/ladder-wording-fix (ff to 038824a, both suites pass, branch deleted local+remote); Mythos fixes 000b1a6, c5df6b5 pushed; claude-codex-smoke recycled; claude-codex-template locked (left); OneDrive copy was already gone. Log: %USERPROFILE%\powerlifting-delete.log.

@@ -1,34 +1,37 @@
-# Report for Madison: 27 September 2026
+# Report for Madison: 27 September 2026 (Assessment 2 reviewer)
 
-Everything is saved on GitHub. Two things need you (see the end).
+The earlier template-work report is in git history (commit c2f515b).
 
-## What was done
+## Where it is
 
-1. **Ladder wording change is live.** Both test sets passed: 23 of 23 and 22 of 22. I merged the change into `main` and uploaded it to GitHub. I checked that GitHub now shows the same version as your computer, then deleted the finished branch, both locally and on GitHub.
+- **On your phone:** https://claude.ai/artifact/BpVm69cYcRUd1VLBkPwTRJ (private to you).
+- **Offline file:** `nursing-a2/reviewer.html`. Open it in any browser; no internet needed.
+- **Code and history:** branch `claude/uts-nursing-assessment-reviewer-013cf5`, pushed to GitHub. Not merged into `main`.
 
-2. **Mythos check.** I read your Mythos file and compared it with the ladder and the rules in AGENTS.md and HANDOFF.md.
-   - The ladder itself agrees with Mythos. Nothing to change.
-   - I fixed two places where the rules fell short of Mythos. Each is its own small change, tests pass, and both are on GitHub:
-     - Save progress notes (MEMORY.md) at least every 30 minutes, not only when a task ends.
-     - Before handing work to Codex, the task must name its ID and the exact commands that check it.
+## What is in it
 
-3. **Codex code size.** There was no real Codex task to measure it on, so it is still open. It's noted in MEMORY.md for the next real task.
+- 76 questions (64 multiple choice, 12 short answer). Every question, answer, rationale and rubric point cites a file and slide.
+- Part B drills (checklist, put-in-order, what's missing, say it out loud) for **lung auscultation**, the only skill with steps in the material I had.
+- A 15-minute Part A mock, a random two-skill Part B rehearsal with a 15-minute timer, flashcards, search and dark mode.
+- As you asked: **no case studies**, only the conditions (asthma, COPD, pneumonia, ACS/cardiac, stroke).
 
-4. **Powerlifting cleanup.** Every step is written to `C:\Users\Madison\powerlifting-delete.log`.
-   - `claude-codex-smoke`: sent to the Recycle Bin.
-   - OneDrive copy (`OneDrive\AgentWorkspace\claude-codex-template`): already gone before I started. There was nothing to remove.
-   - `claude-codex-template`: **not removed.** Windows said another program was using it. As you asked, I didn't force it or close anything. The folder is untouched.
+## The big limitation
 
-## Why sessions kept opening in the powerlifting folder
+The **93225 Canvas Modules were not on this computer**, and Canvas needs your UTS login, which I can't enter. So:
 
-The Claude app starts a new session in the folder chosen when the session is created, and this one was set to the old powerlifting folder. I moved this session to `claude-codex-collab`. Once the powerlifting folder is in the Recycle Bin, it can't be chosen by mistake any more. Until then, pick `claude-codex-collab` when you start a new session.
+- Most questions come from **93224 FNP2B slides** I found in `Downloads\New folder` (ACS, asthma, COPD/pneumonia, stroke). These are marked **Supplementary** in the app, and a switch on Home hides them.
+- **ECG lead placement, oxygen devices (Hudson, Venturi, non-rebreather) and nebuliser steps are not covered.** I had no source for them and did not fill them from general knowledge. See `nursing-a2/GAPS.md`.
+
+## Accuracy checks
+
+- Codex checked all items against the source text twice (`nursing-a2/REVIEW.md`, `REVIEW-2.md`). Every wording and citation problem it found is fixed.
+- Codex couldn't read facts that sit inside slide images, so I checked those by eye. The asthma flowchart numbers were re-checked at full resolution.
 
 ## What needs you
 
-1. **Recycle the last powerlifting folder.** Close any Claude sessions, terminals or editors that are open in `C:\Users\Madison\code\claude-codex-template`, then move it to the Recycle Bin. Note that it holds unsaved powerlifting app edits that exist nowhere else. That's fine if you don't want them.
-2. **Decisions where Mythos and the current rules differ.** I didn't change any of these on my own:
-   - Should Codex double-check *every* task (Mythos), or only risky ones (current rules)? Checking every task costs more Codex usage.
-   - If Codex fails twice, should the whole session stop (Mythos), or should Claude finish the work (current rules)?
-   - Should the Mythos stop rules (for example, stop after 4 hours) and pre-flight checks be written into AGENTS.md?
-   - Should the progress notes file be used in every session (Mythos), or only in long unattended ones (current rules)?
-3. **Old branch on GitHub.** `claude/codex-mythos-upgrade-analysis-nv6hg1` was merged long ago. Should I delete it?
+1. **Get the Modules in**, then tell me. Either:
+   - download the Week 1-4 pre-work, lectures and lab guides into `nursing-a2\modules\`; or
+   - reply "use Chrome", and I'll download them from Canvas in your logged-in browser.
+
+   Then I can add ECG, oxygen and nebuliser drills and the missing lecture content.
+2. **Merge to `main`?** The work is on its own branch. Say if you want it merged.

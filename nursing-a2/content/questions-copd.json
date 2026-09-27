@@ -1,136 +1,498 @@
 [
   {
-    "id": "CP-01", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Pneumonia", "slo": ["SLO2"], "reasoning": true,
+    "id": "CP-01",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "Pneumonia",
+    "slo": [
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "A patient has high fever, a productive cough with sputum, shortness of breath, a high heart rate and low blood pressure. Which condition's symptom diagram in the loaded slides do these match?",
     "options": [
-      {"text": "Pneumonia", "correct": true, "why": "The 'Main symptoms of infectious pneumonia' diagram lists high fever (systemic), cough with sputum and shortness of breath (lungs), high heart rate (heart) and low blood pressure (vascular)."},
-      {"text": "Acute coronary syndrome", "why": "The ACS symptom list does not include fever or cough with sputum."},
-      {"text": "Stroke", "why": "The F.A.S.T. signs are face drooping, arm weakness and speech problems, none of which are described here."},
-      {"text": "Stable COPD", "why": "The typical symptoms on the stable-COPD chart do not include high fever or low blood pressure."}
+      {
+        "text": "Pneumonia",
+        "correct": true,
+        "why": "The 'Main symptoms of infectious pneumonia' diagram lists high fever (systemic), cough with sputum and shortness of breath (lungs), high heart rate (heart) and low blood pressure (vascular)."
+      },
+      {
+        "text": "Acute coronary syndrome",
+        "why": "The ACS symptom list does not include fever or cough with sputum."
+      },
+      {
+        "text": "Stroke",
+        "why": "The F.A.S.T. signs are face drooping, arm weakness and speech problems, none of which are described here."
+      },
+      {
+        "text": "Stable COPD",
+        "why": "The typical symptoms on the stable-COPD chart do not include high fever or low blood pressure."
+      }
     ],
     "explanation": "Grouping cues and relating them to one another is the 'Process information' phase of the Clinical Reasoning Cycle.",
-    "cite": [{"src": "COPD", "loc": "slides 13, 29"}, {"src": "ACS", "loc": "slide 33"}, {"src": "STROKE", "loc": "slide 19"}, {"src": "ASTHMA", "loc": "slide 7"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slides 13, 29"
+      },
+      {
+        "src": "ACS",
+        "loc": "slide 33"
+      },
+      {
+        "src": "STROKE",
+        "loc": "slide 19"
+      },
+      {
+        "src": "ASTHMA",
+        "loc": "slide 7"
+      }
+    ]
   },
   {
-    "id": "CP-03", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: oxygen", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "id": "CP-03",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: oxygen",
+    "slo": [
+      "SLO2",
+      "SLO3"
+    ],
+    "skill": "oxygen",
+    "reasoning": true,
     "stem": "A colleague says oxygen should never be given to a person with COPD. Which statement is supported by the COPD tutorial material?",
     "options": [
-      {"text": "The stepwise COPD chart says to consider oxygen therapy for hypoxaemia", "correct": true, "why": "The chart's moderate-to-severe column says 'Consider oxygen therapy for hypoxaemia'."},
-      {"text": "The chart says oxygen is contraindicated in COPD", "why": "The chart does not say this; it lists oxygen therapy for hypoxaemia."},
-      {"text": "The chart makes oxygen the first step for all mild COPD", "why": "The first pharmacological step is short-acting relievers (SABA or SAMA). Oxygen appears in the moderate-to-severe column, for hypoxaemia."},
-      {"text": "The tutorial sets a target SpO2 of 100% for COPD", "why": "No COPD SpO2 target is given in the loaded slides."}
+      {
+        "text": "The stepwise COPD chart says to consider oxygen therapy for hypoxaemia",
+        "correct": true,
+        "why": "The chart's moderate-to-severe column says 'Consider oxygen therapy for hypoxaemia'."
+      },
+      {
+        "text": "The chart says oxygen is contraindicated in COPD",
+        "why": "The chart does not say this; it lists oxygen therapy for hypoxaemia."
+      },
+      {
+        "text": "The chart makes oxygen the first step for all mild COPD",
+        "why": "The first pharmacological step is short-acting relievers (SABA or SAMA). Oxygen appears in the moderate-to-severe column, for hypoxaemia."
+      },
+      {
+        "text": "The tutorial sets a target SpO2 of 100% for COPD",
+        "why": "No COPD SpO2 target is given in the loaded slides."
+      }
     ],
     "explanation": "The tutorial poses 'do not give oxygen because of COPD' as a discussion question with a video, and the COPD target SpO2 range is not in the loaded material. Check your 93225 lab guide (see Gaps).",
-    "cite": [{"src": "COPD", "loc": "slides 22, 29"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slides 22, 29"
+      }
+    ]
   },
   {
-    "id": "CP-04", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Infection control", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "id": "CP-04",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "Infection control",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "A viral component is suspected in a patient's COPD exacerbation. According to the tutorial, what infection control process applies?",
     "options": [
-      {"text": "Isolation with droplet and contact precautions", "correct": true, "why": "The slide's answer is 'Isolation with droplet precautions & contact'."},
-      {"text": "Standard precautions only", "why": "The tutorial specifies isolation with droplet and contact precautions."},
-      {"text": "Airborne precautions in a negative-pressure room only", "why": "The tutorial specifies droplet and contact precautions."},
-      {"text": "No isolation until the swab result returns", "why": "Isolation applies when a viral component is suspected."}
+      {
+        "text": "Isolation with droplet and contact precautions",
+        "correct": true,
+        "why": "The slide's answer is 'Isolation with droplet precautions & contact'."
+      },
+      {
+        "text": "Standard precautions only",
+        "why": "The tutorial specifies isolation with droplet and contact precautions."
+      },
+      {
+        "text": "Airborne precautions in a negative-pressure room only",
+        "why": "The tutorial specifies droplet and contact precautions."
+      },
+      {
+        "text": "No isolation until the swab result returns",
+        "why": "Isolation applies when a viral component is suspected."
+      }
     ],
     "explanation": "Viral swabs (naso-oropharynx) are collected from older people or those with chronic lung disease presenting with dyspnoea or chest/URTI/LRTI symptoms. Prevention: immunisation (COVID, flu vaccine); the stepwise chart also recommends annual influenza and pneumococcal vaccines.",
-    "cite": [{"src": "COPD", "loc": "slides 23, 29"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slides 23, 29"
+      }
+    ]
   },
   {
-    "id": "CP-05", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: management", "slo": ["SLO2"],
+    "id": "CP-05",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: management",
+    "slo": [
+      "SLO2"
+    ],
     "stem": "On the Lung Foundation 'Stepwise management of stable COPD', which FEV1 range defines MODERATE COPD?",
     "options": [
-      {"text": "40–59% predicted", "correct": true, "why": "Moderate: FEV1 = 40–59% predicted."},
-      {"text": "60–80% predicted", "why": "60–80% predicted is mild."},
-      {"text": "Less than 40% predicted", "why": "Below 40% predicted is severe."},
-      {"text": "Above 80% predicted", "why": "The chart's mild band stops at 80%."}
+      {
+        "text": "40–59% predicted",
+        "correct": true,
+        "why": "Moderate: FEV1 = 40–59% predicted."
+      },
+      {
+        "text": "60–80% predicted",
+        "why": "60–80% predicted is mild."
+      },
+      {
+        "text": "Less than 40% predicted",
+        "why": "Below 40% predicted is severe."
+      },
+      {
+        "text": "Above 80% predicted",
+        "why": "The chart's mild band stops at 80%."
+      }
     ],
     "explanation": "Typical moderate symptoms: breathless walking on level ground, increasing limitation of daily activities, cough and sputum, and exacerbations needing oral corticosteroids and/or antibiotics.",
-    "cite": [{"src": "COPD", "loc": "slide 29"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slide 29"
+      }
+    ]
   },
   {
-    "id": "CP-06", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: medicines", "slo": ["SLO4"],
+    "id": "CP-06",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: medicines",
+    "slo": [
+      "SLO4"
+    ],
     "stem": "According to the stepwise COPD management chart, which inhaled medicines do you START with?",
     "options": [
-      {"text": "Short-acting relievers used as needed: SABA or SAMA", "correct": true, "why": "The chart says: start with short-acting relievers (used as needed), SABA or SAMA."},
-      {"text": "Inhaled corticosteroid alone", "why": "The chart says to consider adding an ICS later, on top of long-acting bronchodilators."},
-      {"text": "Triple therapy (ICS/LAMA/LABA)", "why": "Triple therapy is the last step on the chart."},
-      {"text": "Montelukast", "why": "Montelukast is not on the COPD stepwise chart."}
+      {
+        "text": "Short-acting relievers used as needed: SABA or SAMA",
+        "correct": true,
+        "why": "The chart says: start with short-acting relievers (used as needed), SABA or SAMA."
+      },
+      {
+        "text": "Inhaled corticosteroid alone",
+        "why": "The chart says to consider adding an ICS later, on top of long-acting bronchodilators."
+      },
+      {
+        "text": "Triple therapy (ICS/LAMA/LABA)",
+        "why": "Triple therapy is the last step on the chart."
+      },
+      {
+        "text": "Montelukast",
+        "why": "Montelukast is not on the COPD stepwise chart."
+      }
     ],
     "explanation": "Next step: add long-acting bronchodilators (LAMA or LABA). The chart also says to assess and optimise inhaler device technique at every visit.",
-    "cite": [{"src": "COPD", "loc": "slide 29"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slide 29"
+      }
+    ]
   },
   {
-    "id": "CP-07", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: person-centred care", "slo": ["SLO1"], "reasoning": true,
+    "id": "CP-07",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: person-centred care",
+    "slo": [
+      "SLO1"
+    ],
+    "reasoning": true,
     "stem": "For a person admitted with a COPD exacerbation, when does the tutorial say discharge planning should begin?",
     "options": [
-      {"text": "At admission", "correct": true, "why": "The slide says 'Planning for discharge at admission': assistance at home, GP, respiratory physician and pharmacist contact."},
-      {"text": "The day before discharge", "why": "The tutorial places discharge planning at admission."},
-      {"text": "Only after spirometry results return", "why": "Not stated; discharge planning starts at admission."},
-      {"text": "After discharge, by the GP", "why": "The tutorial places discharge planning at admission, as part of inpatient care."}
+      {
+        "text": "At admission",
+        "correct": true,
+        "why": "The slide says 'Planning for discharge at admission': assistance at home, GP, respiratory physician and pharmacist contact."
+      },
+      {
+        "text": "The day before discharge",
+        "why": "The tutorial places discharge planning at admission."
+      },
+      {
+        "text": "Only after spirometry results return",
+        "why": "Not stated; discharge planning starts at admission."
+      },
+      {
+        "text": "After discharge, by the GP",
+        "why": "The tutorial places discharge planning at admission, as part of inpatient care."
+      }
     ],
     "explanation": "Also consider community nursing options, ask what has changed recently, and involve family or partner.",
-    "cite": [{"src": "COPD", "loc": "slide 27"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slide 27"
+      }
+    ]
   },
   {
-    "id": "CP-09", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: person-centred care", "slo": ["SLO1"], "reasoning": true,
+    "id": "CP-09",
+    "type": "saq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: person-centred care",
+    "slo": [
+      "SLO1"
+    ],
+    "reasoning": true,
     "prompt": "A person is admitted with a COPD exacerbation. What social history and health literacy areas does the tutorial suggest you explore, and why do they matter for discharge?",
     "model": "Social determinants of health: what is happening at home, socially and at work; carer responsibilities; financial state; access to a GP and pharmacy; whether they live with a smoker. Health literacy: their understanding of their illness, how they find out about new interventions, and education needs. History and adherence: what has changed recently, and what family or partner think. These shape discharge planning, which starts at admission: assistance at home, GP, respiratory physician and pharmacist contact, and community nursing options.",
     "rubric": [
-      {"point": "Home, social and work situation; carer responsibilities", "cite": [{"src": "COPD", "loc": "slide 25"}]},
-      {"point": "Finances; access to GP and pharmacy; lives with a smoker", "cite": [{"src": "COPD", "loc": "slide 25"}]},
-      {"point": "Health literacy: understanding of illness, sources of information, education", "cite": [{"src": "COPD", "loc": "slide 26"}]},
-      {"point": "Adherence, recent changes, involving family or partner", "cite": [{"src": "COPD", "loc": "slide 27"}]},
-      {"point": "Discharge planning from admission (home help, GP, respiratory physician, pharmacist, community nursing)", "cite": [{"src": "COPD", "loc": "slide 27"}]}
+      {
+        "point": "Home, social and work situation; carer responsibilities",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 25"
+          }
+        ]
+      },
+      {
+        "point": "Finances; access to GP and pharmacy; lives with a smoker",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 25"
+          }
+        ]
+      },
+      {
+        "point": "Health literacy: understanding of illness, sources of information, education",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 26"
+          }
+        ]
+      },
+      {
+        "point": "Adherence, recent changes, involving family or partner",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 27"
+          }
+        ]
+      },
+      {
+        "point": "Discharge planning from admission (home help, GP, respiratory physician, pharmacist, community nursing)",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 27"
+          }
+        ]
+      }
     ],
-    "cite": [{"src": "COPD", "loc": "slides 25-27"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slides 25-27"
+      }
+    ]
   },
   {
-    "id": "CP-10", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Pneumonia", "slo": ["SLO2"], "reasoning": true,
+    "id": "CP-10",
+    "type": "saq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "Pneumonia",
+    "slo": [
+      "SLO2"
+    ],
+    "reasoning": true,
     "prompt": "For each of these findings in a patient with suspected pneumonia, name the body system it sits under on the tutorial's pneumonia symptom diagram: high fever, high heart rate, low blood pressure, cough with sputum.",
     "model": "High fever → systemic. High heart rate → heart. Low blood pressure → vascular. Cough with sputum or phlegm → lungs (with shortness of breath, pleuritic chest pain and haemoptysis).",
     "rubric": [
-      {"point": "High fever → systemic", "cite": [{"src": "COPD", "loc": "slide 13"}]},
-      {"point": "High heart rate → heart", "cite": [{"src": "COPD", "loc": "slide 13"}]},
-      {"point": "Low blood pressure → vascular", "cite": [{"src": "COPD", "loc": "slide 13"}]},
-      {"point": "Cough with sputum → lungs", "cite": [{"src": "COPD", "loc": "slide 13"}]}
+      {
+        "point": "High fever → systemic",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 13"
+          }
+        ]
+      },
+      {
+        "point": "High heart rate → heart",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 13"
+          }
+        ]
+      },
+      {
+        "point": "Low blood pressure → vascular",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 13"
+          }
+        ]
+      },
+      {
+        "point": "Cough with sputum → lungs",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 13"
+          }
+        ]
+      }
     ],
-    "cite": [{"src": "COPD", "loc": "slide 13"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slide 13"
+      }
+    ]
   },
   {
-    "id": "CP-11", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: management", "slo": ["SLO1", "SLO2"],
+    "id": "CP-11",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: management",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
     "stem": "Which non-pharmacological RISK REDUCTION actions does the Lung Foundation stepwise COPD chart list?",
     "options": [
-      {"text": "Check smoking status and support cessation; recommend annual influenza and pneumococcal vaccines", "correct": true, "why": "These are the listed risk-reduction actions."},
-      {"text": "Start triple inhaled therapy", "why": "That is a pharmacological step, not non-pharmacological risk reduction."},
-      {"text": "Bed rest and reduced activity", "why": "The chart says to encourage regular exercise and physical activity (optimise function)."},
-      {"text": "Avoid all vaccines during winter", "why": "The chart recommends vaccines."}
+      {
+        "text": "Check smoking status and support cessation; recommend annual influenza and pneumococcal vaccines",
+        "correct": true,
+        "why": "These are the listed risk-reduction actions."
+      },
+      {
+        "text": "Start triple inhaled therapy",
+        "why": "That is a pharmacological step, not non-pharmacological risk reduction."
+      },
+      {
+        "text": "Bed rest and reduced activity",
+        "why": "The chart says to encourage regular exercise and physical activity (optimise function)."
+      },
+      {
+        "text": "Avoid all vaccines during winter",
+        "why": "The chart recommends vaccines."
+      }
     ],
     "explanation": "The other non-pharmacological headings are: optimise function, consider co-morbidities, and refer symptomatic patients to pulmonary rehabilitation.",
-    "cite": [{"src": "COPD", "loc": "slide 29"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slide 29"
+      }
+    ]
   },
   {
-    "id": "CP-12", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: management", "slo": ["SLO1", "SLO2"],
+    "id": "CP-12",
+    "type": "mcq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: management",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
     "stem": "Which co-morbidities does the stepwise COPD chart say to consider especially?",
     "options": [
-      {"text": "Cardiovascular disease, anxiety, depression, lung cancer and osteoporosis", "correct": true, "why": "The chart says 'Consider co-morbidities especially cardiovascular disease, anxiety, depression, lung cancer and osteoporosis'."},
-      {"text": "Asthma and hay fever only", "why": "Not the co-morbidities named on the chart."},
-      {"text": "Stroke and epilepsy", "why": "Not the co-morbidities named on the chart."},
-      {"text": "None; COPD is managed on its own", "why": "The chart explicitly lists co-morbidities to consider."}
+      {
+        "text": "Cardiovascular disease, anxiety, depression, lung cancer and osteoporosis",
+        "correct": true,
+        "why": "The chart says 'Consider co-morbidities especially cardiovascular disease, anxiety, depression, lung cancer and osteoporosis'."
+      },
+      {
+        "text": "Asthma and hay fever only",
+        "why": "Not the co-morbidities named on the chart."
+      },
+      {
+        "text": "Stroke and epilepsy",
+        "why": "Not the co-morbidities named on the chart."
+      },
+      {
+        "text": "None; COPD is managed on its own",
+        "why": "The chart explicitly lists co-morbidities to consider."
+      }
     ],
     "explanation": "Considering co-morbidities, alongside risk reduction, optimising function and pulmonary rehabilitation, is one of the chart's non-pharmacological steps.",
-    "cite": [{"src": "COPD", "loc": "slide 29"}]
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slide 29"
+      }
+    ]
   },
   {
-    "id": "CP-13", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: management", "slo": ["SLO1", "SLO2", "SLO4"],
-    "prompt": "A person is ready for discharge after a COPD exacerbation. Using the tutorial's discharge prompts and the stepwise COPD chart, outline a discharge plan.",
-    "model": "Aim to improve ventilation, promote secretion removal, prevent complications and progression of symptoms, promote the person's comfort and participation in care, and improve quality of life, using the COPD Management Plan. From the stepwise chart: risk reduction (smoking status and cessation support; annual influenza and pneumococcal vaccines); optimise function (regular exercise, nutrition review, education, GP management plan and written COPD action plan, regular review); consider co-morbidities; refer to pulmonary rehabilitation; assess and optimise inhaler technique at every visit. Link with GP, respiratory physician, pharmacist and community nursing (planned from admission).",
-    "rubric": [
-      {"point": "Discharge goals: ventilation, secretion removal, preventing complications, comfort/participation, quality of life", "cite": [{"src": "COPD", "loc": "slide 28"}]},
-      {"point": "Smoking cessation support and vaccines (influenza, pneumococcal)", "cite": [{"src": "COPD", "loc": "slide 29"}]},
-      {"point": "Exercise, nutrition, education, written COPD action plan", "cite": [{"src": "COPD", "loc": "slide 29"}]},
-      {"point": "Pulmonary rehabilitation referral; inhaler technique checked each visit", "cite": [{"src": "COPD", "loc": "slide 29"}]},
-      {"point": "GP, respiratory physician, pharmacist, community nursing", "cite": [{"src": "COPD", "loc": "slide 27"}]}
+    "id": "CP-13",
+    "type": "saq",
+    "week": "FNP2B Wk2 (COPD & pneumonia)",
+    "topic": "COPD: management",
+    "slo": [
+      "SLO1",
+      "SLO2",
+      "SLO4"
     ],
-    "cite": [{"src": "COPD", "loc": "slides 27-29"}]
+    "prompt": "A person is ready for discharge after a COPD exacerbation. Using the tutorial's discharge prompts and the stepwise COPD chart, outline a discharge plan.",
+    "model": "Aim to improve ventilation, promote secretion removal, prevent complications and progression of symptoms, promote the person's comfort and participation in care, and improve quality of life, using the COPD Management Plan. From the stepwise chart: risk reduction (smoking status and cessation support; annual influenza and pneumococcal vaccines); optimise function (regular exercise, nutrition review, education, GP management plan and written COPD action plan, regular review); consider co-morbidities; refer to pulmonary rehabilitation if the person is symptomatic; assess and optimise inhaler technique at every visit. Link with GP, respiratory physician, pharmacist and community nursing (planned from admission).",
+    "rubric": [
+      {
+        "point": "Discharge goals: ventilation, secretion removal, preventing complications, comfort/participation, quality of life",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 28"
+          }
+        ]
+      },
+      {
+        "point": "Smoking cessation support and vaccines (influenza, pneumococcal)",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 29"
+          }
+        ]
+      },
+      {
+        "point": "Exercise, nutrition, education, written COPD action plan",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 29"
+          }
+        ]
+      },
+      {
+        "point": "Pulmonary rehabilitation referral if symptomatic; inhaler technique checked each visit",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 29"
+          }
+        ]
+      },
+      {
+        "point": "GP, respiratory physician, pharmacist, community nursing",
+        "cite": [
+          {
+            "src": "COPD",
+            "loc": "slide 27"
+          }
+        ]
+      }
+    ],
+    "cite": [
+      {
+        "src": "COPD",
+        "loc": "slides 27-29"
+      }
+    ]
   }
 ]
