@@ -110,7 +110,7 @@ Log real friction in FRICTION.md: date, symptom, cost, fix proposal, count. Coun
 
 # Unattended Sessions
 
-- MEMORY.md holds a long session's state: task queue, decisions, findings, failure modes, checkpoints. Claude reads it first and updates it at every task boundary. Its `Last task commit` is the newest commit that finished a task; plan and state commits may follow it.
+- MEMORY.md holds a long session's state: task queue, decisions, findings, failure modes, checkpoints. Claude reads it first and updates it at every task boundary and at least every 30 minutes. Its `Last task commit` is the newest commit that finished a task; plan and state commits may follow it.
 - Chain queued tasks, one at a time. Launcher exit 4 (Codex usage limit): note the reset time if given, otherwise UNKNOWN, and do non-Codex work meanwhile.
 - When stopping, Claude writes HANDOFF-REPORT.md: state, anything MEMORY.md lacks, exact next steps.
 
