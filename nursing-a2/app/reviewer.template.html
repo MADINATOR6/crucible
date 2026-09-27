@@ -15,17 +15,20 @@
     --bg:#11151b;--surface:#1a2028;--surface-2:#232b35;--text:#e6eaf0;--muted:#9aa5b4;--border:#323c48;
     --accent:#7fb0e0;--accent-text:#0d1620;--good:#6fd39e;--good-bg:#173226;--bad:#f28b82;--bad-bg:#3a1d1b;
     --warn:#f2c46b;--warn-bg:#3a2e12;--crit:#f28b82;--focus:#7fb0e0;
+    color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#11151b;--surface:#1a2028;--surface-2:#232b35;--text:#e6eaf0;--muted:#9aa5b4;--border:#323c48;
   --accent:#7fb0e0;--accent-text:#0d1620;--good:#6fd39e;--good-bg:#173226;--bad:#f28b82;--bad-bg:#3a1d1b;
   --warn:#f2c46b;--warn-bg:#3a2e12;--crit:#f28b82;--focus:#7fb0e0;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--border)}
+.ask{gap:6px;margin-left:4px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--border)}
 .bar{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .bar h1{font-size:17px;margin:0 auto 0 0}
 nav{max-width:860px;margin:0 auto;padding:0 16px 8px;display:flex;gap:6px;overflow-x:auto}
@@ -139,6 +142,17 @@ function record(id, score){
 }
 function isWeak(id){ const r = P.items[id]; return !!r && r.last < 0.6; }
 function fmt(ms){ ms = Math.max(0, ms); const s = Math.round(ms/1000); return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0"); }
+/* In-page confirmation: embedded viewers block confirm()/alert(), so ask next to the button instead. */
+function askFirst(btn, question, onYes){
+  const old = btn.parentNode.querySelector(".ask"); if(old) old.remove();
+  const box = document.createElement("span");
+  box.className = "ask row";
+  box.innerHTML = `<b>${esc(question)}</b> <button class="primary">Yes</button> <button>No</button>`;
+  const [yes, no] = box.querySelectorAll("button");
+  yes.onclick = () => { box.remove(); onYes(); };
+  no.onclick = () => box.remove();
+  btn.insertAdjacentElement("afterend", box);
+}
 function beep(){ try{ const a = new (window.AudioContext||window.webkitAudioContext)(); const o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 880; o.start(); setTimeout(()=>{o.stop(); a.close();}, 600); }catch(e){} }
 
 /* ---------- theme ---------- */
@@ -210,7 +224,7 @@ function renderHome(){
   $("#hWeak").onclick = () => startQuiz({weak:true});
   $("#hSkills").onclick = () => go("skills");
   $("#hMock").onclick = () => go("mock");
-  $("#hReset").onclick = () => { if(confirm("Delete all saved progress on this device?")){ P.items = {}; P.skills = {}; P.mocks = []; P.mockA = null; P.mockB = null; save(); renderHome(); } };
+  $("#hReset").onclick = e => askFirst(e.target, "Delete all saved progress on this device?", () => { P.items = {}; P.skills = {}; P.mocks = []; P.mockA = null; P.mockB = null; save(); renderHome(); });
 }
 
 /* ---------- Part A quiz ---------- */
@@ -253,7 +267,7 @@ function filterQ(f){
 function startQuiz(f){
   let ids = filterQ(f).map(q => q.id);
   if(f.shuffle !== false) ids = shuffle(ids);
-  if(!ids.length){ alert("No questions match these filters."); return; }
+  if(!ids.length){ const c = $("#fCount"); if(c) c.textContent = "No questions match these filters."; return; }
   tab = "quiz"; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === "quiz"));
   QZ = {ids, i:0, done:{}}; renderQuestion();
 }
@@ -360,7 +374,7 @@ function stepLi(st, k, extra=""){
 function skillList(s, body){
   body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">${esc(s.name)}: checklist</h2>${citeHTML(s.cite)}
     <ol class="steps">${s.steps.map((st,k) => stepLi(st,k)).join("")}</ol>
-    <div class="row noprint" style="margin-top:10px"><button onclick="print()">Print this checklist</button></div></div>${skillNotes(s)}`;
+    <p class="muted small noprint">To print, use your browser's print command on the offline file; the page prints as a plain checklist.</p></div>${skillNotes(s)}`;
 }
 function skillOrder(s, body){
   let cur = shuffle(s.steps.map((_,k)=>k));
@@ -463,8 +477,8 @@ function mockA(){
   document.querySelectorAll('#main input[type=radio]').forEach(r => r.onchange = () => { M.ans[r.name] = +r.value; save(); });
   document.querySelectorAll('#main textarea').forEach(t => t.oninput = () => { M.ans[t.dataset.id] = t.value; save(); });
   const submit = () => { stopTimer(); M.submitted = true; save(); mockAReview(); };
-  $("#sub").onclick = () => { if(confirm("Submit now?")) submit(); };
-  $("#quit").onclick = () => { if(confirm("Abandon this mock? Answers are discarded.")){ P.mockA = null; save(); renderMock(); } };
+  $("#sub").onclick = e => askFirst(e.target, "Submit now?", submit);
+  $("#quit").onclick = e => askFirst(e.target, "Abandon? Answers are discarded.", () => { stopTimer(); P.mockA = null; save(); renderMock(); });
   tick($("#tA"), M.end, submit);
 }
 function mockAReview(){
@@ -505,7 +519,7 @@ function mockB(){
   if(M.end) tick($("#tB"), M.end, check);
   if(!M.end) $("#bGo").onclick = () => { M.end = Date.now()+MOCK_MS; save(); mockB(); };
   $("#bDone").onclick = () => { stopTimer(); check(); };
-  $("#bQuit").onclick = () => { if(confirm("Abandon this rehearsal?")){ P.mockB = null; save(); renderMock(); } };
+  $("#bQuit").onclick = e => askFirst(e.target, "Abandon this rehearsal?", () => { stopTimer(); P.mockB = null; save(); renderMock(); });
 }
 
 /* ---------- sources & gaps ---------- */

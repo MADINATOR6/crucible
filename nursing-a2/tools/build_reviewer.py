@@ -11,6 +11,7 @@ Usage: python nursing-a2/tools/build_reviewer.py [--check]
 """
 import datetime
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONTENT = ROOT / "content"
 TEMPLATE = ROOT / "app" / "reviewer.template.html"
 OUT = ROOT / "reviewer.html"
+ARTIFACT = ROOT / "build" / "reviewer.artifact.html"  # copy for the phone-friendly published page
 CONTEXT_LABEL = "NOT FROM MODULES — verify"
 SLOS = {"SLO1", "SLO2", "SLO3", "SLO4", "SLO5"}
 
@@ -147,8 +149,14 @@ def main():
     marker = "/*__CONTENT__*/null"
     if html.count(marker) != 1:
         sys.exit("template must contain the content marker exactly once")
-    OUT.write_text(html.replace(marker, payload), encoding="utf-8")
+    page = html.replace(marker, payload)
+    OUT.write_text(page, encoding="utf-8")
     print(f"wrote {OUT.relative_to(ROOT.parent)} ({OUT.stat().st_size // 1024} KB)")
+    # The published-page host supplies its own document skeleton, so that copy drops ours.
+    body = re.sub(r"(?is)<!DOCTYPE html>|</?html[^>]*>|</?head>|<meta[^>]*>|</?body>", "", page).strip()
+    ARTIFACT.parent.mkdir(exist_ok=True)
+    ARTIFACT.write_text(body + "\n", encoding="utf-8")
+    print(f"wrote {ARTIFACT.relative_to(ROOT.parent)}")
 
 
 if __name__ == "__main__":
