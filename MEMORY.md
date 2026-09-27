@@ -47,6 +47,7 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-26 | Ponytail's "write less code" ladder added to the implementer instruction as text; plugin not installed | JetBrains A/B (Jul 2026): -10.3% cost, -7.5% tokens (noise), no quality change vs -20%/-22% advertised; three lines give the same discipline with no dependency | -
 - 2026-09-26 | OmniRoute rejected | Proxies prompts, code and provider credentials through a third-party gateway to bypass usage limits; conflicts with AGENTS.md Security and likely provider terms. Launcher exit 4 already handles Codex limits | -
 - 2026-09-26 | Graphify parked until the template is applied to a large codebase | This repo is a small set of Markdown files plus two scripts; `graphify claude install` would edit Claude-owned config. Re-test then with a before/after token count | -
+- 2026-09-27 | Ladder reworded: "use the first that fully meets the task, then finish", "existing project dependency", "one clear line" | Codex verifier: "stop" means halt-and-report elsewhere in the implementer block; bare existence ignored suitability; "installed" could mean machine-only; "one line" rewarded dense code | -
 
 ## Open questions
 - Delete merged remote branch `origin/claude/laptop-efficiency-tasks-6598uz`? | User decision (remote deletion) | no
