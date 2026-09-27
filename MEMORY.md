@@ -3,11 +3,12 @@
 Operating state for autonomous sessions on this repo. Read first every session. Cap 400 lines; archive old entries to MEMORY-ARCHIVE.md.
 
 ## Current state
-- Project: claude-codex-collab (Claude Code + Codex workflow template)
-- Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
-- Task: none (2026-09-27 queue complete)
-- Status: idle. Next session: read HANDOFF-REPORT.md, then ask the user for a new queue or the open questions below.
-- Open: measure Codex code size (ladder effect) on the next real Dispatch task; none existed on 2026-09-27.
+- Project: claude-codex-collab. Active work (2026-09-27, branch claude/uts-nursing-assessment-reviewer-013cf5): `nursing-a2/`, the UTS 93225 Assessment 2 reviewer (user away ~10 h; assessment is Week 4 lab, from Mon 28 Sep).
+- Last task commit: 35b3032 (flashcards + search). Earlier: 0f4a88c MVP, 686bd5d phone fixes.
+- Queue: [x] Phase 1 docs [x] Phase 2 MVP [~] Phase 3 Codex review NA2-REVIEW-1 (dispatched from 16117f9) [ ] apply REVIEW.md fixes [ ] Codex 20% spot-check [x] Phase 4 flashcards/search/dark mode.
+- Blocker: the 93225 Canvas Modules are not on this PC and Canvas needs the user's UTS login. Phone push sent 11:5x asking for "use Chrome" permission or files in nursing-a2/modules/. Content currently comes from 93224 FNP2B slides found in Downloads/New folder (marked Supplementary in the app).
+- Published phone page: https://claude.ai/artifact/BpVm69cYcRUd1VLBkPwTRJ (republish from nursing-a2/build/reviewer.artifact.html after each build).
+- Previous template-queue state: idle; see HANDOFF-REPORT.md and the open questions below.
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
@@ -50,6 +51,9 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-26 | Graphify parked until the template is applied to a large codebase | This repo is a small set of Markdown files plus two scripts; `graphify claude install` would edit Claude-owned config. Re-test then with a before/after token count | -
 - 2026-09-27 | Ladder reworded: "use the first that fully meets the task, then finish", "existing project dependency", "one clear line" | Codex verifier: "stop" means halt-and-report elsewhere in the implementer block; bare existence ignored suitability; "installed" could mean machine-only; "one line" rewarded dense code | -
 
+- 2026-09-27 | nursing-a2 uses 93224 FNP2B slides as a labelled "Supplementary" source set | 93225 Modules unavailable and the user is away; Subject Information p.1 says 93225 aligns with 93224; items are badged and can be switched off. Excluded: personal .docx notes of unknown origin | NA2
+- 2026-09-27 | Did not use Claude in Chrome or download from Canvas | Harness default is the built-in browser unless the user asks; downloads need explicit per-file permission. Asked by push instead | NA2
+
 ## Open questions
 - Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
 - Should `prompts/laptop-efficiency.md` live in this template repo? Its Phase 2 writes logs of personal file names into the repo (F25) | User decision | no
@@ -88,4 +92,5 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 19:29 +10:00: T3 Codex PARTIAL (high; 789k input / 751k cached / 13.6k output). Claude fixed worktree check, OneDrive cloud-placeholder false refusal (found by a real-OneDrive dry run), -Create parent, test harness races. Mirror suite 18/18 + 1 SKIP via -File, 19/19 via -Command. Real OneDrive -Create -DryRun: exit 0, 20 committed files listed, nothing created. T3 committed 59629a1.
 - 2026-09-25 19:38 +10:00: T3 Codex verifier (medium; 687k input / 645k cached / 5.2k output) found 2 high bugs: staging/destination overlap, export-ignore dropping committed files. Claude fixed both (checkout-index with private index; containment refusal); mirror suite 20/20 + 1 SKIP via -File, 21/21 via -Command; real dry run lists 22 = git ls-files. Removed verifier leftovers %TEMP%\ccx-t3v (no links inside).
 - 2026-09-25 19:53 +10:00: fresh clone of pushed 3389199 passes both suites (23/23; 20/20 + 1 SKIP). Clone removed. Writing HANDOFF-REPORT.md; session stopping (queue complete).
+- 2026-09-27 ~13:30 +10:00: nursing-a2 MVP built and committed; Codex NA2-REVIEW-1 running; phone page published.
 - 2026-09-27 10:56 +10:00: merged claude/ladder-wording-fix (ff to 038824a, both suites pass, branch deleted local+remote); Mythos fixes 000b1a6, c5df6b5 pushed; claude-codex-smoke recycled; claude-codex-template locked (left); OneDrive copy was already gone. Log: %USERPROFILE%\powerlifting-delete.log.
