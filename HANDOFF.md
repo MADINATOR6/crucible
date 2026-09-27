@@ -6,7 +6,7 @@ How work passes between Claude Code and Codex. This is the handoff contract (som
 
 ### Claude checklist
 1. [ ] `git status` clean or pre-existing paths recorded; task file filled and committed-or-saved; note HEAD.
-2. [ ] The task file has a write allowlist, out-of-scope list, resolved business rules, stop conditions, and each Done When item assigned to Codex or Claude.
+2. [ ] The task file has a task ID, write allowlist, out-of-scope list, resolved business rules, exact Verify commands, stop conditions, and each Done When item assigned to Codex or Claude.
 3. [ ] Say whether temporary scripts or fixtures are allowed, and where. Synthetic data only unless the user authorised real data.
 
 ### Launcher (repo root)
