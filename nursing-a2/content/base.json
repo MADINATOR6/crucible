@@ -4,24 +4,288 @@
     "status": "Built without the 93225 Modules. Most questions come from 93224 FNP2B slides (marked Supplementary). ECG lead placement, oxygen devices and nebuliser procedure are not covered yet. See Sources & gaps."
   },
   "sources": {
-    "SI": {"file": "UTS 93225 Clinical Practice 2B Spring C Session 2026 Subject Information.pdf", "folder": "modules", "set": "core", "label": "93225 Subject Information, Spring C 2026 (UTS)"},
-    "A2": {"file": "Canvas - Assessment 2 page (screenshot 27 Sep 2026).png", "folder": "modules", "set": "core", "label": "93225 Canvas: Assessment 2 page (screenshot supplied by the student)"},
-    "ACS": {"file": "ACS.pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: lecture 'Assessment & Management of Cardiac Diseases' (SPR 2026). Not from the 93225 Modules."},
-    "ASTHMA": {"file": "ASTHMA.pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: 93224 Foundations of Nursing Practice 2B, Week 1 tutorial (asthma). Not from the 93225 Modules."},
-    "COPD": {"file": "COPD .pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: 93224 Foundations of Nursing Practice 2B, Week 2 tutorial (COPD and pneumonia). Not from the 93225 Modules."},
-    "STROKE": {"file": "STROKE.pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: lecture 'Cerebrovascular Anatomy and Stroke Management' (subject not stated on slides). Not from the 93225 Modules."}
+    "SI": {
+      "file": "UTS 93225 Clinical Practice 2B Spring C Session 2026 Subject Information.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Subject Information, Spring C 2026 (UTS)"
+    },
+    "A2": {
+      "file": "Canvas - Assessment 2 page (screenshot 27 Sep 2026).png",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Canvas: Assessment 2 page (screenshot supplied by the student)"
+    },
+    "ACS": {
+      "file": "ACS.pdf",
+      "folder": "supplementary",
+      "set": "supp",
+      "label": "Supplementary: lecture 'Assessment & Management of Cardiac Diseases' (SPR 2026). Not from the 93225 Modules."
+    },
+    "ASTHMA": {
+      "file": "ASTHMA.pdf",
+      "folder": "supplementary",
+      "set": "supp",
+      "label": "Supplementary: 93224 Foundations of Nursing Practice 2B, Week 1 tutorial (asthma). Not from the 93225 Modules."
+    },
+    "COPD": {
+      "file": "COPD .pdf",
+      "folder": "supplementary",
+      "set": "supp",
+      "label": "Supplementary: 93224 Foundations of Nursing Practice 2B, Week 2 tutorial (COPD and pneumonia). Not from the 93225 Modules."
+    },
+    "STROKE": {
+      "file": "STROKE.pdf",
+      "folder": "supplementary",
+      "set": "supp",
+      "label": "Supplementary: lecture 'Cerebrovascular Anatomy and Stroke Management' (subject not stated on slides). Not from the 93225 Modules."
+    },
+    "CANVAS": {
+      "file": "canvas/canvas_93225_pages.txt",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Canvas module pages (text export, 27 Sep 2026); cite as page <slug>"
+    },
+    "L1": {
+      "file": "Lecture 1 A-H assessment slides.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lecture 1: A-H assessment"
+    },
+    "L2": {
+      "file": "CP2B week 2 lecture- student view-1.pptx",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lecture 2 (week 2)"
+    },
+    "L3": {
+      "file": "CP2B_Lecture_3_slides.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lecture 3"
+    },
+    "L4": {
+      "file": "CP2B-LAB 4 Lecture- studnet view.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lecture 4 (Lab 4 lecture)"
+    },
+    "AGTABLE": {
+      "file": "A-G patient assessment table-6.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 A-G patient assessment table"
+    },
+    "AH": {
+      "file": "A-H Yr2 Level-2.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 A-H Year 2 level table (image)"
+    },
+    "AUSC": {
+      "file": "How-to-perform-chest-auscultation-and-interpret-the-findings-1.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 1 reading: How to perform chest auscultation and interpret the findings"
+    },
+    "LAB1PKG": {
+      "file": "Lab 1 Student Package_v1-1.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lab 1 Student Package"
+    },
+    "LAB1SL": {
+      "file": "CP2B 2026 Lab 1 Slides-1.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lab 1 slides"
+    },
+    "TSANZ": {
+      "file": "TSANZ Position Statement on Acute Oxygen Use 2022.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 2 reading: TSANZ position statement on acute oxygen use in adults (2022)"
+    },
+    "S125": {
+      "file": "Section 12.5 Providing Oxygen.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 2 reading: Skills in Clinical Nursing 12.5 Providing oxygen"
+    },
+    "S126": {
+      "file": "Section 12.6 Use of a nebuliser.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 2 reading: Skills in Clinical Nursing 12.6 Use of a nebuliser"
+    },
+    "S127": {
+      "file": "Section_12.7_Oropharyngeal_and_nasopharyngeal_suctioning.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 2 reading: Skills in Clinical Nursing 12.7 Suctioning"
+    },
+    "O2CHK": {
+      "file": "Skills checklists for O2 delivery devices-1.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lab 2 skills checklists for O2 delivery devices (image)"
+    },
+    "WB2": {
+      "file": "CP2B- Student workbook Week 2-2.docx",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Week 2 student workbook"
+    },
+    "LAB2SL": {
+      "file": "CP2B LAB Week 2- studnet view.pptx",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lab 2 slides"
+    },
+    "ECGBAR": {
+      "file": "Barriers_to_obtaining_a_good_quality_ECG-1.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 3 reading: Barriers to obtaining a good quality ECG"
+    },
+    "RHYTHM": {
+      "file": "Rhythm-Analysis-Flow-Chart-JPEG (2).pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 3 rhythm analysis flow chart (image)"
+    },
+    "LAB3PKG": {
+      "file": "Lab 3 Student Package_2026_V2_meds_added-3.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lab 3 Student Package"
+    },
+    "LAB3SL": {
+      "file": "Lab 3-cardiovascular assessment slides-1.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Lab 3 cardiovascular assessment slides"
+    },
+    "BURETTE1": {
+      "file": "IV040001.pdf - Burette with Inline Needleless Access Site1.3.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 3: burette set guide"
+    },
+    "BURETTE2": {
+      "file": "IF_Using-Burette-Set-With-Alaris-System_TS_EN.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 3: burette with Alaris system"
+    },
+    "NGTPOL": {
+      "file": "NGT insertion Policy in Adults..pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 4: NGT insertion policy (adults)"
+    },
+    "ASSIST": {
+      "file": "assist-tool---pdf.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 4: ASSIST screening tool"
+    },
+    "NGTWS": {
+      "file": "NGT_Stroke_Worksheet.docx",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 Module 4: NGT stroke worksheet"
+    },
+    "PLANNER": {
+      "file": "Weekly planner 2026_final.docx",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 weekly planner"
+    },
+    "MATH": {
+      "file": "2026 CP2B math revision.pdf",
+      "folder": "modules",
+      "set": "core",
+      "label": "93225 maths revision"
+    }
   },
   "slos": {
-    "SLO1": {"text": "Comprehensive, person-centred assessment and management integrating physiological, pathophysiological and psychosocial factors (RN Standards 4, 5).", "cite": [{"src": "SI", "loc": "p.1"}]},
-    "SLO2": {"text": "Clinical reasoning and critical thinking for selected cardiovascular, cerebrovascular and respiratory diseases, e.g. asthma, heart failure and stroke (RN Standards 1, 6, 7).", "cite": [{"src": "SI", "loc": "p.1"}]},
-    "SLO3": {"text": "Practical understanding of the administration and management of oxygen therapy and oxygen devices (RN Standards 1, 5, 6).", "cite": [{"src": "SI", "loc": "p.1"}]},
-    "SLO4": {"text": "Quality use of medicines including administration of inhaler medication (RN Standards 1, 5, 6).", "cite": [{"src": "SI", "loc": "p.1"}]}
+    "SLO1": {
+      "text": "Comprehensive, person-centred assessment and management integrating physiological, pathophysiological and psychosocial factors (RN Standards 4, 5).",
+      "cite": [
+        {
+          "src": "SI",
+          "loc": "p.1"
+        }
+      ]
+    },
+    "SLO2": {
+      "text": "Clinical reasoning and critical thinking for selected cardiovascular, cerebrovascular and respiratory diseases, e.g. asthma, heart failure and stroke (RN Standards 1, 6, 7).",
+      "cite": [
+        {
+          "src": "SI",
+          "loc": "p.1"
+        }
+      ]
+    },
+    "SLO3": {
+      "text": "Practical understanding of the administration and management of oxygen therapy and oxygen devices (RN Standards 1, 5, 6).",
+      "cite": [
+        {
+          "src": "SI",
+          "loc": "p.1"
+        }
+      ]
+    },
+    "SLO4": {
+      "text": "Quality use of medicines including administration of inhaler medication (RN Standards 1, 5, 6).",
+      "cite": [
+        {
+          "src": "SI",
+          "loc": "p.1"
+        }
+      ]
+    }
   },
   "skills": [
-    {"id": "auscultation", "name": "Lung auscultation", "slo": ["SLO1", "SLO2"], "steps": [], "notes": []},
-    {"id": "ecg", "name": "ECG lead placement", "slo": ["SLO1", "SLO2"], "steps": [], "notes": []},
-    {"id": "oxygen", "name": "Oxygen administration", "slo": ["SLO3"], "steps": [], "notes": []},
-    {"id": "nebuliser", "name": "Medication administration via nebuliser", "slo": ["SLO4"], "steps": [], "notes": []}
+    {
+      "id": "auscultation",
+      "name": "Lung auscultation",
+      "slo": [
+        "SLO1",
+        "SLO2"
+      ],
+      "steps": [],
+      "notes": []
+    },
+    {
+      "id": "ecg",
+      "name": "ECG lead placement",
+      "slo": [
+        "SLO1",
+        "SLO2"
+      ],
+      "steps": [],
+      "notes": []
+    },
+    {
+      "id": "oxygen",
+      "name": "Oxygen administration",
+      "slo": [
+        "SLO3"
+      ],
+      "steps": [],
+      "notes": []
+    },
+    {
+      "id": "nebuliser",
+      "name": "Medication administration via nebuliser",
+      "slo": [
+        "SLO4"
+      ],
+      "steps": [],
+      "notes": []
+    }
   ],
   "gaps": [
     "The 93225 Canvas Modules (pre-work, lectures, lab guides for Weeks 1-4) were not available on this computer. Part A covers all of that content, so this app is incomplete until they are added.",
@@ -36,6 +300,10 @@
     "Inhaler technique (SLO4): only the device and class chart (ASTHMA.pdf p.20) and 'pMDIs should be used with a spacer' are covered, not the steps."
   ],
   "context": [
-    {"id": "CTX-GENERIC-STEPS", "label": "NOT FROM MODULES — verify", "text": "Bedside skills are usually framed by hand hygiene, patient identification, consent, explanation and privacy at the start, and documentation and escalation at the end. None of these steps are in the loaded sources, so check your 93225 lab guide for the exact wording and order."}
+    {
+      "id": "CTX-GENERIC-STEPS",
+      "label": "NOT FROM MODULES — verify",
+      "text": "Bedside skills are usually framed by hand hygiene, patient identification, consent, explanation and privacy at the start, and documentation and escalation at the end. None of these steps are in the loaded sources, so check your 93225 lab guide for the exact wording and order."
+    }
   ]
 }

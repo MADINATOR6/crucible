@@ -123,7 +123,14 @@ def docx_pages(path):
         yield f"p.~{n}", text
 
 
-HANDLERS = {".pdf": pdf_pages, ".pptx": pptx_pages, ".docx": docx_pages}
+def txt_pages(path):
+    """Canvas page exports: one unit per '[[page: slug]]' block, cited as 'page <slug>'."""
+    parts = re.split(r"\[\[page: ([^\]]+)\]\]", path.read_text(encoding="utf-8"))
+    for i in range(1, len(parts), 2):
+        yield f"page {parts[i]}", parts[i + 1]
+
+
+HANDLERS = {".pdf": pdf_pages, ".pptx": pptx_pages, ".docx": docx_pages, ".txt": txt_pages}
 VISUAL = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
