@@ -95,6 +95,8 @@ td,th{border-bottom:1px solid var(--border);padding:6px;text-align:left;vertical
     <button data-tab="quiz">Part A quiz</button>
     <button data-tab="skills">Part B skills</button>
     <button data-tab="mock">Mock exam</button>
+    <button data-tab="cards">Flashcards</button>
+    <button data-tab="search">Search</button>
     <button data-tab="sources">Sources &amp; gaps</button>
   </nav>
 </header>
@@ -170,7 +172,7 @@ function go(t){
   tab = t;
   stopTimer();
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
-  ({home:renderHome, quiz:renderQuizSetup, skills:renderSkills, mock:renderMock, sources:renderSources}[t])();
+  ({home:renderHome, quiz:renderQuizSetup, skills:renderSkills, mock:renderMock, cards:renderCards, search:renderSearch, sources:renderSources}[t])();
   window.scrollTo(0,0);
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
@@ -265,7 +267,7 @@ function filterQ(f){
     && (!f.slo || (q.slo||[]).includes(f.slo)) && (!f.skill || q.skill === f.skill) && (!f.weak || isWeak(q.id)) && (!f.reasoning || q.reasoning));
 }
 function startQuiz(f){
-  let ids = filterQ(f).map(q => q.id);
+  let ids = f.ids || filterQ(f).map(q => q.id);
   if(f.shuffle !== false) ids = shuffle(ids);
   if(!ids.length){ const c = $("#fCount"); if(c) c.textContent = "No questions match these filters."; return; }
   tab = "quiz"; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === "quiz"));
@@ -520,6 +522,58 @@ function mockB(){
   if(!M.end) $("#bGo").onclick = () => { M.end = Date.now()+MOCK_MS; save(); mockB(); };
   $("#bDone").onclick = () => { stopTimer(); check(); };
   $("#bQuit").onclick = e => askFirst(e.target, "Abandon this rehearsal?", () => { stopTimer(); P.mockB = null; save(); renderMock(); });
+}
+
+/* ---------- flashcards (Leitner boxes) ---------- */
+// Cards reuse the cited questions: front = stem/prompt, back = correct answer or model answer.
+const BOX_WAIT = [0, 0, 10*60e3, 60*60e3, 24*60*60e3, 3*24*60*60e3]; // index = box 1..5
+function cardDue(id){ const c = (P.cards||{})[id]; return !c || c.due <= Date.now(); }
+function renderCards(){
+  P.cards = P.cards || {};
+  const due = shuffle(Q.filter(q => cardDue(q.id)).map(q => q.id));
+  const boxes = [1,2,3,4,5].map(b => Q.filter(q => ((P.cards[q.id]||{}).box||1) === b).length);
+  const head = `<div class="card"><h2 class="big" style="margin-top:0">Flashcards</h2>
+    <p class="muted small">Recall the answer, then reveal. Cards you know move up a box and come back later (10 min, 1 hour, 1 day, 3 days); cards you miss go back to box 1.</p>
+    <div class="row small">${boxes.map((n,i) => `<span class="tag">Box ${i+1}: ${n}</span>`).join("")}</div>
+    <p><b>${due.length}</b> card${due.length===1?"":"s"} due now.</p></div>`;
+  if(!due.length){ $("#main").innerHTML = head; return; }
+  let i = 0;
+  const show = (revealed) => {
+    const q = QBY[due[i]];
+    $("#main").innerHTML = head + `<div class="card">${qHeader(q)}<p class="big">${esc(q.stem || q.prompt)}</p>
+      ${revealed ? `<div class="card" style="background:var(--surface-2)">${q.type==="mcq" ? `<b>${esc(q.options.find(o=>o.correct).text)}</b>${q.explanation?`<p class="small">${esc(q.explanation)}</p>`:""}` : esc(q.model)}${citeHTML(q.cite)}</div>
+        <div class="row"><button class="primary" id="cKnew">I knew it</button><button id="cMiss">I didn't</button></div>`
+      : `<button class="primary" id="cShow">Reveal answer</button>`}
+      <p class="muted small">Card ${i+1} of ${due.length}</p></div>`;
+    if(!revealed){ $("#cShow").onclick = () => show(true); return; }
+    const mark = knew => {
+      const c = P.cards[q.id] || {box:1};
+      c.box = knew ? Math.min(5, (c.box||1) + 1) : 1;
+      c.due = Date.now() + BOX_WAIT[c.box];
+      P.cards[q.id] = c; save();
+      if(++i < due.length) show(false); else renderCards();
+    };
+    $("#cKnew").onclick = () => mark(true); $("#cMiss").onclick = () => mark(false);
+  };
+  show(false);
+}
+
+/* ---------- search ---------- */
+function renderSearch(){
+  $("#main").innerHTML = `<div class="card"><label for="sQ"><b>Search questions, answers and skill notes</b></label>
+    <input type="text" id="sQ" style="width:100%;margin-top:6px" placeholder="e.g. stridor, SpO2, thrombolysis"></div><div id="sRes"></div>`;
+  const run = () => {
+    const term = $("#sQ").value.trim().toLowerCase();
+    if(term.length < 2){ $("#sRes").innerHTML = ""; return; }
+    const hit = s => String(s||"").toLowerCase().includes(term);
+    const qs = Q.filter(q => hit(q.stem) || hit(q.prompt) || hit(q.model) || hit(q.explanation) || (q.options||[]).some(o => hit(o.text) || hit(o.why)) || (q.rubric||[]).some(r => hit(r.point)));
+    const notes = SK.flatMap(s => [...(s.steps||[]), ...(s.notes||[])].filter(n => hit(n.text)).map(n => ({s, n})));
+    $("#sRes").innerHTML = `<p class="muted small">${qs.length} question${qs.length===1?"":"s"}, ${notes.length} skill note${notes.length===1?"":"s"}</p>`
+      + qs.map(q => `<button class="opt" data-q="${esc(q.id)}"><span class="small muted">${esc(q.id)} · ${esc(q.topic)}</span><br>${esc(q.stem || q.prompt)}</button>`).join("")
+      + notes.map(({s, n}) => `<div class="card small"><b>${esc(s.name)}</b><br>${esc(n.text)}${citeHTML(n.cite)}</div>`).join("");
+    document.querySelectorAll("[data-q]").forEach(b => b.onclick = () => startQuiz({ids:[b.dataset.q]}));
+  };
+  $("#sQ").oninput = run; $("#sQ").focus();
 }
 
 /* ---------- sources & gaps ---------- */
