@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "title": "Assessment 2 Reviewer (93225)",
+    "status": "Built without the 93225 Modules. Most questions come from 93224 FNP2B slides (marked Supplementary). ECG lead placement, oxygen devices and nebuliser procedure are not covered yet. See Sources & gaps."
+  },
+  "sources": {
+    "SI": {"file": "UTS 93225 Clinical Practice 2B Spring C Session 2026 Subject Information.pdf", "folder": "modules", "set": "core", "label": "93225 Subject Information, Spring C 2026 (UTS)"},
+    "A2": {"file": "Canvas - Assessment 2 page (screenshot 27 Sep 2026).png", "folder": "modules", "set": "core", "label": "93225 Canvas: Assessment 2 page (screenshot supplied by the student)"},
+    "ACS": {"file": "ACS.pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: lecture 'Assessment & Management of Cardiac Diseases' (SPR 2026). Not from the 93225 Modules."},
+    "ASTHMA": {"file": "ASTHMA.pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: 93224 Foundations of Nursing Practice 2B, Week 1 tutorial (asthma). Not from the 93225 Modules."},
+    "COPD": {"file": "COPD .pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: 93224 Foundations of Nursing Practice 2B, Week 2 tutorial (COPD and pneumonia). Not from the 93225 Modules."},
+    "STROKE": {"file": "STROKE.pdf", "folder": "supplementary", "set": "supp", "label": "Supplementary: lecture 'Cerebrovascular Anatomy and Stroke Management' (subject not stated on slides). Not from the 93225 Modules."}
+  },
+  "slos": {
+    "SLO1": {"text": "Comprehensive, person-centred assessment and management integrating physiological, pathophysiological and psychosocial factors (RN Standards 4, 5).", "cite": [{"src": "SI", "loc": "p.1"}]},
+    "SLO2": {"text": "Clinical reasoning and critical thinking for selected cardiovascular, cerebrovascular and respiratory diseases, e.g. asthma, heart failure and stroke (RN Standards 1, 6, 7).", "cite": [{"src": "SI", "loc": "p.1"}]},
+    "SLO3": {"text": "Practical understanding of the administration and management of oxygen therapy and oxygen devices (RN Standards 1, 5, 6).", "cite": [{"src": "SI", "loc": "p.1"}]},
+    "SLO4": {"text": "Quality use of medicines including administration of inhaler medication (RN Standards 1, 5, 6).", "cite": [{"src": "SI", "loc": "p.1"}]}
+  },
+  "skills": [
+    {"id": "auscultation", "name": "Lung auscultation", "slo": ["SLO1", "SLO2"], "steps": [], "notes": []},
+    {"id": "ecg", "name": "ECG lead placement", "slo": ["SLO1", "SLO2"], "steps": [], "notes": []},
+    {"id": "oxygen", "name": "Oxygen administration", "slo": ["SLO3"], "steps": [], "notes": []},
+    {"id": "nebuliser", "name": "Medication administration via nebuliser", "slo": ["SLO4"], "steps": [], "notes": []}
+  ],
+  "gaps": [
+    "The 93225 Canvas Modules (pre-work, lectures, lab guides for Weeks 1-4) were not available on this computer. Part A covers all of that content, so this app is incomplete until they are added.",
+    "ECG lead placement: no electrode positions in any loaded source. ACS.pdf p.24 only shows a picture with chest and ankle electrodes.",
+    "Oxygen administration: no procedure steps and no flow-rate or FiO2 ranges for the Hudson (simple face) mask, Venturi mask or non-rebreather mask, which are the devices the Subject Information names (p.2, p.8).",
+    "Oxygen in COPD: no target SpO2 range for people with COPD in any loaded source. COPD .pdf p.22 raises the question but the answer is in a video, not on the slide.",
+    "Medication administration via nebuliser: no procedure steps. Only 'use oxygen to drive nebuliser (6 L/min high-flow regulator)' in acute severe asthma (ASTHMA.pdf p.15).",
+    "Generic procedure steps (hand hygiene, patient identification, consent, explanation, privacy, documentation) are not in any loaded source, so the skill checklists leave them out. Use your lab guide.",
+    "Heart failure is named in SLO2, but no loaded source covers it. The 'HEART FAILURE.docx' notes in Downloads were left out because their origin is unknown.",
+    "Critical/fail-point steps: no loaded source marks which Part B steps an assessor would fail you on.",
+    "Continuous cardiac monitoring, basic life support, suctioning and sputum collection are 93225 topics (SI p.2) with no loaded material.",
+    "Inhaler technique (SLO4): only the device and class chart (ASTHMA.pdf p.20) and 'pMDIs should be used with a spacer' are covered, not the steps."
+  ],
+  "context": [
+    {"id": "CTX-GENERIC-STEPS", "label": "NOT FROM MODULES — verify", "text": "Bedside skills are usually framed by hand hygiene, patient identification, consent, explanation and privacy at the start, and documentation and escalation at the end. None of these steps are in the loaded sources, so check your 93225 lab guide for the exact wording and order."}
+  ]
+}

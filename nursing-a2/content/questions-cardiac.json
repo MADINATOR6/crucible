@@ -1,0 +1,135 @@
+[
+  {
+    "id": "CV-01", "type": "mcq", "week": "Cardiac lecture", "topic": "Heart sounds", "slo": ["SLO1"],
+    "stem": "The first heart sound (S1) is produced by closure of which valves?",
+    "options": [
+      {"text": "Mitral and tricuspid", "correct": true, "why": "The slide labels S1 as closure of the mitral and tricuspid (AV) valves, at the start of systole."},
+      {"text": "Aortic and pulmonary", "why": "Aortic and pulmonary (semilunar) closure is S2 (A2, P2)."},
+      {"text": "Mitral and aortic", "why": "These close at different times: mitral with S1, aortic with S2."},
+      {"text": "Tricuspid and pulmonary", "why": "These are on the right side but close at different times: tricuspid with S1, pulmonary with S2."}
+    ],
+    "explanation": "S1 = AV valves close (start of ventricular systole). S2 = semilunar valves close (start of diastole).",
+    "cite": [{"src": "ACS", "loc": "slides 15, 17"}]
+  },
+  {
+    "id": "CV-02", "type": "mcq", "week": "Cardiac lecture", "topic": "Cardiovascular assessment", "slo": ["SLO1"],
+    "stem": "You palpate a radial pulse that is weak and thready. On the lecture's pulse-strength scale, how is this graded?",
+    "options": [
+      {"text": "1+", "correct": true, "why": "1+ = weak, diminished, thready."},
+      {"text": "2+", "why": "2+ = normal/strong."},
+      {"text": "3+", "why": "3+ = full, bounding."},
+      {"text": "0", "why": "0 = absent/non-palpable."}
+    ],
+    "explanation": "Pulse sites shown: carotid, brachial, radial, ulnar, femoral, popliteal, posterior tibial, dorsalis pedis.",
+    "cite": [{"src": "ACS", "loc": "slide 10"}]
+  },
+  {
+    "id": "CV-03", "type": "mcq", "week": "Cardiac lecture", "topic": "Acute coronary syndrome", "slo": ["SLO2"],
+    "stem": "Acute coronary syndrome (ACS) includes which three conditions?",
+    "options": [
+      {"text": "Unstable angina, NSTEMI and STEMI", "correct": true, "why": "The ACS slide lists unstable angina, non-ST-elevation MI and ST-elevation MI."},
+      {"text": "Stable angina, heart failure and STEMI", "why": "Stable angina and heart failure are not on the ACS list."},
+      {"text": "Atrial fibrillation, VT and VF", "why": "These are arrhythmias, not ACS."},
+      {"text": "Hypertension, stroke and cardiomyopathy", "why": "These are other cardiovascular diseases on slide 3, not ACS."}
+    ],
+    "explanation": "ACS is one of several disorders grouped as cardiovascular disease (slide 3).",
+    "cite": [{"src": "ACS", "loc": "slides 3, 32"}]
+  },
+  {
+    "id": "CV-04", "type": "mcq", "week": "Cardiac lecture", "topic": "Acute coronary syndrome", "slo": ["SLO2", "SLO4"], "reasoning": true,
+    "stem": "Which of these is NOT part of the IMMEDIATE management of ACS listed in the lecture?",
+    "options": [
+      {"text": "Statin", "correct": true, "why": "Statins are listed under ongoing 'Medications' (with anticoagulants, beta-blockers and ACE inhibitors), not immediate management."},
+      {"text": "Oxygen", "why": "Oxygen is listed under immediate management."},
+      {"text": "Nitroglycerin", "why": "Nitroglycerin is listed under immediate management."},
+      {"text": "Aspirin", "why": "Aspirin is listed under immediate management, with oxygen, nitroglycerin and morphine."}
+    ],
+    "explanation": "ACS treatment in three tiers: (1) immediate (oxygen, nitroglycerin, morphine, aspirin); (2) medications; (3) reperfusion (PCI, thrombolytics, CABG).",
+    "cite": [{"src": "ACS", "loc": "slide 34"}]
+  },
+  {
+    "id": "CV-05", "type": "mcq", "week": "Cardiac lecture", "topic": "Acute coronary syndrome", "slo": ["SLO2"],
+    "stem": "Which blood tests are named in the lecture as cardiac biomarkers?",
+    "options": [
+      {"text": "Troponin, creatine kinase (CK) and CK-MB", "correct": true, "why": "The slide lists troponin, CK and CK-MB as cardiac biomarkers."},
+      {"text": "Lipid profile and fasting glucose", "why": "These are on the same slide but are not biomarkers of cardiac injury."},
+      {"text": "FBC and U&C", "why": "Not named as cardiac biomarkers in the lecture."},
+      {"text": "Blood cultures", "why": "Blood cultures appear in the pneumonia case, not as cardiac biomarkers."}
+    ],
+    "explanation": "Other cardiovascular diagnostics: ECG, echocardiogram, exercise stress test, coronary angiography, Holter monitor, cardiac CT/MRI.",
+    "cite": [{"src": "ACS", "loc": "slides 20-21"}]
+  },
+  {
+    "id": "CV-06", "type": "mcq", "week": "Cardiac lecture", "topic": "ECG rhythms", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A monitored patient's ECG shows a grossly irregular, chaotic trace with no identifiable P waves and bizarre QRS complexes varying in shape, and no rate to count. What is the rhythm and the action?",
+    "options": [
+      {"text": "Ventricular fibrillation: immediate cardioversion/defibrillation", "correct": true, "why": "These are the VF features on slide 31, and the listed action is immediate cardioversion/defibrillation."},
+      {"text": "Ventricular tachycardia: treat only if it is sustained", "why": "VT is regular with a rate of 100–250. This trace is grossly irregular with no real rate."},
+      {"text": "Atrial fibrillation: continue monitoring", "why": "AF (slide 29) has identifiable QRS complexes. VF has no organised complexes and is life-threatening."},
+      {"text": "Normal sinus rhythm with artefact", "why": "NSR has a P wave before each QRS. The VF features call for immediate action."}
+    ],
+    "explanation": "Second-year students should recognise NSR and the life-threatening arrhythmias VT, VF and asystole.",
+    "cite": [{"src": "ACS", "loc": "slides 25, 29-31"}]
+  },
+  {
+    "id": "CV-07", "type": "mcq", "week": "Cardiac lecture", "topic": "ECG rhythms", "slo": ["SLO2"],
+    "stem": "Which features describe ventricular tachycardia on the lecture slide?",
+    "options": [
+      {"text": "Rate 100–250, regular, P waves usually not identifiable, QRS 0.12 s or greater and bizarre", "correct": true, "why": "These are the VT criteria on slide 30."},
+      {"text": "No real rate, grossly irregular, no P waves", "why": "Those are the VF features."},
+      {"text": "Regular rhythm with a P wave before every QRS", "why": "That describes sinus rhythm."},
+      {"text": "Flat line with no electrical activity", "why": "That describes asystole (named on slide 25 but not described)."}
+    ],
+    "explanation": "Treat VT if sustained, symptomatic or linked to organic heart disease. Options: DC cardioversion, or IV procainamide, lignocaine or a class III antiarrhythmic if haemodynamically unstable.",
+    "cite": [{"src": "ACS", "loc": "slide 30"}]
+  },
+  {
+    "id": "CV-08", "type": "mcq", "week": "Cardiac lecture", "topic": "ECG basics", "slo": ["SLO1"], "skill": "ecg",
+    "stem": "On the ECG, what does the QRS complex represent?",
+    "options": [
+      {"text": "Activation of the ventricles", "correct": true, "why": "The slide labels QRS as 'activation of the ventricles'."},
+      {"text": "Activation of the atria", "why": "That is the P wave."},
+      {"text": "Recovery (repolarisation) of the ventricles", "why": "The T wave is labelled the 'recovery wave'."},
+      {"text": "Closure of the semilunar valves", "why": "That is the heart sound S2, not an ECG wave."}
+    ],
+    "explanation": "P = atrial activation. QRS = ventricular activation. T = recovery wave.",
+    "cite": [{"src": "ACS", "loc": "slides 17, 27"}]
+  },
+  {
+    "id": "CV-09", "type": "mcq", "week": "Cardiac lecture", "topic": "Cardiovascular assessment", "slo": ["SLO1", "SLO2"],
+    "stem": "Using the AHA blood pressure categories in the lecture, how is a reading of 134/86 mmHg classified?",
+    "options": [
+      {"text": "High blood pressure (hypertension) stage 1", "correct": true, "why": "Stage 1 = systolic 130–139 OR diastolic 80–89."},
+      {"text": "Elevated", "why": "Elevated = 120–129 AND diastolic below 80. The diastolic of 86 is too high."},
+      {"text": "Hypertension stage 2", "why": "Stage 2 = 140 or higher OR 90 or higher."},
+      {"text": "Normal", "why": "Normal = below 120 AND below 80."}
+    ],
+    "explanation": "Hypertensive crisis = higher than 180 and/or higher than 120: consult the doctor immediately.",
+    "cite": [{"src": "ACS", "loc": "slide 19"}]
+  },
+  {
+    "id": "CV-10", "type": "mcq", "week": "Cardiac lecture", "topic": "Acute coronary syndrome", "slo": ["SLO2"],
+    "stem": "Which of these is NOT on the lecture's list of common ACS symptoms?",
+    "options": [
+      {"text": "High fever", "correct": true, "why": "Fever is not on the ACS list. It appears on the pneumonia symptom diagram."},
+      {"text": "Cold, clammy skin", "why": "Cold, clammy skin is on the ACS list."},
+      {"text": "Nausea or vomiting", "why": "Nausea or vomiting is on the ACS list."},
+      {"text": "Radiating pain", "why": "Radiating pain is on the ACS list."}
+    ],
+    "explanation": "Common ACS symptoms: chest pain or discomfort, radiating pain, SOB, nausea/vomiting, cold clammy skin, light-headedness or dizziness, palpitations, fatigue.",
+    "cite": [{"src": "ACS", "loc": "slide 33"}, {"src": "COPD", "loc": "slide 13"}]
+  },
+  {
+    "id": "CV-11", "type": "saq", "week": "Cardiac lecture", "topic": "Acute coronary syndrome", "slo": ["SLO1", "SLO2", "SLO4"], "reasoning": true,
+    "prompt": "A patient reports chest discomfort radiating down the arm, with nausea and cold, clammy skin. Using the cardiac lecture, name the likely syndrome, two diagnostic tests you would expect, the immediate management, and two things to prioritise after discharge.",
+    "model": "These symptoms fit acute coronary syndrome (unstable angina, NSTEMI or STEMI). Expected tests: ECG, and cardiac biomarkers (troponin, CK, CK-MB). Immediate management: oxygen, nitroglycerin, morphine, aspirin. Then medications (anticoagulants, beta-blockers, ACE inhibitors, statins) and reperfusion (PCI, thrombolytics or CABG). After discharge: cardiac rehabilitation, adherence to medications, lifestyle changes and regular check-ups.",
+    "rubric": [
+      {"point": "Identifies ACS from the symptoms", "cite": [{"src": "ACS", "loc": "slides 32-33"}]},
+      {"point": "ECG and cardiac biomarkers (troponin/CK/CK-MB)", "cite": [{"src": "ACS", "loc": "slides 20-21"}]},
+      {"point": "Immediate management: oxygen, nitroglycerin, morphine, aspirin", "cite": [{"src": "ACS", "loc": "slide 34"}]},
+      {"point": "Reperfusion options: PCI, thrombolytics, CABG", "cite": [{"src": "ACS", "loc": "slide 34"}]},
+      {"point": "After discharge: cardiac rehab, medication adherence, lifestyle, check-ups", "cite": [{"src": "ACS", "loc": "slide 35"}]}
+    ],
+    "cite": [{"src": "ACS", "loc": "slides 20-35"}]
+  }
+]

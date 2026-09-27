@@ -1,0 +1,9 @@
+{
+  "id": "nebuliser",
+  "notes": [
+    {"text": "Life-threatening acute asthma: give salbutamol by continuous nebulisation, with oxygen driving the nebuliser (piped oxygen or a cylinder with a high-flow regulator, 6 L/min). Ipratropium is added to the nebulised solution. Arrange immediate transfer to a higher level of care, notify senior staff, and reassess immediately after starting salbutamol.", "cite": [{"src": "ASTHMA", "loc": "slide 15"}]},
+    {"text": "Ward rule in the tutorial's doctor's notes: only give salbutamol hourly on the ward. If more is needed, get an ICU review.", "cite": [{"src": "ASTHMA", "loc": "slide 18"}]},
+    {"text": "Drug classes on the NAC Asthma & COPD Medications chart: salbutamol (Ventolin, Airomir) is a SABA reliever; ipratropium (Atrovent) is a SAMA. pMDIs should be used with a spacer (and a face mask if needed).", "cite": [{"src": "ASTHMA", "loc": "slide 20"}]},
+    {"text": "Pre-hospital example: the ambulance gave Sarah (COPD) oxygen and nebulised Ventolin before she reached ED.", "cite": [{"src": "COPD", "loc": "slide 19"}]}
+  ]
+}

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assessment 2 Reviewer</title>
+<style>
+:root{
+  --bg:#f6f7f9;--surface:#ffffff;--surface-2:#eef1f5;--text:#1c2330;--muted:#5b6575;--border:#d6dbe3;
+  --accent:#2f5d8a;--accent-text:#ffffff;--good:#1f7a4d;--good-bg:#e3f4ea;--bad:#b3261e;--bad-bg:#fbe7e5;
+  --warn:#8a5a00;--warn-bg:#fff3d6;--crit:#b3261e;--focus:#2f5d8a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151b;--surface:#1a2028;--surface-2:#232b35;--text:#e6eaf0;--muted:#9aa5b4;--border:#323c48;
+    --accent:#7fb0e0;--accent-text:#0d1620;--good:#6fd39e;--good-bg:#173226;--bad:#f28b82;--bad-bg:#3a1d1b;
+    --warn:#f2c46b;--warn-bg:#3a2e12;--crit:#f28b82;--focus:#7fb0e0;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151b;--surface:#1a2028;--surface-2:#232b35;--text:#e6eaf0;--muted:#9aa5b4;--border:#323c48;
+  --accent:#7fb0e0;--accent-text:#0d1620;--good:#6fd39e;--good-bg:#173226;--bad:#f28b82;--bad-bg:#3a1d1b;
+  --warn:#f2c46b;--warn-bg:#3a2e12;--crit:#f28b82;--focus:#7fb0e0;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--border)}
+.bar{max-width:860px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar h1{font-size:17px;margin:0 auto 0 0}
+nav{max-width:860px;margin:0 auto;padding:0 16px 8px;display:flex;gap:6px;overflow-x:auto}
+nav button{flex:0 0 auto}
+main{max-width:860px;margin:0 auto;padding:16px}
+button,select,textarea,input{font:inherit;color:inherit}
+button{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+button[aria-pressed="true"],nav button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+select,textarea,input[type=text]{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;max-width:100%}
+textarea{width:100%;min-height:110px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin:0 0 14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);margin:0 4px 4px 0}
+.tag.supp{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.banner{border-radius:10px;padding:10px 14px;margin:0 0 14px;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn)}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px}
+.opt:disabled{opacity:1;cursor:default}
+.opt.good{background:var(--good-bg);border-color:var(--good)}
+.opt.bad{background:var(--bad-bg);border-color:var(--bad)}
+.why{font-size:14px;margin:2px 0 8px 12px;padding-left:10px;border-left:3px solid var(--border)}
+.why.good{border-color:var(--good)}.why.bad{border-color:var(--bad)}
+.cite{font-size:13px;color:var(--muted);margin-top:8px}
+.cite::before{content:"Source: ";font-weight:600}
+.steps{list-style:none;padding:0;margin:0}
+.steps li{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--border);border-radius:8px;margin:6px 0;background:var(--surface)}
+.steps li .n{min-width:28px;font-weight:700}
+.steps li .t{flex:1}
+.steps li.good{background:var(--good-bg);border-color:var(--good)}
+.steps li.bad{background:var(--bad-bg);border-color:var(--bad)}
+.crit{border-left:5px solid var(--crit)!important}
+.critbadge{font-size:11px;font-weight:700;color:var(--crit);text-transform:uppercase;letter-spacing:.04em}
+.timer{font:700 28px/1 ui-monospace,Consolas,monospace}
+.timer.low{color:var(--bad)}
+.big{font-size:20px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{border-bottom:1px solid var(--border);padding:6px;text-align:left;vertical-align:top}
+.ctx{border:1px dashed var(--warn);border-radius:8px;padding:8px 10px;margin:8px 0;background:var(--warn-bg)}
+.ctx b{color:var(--warn)}
+.hide{display:none!important}
+@media print{
+  header,nav,.noprint{display:none!important}
+  body{background:#fff;color:#000}
+  .card{border:none;padding:0}
+  .steps li{break-inside:avoid;border-color:#999;background:#fff}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1 id="appTitle">Assessment 2 Reviewer</h1>
+    <span id="hdrTimer" class="timer hide" aria-live="off"></span>
+    <button id="themeBtn" title="Switch light/dark">Theme</button>
+  </div>
+  <nav id="tabs">
+    <button data-tab="home">Home</button>
+    <button data-tab="quiz">Part A quiz</button>
+    <button data-tab="skills">Part B skills</button>
+    <button data-tab="mock">Mock exam</button>
+    <button data-tab="sources">Sources &amp; gaps</button>
+  </nav>
+</header>
+<main id="main"></main>
+
+<script>
+const CONTENT = /*__CONTENT__*/null;
+</script>
+<script>
+"use strict";
+/* ---------- data & storage ---------- */
+const C = CONTENT || {meta:{title:"Assessment 2 Reviewer",status:"No content built. Run tools/build_reviewer.py."},sources:{},slos:{},skills:[],questions:[],gaps:[],context:[]};
+const KEY = "na2-reviewer-v1";
+let mem = {};
+function load(){ try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : {}; }catch(e){ return mem; } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(P)); }catch(e){ mem = P; } }
+const P = Object.assign({items:{}, skills:{}, mocks:[], theme:null, mockA:null, mockB:null, includeSupp:true}, load());
+
+/* Items citing a "supp" source come from outside the 93225 Modules; they are badged and can be excluded. */
+const isSuppCite = cites => (cites||[]).some(c => (C.sources[c.src]||{}).set === "supp");
+const isSupp = q => isSuppCite(q.cite) || (q.rubric||[]).some(r => isSuppCite(r.cite));
+const suppTag = `<span class="tag supp" title="From slides outside the 93225 Modules">Supplementary</span>`;
+const QALL = C.questions || [];
+let Q = [];
+function applySupp(){ Q = QALL.filter(q => P.includeSupp || !isSupp(q)); }
+applySupp();
+const QBY = Object.fromEntries(QALL.map(q => [q.id, q]));
+const SK = C.skills || [];
+const SKBY = Object.fromEntries(SK.map(s => [s.id, s]));
+
+/* ---------- helpers ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function uniq(a){ return [...new Set(a)].filter(v => v !== undefined && v !== null && v !== ""); }
+function citeText(cites){
+  return (cites||[]).map(c => { const s = C.sources[c.src] || {}; return esc((s.file || c.src) + (c.loc ? ", " + c.loc : "")); }).join("; ");
+}
+function citeHTML(cites){ return cites && cites.length ? `<div class="cite">${citeText(cites)}</div>` : ""; }
+function pct(x){ return Math.round(x*100) + "%"; }
+function record(id, score){
+  const r = P.items[id] || {n:0, sum:0};
+  r.n++; r.sum += score; r.last = score; r.ts = Date.now();
+  P.items[id] = r; save();
+}
+function isWeak(id){ const r = P.items[id]; return !!r && r.last < 0.6; }
+function fmt(ms){ ms = Math.max(0, ms); const s = Math.round(ms/1000); return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0"); }
+function beep(){ try{ const a = new (window.AudioContext||window.webkitAudioContext)(); const o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 880; o.start(); setTimeout(()=>{o.stop(); a.close();}, 600); }catch(e){} }
+
+/* ---------- theme ---------- */
+function applyTheme(){ if(P.theme) document.documentElement.setAttribute("data-theme", P.theme); else document.documentElement.removeAttribute("data-theme"); }
+$("#themeBtn").onclick = () => {
+  const dark = P.theme ? P.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  P.theme = dark ? "light" : "dark"; save(); applyTheme();
+};
+applyTheme();
+
+/* ---------- tabs ---------- */
+let tab = "home";
+let timerHandle = null;
+function go(t){
+  tab = t;
+  stopTimer();
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  ({home:renderHome, quiz:renderQuizSetup, skills:renderSkills, mock:renderMock, sources:renderSources}[t])();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
+document.title = $("#appTitle").textContent = C.meta.title || "Assessment 2 Reviewer";
+
+function banner(){ return C.meta.status ? `<div class="banner">${esc(C.meta.status)}</div>` : ""; }
+function suppToggle(){
+  const n = QALL.filter(isSupp).length;
+  return n ? `<label><input type="checkbox" id="suppT" ${P.includeSupp?"checked":""}> Include supplementary items (${n} from slides outside the 93225 Modules)</label>` : "";
+}
+function bindSuppToggle(rerender){
+  const t = $("#suppT"); if(!t) return;
+  t.onchange = () => { P.includeSupp = t.checked; save(); applySupp(); rerender(); };
+}
+function contextNote(id){ const c = (C.context||[]).find(x => x.id === id); return c ? `<div class="ctx small"><b>${esc(c.label)}:</b> ${esc(c.text)}</div>` : ""; }
+
+/* ---------- home ---------- */
+function renderHome(){
+  const attempted = Q.filter(q => P.items[q.id]);
+  const acc = attempted.length ? attempted.reduce((s,q)=>s+P.items[q.id].last,0)/attempted.length : 0;
+  const weak = Q.filter(q => isWeak(q.id)).length;
+  const topics = uniq(Q.map(q => q.topic));
+  const rows = topics.map(t => {
+    const qs = Q.filter(q => q.topic === t), done = qs.filter(q => P.items[q.id]);
+    const a = done.length ? done.reduce((s,q)=>s+P.items[q.id].last,0)/done.length : null;
+    return `<tr><td>${esc(t)}</td><td>${qs.length}</td><td>${done.length}</td><td>${a===null?"–":pct(a)}</td></tr>`;
+  }).join("");
+  const skillRows = SK.map(s => { const r = P.skills[s.id] || {}; return `<tr><td>${esc(s.name)}</td><td>${(s.steps||[]).length || "not loaded"}</td><td>${r.order?pct(r.order):"–"}</td><td>${r.reps||0}</td></tr>`; }).join("");
+  const mocks = (P.mocks||[]).slice(-5).reverse().map(m => `<tr><td>${new Date(m.ts).toLocaleString("en-AU")}</td><td>${esc(m.kind)}</td><td>${esc(m.result)}</td></tr>`).join("");
+  $("#main").innerHTML = `${banner()}
+  <div class="card"><div class="grid">
+    <div><div class="muted small">Questions</div><div class="big">${Q.length}</div></div>
+    <div><div class="muted small">Attempted</div><div class="big">${attempted.length}</div></div>
+    <div><div class="muted small">Latest accuracy</div><div class="big">${attempted.length?pct(acc):"–"}</div></div>
+    <div><div class="muted small">Weak items</div><div class="big">${weak}</div></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button class="primary" id="hQuiz">Practise Part A</button>
+    <button id="hWeak" ${weak?"":"disabled"}>Drill weak areas</button>
+    <button id="hSkills">Part B skills</button>
+    <button id="hMock">Mock exam</button>
+  </div></div>
+  <div class="card"><h2 class="big" style="margin-top:0">By topic</h2>
+    ${rows ? `<table><tr><th>Topic</th><th>Items</th><th>Done</th><th>Latest</th></tr>${rows}</table>` : `<p class="muted">No questions yet.</p>`}</div>
+  <div class="card"><h2 class="big" style="margin-top:0">Skills</h2>
+    <table><tr><th>Skill</th><th>Steps</th><th>Best order drill</th><th>Rehearsals</th></tr>${skillRows}</table></div>
+  ${mocks ? `<div class="card"><h2 class="big" style="margin-top:0">Recent mocks</h2><table>${mocks}</table></div>` : ""}
+  <div class="card noprint">${suppToggle()}<div class="row" style="margin-top:10px"><button id="hReset">Reset all progress</button> <span class="muted small">Progress is saved in this browser only.</span></div></div>`;
+  bindSuppToggle(renderHome);
+  $("#hQuiz").onclick = () => go("quiz");
+  $("#hWeak").onclick = () => startQuiz({weak:true});
+  $("#hSkills").onclick = () => go("skills");
+  $("#hMock").onclick = () => go("mock");
+  $("#hReset").onclick = () => { if(confirm("Delete all saved progress on this device?")){ P.items = {}; P.skills = {}; P.mocks = []; P.mockA = null; P.mockB = null; save(); renderHome(); } };
+}
+
+/* ---------- Part A quiz ---------- */
+let QZ = null; // {ids, i}
+function opts(values, all){ return `<option value="">${all}</option>` + values.map(v => `<option>${esc(v)}</option>`).join(""); }
+function renderQuizSetup(){
+  const weeks = uniq(Q.map(q => q.week)), topics = uniq(Q.map(q => q.topic));
+  const slos = uniq(Q.flatMap(q => q.slo || [])).sort(), skills = uniq(Q.map(q => q.skill));
+  $("#main").innerHTML = `${banner()}<div class="card">
+    <h2 class="big" style="margin-top:0">Part A practice</h2>
+    <div class="grid">
+      <label>Type<br><select id="fType"><option value="">All types</option><option value="mcq">Multiple choice</option><option value="saq">Short answer</option></select></label>
+      <label>Week / module<br><select id="fWeek">${opts(weeks,"All weeks")}</select></label>
+      <label>Topic<br><select id="fTopic">${opts(topics,"All topics")}</select></label>
+      <label>SLO<br><select id="fSlo">${opts(slos,"All SLOs")}</select></label>
+      <label>Part B skill<br><select id="fSkill">${opts(skills.map(s => (SKBY[s]||{}).name || s),"Any")}</select></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label><input type="checkbox" id="fWeakOnly"> Weak areas only</label>
+      <label><input type="checkbox" id="fReason"> Clinical reasoning items only</label>
+      <label><input type="checkbox" id="fShuffle" checked> Shuffle</label>
+    </div>
+    <div class="row" style="margin-top:6px">${suppToggle()}</div>
+    <div class="row" style="margin-top:12px"><button class="primary" id="fStart">Start</button><span id="fCount" class="muted small"></span></div>
+  </div>`;
+  const read = () => {
+    const skillName = $("#fSkill").value, skill = (SK.find(s => s.name === skillName)||{}).id || skillName;
+    return {type:$("#fType").value, week:$("#fWeek").value, topic:$("#fTopic").value, slo:$("#fSlo").value, skill, weak:$("#fWeakOnly").checked, reasoning:$("#fReason").checked, shuffle:$("#fShuffle").checked};
+  };
+  const count = () => { $("#fCount").textContent = filterQ(read()).length + " matching"; };
+  document.querySelectorAll("#main select, #main input").forEach(el => el.onchange = count);
+  bindSuppToggle(renderQuizSetup);
+  count();
+  $("#fStart").onclick = () => startQuiz(read());
+}
+function filterQ(f){
+  return Q.filter(q => (!f.type || q.type === f.type) && (!f.week || q.week === f.week) && (!f.topic || q.topic === f.topic)
+    && (!f.slo || (q.slo||[]).includes(f.slo)) && (!f.skill || q.skill === f.skill) && (!f.weak || isWeak(q.id)) && (!f.reasoning || q.reasoning));
+}
+function startQuiz(f){
+  let ids = filterQ(f).map(q => q.id);
+  if(f.shuffle !== false) ids = shuffle(ids);
+  if(!ids.length){ alert("No questions match these filters."); return; }
+  tab = "quiz"; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === "quiz"));
+  QZ = {ids, i:0, done:{}}; renderQuestion();
+}
+function qHeader(q){
+  return `<div class="row small muted"><span>${esc(q.id)}</span>${isSupp(q)?suppTag:""}${q.week?`<span class="tag">${esc(q.week)}</span>`:""}${q.topic?`<span class="tag">${esc(q.topic)}</span>`:""}${(q.slo||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join("")}${q.reasoning?`<span class="tag">clinical reasoning</span>`:""}</div>`;
+}
+function renderQuestion(){
+  const q = QBY[QZ.ids[QZ.i]];
+  const nav = `<div class="row noprint" style="margin-top:12px">
+    <button id="qPrev" ${QZ.i?"":"disabled"}>Back</button>
+    <span class="muted small">${QZ.i+1} / ${QZ.ids.length}</span>
+    <button id="qNext" class="primary">${QZ.i+1 < QZ.ids.length ? "Next" : "Finish"}</button>
+    <button id="qExit">Exit</button></div>`;
+  let body;
+  if(q.type === "mcq"){
+    const order = QZ.done[q.id]?.order || shuffle(q.options.map((_,k)=>k));
+    body = `<p class="big">${esc(q.stem)}</p><div id="opts">${order.map(k => `<button class="opt" data-k="${k}">${esc(q.options[k].text)}</button><div class="why hide" data-why="${k}"></div>`).join("")}</div><div id="fb"></div>`;
+    $("#main").innerHTML = `<div class="card">${qHeader(q)}${body}</div>${nav}`;
+    const reveal = (chosen) => {
+      document.querySelectorAll("#opts .opt").forEach(b => {
+        const k = +b.dataset.k, o = q.options[k]; b.disabled = true;
+        if(o.correct) b.classList.add("good"); else if(k === chosen) b.classList.add("bad");
+        const w = $(`[data-why="${k}"]`); w.classList.remove("hide"); w.classList.add(o.correct?"good":"bad");
+        w.innerHTML = `<b>${o.correct?"Correct":"Incorrect"}:</b> ${esc(o.why)}`;
+      });
+      const ok = q.options[chosen].correct;
+      $("#fb").innerHTML = `<p><b>${ok?"Right.":"Not quite."}</b> ${esc(q.explanation||"")}</p>${contextHTML(q)}${citeHTML(q.cite)}`;
+    };
+    if(QZ.done[q.id]) reveal(QZ.done[q.id].chosen);
+    document.querySelectorAll("#opts .opt").forEach(b => b.onclick = () => {
+      const k = +b.dataset.k; QZ.done[q.id] = {chosen:k, order}; record(q.id, q.options[k].correct ? 1 : 0); reveal(k);
+    });
+  } else {
+    body = `<p class="big">${esc(q.prompt)}</p><textarea id="ans" placeholder="Type your answer, then check it against the model answer.">${esc(QZ.done[q.id]?.text||"")}</textarea>
+      <div class="row" style="margin-top:8px"><button id="showModel" class="primary">Show model answer</button></div><div id="model"></div>`;
+    $("#main").innerHTML = `<div class="card">${qHeader(q)}${body}</div>${nav}`;
+    const show = () => {
+      $("#model").innerHTML = saqReview(q, QZ.done[q.id]?.ticks);
+      $("#saveMark").onclick = () => {
+        const ticks = [...document.querySelectorAll("#model input[type=checkbox]")].map(c => c.checked);
+        QZ.done[q.id] = Object.assign(QZ.done[q.id]||{}, {ticks, text:$("#ans").value});
+        record(q.id, ticks.filter(Boolean).length / ticks.length);
+        $("#saveMark").textContent = "Saved: " + ticks.filter(Boolean).length + " / " + ticks.length;
+      };
+    };
+    $("#showModel").onclick = () => { QZ.done[q.id] = Object.assign(QZ.done[q.id]||{}, {text:$("#ans").value}); show(); };
+    if(QZ.done[q.id]?.ticks) show();
+  }
+  $("#qPrev").onclick = () => { QZ.i--; renderQuestion(); };
+  $("#qNext").onclick = () => { if(QZ.i+1 < QZ.ids.length){ QZ.i++; renderQuestion(); } else quizSummary(); };
+  $("#qExit").onclick = () => go("quiz");
+  window.scrollTo(0,0);
+}
+function saqReview(q, ticks){
+  return `<div class="card" style="background:var(--surface-2)"><b>Model answer</b><p>${esc(q.model)}</p>
+    <b>Marking points</b> <span class="muted small">(tick each point your answer covered)</span>
+    ${q.rubric.map((r,k) => `<label style="display:block;margin:6px 0"><input type="checkbox" ${ticks&&ticks[k]?"checked":""}> ${esc(r.point)}${citeHTML(r.cite)}</label>`).join("")}
+    ${contextHTML(q)}${citeHTML(q.cite)}
+    <div class="row" style="margin-top:8px"><button id="saveMark" class="primary">Save self-mark</button></div></div>`;
+}
+function contextHTML(q){
+  return (q.context||[]).map(id => (C.context||[]).find(c => c.id === id)).filter(Boolean)
+    .map(c => `<div class="ctx small"><b>${esc(c.label)}:</b> ${esc(c.text)}</div>`).join("");
+}
+function quizSummary(){
+  const ids = QZ.ids, done = ids.filter(id => P.items[id]);
+  const wrong = ids.filter(id => isWeak(id));
+  $("#main").innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Round finished</h2>
+    <p>${done.length} of ${ids.length} answered. ${wrong.length} currently marked weak.</p>
+    ${wrong.length?`<ul>${wrong.map(id => `<li>${esc(id)}: ${esc(QBY[id].stem||QBY[id].prompt)}</li>`).join("")}</ul>`:""}
+    <div class="row"><button class="primary" id="again">New round</button>${wrong.length?`<button id="redo">Retry weak items</button>`:""}</div></div>`;
+  $("#again").onclick = () => go("quiz");
+  if(wrong.length) $("#redo").onclick = () => { QZ = {ids:shuffle(wrong), i:0, done:{}}; renderQuestion(); };
+}
+
+/* ---------- Part B skills ---------- */
+let SKS = {id:null, mode:"list"};
+function noSteps(s){ return `<div class="banner">No procedure steps for <b>${esc(s.name)}</b> are in the loaded modules yet, so there is nothing to drill. See the Sources &amp; gaps tab.</div>`; }
+function renderSkills(){
+  if(!SKS.id){
+    $("#main").innerHTML = `${banner()}<div class="card"><h2 class="big" style="margin-top:0">Part B skills</h2>
+      <p class="muted small">You will be allocated two of these four. Critical safety steps are marked in red where the lab material identifies them.</p>
+      <div class="grid">${SK.map(s => `<button class="opt" data-s="${esc(s.id)}"><b>${esc(s.name)}</b><br><span class="small muted">${(s.steps||[]).length ? s.steps.length + " steps" : "steps not loaded"}</span></button>`).join("")}</div></div>`;
+    document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { SKS = {id:b.dataset.s, mode:"list"}; renderSkills(); });
+    return;
+  }
+  const s = SKBY[SKS.id], steps = s.steps || [];
+  const modes = [["list","Checklist"],["order","Order drill"],["missing","What's missing?"],["verbal","Verbalise"]];
+  $("#main").innerHTML = `<div class="card noprint"><div class="row"><button id="skBack">All skills</button><b>${esc(s.name)}</b></div>
+    <div class="row" style="margin-top:8px">${modes.map(([m,l]) => `<button data-m="${m}" aria-pressed="${SKS.mode===m}">${l}</button>`).join("")}</div></div><div id="skBody"></div>`;
+  $("#skBack").onclick = () => { SKS = {id:null}; renderSkills(); };
+  document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { SKS.mode = b.dataset.m; renderSkills(); });
+  const body = $("#skBody");
+  if(!steps.length){ body.innerHTML = noSteps(s) + skillNotes(s); return; }
+  ({list:skillList, order:skillOrder, missing:skillMissing, verbal:skillVerbal}[SKS.mode])(s, body);
+}
+function skillNotes(s){
+  const notes = (s.notes||[]).map(n => `<div class="card small">${isSuppCite(n.cite)?suppTag:""}${esc(n.text)}${citeHTML(n.cite)}</div>`).join("");
+  return (notes ? `<h3 class="noprint" style="margin:14px 0 8px">What the loaded sources say</h3>${notes}` : "") + contextNote("CTX-GENERIC-STEPS");
+}
+function stepLi(st, k, extra=""){
+  return `<li class="${st.critical?"crit":""} ${extra}"><span class="n">${k+1}.</span><span class="t">${st.critical?`<span class="critbadge">Critical</span><br>`:""}${isSuppCite(st.cite)?suppTag:""}${esc(st.text)}${citeHTML(st.cite)}</span></li>`;
+}
+function skillList(s, body){
+  body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">${esc(s.name)}: checklist</h2>${citeHTML(s.cite)}
+    <ol class="steps">${s.steps.map((st,k) => stepLi(st,k)).join("")}</ol>
+    <div class="row noprint" style="margin-top:10px"><button onclick="print()">Print this checklist</button></div></div>${skillNotes(s)}`;
+}
+function skillOrder(s, body){
+  let cur = shuffle(s.steps.map((_,k)=>k));
+  if(s.steps.length > 1) while(cur.every((v,k)=>v===k)) cur = shuffle(cur);
+  const draw = (checked) => {
+    body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Put the steps in order</h2>
+      <p class="muted small">Use the arrows to move steps. Then press Check.</p>
+      <ol class="steps">${cur.map((k,pos) => {
+        const cls = checked ? (k===pos?"good":"bad") : "";
+        const hint = checked && k!==pos ? `<div class="small"><b>Belongs at #${k+1}</b></div>` : "";
+        return `<li class="${cls}"><span class="n">${pos+1}.</span><span class="t">${esc(s.steps[k].text)}${hint}</span>
+          <span class="noprint"><button data-up="${pos}" aria-label="Move up" ${pos?"":"disabled"}>↑</button> <button data-dn="${pos}" aria-label="Move down" ${pos<cur.length-1?"":"disabled"}>↓</button></span></li>`;
+      }).join("")}</ol>
+      <div class="row" style="margin-top:10px"><button class="primary" id="oCheck">Check</button><button id="oNew">Reshuffle</button><span id="oRes"></span></div></div>`;
+    body.querySelectorAll("[data-up]").forEach(b => b.onclick = () => { const p=+b.dataset.up; [cur[p-1],cur[p]]=[cur[p],cur[p-1]]; draw(false); });
+    body.querySelectorAll("[data-dn]").forEach(b => b.onclick = () => { const p=+b.dataset.dn; [cur[p+1],cur[p]]=[cur[p],cur[p+1]]; draw(false); });
+    $("#oNew").onclick = () => skillOrder(s, body);
+    $("#oCheck").onclick = () => {
+      const right = cur.filter((k,pos)=>k===pos).length, score = right/cur.length;
+      const r = P.skills[s.id] || {}; r.order = Math.max(r.order||0, score); P.skills[s.id] = r; save();
+      draw(true); $("#oRes").textContent = `${right} / ${cur.length} in the right place`;
+    };
+  };
+  draw(false);
+}
+function skillMissing(s, body){
+  const gone = Math.floor(Math.random()*s.steps.length);
+  body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">One step is missing. Which one?</h2>
+    <ol class="steps">${s.steps.map((st,k) => k===gone ? `<li id="gap" class="hide"><span class="n">?</span><span class="t"><i>missing step</i></span></li>` : `<li><span class="t">${esc(st.text)}</span></li>`).join("")}</ol>
+    <textarea id="mAns" placeholder="Type the missing step"></textarea>
+    <div class="row" style="margin-top:8px"><button id="mHint">Show where the gap is</button><button class="primary" id="mShow">Reveal</button><button id="mNew">New round</button></div><div id="mRes"></div></div>`;
+  $("#mHint").onclick = () => $("#gap").classList.remove("hide");
+  $("#mNew").onclick = () => skillMissing(s, body);
+  $("#mShow").onclick = () => {
+    const st = s.steps[gone];
+    $("#mRes").innerHTML = `<div class="card" style="background:var(--surface-2);margin-top:10px"><b>Missing step #${gone+1}:</b> ${st.critical?`<span class="critbadge">Critical</span> `:""}${esc(st.text)}${citeHTML(st.cite)}
+      <div class="row" style="margin-top:8px"><button id="mGot">I had it</button><button id="mMiss">I missed it</button></div></div>`;
+    const mark = ok => { const r = P.skills[s.id] || {}; r.missHit = (r.missHit||0) + (ok?1:0); r.missN = (r.missN||0)+1; P.skills[s.id] = r; save(); skillMissing(s, body); };
+    $("#mGot").onclick = () => mark(true); $("#mMiss").onclick = () => mark(false);
+  };
+}
+function skillVerbal(s, body, i=0, shown=false){
+  const st = s.steps[i];
+  body.innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Say step ${i+1} of ${s.steps.length} out loud</h2>
+    <p class="muted small">Say what you would do and say at the bedside, then reveal.</p>
+    <div class="card ${shown&&st.critical?"crit":""}" style="background:var(--surface-2);min-height:90px">${shown ? `${st.critical?`<span class="critbadge">Critical</span><br>`:""}<span class="big">${esc(st.text)}</span>${citeHTML(st.cite)}` : `<span class="muted">Hidden</span>`}</div>
+    <div class="row"><button id="vBack" ${i?"":"disabled"}>Back</button>${shown?"":`<button class="primary" id="vShow">Reveal</button>`}<button id="vNext" ${shown?'class="primary"':""}>${i+1<s.steps.length?"Next step":"Finish"}</button></div></div>`;
+  $("#vBack").onclick = () => skillVerbal(s, body, i-1);
+  if(!shown) $("#vShow").onclick = () => skillVerbal(s, body, i, true);
+  $("#vNext").onclick = () => {
+    if(i+1 < s.steps.length) return skillVerbal(s, body, i+1);
+    const r = P.skills[s.id] || {}; r.reps = (r.reps||0)+1; P.skills[s.id] = r; save();
+    body.innerHTML = `<div class="card"><b>Run-through complete.</b> Rehearsals logged: ${r.reps}. <button id="vAgain">Again</button></div>`;
+    $("#vAgain").onclick = () => skillVerbal(s, body, 0);
+  };
+}
+
+/* ---------- mock exam ---------- */
+const MOCK_MS = 15*60*1000;
+function renderMock(){
+  if(P.mockA) return mockA();
+  if(P.mockB) return mockB();
+  const nm = Q.filter(q=>q.type==="mcq").length, ns = Q.filter(q=>q.type==="saq").length;
+  $("#main").innerHTML = `${banner()}<div class="card"><h2 class="big" style="margin-top:0">Part A mock (15 minutes)</h2>
+    <p>Up to 12 multiple-choice and 3 short-answer questions, drawn at random from all topics. Nothing is marked until you submit or time runs out. Pool: ${nm} MCQ, ${ns} short answer.</p>
+    <button class="primary" id="mA" ${Q.length?"":"disabled"}>Start Part A mock</button></div>
+    <div class="card"><h2 class="big" style="margin-top:0">Part B rehearsal (15 minutes)</h2>
+    <p>Two of the four skills are allocated at random, as in the real assessment. Perform them on a partner or out loud, then self-check.</p>
+    <button class="primary" id="mB">Allocate two skills</button></div>`;
+  $("#mA").onclick = () => {
+    const mcq = shuffle(Q.filter(q=>q.type==="mcq")).slice(0,12), saq = shuffle(Q.filter(q=>q.type==="saq")).slice(0,3);
+    P.mockA = {ids:[...mcq,...saq].map(q=>q.id), end:Date.now()+MOCK_MS, ans:{}, submitted:false,
+      order:Object.fromEntries(mcq.map(q=>[q.id, shuffle(q.options.map((_,k)=>k))]))};
+    save(); mockA();
+  };
+  $("#mB").onclick = () => { P.mockB = {skills:shuffle(SK.map(s=>s.id)).slice(0,2), end:null, ticks:{}}; save(); mockB(); };
+}
+function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle = null; } $("#hdrTimer").classList.add("hide"); }
+function tick(el, end, onEnd){
+  const hdr = $("#hdrTimer");
+  const upd = () => {
+    const left = end - Date.now();
+    for(const t of [el, hdr]){ t.textContent = fmt(left); t.classList.toggle("low", left < 120000); }
+    if(left <= 0){ stopTimer(); beep(); onEnd(); }
+  };
+  if(timerHandle) clearInterval(timerHandle);
+  timerHandle = null;
+  hdr.classList.remove("hide");
+  upd(); // runs onEnd at once if the time already ran out (e.g. page reopened late)
+  if(end - Date.now() > 0) timerHandle = setInterval(upd, 1000);
+}
+function mockA(){
+  const M = P.mockA;
+  if(M.submitted) return mockAReview();
+  $("#main").innerHTML = `<div class="card row"><span class="timer" id="tA"></span><span class="muted small">Part A mock</span><button class="primary" id="sub" style="margin-left:auto">Submit</button><button id="quit">Abandon</button></div>
+    ${M.ids.map((id,n) => { const q = QBY[id]; if(!q) return "";
+      return `<div class="card"><div class="muted small">Q${n+1} · ${q.type==="mcq"?"Multiple choice":"Short answer"}</div>` + (q.type==="mcq"
+      ? `<p><b>${esc(q.stem)}</b></p>${M.order[id].map(k => `<label style="display:block;margin:6px 0"><input type="radio" name="${esc(id)}" value="${k}" ${M.ans[id]==k?"checked":""}> ${esc(q.options[k].text)}</label>`).join("")}`
+      : `<p><b>${esc(q.prompt)}</b></p><textarea data-id="${esc(id)}">${esc(M.ans[id]||"")}</textarea>`) + `</div>`; }).join("")}`;
+  document.querySelectorAll('#main input[type=radio]').forEach(r => r.onchange = () => { M.ans[r.name] = +r.value; save(); });
+  document.querySelectorAll('#main textarea').forEach(t => t.oninput = () => { M.ans[t.dataset.id] = t.value; save(); });
+  const submit = () => { stopTimer(); M.submitted = true; save(); mockAReview(); };
+  $("#sub").onclick = () => { if(confirm("Submit now?")) submit(); };
+  $("#quit").onclick = () => { if(confirm("Abandon this mock? Answers are discarded.")){ P.mockA = null; save(); renderMock(); } };
+  tick($("#tA"), M.end, submit);
+}
+function mockAReview(){
+  const M = P.mockA, mcq = M.ids.filter(id => QBY[id] && QBY[id].type==="mcq"), saq = M.ids.filter(id => QBY[id] && QBY[id].type==="saq");
+  const right = mcq.filter(id => M.ans[id] !== undefined && QBY[id].options[M.ans[id]].correct).length;
+  if(!M.recorded){ mcq.forEach(id => record(id, M.ans[id] !== undefined && QBY[id].options[M.ans[id]].correct ? 1 : 0)); M.recorded = true; save(); }
+  $("#main").innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Part A mock: results</h2>
+    <p class="big">Multiple choice: ${right} / ${mcq.length}</p>
+    ${saq.length?`<p>Self-mark the short answers below, then press Finish.</p>`:""}</div>
+    ${mcq.map((id,n) => { const q = QBY[id], a = M.ans[id];
+      return `<div class="card">${qHeader(q)}<p><b>${esc(q.stem)}</b></p>${q.options.map((o,k) => `<div class="why ${o.correct?"good":(k===a?"bad":"")}">${k===a?"<b>Your answer:</b> ":""}${o.correct?"<b>Correct answer:</b> ":""}${esc(o.text)}<br><span class="muted">${esc(o.why)}</span></div>`).join("")}
+        ${a===undefined?`<p class="muted">Not answered.</p>`:""}<p class="small">${esc(q.explanation||"")}</p>${contextHTML(q)}${citeHTML(q.cite)}</div>`; }).join("")}
+    ${saq.map(id => { const q = QBY[id];
+      return `<div class="card" data-saq="${esc(id)}">${qHeader(q)}<p><b>${esc(q.prompt)}</b></p><p class="small"><b>Your answer:</b> ${esc(M.ans[id]||"(blank)")}</p>
+        <b>Model answer</b><p>${esc(q.model)}</p>${q.rubric.map(r => `<label style="display:block;margin:6px 0"><input type="checkbox"> ${esc(r.point)}${citeHTML(r.cite)}</label>`).join("")}${citeHTML(q.cite)}</div>`; }).join("")}
+    <div class="card"><button class="primary" id="fin">Finish and save</button></div>`;
+  $("#fin").onclick = () => {
+    let got = 0, tot = 0;
+    document.querySelectorAll("[data-saq]").forEach(card => { const cb = [...card.querySelectorAll("input")]; const g = cb.filter(c=>c.checked).length; got += g; tot += cb.length; record(card.dataset.saq, cb.length ? g/cb.length : 0); });
+    P.mocks.push({ts:Date.now(), kind:"Part A", result:`MCQ ${right}/${mcq.length}` + (tot?`, SAQ points ${got}/${tot}`:"")});
+    P.mockA = null; save(); go("home");
+  };
+}
+function mockB(){
+  const M = P.mockB, sks = M.skills.map(id => SKBY[id]).filter(Boolean);
+  $("#main").innerHTML = `<div class="card"><h2 class="big" style="margin-top:0">Your allocated skills</h2>
+    <ol class="big">${sks.map(s=>`<li>${esc(s.name)}</li>`).join("")}</ol>
+    <div class="row"><span class="timer" id="tB">${M.end?"":"15:00"}</span>${M.end?"":`<button class="primary" id="bGo">Start 15-minute timer</button>`}<button id="bDone">Finish and self-check</button><button id="bQuit">Abandon</button></div></div>
+    <div id="bCheck"></div>`;
+  const check = () => {
+    $("#bCheck").innerHTML = sks.map(s => `<div class="card" data-sk="${esc(s.id)}"><b>${esc(s.name)}: self-check</b>${(s.steps||[]).length ? `<p class="muted small">Tick each step you performed and verbalised.</p>` + s.steps.map((st,k) => `<label style="display:block;margin:6px 0" class="${st.critical?"crit":""}"><input type="checkbox"> ${st.critical?`<span class="critbadge">Critical</span> `:""}${esc(st.text)}</label>`).join("") : noSteps(s)}</div>`).join("")
+      + `<div class="card"><button class="primary" id="bSave">Save rehearsal</button></div>`;
+    $("#bSave").onclick = () => {
+      const parts = [...document.querySelectorAll("[data-sk]")].map(card => { const cb = [...card.querySelectorAll("input")]; const r = P.skills[card.dataset.sk] || {}; r.reps = (r.reps||0)+1; P.skills[card.dataset.sk] = r; return `${SKBY[card.dataset.sk].name} ${cb.length ? cb.filter(c=>c.checked).length + "/" + cb.length : "(no checklist loaded)"}`; });
+      P.mocks.push({ts:Date.now(), kind:"Part B", result:parts.join("; ")}); P.mockB = null; save(); go("home");
+    };
+  };
+  if(M.end) tick($("#tB"), M.end, check);
+  if(!M.end) $("#bGo").onclick = () => { M.end = Date.now()+MOCK_MS; save(); mockB(); };
+  $("#bDone").onclick = () => { stopTimer(); check(); };
+  $("#bQuit").onclick = () => { if(confirm("Abandon this rehearsal?")){ P.mockB = null; save(); renderMock(); } };
+}
+
+/* ---------- sources & gaps ---------- */
+function renderSources(){
+  $("#main").innerHTML = `${banner()}<div class="card"><h2 class="big" style="margin-top:0">Sources used</h2>
+    <p class="muted small">Every question, answer and step in this app cites one of these files from ./modules/.</p>
+    <table><tr><th>File</th><th>What it is</th></tr>${Object.values(C.sources).map(s => `<tr><td>${esc(s.file)}</td><td>${esc(s.label||"")}</td></tr>`).join("")}</table></div>
+    <div class="card"><h2 class="big" style="margin-top:0">Subject Learning Objectives</h2>${Object.entries(C.slos||{}).map(([k,v]) => `<p><b>${esc(k)}</b> ${esc(v.text||v)}${v.cite?citeHTML(v.cite):""}</p>`).join("")}</div>
+    <div class="card"><h2 class="big" style="margin-top:0">Gaps: topics with little or no source material</h2>
+    <p class="muted small">These are assessed but not covered by the loaded modules. They are deliberately not filled from general knowledge.</p>
+    <ul>${(C.gaps||[]).map(g => `<li>${esc(g)}</li>`).join("")}</ul></div>
+    ${(C.context||[]).length ? `<div class="card"><h2 class="big" style="margin-top:0">Context notes (not scored)</h2>${C.context.map(c => `<div class="ctx small"><b>${esc(c.label)}:</b> ${esc(c.text)}</div>`).join("")}</div>` : ""}
+    <p class="muted small">Built ${esc(C.meta.built||"")}. ${Q.length} questions, ${SK.reduce((n,s)=>n+(s.steps||[]).length,0)} skill steps.</p>`;
+}
+
+go("home");
+</script>
+</body>
+</html>

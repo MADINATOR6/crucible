@@ -1,0 +1,6 @@
+# Course material stays local: UTS copyright, and anything committed reaches the OneDrive mirror.
+modules/
+modules_text/
+supplementary/
+supplementary_text/
+__pycache__/

@@ -1,0 +1,124 @@
+[
+  {
+    "id": "RA-01", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Respiratory assessment", "slo": ["SLO1"], "skill": "auscultation",
+    "stem": "You are about to auscultate a patient's chest. According to the tutorial, what is the first step?",
+    "options": [
+      {"text": "Position the patient upright", "correct": true, "why": "Step 1 on the auscultation slide is 'Position patient upright'."},
+      {"text": "Ask the patient to breathe through their nose", "why": "The slide asks the patient to breathe through their mouth, and that is step 2."},
+      {"text": "Listen for adventitious sounds", "why": "Listening for quality, intensity and adventitious sounds is the last step (step 5)."},
+      {"text": "Compare each side with the other", "why": "Side-to-side comparison is step 4, done while you listen."}
+    ],
+    "explanation": "The sequence is: upright, breathe through mouth, listen with stethoscope, compare sides, listen for quality, intensity and adventitious sounds.",
+    "cite": [{"src": "COPD", "loc": "slide 7"}]
+  },
+  {
+    "id": "RA-02", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Respiratory assessment", "slo": ["SLO1"], "skill": "auscultation",
+    "stem": "While auscultating the lungs, which three features does the tutorial tell you to listen for?",
+    "options": [
+      {"text": "Quality, intensity and adventitious sounds", "correct": true, "why": "Step 5 on the slide is 'Listen for quality, intensity and adventitious sounds'."},
+      {"text": "Rate, rhythm and depth", "why": "Rate and rhythm are LOOK items on slide 6, not what you listen for with the stethoscope."},
+      {"text": "Resonance, hyper-resonance and dullness", "why": "These are percussion notes (slide 11), not auscultation findings."},
+      {"text": "Lumps, skin temperature and pain", "why": "These are palpation (FEEL) items on slide 10."}
+    ],
+    "explanation": "Keep the look / listen / feel components apart. The assessor may ask what you are listening for.",
+    "cite": [{"src": "COPD", "loc": "slides 6, 7, 10, 11"}]
+  },
+  {
+    "id": "RA-03", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Adventitious breath sounds", "slo": ["SLO1", "SLO2"], "skill": "auscultation", "reasoning": true,
+    "stem": "On auscultation you hear continuous, high-pitched, hissing sounds. What is this and what does it indicate?",
+    "options": [
+      {"text": "Wheeze: air flowing through narrowed airways (distal airflow obstruction)", "correct": true, "why": "The slide defines wheeze as continuous, high-pitched hissing sounds from distal airflow obstruction as air flows through narrowed airways."},
+      {"text": "Crackles: distal airways opening on inspiration", "why": "Crackles are interrupted, non-musical sounds, not continuous hissing."},
+      {"text": "Pleural friction rub: inflamed pleura rubbing", "why": "A friction rub is a grating sound from thickened pleural surfaces rubbing together."},
+      {"text": "Stridor: upper airway obstruction", "why": "Stridor is a loud strangulating sound on inspiration, heard clearly over the trachea."}
+    ],
+    "explanation": "Wheeze fits airway narrowing, for example Vincent's asthma exacerbation, where wheeze was recorded on auscultation (ASTHMA.pdf slide 12).",
+    "cite": [{"src": "COPD", "loc": "slide 9"}, {"src": "ASTHMA", "loc": "slide 12"}]
+  },
+  {
+    "id": "RA-04", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Adventitious breath sounds", "slo": ["SLO1", "SLO2"], "skill": "auscultation", "reasoning": true,
+    "stem": "A patient has a loud, strangulating sound on inspiration, heard most clearly over the trachea. What is your priority action?",
+    "options": [
+      {"text": "Get an immediate review by a senior doctor", "correct": true, "why": "This is stridor, an obstruction of the trachea or larynx that 'requires immediate review by a senior doctor'."},
+      {"text": "Document it and reassess at the next routine observations", "why": "Stridor is an upper airway obstruction that needs immediate senior review, not routine reassessment."},
+      {"text": "Encourage deep breathing and coughing, then re-auscultate", "why": "Upper airway obstruction needs immediate senior medical review; the source does not support waiting."},
+      {"text": "Record it as crackles and continue the assessment", "why": "Crackles are interrupted, non-musical sounds; this description matches stridor."}
+    ],
+    "explanation": "Findings → interpretation → action: inspiratory strangulating sound over the trachea → stridor (upper airway obstruction) → escalate now.",
+    "cite": [{"src": "COPD", "loc": "slide 9"}]
+  },
+  {
+    "id": "RA-05", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Adventitious breath sounds", "slo": ["SLO1", "SLO2"], "skill": "auscultation", "reasoning": true,
+    "stem": "A person with a severe asthma attack, who earlier had loud wheeze, now has very soft breath sounds and almost no wheeze. How should you interpret this?",
+    "options": [
+      {"text": "A danger sign: a silent chest may mean total peripheral airway obstruction", "correct": true, "why": "The tutorial warns that a silent chest may mean total peripheral airway obstruction, and the Asthma Handbook figure lists soft or absent breath sounds as a life-threatening finding."},
+      {"text": "Improvement: the wheeze has resolved", "why": "Less wheeze with soft breath sounds can mean less air is moving, not recovery; soft or absent breath sounds are a life-threatening sign."},
+      {"text": "A normal finding after salbutamol", "why": "The sources treat soft or absent breath sounds in acute asthma as life-threatening, not normal."},
+      {"text": "Pleural friction rub from pneumonia", "why": "A friction rub is a grating sound; this finding is reduced breath sounds."}
+    ],
+    "explanation": "Escalate. Life-threatening asthma management includes arranging immediate transfer to higher-level care and notifying senior staff (ASTHMA.pdf slide 15).",
+    "cite": [{"src": "COPD", "loc": "slide 9"}, {"src": "ASTHMA", "loc": "slide 15"}]
+  },
+  {
+    "id": "RA-06", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Adventitious breath sounds", "slo": ["SLO1", "SLO2"], "skill": "auscultation",
+    "stem": "You hear interrupted, non-musical sounds during inspiration. What causes them, according to the tutorial?",
+    "options": [
+      {"text": "Distal airways opening during inspiration (and collapsing during expiration)", "correct": true, "why": "This is the slide's definition of crackles."},
+      {"text": "Air flowing through narrowed airways", "why": "That describes wheeze, which is continuous and high-pitched."},
+      {"text": "Thickened pleural surfaces rubbing together", "why": "That describes a pleural friction rub (a grating sound)."},
+      {"text": "Obstruction of the trachea or larynx", "why": "That describes stridor."}
+    ],
+    "explanation": "Crackles = interrupted and non-musical. Wheeze = continuous and musical/hissing.",
+    "cite": [{"src": "COPD", "loc": "slide 9"}]
+  },
+  {
+    "id": "RA-07", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Adventitious breath sounds", "slo": ["SLO2"], "skill": "auscultation",
+    "stem": "According to the tutorial, a pleural friction rub is indicative of:",
+    "options": [
+      {"text": "Pleurisy secondary to pneumonia or pulmonary infarction", "correct": true, "why": "The slide gives this as the significance of a pleural friction rub."},
+      {"text": "Upper airway obstruction", "why": "Upper airway obstruction causes stridor."},
+      {"text": "Total peripheral airway obstruction", "why": "That is the warning attached to a silent chest."},
+      {"text": "Distal airways opening on inspiration", "why": "That is the mechanism of crackles."}
+    ],
+    "explanation": "Friction rub = grating sound as thickened pleural surfaces rub together during breathing.",
+    "cite": [{"src": "COPD", "loc": "slide 9"}]
+  },
+  {
+    "id": "RA-08", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Respiratory assessment", "slo": ["SLO1"], "skill": "auscultation",
+    "stem": "Which of these is NOT one of the LOOK (inspection) components in the tutorial's respiratory assessment?",
+    "options": [
+      {"text": "Percussion note", "correct": true, "why": "Percussion (resonant, hyper-resonant, dull) is under FEEL on slide 11, not LOOK."},
+      {"text": "Position of the trachea", "why": "Position of the trachea is a LOOK item on slide 6."},
+      {"text": "Work of breathing", "why": "Work of breathing is a LOOK item on slide 6."},
+      {"text": "Orthopnoea", "why": "Orthopnoea is a LOOK item on slide 6."}
+    ],
+    "explanation": "LOOK: general appearance (facial expression, anxiety, agitation, position), ability to talk, colour, trachea position, work of breathing, rate, rhythm, cough, orthopnoea.",
+    "cite": [{"src": "COPD", "loc": "slides 6 and 11"}]
+  },
+  {
+    "id": "RA-09", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Respiratory assessment", "slo": ["SLO1"], "skill": "auscultation",
+    "prompt": "List, in order, the five steps for auscultating the chest taught in the Week 2 tutorial.",
+    "model": "1. Position the patient upright. 2. Ask them to breathe through their mouth. 3. Listen to breath sounds with your stethoscope (at the anterior and posterior auscultation points). 4. Compare each side with the other. 5. Listen for quality, intensity and adventitious sounds.",
+    "rubric": [
+      {"point": "Position the patient upright", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+      {"point": "Ask the patient to breathe through their mouth", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+      {"point": "Listen to breath sounds with a stethoscope", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+      {"point": "Compare each side with the other", "cite": [{"src": "COPD", "loc": "slide 7"}]},
+      {"point": "Listen for quality, intensity and adventitious sounds", "cite": [{"src": "COPD", "loc": "slide 7"}]}
+    ],
+    "cite": [{"src": "COPD", "loc": "slides 7-8"}]
+  },
+  {
+    "id": "RA-10", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Adventitious breath sounds", "slo": ["SLO1", "SLO2"], "skill": "auscultation", "reasoning": true,
+    "prompt": "Describe wheeze, crackles, pleural friction rub and stridor. Which one needs immediate escalation, and to whom?",
+    "model": "Wheeze: continuous, high-pitched, hissing sounds from air flowing through narrowed airways (distal airflow obstruction). Crackles: interrupted, non-musical sounds from distal airways opening on inspiration and collapsing on expiration. Pleural friction rub: grating sound as thickened pleural surfaces rub together; indicates pleurisy secondary to pneumonia or pulmonary infarction. Stridor: loud strangulating inspiratory sound from obstruction of the trachea or larynx (upper airway), heard clearly over the trachea. Stridor needs an immediate review by a senior doctor. Also: a silent chest may mean total peripheral airway obstruction.",
+    "rubric": [
+      {"point": "Wheeze: continuous, high-pitched; narrowed airways", "cite": [{"src": "COPD", "loc": "slide 9"}]},
+      {"point": "Crackles: interrupted, non-musical; distal airways opening/collapsing", "cite": [{"src": "COPD", "loc": "slide 9"}]},
+      {"point": "Friction rub: grating; pleurisy secondary to pneumonia or pulmonary infarction", "cite": [{"src": "COPD", "loc": "slide 9"}]},
+      {"point": "Stridor: inspiratory, upper airway (trachea/larynx) obstruction", "cite": [{"src": "COPD", "loc": "slide 9"}]},
+      {"point": "Stridor → immediate review by a senior doctor", "cite": [{"src": "COPD", "loc": "slide 9"}]}
+    ],
+    "cite": [{"src": "COPD", "loc": "slide 9"}]
+  }
+]

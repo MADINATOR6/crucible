@@ -1,0 +1,9 @@
+{
+  "id": "ecg",
+  "notes": [
+    {"text": "'Taking a 12 lead ECG' and 'Continuous cardiac monitoring' are 93225 content topics.", "cite": [{"src": "SI", "loc": "p.2"}]},
+    {"text": "The cardiac lecture's ECG picture shows chest electrodes, an ankle (limb) electrode, the ECG machine and the trace. It does not give electrode positions, so they are not in this app.", "cite": [{"src": "ACS", "loc": "slide 24"}]},
+    {"text": "The ECG is listed as a cardiovascular diagnostic test, alongside echocardiogram, exercise stress test, coronary angiography, Holter monitor and cardiac CT/MRI.", "cite": [{"src": "ACS", "loc": "slide 21"}]},
+    {"text": "Rhythms a second-year student should be able to identify: normal sinus rhythm, plus the life-threatening arrhythmias VT, VF and asystole.", "cite": [{"src": "ACS", "loc": "slide 25"}]}
+  ]
+}

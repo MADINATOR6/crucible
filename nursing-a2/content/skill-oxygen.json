@@ -1,0 +1,9 @@
+{
+  "id": "oxygen",
+  "notes": [
+    {"text": "Oxygen devices named for 93225: simple face mask (Hudson mask), Venturi mask and non-rebreather mask. Managing oxygen therapy with these devices is also a core clinical skill assessed in the labs.", "cite": [{"src": "SI", "loc": "p.2, p.8"}]},
+    {"text": "Tutorial doctor's notes (asthma): give O2 if SpO2 on pulse oximetry is less than 92% (adults) or 95% (children).", "cite": [{"src": "ASTHMA", "loc": "slide 18"}]},
+    {"text": "Life-threatening acute asthma (Australian Asthma Handbook figure): use oxygen to drive the nebuliser (piped oxygen or a cylinder with a high-flow regulator, 6 L/min). Children: maintain SaO2 of at least 95%. Adults: titrate oxygen to a target SaO2 of 93-95%.", "cite": [{"src": "ASTHMA", "loc": "slide 15"}]},
+    {"text": "Examples of oxygen orders in the case studies: Trent (pneumonia) O2 via nasal prongs at 4 L/min; Sarah (COPD) 2 L nasal prongs, after arriving with SpO2 87-88% on 6 L via Hudson mask.", "cite": [{"src": "COPD", "loc": "slides 16, 19, 21"}]}
+  ]
+}

@@ -1,0 +1,123 @@
+[
+  {
+    "id": "CP-01", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Pneumonia", "slo": ["SLO2"], "reasoning": true,
+    "stem": "Trent, 35, has asthma and a recent GP diagnosis of chest infection on oral antibiotics. He is diaphoretic and flushed: T 38.8, P 128, RR 31, BP 100/60, SpO2 92% on room air, productive cough with green sputum. Which condition do these cues cluster around in the tutorial?",
+    "options": [
+      {"text": "Pneumonia", "correct": true, "why": "Fever, cough with sputum, shortness of breath, high heart rate and low blood pressure all appear on the tutorial's pneumonia symptom diagram, and the case is titled 'Case Study: Pneumonia'."},
+      {"text": "Acute coronary syndrome", "why": "He has chest pain (2/10), but fever and purulent sputum fit the pneumonia diagram; the ACS symptom list does not include fever."},
+      {"text": "Stroke", "why": "No F.A.S.T. signs (face, arms, speech) are described."},
+      {"text": "Stable COPD", "why": "The COPD case in this tutorial is Sarah, not Trent; Trent's case is the pneumonia case."}
+    ],
+    "explanation": "Clustering cues (Clinical Reasoning Cycle: process information → relate) turns separate vital signs into a working problem.",
+    "cite": [{"src": "COPD", "loc": "slides 12-13"}, {"src": "ACS", "loc": "slide 33"}]
+  },
+  {
+    "id": "CP-02", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Oxygen orders", "slo": ["SLO3"], "skill": "oxygen",
+    "stem": "In the pneumonia case, what oxygen order does the doctor write for Trent?",
+    "options": [
+      {"text": "O2 via nasal prongs at 4 L/min", "correct": true, "why": "The medical orders list 'O2 via NP @4LPM'."},
+      {"text": "O2 via nasal prongs at 2 L/min", "why": "2 L via nasal prongs is Sarah's order in the COPD case."},
+      {"text": "6 L/min via Hudson mask", "why": "6 L via Hudson mask is what Sarah arrived on."},
+      {"text": "No oxygen ordered", "why": "Oxygen is ordered for Trent."}
+    ],
+    "explanation": "Trent's other orders: sputum MCS, blood cultures, influenza PCR, MSU, IV benzylpenicillin, oral doxycycline, and salbutamol 6 puffs via MDI and spacer.",
+    "cite": [{"src": "COPD", "loc": "slides 16, 19, 21"}]
+  },
+  {
+    "id": "CP-03", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: oxygen", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "Sarah (61, COPD exacerbation) has SpO2 87–88% on 6 L via Hudson mask. The doctor has ordered '2 L nasal prongs O2'. A senior nurse tells you not to give Sarah any oxygen because she may have COPD. What is the best response, based on the tutorial material?",
+    "options": [
+      {"text": "Give oxygen as prescribed (2 L NP), monitor her closely and raise the concern with the medical officer", "correct": true, "why": "Sarah is hypoxaemic, oxygen is prescribed, and the COPD stepwise management says to consider oxygen therapy for hypoxaemia. Withholding a prescribed treatment on a colleague's advice is not supported."},
+      {"text": "Remove all oxygen as the senior nurse advised", "why": "She is hypoxaemic (SpO2 87–88% even on 6 L), and oxygen is prescribed."},
+      {"text": "Increase to 15 L/min via non-rebreather mask", "why": "That is not the prescription, and 15 L/min does not appear in the loaded sources."},
+      {"text": "Leave her on 6 L via Hudson and document", "why": "The current order is 2 L via nasal prongs. Changing or keeping a prescription is a medical decision to escalate, not to decide alone."}
+    ],
+    "explanation": "The COPD target SpO2 range is NOT in the loaded material (see Gaps). Check your 93225 lab guide or lecture for the exact target.",
+    "cite": [{"src": "COPD", "loc": "slides 19, 21, 22, 29"}]
+  },
+  {
+    "id": "CP-04", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Infection control", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "stem": "A viral component is suspected in Sarah's exacerbation. According to the tutorial, what infection control process applies?",
+    "options": [
+      {"text": "Isolation with droplet and contact precautions", "correct": true, "why": "The slide's answer is 'Isolation with droplet precautions & contact'."},
+      {"text": "Standard precautions only", "why": "The tutorial specifies isolation with droplet and contact precautions."},
+      {"text": "Airborne precautions in a negative-pressure room only", "why": "The tutorial specifies droplet and contact."},
+      {"text": "No isolation until the swab result returns", "why": "Isolation applies when a viral component is suspected."}
+    ],
+    "explanation": "Prevention in primary care: immunisation (COVID, flu vaccine). The Lung Foundation plan also recommends annual influenza and pneumococcal vaccines.",
+    "cite": [{"src": "COPD", "loc": "slides 23, 29"}]
+  },
+  {
+    "id": "CP-05", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: management", "slo": ["SLO2"],
+    "stem": "On the Lung Foundation 'Stepwise management of stable COPD', which FEV1 range defines MODERATE COPD?",
+    "options": [
+      {"text": "40–59% predicted", "correct": true, "why": "Moderate: FEV1 = 40–59% predicted."},
+      {"text": "60–80% predicted", "why": "60–80% predicted is mild."},
+      {"text": "Less than 40% predicted", "why": "Below 40% predicted is severe."},
+      {"text": "Above 80% predicted", "why": "The chart's mild band tops out at 80%."}
+    ],
+    "explanation": "Typical moderate symptoms: breathless walking on level ground, increasing limitation of daily activities, cough and sputum, exacerbations needing oral corticosteroids or antibiotics.",
+    "cite": [{"src": "COPD", "loc": "slide 29"}]
+  },
+  {
+    "id": "CP-06", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: medicines", "slo": ["SLO4"],
+    "stem": "According to the stepwise COPD management chart, which inhaled medicines do you START with?",
+    "options": [
+      {"text": "Short-acting relievers used as needed: SABA or SAMA", "correct": true, "why": "The chart says: start with short-acting relievers (as needed), SABA or SAMA."},
+      {"text": "Inhaled corticosteroid alone", "why": "An ICS is considered later, added to long-acting therapy in selected patients."},
+      {"text": "Triple therapy (ICS/LAMA/LABA)", "why": "Triple therapy is the last step on the chart."},
+      {"text": "Montelukast", "why": "Montelukast is not on the COPD stepwise chart."}
+    ],
+    "explanation": "Next step: add long-acting bronchodilators (LAMA or LABA). The chart also says to assess and optimise inhaler device technique at every visit.",
+    "cite": [{"src": "COPD", "loc": "slide 29"}]
+  },
+  {
+    "id": "CP-07", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: person-centred care", "slo": ["SLO1"], "reasoning": true,
+    "stem": "When does the tutorial say discharge planning for Sarah should begin?",
+    "options": [
+      {"text": "At admission", "correct": true, "why": "The slide says 'Planning for discharge at admission': assistance at home, GP, respiratory physician and pharmacist contact."},
+      {"text": "The day before discharge", "why": "The tutorial places discharge planning at admission."},
+      {"text": "Only after spirometry results return", "why": "Not stated; discharge planning starts at admission."},
+      {"text": "It is the GP's job after discharge", "why": "Discharge planning is part of inpatient nursing care from admission."}
+    ],
+    "explanation": "Also consider community nursing options and ask what has changed recently, involving family or partner.",
+    "cite": [{"src": "COPD", "loc": "slide 27"}]
+  },
+  {
+    "id": "CP-08", "type": "mcq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: oxygen", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "Which of Sarah's findings shows she is still hypoxaemic despite supplemental oxygen?",
+    "options": [
+      {"text": "SpO2 87–88% on 6 L O2 via Hudson mask", "correct": true, "why": "Her saturation is low even while she receives oxygen through a Hudson mask."},
+      {"text": "Respiratory rate 32 breaths/min", "why": "This shows increased work of breathing, but it is not an oxygenation measurement."},
+      {"text": "Temperature 39.4°C", "why": "Fever suggests infection; it does not measure oxygenation."},
+      {"text": "AVPU = A", "why": "She is alert; this is her level of consciousness."}
+    ],
+    "explanation": "The doctor's orders include ABGs, CXR, ECG and spirometry, and change her oxygen to 2 L via nasal prongs.",
+    "cite": [{"src": "COPD", "loc": "slides 19, 21"}]
+  },
+  {
+    "id": "CP-09", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "COPD: person-centred care", "slo": ["SLO1"], "reasoning": true,
+    "prompt": "Sarah Lui (61) is admitted with a COPD exacerbation. What social history and health literacy questions does the tutorial suggest you explore, and why do they matter for discharge?",
+    "model": "Social determinants of health: what is happening at home, socially and at work; any carer responsibilities; her financial state; whether she can get to a GP and pharmacy; whether she lives with a smoker. Health literacy: how she understands her illness, how she finds out about new interventions, and her education needs. History and adherence: what has changed recently, and what her family or partner think. These shape discharge planning, which starts at admission: assistance at home, GP, respiratory physician and pharmacist contact, and community nursing options.",
+    "rubric": [
+      {"point": "Home, social and work situation; carer responsibilities", "cite": [{"src": "COPD", "loc": "slide 25"}]},
+      {"point": "Finances; access to GP and pharmacy; lives with a smoker", "cite": [{"src": "COPD", "loc": "slide 25"}]},
+      {"point": "Health literacy: understanding of illness, sources of information, education", "cite": [{"src": "COPD", "loc": "slide 26"}]},
+      {"point": "Adherence, recent changes, involving family or partner", "cite": [{"src": "COPD", "loc": "slide 27"}]},
+      {"point": "Discharge planning from admission (home help, GP, respiratory physician, pharmacist, community nursing)", "cite": [{"src": "COPD", "loc": "slide 27"}]}
+    ],
+    "cite": [{"src": "COPD", "loc": "slides 25-27"}]
+  },
+  {
+    "id": "CP-10", "type": "saq", "week": "FNP2B Wk2 (COPD & pneumonia)", "topic": "Pneumonia", "slo": ["SLO2"], "reasoning": true,
+    "prompt": "Pick four of Trent's assessment findings (T 38.8, P 128, RR 31, BP 100/60, SpO2 92% RA, green productive cough, diaphoretic and flushed) and link each to a sign on the tutorial's pneumonia symptom diagram.",
+    "model": "Temp 38.8 → systemic: high fever. P 128 → heart: high heart rate. BP 100/60 → vascular: low blood pressure. Productive cough with green sputum → lungs: cough with sputum or phlegm. SOB/RR 31 → lungs: shortness of breath. Diaphoretic → skin: clamminess.",
+    "rubric": [
+      {"point": "Fever → systemic high fever", "cite": [{"src": "COPD", "loc": "slides 12-13"}]},
+      {"point": "Tachycardia → high heart rate", "cite": [{"src": "COPD", "loc": "slides 12-13"}]},
+      {"point": "BP 100/60 → low blood pressure", "cite": [{"src": "COPD", "loc": "slides 12-13"}]},
+      {"point": "Green productive cough / SOB → cough with sputum, shortness of breath", "cite": [{"src": "COPD", "loc": "slides 12-13"}]}
+    ],
+    "cite": [{"src": "COPD", "loc": "slides 12-13"}]
+  }
+]

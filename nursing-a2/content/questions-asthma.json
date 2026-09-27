@@ -1,0 +1,219 @@
+[
+  {
+    "id": "AS-01", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: oxygen", "slo": ["SLO2", "SLO3"], "skill": "oxygen", "reasoning": true,
+    "stem": "Vincent, 10, has acute asthma. SpO2 is 92% on room air. Using the tutorial's doctor's notes, is supplemental oxygen indicated?",
+    "options": [
+      {"text": "Yes. For children, give O2 if SpO2 is less than 95%", "correct": true, "why": "The doctor's notes say: give O2 if SpO2 is less than 92% (adults) or 95% (children). Vincent is a child at 92%."},
+      {"text": "No. 92% is not below the 92% threshold", "why": "92% is the adult threshold. The children's threshold is 95%, and Vincent is 10."},
+      {"text": "No. Oxygen is only needed once SpO2 is below 90%", "why": "Below 90% is a life-threatening feature in the Handbook figure, not the threshold for starting oxygen."},
+      {"text": "Only if he becomes drowsy", "why": "Drowsiness is a life-threatening sign, but oxygen is already indicated by his SpO2."}
+    ],
+    "explanation": "Findings (SpO2 92% RA, child) → interpretation (below the paediatric threshold of 95%) → action (give O2).",
+    "cite": [{"src": "ASTHMA", "loc": "slides 9, 12, 18"}]
+  },
+  {
+    "id": "AS-02", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: severity", "slo": ["SLO2"], "reasoning": true,
+    "stem": "Vincent is alert and restless, RR 55 with intercostal and subcostal recession, SpO2 92% on room air, with wheeze. Using the Australian Asthma Handbook categories in the tutorial, how severe is this attack?",
+    "options": [
+      {"text": "Severe", "correct": true, "why": "Severe = any of: unable to speak in sentences, visibly breathless, increased work of breathing, or oxygen saturation 90–94%. Vincent has increased work of breathing and SpO2 92%."},
+      {"text": "Mild/moderate", "why": "Mild/moderate means the person can walk and speak in whole sentences in one breath. Vincent has recession and SpO2 in the 90–94% band."},
+      {"text": "Life-threatening", "why": "Life-threatening means drowsy, collapsed, exhausted, cyanotic, poor respiratory effort, soft or absent breath sounds, or SpO2 below 90%. Vincent is alert with SpO2 92%, so he does not yet meet it."},
+      {"text": "Not acute asthma; this is pneumonia", "why": "He has diagnosed asthma, wheeze, and a negative PCR for respiratory infection."}
+    ],
+    "explanation": "Recheck severity within minutes of starting a bronchodilator. The Handbook flowchart says to reassess severity after initial treatment.",
+    "cite": [{"src": "ASTHMA", "loc": "slides 8, 12, 15, 16"}]
+  },
+  {
+    "id": "AS-03", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: severity", "slo": ["SLO2"], "reasoning": true,
+    "stem": "Which finding classifies an acute asthma attack as life-threatening, according to the Handbook figure in the tutorial?",
+    "options": [
+      {"text": "The person is drowsy or exhausted", "correct": true, "why": "Drowsy, collapsed, exhausted, cyanotic, poor respiratory effort, soft/absent breath sounds and SpO2 below 90% are the life-threatening findings."},
+      {"text": "Audible wheeze", "why": "Wheeze is not on the life-threatening list. Soft or absent breath sounds are."},
+      {"text": "Able to speak in phrases only", "why": "Being unable to speak in sentences is a severe feature, not life-threatening."},
+      {"text": "SpO2 of 93%", "why": "SpO2 90–94% is in the severe category; life-threatening is below 90%."}
+    ],
+    "explanation": "In life-threatening asthma: continuous nebulised salbutamol driven by oxygen, immediate transfer to higher-level care, notify senior staff.",
+    "cite": [{"src": "ASTHMA", "loc": "slides 15-16"}]
+  },
+  {
+    "id": "AS-04", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Nebulised medication", "slo": ["SLO3", "SLO4"], "skill": "nebuliser",
+    "stem": "In life-threatening acute asthma, what gas does the Handbook figure say to use to drive the salbutamol nebuliser?",
+    "options": [
+      {"text": "Oxygen (piped, or a cylinder with a high-flow regulator)", "correct": true, "why": "The figure says 'use oxygen to drive nebuliser', from piped oxygen or a cylinder fitted with a high-flow regulator."},
+      {"text": "Medical air, to avoid giving too much oxygen", "why": "The figure specifies oxygen, not air, to drive the nebuliser in life-threatening asthma."},
+      {"text": "No gas: give salbutamol by pMDI and spacer instead", "why": "Life-threatening asthma calls for continuous nebulisation. The pMDI and spacer is suggested once breathing improves."},
+      {"text": "Room air via a face mask", "why": "The figure specifies oxygen."}
+    ],
+    "explanation": "This links SLO3 (oxygen) and SLO4 (inhaled medicines), and it matters for the nebuliser skill in Part B.",
+    "cite": [{"src": "ASTHMA", "loc": "slide 15"}]
+  },
+  {
+    "id": "AS-05", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Nebulised medication", "slo": ["SLO3", "SLO4"], "skill": "nebuliser",
+    "stem": "In the Handbook figure, what flow rate is stated for the high-flow regulator used to drive the nebuliser?",
+    "options": [
+      {"text": "6 L/min", "correct": true, "why": "The figure's footnote reads: piped oxygen or oxygen cylinder fitted with a high-flow regulator (6 L/min)."},
+      {"text": "2 L/min", "why": "2 L is Sarah's nasal-prong oxygen order in the COPD case, not a nebuliser driving flow."},
+      {"text": "4 L/min", "why": "4 L/min is Trent's nasal-prong oxygen order in the pneumonia case."},
+      {"text": "15 L/min", "why": "15 L/min does not appear in the loaded sources."}
+    ],
+    "explanation": "Check this against your 93225 lab guide; the lab may give its own nebuliser flow instruction. This figure is small on the slide (see CONTENT_MAP).",
+    "cite": [{"src": "ASTHMA", "loc": "slide 15 (figure footnote)"}, {"src": "COPD", "loc": "slides 16, 21"}]
+  },
+  {
+    "id": "AS-06", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: escalation", "slo": ["SLO2", "SLO4"], "skill": "nebuliser", "reasoning": true,
+    "stem": "Vincent is on the ward. Forty minutes after his last salbutamol dose he is breathless again and his mother asks for another dose. What do the tutorial's doctor's notes direct?",
+    "options": [
+      {"text": "Salbutamol is given only hourly on the ward; if more is needed, arrange an ICU review", "correct": true, "why": "The notes say 'only administer salbutamol hourly on ward' and 'if more needed → ICU review'."},
+      {"text": "Give up to 6 more puffs now and recheck in an hour", "why": "Up to 6 puffs is the dose, but on the ward it is hourly only. Needing it sooner triggers an ICU review."},
+      {"text": "Wait until the next scheduled dose and do nothing else", "why": "Needing salbutamol more than hourly is an escalation trigger, not something to wait out."},
+      {"text": "Give magnesium sulfate on nursing judgement", "why": "Magnesium sulfate 'may be given' for poor response, but it is a medical treatment, not a nursing decision."}
+    ],
+    "explanation": "Findings (needs salbutamol sooner than hourly) → interpretation (not responding to ward-level treatment) → action (escalate for ICU review).",
+    "cite": [{"src": "ASTHMA", "loc": "slide 18"}]
+  },
+  {
+    "id": "AS-07", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: escalation", "slo": ["SLO2"],
+    "stem": "According to the doctor's notes, how long should the patient be observed after respiratory distress has resolved?",
+    "options": [
+      {"text": "At least 3 hours", "correct": true, "why": "The notes say: observe the patient for at least 3 hours after respiratory distress has resolved."},
+      {"text": "At least 1 hour", "why": "One hour is when the Handbook flowchart says to reassess response to treatment; observation after resolution is 3 hours."},
+      {"text": "4-5 hours", "why": "4–5 hourly salbutamol is the discharge criterion, not the observation period."},
+      {"text": "No observation is needed once distress resolves", "why": "The notes set a minimum observation period of 3 hours."}
+    ],
+    "explanation": "Discharge criterion for Vincent: salbutamol needed only every 4–5 hours and SOB alleviated (slide 17).",
+    "cite": [{"src": "ASTHMA", "loc": "slides 16-18"}]
+  },
+  {
+    "id": "AS-08", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: discharge", "slo": ["SLO2"],
+    "stem": "What does the doctor say must happen before Vincent can go home?",
+    "options": [
+      {"text": "He only needs salbutamol every 4–5 hours and his shortness of breath is alleviated", "correct": true, "why": "This is the discharge criterion in the 0350 update."},
+      {"text": "SpO2 is 100% on room air", "why": "No SpO2 target is given as the discharge criterion."},
+      {"text": "He has had no salbutamol for 24 hours", "why": "The criterion is 4–5 hourly salbutamol, not none."},
+      {"text": "His peak flow is back to normal", "why": "Peak flow is not the stated criterion, and the tutorial notes symptoms often worsen before PEF does."}
+    ],
+    "explanation": "Before discharge, arrange GP follow-up in about a week and educate Holly (action plan, inhaler technique, triggers).",
+    "cite": [{"src": "ASTHMA", "loc": "slides 17, 21, 23, 24"}]
+  },
+  {
+    "id": "AS-09", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: self-management", "slo": ["SLO1", "SLO2"],
+    "stem": "Why does the tutorial say symptom monitoring can be more reliable than peak expiratory flow (PEF) for self-monitoring?",
+    "options": [
+      {"text": "Symptoms often deteriorate before PEF does", "correct": true, "why": "The slide states: 'Symptoms often deteriorate before PEF, therefore symptom monitoring can be more reliable than PEF'."},
+      {"text": "PEF meters are not available in Australia", "why": "The slide does not say this."},
+      {"text": "PEF only measures oxygen saturation", "why": "PEF is a flow measurement, and the slide's reason is the timing of deterioration."},
+      {"text": "Symptoms never change during an exacerbation", "why": "The point is that symptoms change early."}
+    ],
+    "explanation": "An asthma symptom diary (day and night cough/wheeze, SOB, reliever and preventer doses) supports this.",
+    "cite": [{"src": "ASTHMA", "loc": "slide 24"}]
+  },
+  {
+    "id": "AS-10", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma medicines", "slo": ["SLO4"],
+    "stem": "On the National Asthma Council medications chart, how is montelukast classified?",
+    "options": [
+      {"text": "Non-steroidal preventer (tablet)", "correct": true, "why": "Montelukast is listed under 'Non steroidal preventer' as a tablet."},
+      {"text": "SABA reliever", "why": "SABA relievers on the chart are salbutamol (Ventolin, Airomir) and terbutaline (Bricanyl)."},
+      {"text": "Inhaled corticosteroid (ICS) preventer", "why": "ICS preventers include fluticasone, budesonide, beclometasone and ciclesonide, not montelukast."},
+      {"text": "SAMA medication", "why": "The SAMA on the chart is ipratropium (Atrovent)."}
+    ],
+    "explanation": "Vincent was discharged on an ICS preventer, salbutamol pMDI via spacer and mask PRN, and montelukast.",
+    "cite": [{"src": "ASTHMA", "loc": "slides 20, 27"}]
+  },
+  {
+    "id": "AS-11", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma medicines", "slo": ["SLO4"], "skill": "nebuliser",
+    "stem": "Ipratropium (Atrovent) is classified on the NAC chart as a:",
+    "options": [
+      {"text": "SAMA (short-acting muscarinic antagonist)", "correct": true, "why": "Atrovent (ipratropium) is listed under 'SAMA medication'."},
+      {"text": "SABA (short-acting beta2-agonist)", "why": "SABAs on the chart are salbutamol and terbutaline."},
+      {"text": "LABA (long-acting beta2-agonist)", "why": "LABAs on the chart are formoterol, salmeterol and indacaterol."},
+      {"text": "Inhaled corticosteroid", "why": "Ipratropium is not a corticosteroid."}
+    ],
+    "explanation": "The doctor's notes add that ipratropium may be used for children with asthma, and the Handbook figure adds it to nebulised salbutamol in severe and life-threatening asthma.",
+    "cite": [{"src": "ASTHMA", "loc": "slides 15, 18, 20"}]
+  },
+  {
+    "id": "AS-12", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Inhaler technique", "slo": ["SLO4"],
+    "stem": "According to the NAC chart in the tutorial, how should a pMDI (such as Vincent's salbutamol) be used?",
+    "options": [
+      {"text": "With a spacer (and a face mask if needed)", "correct": true, "why": "The chart states: 'pMDIs should be used with a spacer (and face mask if needed)'."},
+      {"text": "Always through a nebuliser", "why": "The chart says to use a spacer. Nebulisation is for severe or life-threatening attacks per the Handbook figure."},
+      {"text": "Without a spacer, to get the full dose", "why": "The chart advises a spacer."},
+      {"text": "Only in hospital", "why": "Vincent is discharged with a pMDI via spacer and mask PRN."}
+    ],
+    "explanation": "Inhaler technique is part of the education and skills component of asthma management (slide 23).",
+    "cite": [{"src": "ASTHMA", "loc": "slides 20, 23, 27"}]
+  },
+  {
+    "id": "AS-13", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: problems", "slo": ["SLO1", "SLO2"],
+    "stem": "Which is a LONG-TERM problem of asthma listed in the tutorial (rather than an acute one)?",
+    "options": [
+      {"text": "School absenteeism", "correct": true, "why": "School absenteeism is on the long-term list, with recurrent exacerbations, reduced lung function, activity intolerance, sleep disturbance and fatigue, and impaired growth and development."},
+      {"text": "Impaired gas exchange", "why": "Impaired gas exchange is on the short-term/acute list."},
+      {"text": "Anxiety/distress", "why": "Anxiety/distress is on the short-term/acute list."},
+      {"text": "Breathlessness", "why": "Breathlessness is on the short-term/acute list."}
+    ],
+    "explanation": "Person-centred care (SLO1) looks past the acute episode to growth, schooling and family impact.",
+    "cite": [{"src": "ASTHMA", "loc": "slide 13"}]
+  },
+  {
+    "id": "AS-14", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Clinical reasoning cycle", "slo": ["SLO2"],
+    "stem": "In the Clinical Reasoning Cycle used in the tutorial, which phase comes directly after 'Process information'?",
+    "options": [
+      {"text": "Identify priority needs and concerns", "correct": true, "why": "The cycle runs: notice → collect cues → process information → identify priority needs and concerns → establish goals → take action → evaluate → reflect."},
+      {"text": "Take action", "why": "Take action comes after identifying problems and establishing goals."},
+      {"text": "Collect cues/information", "why": "Collecting cues comes before processing information."},
+      {"text": "Evaluate", "why": "Evaluation comes after action."}
+    ],
+    "explanation": "In 'Identify priority needs and concerns' you synthesise facts and inferences to form a nursing diagnosis.",
+    "cite": [{"src": "ASTHMA", "loc": "slide 7"}]
+  },
+  {
+    "id": "AS-15", "type": "mcq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: management", "slo": ["SLO2", "SLO4"], "reasoning": true,
+    "stem": "An acute asthma attack responds poorly to initial bronchodilator treatment. Which add-on treatment do the tutorial and Handbook figure name?",
+    "options": [
+      {"text": "IV magnesium sulfate", "correct": true, "why": "The doctor's notes say MgSO4 may be given for poor response, and the Handbook figure says 'if poor response, add IV magnesium sulfate'."},
+      {"text": "Montelukast tablet", "why": "Montelukast is a preventer on discharge, not an acute add-on in the figure."},
+      {"text": "Stop salbutamol and observe", "why": "The figure continues the bronchodilator and adds treatment; it does not stop it."},
+      {"text": "Oral antibiotics", "why": "Antibiotics are not listed in the acute asthma flowchart."}
+    ],
+    "explanation": "Within the first hour the flowchart also starts systemic corticosteroids and then reassesses response at 1 hour.",
+    "cite": [{"src": "ASTHMA", "loc": "slides 15, 16, 18"}]
+  },
+  {
+    "id": "AS-16", "type": "saq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: self-management", "slo": ["SLO1", "SLO2", "SLO4"], "reasoning": true,
+    "prompt": "At discharge, Holly asks: 'What should I do if Vincent gets sick like this again before I see the GP?' Outline the education you would give, using the tutorial's content on asthma management and written action plans.",
+    "model": "Explain that asthma management aims for good symptom control (normal activity) and to minimise the risk of future attacks, fixed airflow limitation and medication side effects. Give and explain a written asthma action plan: it is personalised, helps detect and treat an exacerbation early, and states when to increase treatment, how to increase it, how long to stay on the increased treatment, and when to seek urgent medical assessment; it depends on patient and family engagement. Teach inhaler technique (pMDI with spacer and mask), stress adherence, avoiding triggers and self-monitoring of symptoms (a symptom diary; symptoms often worsen before PEF), and arrange regular review (every 6 months) plus the GP follow-up in a week.",
+    "rubric": [
+      {"point": "Written asthma action plan: early detection and personalised self-management", "cite": [{"src": "ASTHMA", "loc": "slide 25"}]},
+      {"point": "Action plan says when and how to increase treatment, for how long, and when to seek urgent medical assessment", "cite": [{"src": "ASTHMA", "loc": "slide 26"}]},
+      {"point": "Inhaler technique: pMDI with spacer (and mask)", "cite": [{"src": "ASTHMA", "loc": "slides 20, 23, 27"}]},
+      {"point": "Adherence, avoiding triggers, self-monitoring of symptoms", "cite": [{"src": "ASTHMA", "loc": "slides 23-24"}]},
+      {"point": "Follow-up: GP in a week; regular review every 6 months", "cite": [{"src": "ASTHMA", "loc": "slides 21, 23"}]}
+    ],
+    "cite": [{"src": "ASTHMA", "loc": "slides 21-27"}]
+  },
+  {
+    "id": "AS-17", "type": "saq", "week": "FNP2B Wk1 (asthma)", "topic": "Asthma: self-management", "slo": ["SLO1", "SLO4"], "reasoning": true,
+    "prompt": "Holly says: 'Does Vincent really need to take medication every day? He is much better now.' Using the tutorial's goals of asthma management, outline how you would respond.",
+    "model": "Acknowledge Holly's concern and explore why she feels this way. Explain that asthma management has two goals: symptom control (good symptom control, normal activity) and risk reduction (minimising the risk of lung attacks, fixed airflow limitation and medication adverse effects). Feeling better now does not remove the risk of future attacks. Taking prescribed medicines as directed (adherence), inhaler technique and a written action plan are part of management. Involve Holly in the plan and arrange regular review.",
+    "rubric": [
+      {"point": "Acknowledges and explores the parent's concern (person- and family-centred)", "cite": [{"src": "ASTHMA", "loc": "slides 27, 31"}]},
+      {"point": "Goal 1: symptom control and normal activity", "cite": [{"src": "ASTHMA", "loc": "slide 22"}]},
+      {"point": "Goal 2: risk reduction (lung attacks, fixed airflow limitation, medication adverse effects)", "cite": [{"src": "ASTHMA", "loc": "slide 22"}]},
+      {"point": "Adherence and education are core parts of management", "cite": [{"src": "ASTHMA", "loc": "slide 23"}]}
+    ],
+    "cite": [{"src": "ASTHMA", "loc": "slides 22, 23, 27"}]
+  },
+  {
+    "id": "AS-18", "type": "saq", "week": "FNP2B Wk1 (asthma)", "topic": "Clinical reasoning cycle", "slo": ["SLO2"],
+    "prompt": "Name the eight phases of the Clinical Reasoning Cycle, in order.",
+    "model": "1. Notice the person's current situation. 2. Collect cues/information (review, gather, recall). 3. Process information (analyse, discriminate, relate, infer, match, predict). 4. Identify priority needs and concerns (nursing diagnosis). 5. Establish goals. 6. Take action. 7. Evaluate. 8. Reflect.",
+    "rubric": [
+      {"point": "Notice → Collect cues", "cite": [{"src": "ASTHMA", "loc": "slide 7"}]},
+      {"point": "Process information", "cite": [{"src": "ASTHMA", "loc": "slide 7"}]},
+      {"point": "Identify priority needs and concerns → Establish goals", "cite": [{"src": "ASTHMA", "loc": "slide 7"}]},
+      {"point": "Take action → Evaluate → Reflect", "cite": [{"src": "ASTHMA", "loc": "slide 7"}]}
+    ],
+    "cite": [{"src": "ASTHMA", "loc": "slide 7"}]
+  }
+]
