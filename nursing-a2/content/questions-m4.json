@@ -300,6 +300,14 @@
       {
         "src": "NGTPOL",
         "loc": "p.14"
+      },
+      {
+        "src": "NGTPOL",
+        "loc": "p.13"
+      },
+      {
+        "src": "NGTPOL",
+        "loc": "p.15"
       }
     ]
   },
@@ -338,6 +346,14 @@
       {
         "src": "NGTPOL",
         "loc": "p.15"
+      },
+      {
+        "src": "NGTPOL",
+        "loc": "p.14"
+      },
+      {
+        "src": "NGTPOL",
+        "loc": "p.16"
       }
     ]
   },
@@ -390,7 +406,7 @@
     ],
     "reasoning": true,
     "prompt": "A trained clinician screens an adult with persisting acute stroke symptoms. Outline the ASSIST stop rules before and during water testing.",
-    "model": "First check alertness for at least 20 minutes, upright sitting and head control; any no means stop, NBM and review. Any section 2 risk sign such as facial droop, slurred speech or weak cough means stop, NBM and refer to speech pathology. During a 10 mL sip or cup of water, coughing, voice change, drooling or breathing change also means stop, NBM and refer.",
+    "model": "First check alertness for at least 20 minutes, upright sitting and head control; any no means stop, NBM and review. Any section 2 risk sign such as facial droop, slurred speech or weak cough means stop, NBM and refer to speech pathology. During a 10 mL sip or cup of water, coughing or throat clearing, voice change, drooling or breathing change also means stop, NBM and refer.",
     "rubric": [
       {
         "point": "Section 1 alertness, posture and head control; any no means stop and NBM",
@@ -411,7 +427,7 @@
         ]
       },
       {
-        "point": "Water-test cough, voice, drool or breathing change means NBM and referral",
+        "point": "Water-test cough, voice, drool or breathing change means NBM and referral (including coughing or throat clearing)",
         "cite": [
           {
             "src": "ASSIST",

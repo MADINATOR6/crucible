@@ -1,0 +1,87 @@
+[
+  {
+    "id": "HF-01", "type": "mcq", "week": "Module 3", "topic": "Heart failure", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "stem": "A patient with heart failure has gained more than 2 kg over 3 days on the daily weight chart. According to Lecture 3, what should you do?",
+    "options": [
+      {"text": "Escalate: weight up more than 2 kg in 3 days is an escalation trigger", "correct": true, "why": "Lecture 3 lists 'Weight up more than 2 kg in 3 days' under 'Escalate if' for the daily charts."},
+      {"text": "Nothing yet: weigh again in a week", "why": "The lecture tracks the daily trend and escalates at more than 2 kg in 3 days."},
+      {"text": "Withhold all heart failure medicines", "why": "The lecture says doses are deliberately increased over time: 'Don't just withhold'. Check the patient and ask the MO."},
+      {"text": "Increase oral fluids to support the kidneys", "why": "Fluid and sodium restriction is part of daily heart failure care when prescribed; weight gain suggests fluid retention."}
+    ],
+    "explanation": "Slow deterioration shows up across charts, not in one set of observations: daily weight, fluid balance across days, a creeping HR/RR, rising oxygen needs.",
+    "cite": [{"src": "L3", "loc": "p.15, p.34-35"}]
+  },
+  {
+    "id": "HF-02", "type": "mcq", "week": "Module 3", "topic": "Heart failure", "slo": ["SLO1", "SLO4"],
+    "stem": "How should daily weights be taken for a patient with heart failure, according to Lecture 3?",
+    "options": [
+      {"text": "Same time, same scales, same clothing, before breakfast", "correct": true, "why": "This is the lecture's daily weight standard."},
+      {"text": "Whenever convenient during the shift", "why": "The lecture specifies the same time, scales and clothing so the trend is meaningful."},
+      {"text": "Only on admission and discharge", "why": "Daily weight is part of daily heart failure care."},
+      {"text": "After the evening meal, to include fluid intake", "why": "The lecture says before breakfast."}
+    ],
+    "explanation": "At home the patient weighs every morning after the toilet, before breakfast, on the same scales, and writes it down.",
+    "cite": [{"src": "L3", "loc": "p.15, p.37"}]
+  },
+  {
+    "id": "HF-03", "type": "mcq", "week": "Module 3", "topic": "Heart failure", "slo": ["SLO2", "SLO4"], "reasoning": true,
+    "stem": "A heart failure patient is due their beta blocker. Their pulse is low and potassium has risen since yesterday. What does Lecture 3 advise?",
+    "options": [
+      {"text": "Ask the MO before giving it", "correct": true, "why": "'Low BP or pulse, or a rising potassium or creatinine – ask the MO before you give it.'"},
+      {"text": "Give it as charted; doses are always given", "why": "The lecture says to check HR, BP, potassium and renal function first, and ask the MO if they are abnormal."},
+      {"text": "Withhold it permanently and document", "why": "The lecture warns these doses are deliberately increased over time: 'Don't just withhold'."},
+      {"text": "Halve the dose on nursing judgement", "why": "The lecture's action is to ask the MO, not change the dose."}
+    ],
+    "explanation": "The four HFrEF pillars are a beta blocker, an ACE inhibitor/ARNI, an MRA and an SGLT2 inhibitor. Before any of them, check heart rate, BP, and the latest potassium and renal function.",
+    "cite": [{"src": "L3", "loc": "p.34"}]
+  },
+  {
+    "id": "HF-04", "type": "mcq", "week": "Module 3", "topic": "Heart failure", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A cardiac patient develops new bilateral, dependent ankle oedema with increasing breathlessness. What does Lecture 3 say?",
+    "options": [
+      {"text": "Bilateral dependent oedema fits a cardiac cause; with breathlessness, escalate for urgent review", "correct": true, "why": "The lecture says bilateral and dependent fits cardiac, and to escalate urgently if rapid onset or accompanied by breathlessness."},
+      {"text": "It is most likely a DVT", "why": "The lecture links DVT assessment to unilateral oedema with warmth or calf pain."},
+      {"text": "It is expected and needs no report", "why": "The lecture says to always report to the nurse in charge and document it."},
+      {"text": "Encourage fluids and elevate the legs only", "why": "The lecture's actions are to compare the weight trend, review fluid balance, and check JVD, breath sounds and SpO2, then escalate with breathlessness."}
+    ],
+    "explanation": "Oedema may mean worsening right-sided or biventricular heart failure, drug causes, low albumin, or venous/lymphatic obstruction.",
+    "cite": [{"src": "L3", "loc": "p.11"}]
+  },
+  {
+    "id": "HF-05", "type": "mcq", "week": "Module 3", "topic": "Heart failure", "slo": ["SLO1", "SLO4"],
+    "stem": "Before discharge, which instruction does Lecture 3 give a heart failure patient about their fluid tablet (diuretic)?",
+    "options": [
+      {"text": "Take it in the morning, not at night", "correct": true, "why": "The lecture says 'Take the fluid tablet in the morning, not at night'."},
+      {"text": "Take it at bedtime so it works overnight", "why": "The lecture says morning, not night."},
+      {"text": "Skip it on days you feel well", "why": "The patient should know which medicines must never be stopped."},
+      {"text": "Take it only if weight goes up", "why": "The lecture says to call the HF nurse or GP if weight rises about 2 kg in two days, not to self-adjust."}
+    ],
+    "explanation": "Also: know the fluid limit in cups, weigh every morning, and call 000 for chest pain or breathlessness at rest. Check understanding with teach-back, and refer to cardiac rehab before discharge.",
+    "cite": [{"src": "L3", "loc": "p.37"}]
+  },
+  {
+    "id": "HF-06", "type": "mcq", "week": "Module 3", "topic": "Cardiac escalation", "slo": ["SLO2"], "reasoning": true,
+    "stem": "A cardiac patient with a urinary catheter has passed 80 mL of urine over the last 4 hours. According to Lecture 3, what is the right response?",
+    "options": [
+      {"text": "Escalate for urgent review: under 100 mL over 4 hours is the trigger", "correct": true, "why": "Escalate if low urine output persists for 4 hours (under 100 mL over 4 hours, or under 0.5 mL/kg/hr via an IDC)."},
+      {"text": "Recheck at the end of the shift", "why": "The 4-hour threshold has already been met."},
+      {"text": "Give a fluid bolus without review", "why": "Low output may be 'dry' or 'congested'; the lecture's actions are checks and escalation, not an independent bolus."},
+      {"text": "Assume the catheter is blocked and do nothing else", "why": "Check catheter patency, but also fluid balance, BP, recent diuretics and renal function, and escalate."}
+    ],
+    "explanation": "In heart failure, low urine output can mean congestion: the kidneys are backed up, not short of fluid.",
+    "cite": [{"src": "L3", "loc": "p.10"}]
+  },
+  {
+    "id": "HF-07", "type": "saq", "week": "Module 3", "topic": "Heart failure", "slo": ["SLO1", "SLO2", "SLO4"],
+    "prompt": "Outline the daily nursing care for a patient with heart failure, using Lecture 3.",
+    "model": "Fluid and sodium restriction where prescribed, helping the patient tolerate it; fluid balance chart including urine output and response to diuretics; daily weight (same time, scales and clothing, before breakfast); respiratory status, lung sounds, oedema and JVP; sit upright to ease breathing. Document mobilisation specifically, pace care with rest, and manage falls risk (postural drop after diuretics). Watch nutrition (poor intake can signal gut congestion). Before and after diuretics check BP, weight, fluid balance, electrolytes and renal function.",
+    "rubric": [
+      {"point": "Fluid/sodium restriction and fluid balance with urine output", "cite": [{"src": "L3", "loc": "p.35"}]},
+      {"point": "Daily weight done the same way each day", "cite": [{"src": "L3", "loc": "p.15, p.35"}]},
+      {"point": "Respiratory status, lung sounds, oedema, JVP; upright positioning", "cite": [{"src": "L3", "loc": "p.35"}]},
+      {"point": "Mobility, pacing and falls risk (postural drop after diuretics)", "cite": [{"src": "L3", "loc": "p.35"}]},
+      {"point": "Diuretic checks before and after (BP, weight, electrolytes, renal function)", "cite": [{"src": "L3", "loc": "p.34"}]}
+    ],
+    "cite": [{"src": "L3", "loc": "p.34-35"}]
+  }
+]

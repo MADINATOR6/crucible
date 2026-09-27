@@ -1,5 +1,52 @@
 # CONTENT_MAP
 
+## Update 28 Sep 2026: 93225 Canvas Modules loaded
+
+Downloaded with the student's permission on 27 Sep 2026 (Chrome, logged-in Canvas): 27 files plus the text of 36 module pages (`modules/canvas/canvas_93225_pages.txt`, shown in the app as "93225 Canvas page: ..."). Zoom passcodes were removed from the export. Extracted text is in `modules_text/`, with an index of image-only pages in `modules_text/INDEX.md`.
+
+| Key | File | Set | What it is |
+|---|---|---|---|
+| SI | modules/UTS 93225 Clinical Practice 2B Spring C Session 2026 Subject Information.pdf | core | 93225 Subject Information, Spring C 2026 (UTS) |
+| A2 | modules/Canvas - Assessment 2 page (screenshot 27 Sep 2026).png | core | 93225 Canvas: Assessment 2 page (screenshot supplied by the student) |
+| CANVAS | modules/canvas/canvas_93225_pages.txt | core | 93225 Canvas module pages (text export, 27 Sep 2026); cite as page <slug> |
+| L1 | modules/Lecture 1 A-H assessment slides.pdf | core | 93225 Lecture 1: A-H assessment |
+| L2 | modules/CP2B week 2 lecture- student view-1.pptx | core | 93225 Lecture 2 (week 2) |
+| L3 | modules/CP2B_Lecture_3_slides.pdf | core | 93225 Lecture 3 |
+| L4 | modules/CP2B-LAB 4 Lecture- studnet view.pdf | core | 93225 Lecture 4 (Lab 4 lecture) |
+| AGTABLE | modules/A-G patient assessment table-6.pdf | core | 93225 A-G patient assessment table |
+| AH | modules/A-H Yr2 Level-2.pdf | core | 93225 A-H Year 2 level table (image) |
+| AUSC | modules/How-to-perform-chest-auscultation-and-interpret-the-findings-1.pdf | core | 93225 Module 1 reading: How to perform chest auscultation and interpret the findings |
+| LAB1PKG | modules/Lab 1 Student Package_v1-1.pdf | core | 93225 Lab 1 Student Package |
+| LAB1SL | modules/CP2B 2026 Lab 1 Slides-1.pdf | core | 93225 Lab 1 slides |
+| TSANZ | modules/TSANZ Position Statement on Acute Oxygen Use 2022.pdf | core | 93225 Module 2 reading: TSANZ position statement on acute oxygen use in adults (2022) |
+| S125 | modules/Section 12.5 Providing Oxygen.pdf | core | 93225 Module 2 reading: Skills in Clinical Nursing 12.5 Providing oxygen |
+| S126 | modules/Section 12.6 Use of a nebuliser.pdf | core | 93225 Module 2 reading: Skills in Clinical Nursing 12.6 Use of a nebuliser |
+| S127 | modules/Section_12.7_Oropharyngeal_and_nasopharyngeal_suctioning.pdf | core | 93225 Module 2 reading: Skills in Clinical Nursing 12.7 Suctioning |
+| O2CHK | modules/Skills checklists for O2 delivery devices-1.pdf | core | 93225 Lab 2 skills checklists for O2 delivery devices (image) |
+| WB2 | modules/CP2B- Student workbook Week 2-2.docx | core | 93225 Week 2 student workbook |
+| LAB2SL | modules/CP2B LAB Week 2- studnet view.pptx | core | 93225 Lab 2 slides |
+| ECGBAR | modules/Barriers_to_obtaining_a_good_quality_ECG-1.pdf | core | 93225 Module 3 reading: Barriers to obtaining a good quality ECG |
+| RHYTHM | modules/Rhythm-Analysis-Flow-Chart-JPEG (2).pdf | core | 93225 Module 3 rhythm analysis flow chart (image) |
+| LAB3PKG | modules/Lab 3 Student Package_2026_V2_meds_added-3.pdf | core | 93225 Lab 3 Student Package |
+| LAB3SL | modules/Lab 3-cardiovascular assessment slides-1.pdf | core | 93225 Lab 3 cardiovascular assessment slides |
+| BURETTE1 | modules/IV040001.pdf - Burette with Inline Needleless Access Site1.3.pdf | core | 93225 Module 3: burette set guide |
+| BURETTE2 | modules/IF_Using-Burette-Set-With-Alaris-System_TS_EN.pdf | core | 93225 Module 3: burette with Alaris system |
+| NGTPOL | modules/NGT insertion Policy in Adults..pdf | core | 93225 Module 4: NGT insertion policy (adults) |
+| ASSIST | modules/assist-tool---pdf.pdf | core | 93225 Module 4: ASSIST screening tool |
+| NGTWS | modules/NGT_Stroke_Worksheet.docx | core | 93225 Module 4: NGT stroke worksheet |
+| PLANNER | modules/Weekly planner 2026_final.docx | core | 93225 weekly planner |
+| MATH | modules/2026 CP2B math revision.pdf | core | 93225 maths revision |
+
+Where it is used in the app:
+- Part B checklists: O2CHK, WB2, LAB3PKG, CANVAS page 3.2, S126, AUSC.
+- Study guide (`content/guide.json`): the core keys above plus labelled supplementary points.
+- Part A questions M1-M4 (`questions-m*.json`): written by Codex from the core keys (NA2-CONTENT-3), reviewed in REVIEW-3.md.
+
+Assessment timing: Assessment 2 runs at the start of Lab 4 (Canvas Module 4 overview), so Module 1-3 content and the Lecture 1-4 pre-work carry the most weight.
+
+---
+
+
 Inventory of every loaded source → topics → key facts, with citations, mapped to SLO1-4 and to the four Part B skills. Built 27 Sep 2026.
 
 **Citation convention.** PDFs are cited by page. For slide decks, "slide N" = PDF page N (printed slide numbers match where shown). The Canvas screenshot is cited by section heading.
