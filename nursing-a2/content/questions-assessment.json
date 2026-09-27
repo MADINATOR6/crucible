@@ -1,62 +1,211 @@
 [
   {
-    "id": "AI-01", "type": "mcq", "week": "Assessment info", "topic": "Assessment 2 format", "slo": ["SLO1", "SLO2", "SLO3", "SLO4"],
+    "id": "AI-01",
+    "type": "mcq",
+    "week": "Assessment info",
+    "topic": "Assessment 2 format",
+    "slo": [
+      "SLO1",
+      "SLO2",
+      "SLO3",
+      "SLO4"
+    ],
     "stem": "In Part B of Assessment 2, how many of the four listed skills will you be assessed on?",
     "options": [
-      {"text": "Two, allocated to you", "correct": true, "why": "The Canvas page says you will be assessed on two of the listed skills, which will be allocated to you."},
-      {"text": "One skill of your choice", "why": "You do not choose; skills are allocated, and there are two."},
-      {"text": "All four skills", "why": "Only two of the four are assessed."},
-      {"text": "Three skills, allocated on the day", "why": "The page says two, not three."}
+      {
+        "text": "Two, allocated to you",
+        "correct": true,
+        "why": "The Canvas page says you will be assessed on two of the listed skills, which will be allocated to you."
+      },
+      {
+        "text": "One skill of your choice",
+        "why": "You do not choose; skills are allocated, and there are two."
+      },
+      {
+        "text": "All four skills",
+        "why": "Only two of the four are assessed."
+      },
+      {
+        "text": "Three skills, allocated on the day",
+        "why": "The page says two, not three."
+      }
     ],
     "explanation": "Part B is a 15-minute bedside demonstration of two allocated skills out of: lung auscultation, ECG lead placement, oxygen administration, medication administration via nebuliser. Prepare all four.",
-    "cite": [{"src": "A2", "loc": "Part B (skills demonstration) section"}]
+    "cite": [
+      {
+        "src": "A2",
+        "loc": "Part B (skills demonstration) section"
+      }
+    ]
   },
   {
-    "id": "AI-02", "type": "mcq", "week": "Assessment info", "topic": "Assessment 2 format", "slo": ["SLO1", "SLO2", "SLO3", "SLO4"],
+    "id": "AI-02",
+    "type": "mcq",
+    "week": "Assessment info",
+    "topic": "Assessment 2 format",
+    "slo": [
+      "SLO1",
+      "SLO2",
+      "SLO3",
+      "SLO4"
+    ],
     "stem": "Which of these is a 93225 subject topic but NOT one of the four Part B skills?",
     "options": [
-      {"text": "Suctioning", "correct": true, "why": "Suctioning is a subject topic (Subject Information p.2) but is not on the Part B skills list."},
-      {"text": "Lung auscultation", "why": "Lung auscultation is one of the four Part B skills."},
-      {"text": "ECG lead placement", "why": "ECG lead placement is one of the four Part B skills."},
-      {"text": "Medication administration via nebuliser", "why": "Nebuliser medication administration is one of the four Part B skills."}
+      {
+        "text": "Suctioning",
+        "correct": true,
+        "why": "Suctioning is a subject topic (Subject Information p.2) but is not on the Part B skills list."
+      },
+      {
+        "text": "Lung auscultation",
+        "why": "Lung auscultation is one of the four Part B skills."
+      },
+      {
+        "text": "ECG lead placement",
+        "why": "ECG lead placement is one of the four Part B skills."
+      },
+      {
+        "text": "Medication administration via nebuliser",
+        "why": "Nebuliser medication administration is one of the four Part B skills."
+      }
     ],
     "explanation": "The Part B list has exactly four skills: lung auscultation, ECG lead placement, oxygen administration, medication administration via nebuliser.",
-    "cite": [{"src": "A2", "loc": "Part B (skills demonstration) section"}, {"src": "SI", "loc": "p.2"}]
+    "cite": [
+      {
+        "src": "A2",
+        "loc": "Part B (skills demonstration) section"
+      },
+      {
+        "src": "SI",
+        "loc": "p.2"
+      }
+    ]
   },
   {
-    "id": "AI-03", "type": "mcq", "week": "Assessment info", "topic": "Assessment 2 format", "slo": ["SLO1", "SLO2", "SLO3", "SLO4"],
+    "id": "AI-03",
+    "type": "mcq",
+    "week": "Assessment info",
+    "topic": "Assessment 2 format",
+    "slo": [
+      "SLO1",
+      "SLO2",
+      "SLO3",
+      "SLO4"
+    ],
     "stem": "What is the format of Part A of Assessment 2?",
     "options": [
-      {"text": "A 15-minute paper-based quiz with multiple-choice and short-answer questions", "correct": true, "why": "The Canvas page describes Part A as a 15-minute paper-based quiz in multiple-choice and short-answer formats."},
-      {"text": "A 30-minute online quiz", "why": "30 minutes is the total for Parts A and B together; Part A is 15 minutes and paper based."},
-      {"text": "A 15-minute multiple-choice-only quiz", "why": "Part A also includes short-answer questions."},
-      {"text": "An oral viva with the assessor", "why": "Part A is a written paper quiz."}
+      {
+        "text": "A 15-minute paper-based quiz with multiple-choice and short-answer questions",
+        "correct": true,
+        "why": "The Canvas page describes Part A as a 15-minute paper-based quiz in multiple-choice and short-answer formats."
+      },
+      {
+        "text": "A 30-minute online quiz",
+        "why": "30 minutes is the total for Parts A and B together; Part A is 15 minutes and paper based."
+      },
+      {
+        "text": "A 15-minute multiple-choice-only quiz",
+        "why": "Part A also includes short-answer questions."
+      },
+      {
+        "text": "An oral viva with the assessor",
+        "why": "Part A is a written paper quiz."
+      }
     ],
     "explanation": "Part A covers all content in your pre-work, lectures and labs so far, so expect both recall and short written reasoning.",
-    "cite": [{"src": "A2", "loc": "Length and Part A (quiz) sections"}, {"src": "SI", "loc": "p.6"}]
+    "cite": [
+      {
+        "src": "A2",
+        "loc": "Length and Part A (quiz) sections"
+      },
+      {
+        "src": "SI",
+        "loc": "p.6"
+      }
+    ]
   },
   {
-    "id": "AI-04", "type": "mcq", "week": "Assessment info", "topic": "Oxygen devices", "slo": ["SLO3"], "skill": "oxygen",
+    "id": "AI-04",
+    "type": "mcq",
+    "week": "Assessment info",
+    "topic": "Oxygen devices",
+    "slo": [
+      "SLO3"
+    ],
+    "skill": "oxygen",
     "stem": "Which oxygen delivery devices does the 93225 Subject Information name for managing oxygen therapy?",
     "options": [
-      {"text": "Simple face mask (Hudson mask), Venturi mask and non-rebreather mask", "correct": true, "why": "These three devices are named in the content topics and in the core clinical skill."},
-      {"text": "Nasal prongs, Hudson mask and Venturi mask only", "why": "The Subject Information names the Hudson, Venturi and non-rebreather masks; nasal prongs are not in that list."},
-      {"text": "CPAP, BiPAP and high-flow nasal prongs", "why": "These are not the devices the Subject Information names."},
-      {"text": "Venturi mask only", "why": "Three devices are named, not one."}
+      {
+        "text": "Simple face mask (Hudson mask), Venturi mask and non-rebreather mask",
+        "correct": true,
+        "why": "These three devices are named in the content topics and in the core clinical skill."
+      },
+      {
+        "text": "Nasal prongs, Hudson mask and Venturi mask only",
+        "why": "The Subject Information names the Hudson, Venturi and non-rebreather masks; nasal prongs are not in that list."
+      },
+      {
+        "text": "CPAP, BiPAP and high-flow nasal prongs",
+        "why": "These are not the devices the Subject Information names."
+      },
+      {
+        "text": "Venturi mask only",
+        "why": "Three devices are named, not one."
+      }
     ],
     "explanation": "Oxygen therapy with these three devices is also a core clinical skill assessed in the labs (Subject Information p.8). Their flow rates are not in the loaded sources; see Gaps.",
-    "cite": [{"src": "SI", "loc": "p.2 and p.8"}]
+    "cite": [
+      {
+        "src": "SI",
+        "loc": "p.2 and p.8"
+      }
+    ]
   },
   {
-    "id": "AI-05", "type": "mcq", "week": "Assessment info", "topic": "Assessment 2 format", "slo": ["SLO1", "SLO2", "SLO3", "SLO4"],
+    "id": "AI-05",
+    "type": "mcq",
+    "week": "Assessment info",
+    "topic": "Assessment 2 format",
+    "slo": [
+      "SLO1",
+      "SLO2",
+      "SLO3",
+      "SLO4"
+    ],
     "stem": "How much is Assessment 2 (Parts A and B combined) worth?",
     "options": [
-      {"text": "30%", "correct": true, "why": "Both the Canvas page and the Subject Information give a weighting of 30%."},
-      {"text": "20%", "why": "20% is Assessment 1 (Medication Calculation Quiz)."},
-      {"text": "50%", "why": "50% is Assessment 3 (Case-Based Assessment)."},
-      {"text": "15%", "why": "15 is the number of minutes for each part, not the weighting."}
+      {
+        "text": "30%",
+        "correct": true,
+        "why": "Both the Canvas page and the Subject Information give a weighting of 30%."
+      },
+      {
+        "text": "20%",
+        "why": "20% is Assessment 1 (Medication Calculation Quiz)."
+      },
+      {
+        "text": "50%",
+        "why": "50% is Assessment 3 (Case-Based Assessment)."
+      },
+      {
+        "text": "15%",
+        "why": "15 is the number of minutes for each part, not the weighting."
+      }
     ],
     "explanation": "Assessment 2 is individual, worth 30%, and runs in your Week 4 lab (weeks commencing 28 September 2026).",
-    "cite": [{"src": "A2", "loc": "Weighting line"}, {"src": "SI", "loc": "p.5 (Task 1), p.6 (Task 2), p.7 (Task 3)"}]
+    "cite": [
+      {
+        "src": "A2",
+        "loc": "Weighting line"
+      },
+      {
+        "src": "A2",
+        "loc": "Due date line"
+      },
+      {
+        "src": "SI",
+        "loc": "p.5 (Task 1), p.6 (Task 2), p.7 (Task 3)"
+      }
+    ]
   }
 ]

@@ -1,147 +1,659 @@
 [
   {
-    "id": "ST-01", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: recognition", "slo": ["SLO2"],
+    "id": "ST-01",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: recognition",
+    "slo": [
+      "SLO2"
+    ],
     "stem": "What does F.A.S.T. stand for in the Stroke Foundation poster?",
     "options": [
-      {"text": "Face drooped? Arms can't be raised? Speech slurred or confused? Time is critical: call 000", "correct": true, "why": "This is the wording on the F.A.S.T. poster in the lecture."},
-      {"text": "Fever, Airway, Swallow, Temperature", "why": "Not the F.A.S.T. mnemonic."},
-      {"text": "Face, Alertness, Sensation, Tone", "why": "Not the wording on the poster."},
-      {"text": "Fall, Arm weakness, Sight loss, Time", "why": "Not the wording on the poster."}
+      {
+        "text": "Face drooped? Arms can't be raised? Speech slurred or confused? Time is critical: call 000",
+        "correct": true,
+        "why": "This is the wording on the F.A.S.T. poster in the lecture."
+      },
+      {
+        "text": "Fever, Airway, Swallow, Temperature",
+        "why": "Not the F.A.S.T. mnemonic."
+      },
+      {
+        "text": "Face, Alertness, Sensation, Tone",
+        "why": "Not the wording on the poster."
+      },
+      {
+        "text": "Fall, Arm weakness, Sight loss, Time",
+        "why": "Not the wording on the poster."
+      }
     ],
     "explanation": "If you see any of these signs, act FAST and call triple zero (000).",
-    "cite": [{"src": "STROKE", "loc": "slide 19"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 19"
+      }
+    ]
   },
   {
-    "id": "ST-02", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: treatment", "slo": ["SLO2", "SLO4"],
+    "id": "ST-02",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: treatment",
+    "slo": [
+      "SLO2",
+      "SLO4"
+    ],
     "stem": "Up to how long after symptom onset may IV thrombolysis (tenecteplase or alteplase) be used for ischaemic stroke, according to the lecture?",
     "options": [
-      {"text": "Up to 4.5 hours", "correct": true, "why": "Give as early as possible, but it may be used up to 4.5 hours after onset."},
-      {"text": "Up to 24 hours", "why": "Up to 24 hours is the window for endovascular clot retrieval (ideally under 6 hours)."},
-      {"text": "Up to 48 hours", "why": "48 hours relates to the anticoagulant contraindication (anticoagulants within 48 hrs)."},
-      {"text": "Up to 6 hours", "why": "Under 6 hours is the ideal time for clot retrieval, not the thrombolysis limit."}
+      {
+        "text": "Up to 4.5 hours",
+        "correct": true,
+        "why": "Give as early as possible, but it may be used up to 4.5 hours after onset."
+      },
+      {
+        "text": "Up to 24 hours",
+        "why": "Up to 24 hours is the window for endovascular clot retrieval (ideally under 6 hours)."
+      },
+      {
+        "text": "Up to 48 hours",
+        "why": "48 hours relates to the anticoagulant contraindication (anticoagulants within 48 hrs)."
+      },
+      {
+        "text": "Up to 6 hours",
+        "why": "Under 6 hours is the ideal time for clot retrieval, not the thrombolysis limit."
+      }
     ],
     "explanation": "After thrombolysis: stroke team care, NIHSS neurological assessment and vital-sign monitoring.",
-    "cite": [{"src": "STROKE", "loc": "slides 23-25"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 23-25"
+      }
+    ]
   },
   {
-    "id": "ST-03", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: treatment", "slo": ["SLO2", "SLO4"], "reasoning": true,
+    "id": "ST-03",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: treatment",
+    "slo": [
+      "SLO2",
+      "SLO4"
+    ],
+    "reasoning": true,
     "stem": "Which finding is a contraindication to thrombolysis listed in the lecture?",
     "options": [
-      {"text": "Took an anticoagulant within the last 48 hours", "correct": true, "why": "'Anticoagulants within 48hrs' is on the contraindication list."},
-      {"text": "Symptom onset 2 hours ago", "why": "This is within the 4.5-hour window, not a contraindication."},
-      {"text": "Age over 65", "why": "Age is not on the contraindication list."},
-      {"text": "An ischaemic stroke confirmed on CT", "why": "Thrombolysis is for ischaemic stroke. Haemorrhagic stroke is the contraindication."}
+      {
+        "text": "Took an anticoagulant within the last 48 hours",
+        "correct": true,
+        "why": "'Anticoagulants within 48hrs' is on the contraindication list."
+      },
+      {
+        "text": "Symptom onset 2 hours ago",
+        "why": "This is within the 4.5-hour window, not a contraindication."
+      },
+      {
+        "text": "Age over 65",
+        "why": "Age is not on the contraindication list."
+      },
+      {
+        "text": "An ischaemic stroke confirmed on CT",
+        "why": "Thrombolysis is for ischaemic stroke. Haemorrhagic stroke is the contraindication."
+      }
     ],
     "explanation": "Contraindications: haemorrhagic stroke; large ischaemic area on imaging (over 1/3); active bleeding or recent trauma or surgery; coagulopathy (low platelets, high INR); anticoagulants within 48 hrs.",
-    "cite": [{"src": "STROKE", "loc": "slide 25"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 25"
+      }
+    ]
   },
   {
-    "id": "ST-04", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: localisation", "slo": ["SLO2"], "reasoning": true,
+    "id": "ST-04",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: localisation",
+    "slo": [
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "A patient has sudden right-sided arm weakness and difficulty finding words. Which hemisphere is most likely affected?",
     "options": [
-      {"text": "Left hemisphere", "correct": true, "why": "The left hemisphere controls motor function on the right side of the body and handles speech, language and comprehension."},
-      {"text": "Right hemisphere", "why": "The right hemisphere controls the LEFT side of the body."},
-      {"text": "Cerebellum", "why": "The cerebellum handles balance, coordination and fine muscle control, not language."},
-      {"text": "Occipital lobe", "why": "The occipital lobe handles vision."}
+      {
+        "text": "Left hemisphere",
+        "correct": true,
+        "why": "The left hemisphere controls motor function on the right side of the body and handles speech, language and comprehension."
+      },
+      {
+        "text": "Right hemisphere",
+        "why": "The right hemisphere controls the LEFT side of the body."
+      },
+      {
+        "text": "Cerebellum",
+        "why": "The cerebellum handles balance, coordination and fine muscle control, not language."
+      },
+      {
+        "text": "Occipital lobe",
+        "why": "The occipital lobe handles vision."
+      }
     ],
-    "explanation": "Knowing which area is affected lets you anticipate symptoms and give person-centred care (for example communication aids for dysphasia).",
-    "cite": [{"src": "STROKE", "loc": "slides 3-4"}]
+    "explanation": "Identifying the area of the brain affected lets you recognise symptoms and provide patient-centred care.",
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 3-4"
+      }
+    ]
   },
   {
-    "id": "ST-05", "type": "mcq", "week": "Stroke lecture", "topic": "Neurological assessment", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "id": "ST-05",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Neurological assessment",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "A patient's GCS falls from 14 to 12 between observations. On the adult neurological observation chart shown in the lecture, what should you do?",
     "options": [
-      {"text": "Initiate a Rapid Response", "correct": true, "why": "The chart says: if GCS drops by 2 or more points, initiate a Rapid Response."},
-      {"text": "Initiate a Clinical Review", "why": "A Clinical Review is for a 1-point drop. This is a 2-point drop."},
-      {"text": "Recheck in 4 hours", "why": "A 2-point drop meets the Rapid Response criterion now."},
-      {"text": "Document only; a GCS of 12 is acceptable", "why": "The trigger is the size of the drop, not the absolute score."}
+      {
+        "text": "Initiate a Rapid Response",
+        "correct": true,
+        "why": "The chart says: if GCS drops by 2 or more points, initiate a Rapid Response."
+      },
+      {
+        "text": "Initiate a Clinical Review",
+        "why": "A Clinical Review is for a 1-point drop. This is a 2-point drop."
+      },
+      {
+        "text": "Recheck in 4 hours",
+        "why": "A 2-point drop meets the Rapid Response criterion now."
+      },
+      {
+        "text": "Document only; a GCS of 12 is acceptable",
+        "why": "The trigger is the size of the drop, not the absolute score."
+      }
     ],
     "explanation": "Findings (GCS down 2) → interpretation (neurological deterioration) → action (Rapid Response).",
-    "cite": [{"src": "STROKE", "loc": "slide 21"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 21"
+      }
+    ]
   },
   {
-    "id": "ST-06", "type": "mcq", "week": "Stroke lecture", "topic": "Neurological assessment", "slo": ["SLO1"],
+    "id": "ST-06",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Neurological assessment",
+    "slo": [
+      "SLO1"
+    ],
     "stem": "A patient opens their eyes to speech, is confused, and localises to pain. What is their GCS on the chart in the lecture?",
     "options": [
-      {"text": "12 (E3 V4 M5)", "correct": true, "why": "Eyes to speech = 3, confused = 4, localises to pain = 5, total 12."},
-      {"text": "11 (E3 V4 M4)", "why": "Withdraws = 4, but localising to pain scores 5."},
-      {"text": "13 (E4 V4 M5)", "why": "Spontaneous eye opening scores 4. Eyes open to speech scores 3."},
-      {"text": "10 (E2 V3 M5)", "why": "Eyes to pain = 2 and inappropriate words = 3 do not match this patient."}
+      {
+        "text": "12 (E3 V4 M5)",
+        "correct": true,
+        "why": "Eyes to speech = 3, confused = 4, localises to pain = 5, total 12."
+      },
+      {
+        "text": "11 (E3 V4 M4)",
+        "why": "Withdraws = 4, but localising to pain scores 5."
+      },
+      {
+        "text": "13 (E4 V4 M5)",
+        "why": "Spontaneous eye opening scores 4. Eyes open to speech scores 3."
+      },
+      {
+        "text": "10 (E2 V3 M5)",
+        "why": "Eyes to pain = 2 and inappropriate words = 3 do not match this patient."
+      }
     ],
     "explanation": "Rate by the HIGHEST response observed (the 'Rate' step on the GCS slide).",
-    "cite": [{"src": "STROKE", "loc": "slide 21"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 21"
+      }
+    ]
   },
   {
-    "id": "ST-07", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: diagnosis", "slo": ["SLO2"],
+    "id": "ST-07",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: diagnosis",
+    "slo": [
+      "SLO2"
+    ],
     "stem": "In the ACI stroke pathway in the lecture, what does the first imaging (non-contrast head CT) rule out?",
     "options": [
-      {"text": "Intracerebral haemorrhage", "correct": true, "why": "The pathway says 'Noncontrast head CT rules out intracerebral haemorrhage'."},
-      {"text": "Pneumonia", "why": "A head CT does not assess the lungs."},
-      {"text": "Atrial fibrillation", "why": "AF is found on an ECG, not CT."},
-      {"text": "Hyperglycaemia", "why": "Blood glucose is a blood test."}
+      {
+        "text": "Intracerebral haemorrhage",
+        "correct": true,
+        "why": "The pathway says 'Noncontrast head CT rules out intracerebral haemorrhage'."
+      },
+      {
+        "text": "Pneumonia",
+        "why": "The pathway uses non-contrast head CT to rule out intracerebral haemorrhage, not pneumonia."
+      },
+      {
+        "text": "Atrial fibrillation",
+        "why": "The pathway uses non-contrast head CT to rule out intracerebral haemorrhage, not atrial fibrillation."
+      },
+      {
+        "text": "Hyperglycaemia",
+        "why": "The pathway uses non-contrast head CT to rule out intracerebral haemorrhage, not hyperglycaemia."
+      }
     ],
     "explanation": "Haemorrhage must be excluded because haemorrhagic stroke is a contraindication to thrombolysis.",
-    "cite": [{"src": "STROKE", "loc": "slides 20, 25, 26"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 20, 25, 26"
+      }
+    ]
   },
   {
-    "id": "ST-08", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: nursing care", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "id": "ST-08",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: nursing care",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "According to the lecture, which factors must be controlled to prevent secondary brain injury after stroke?",
     "options": [
-      {"text": "Hypertension, hyperglycaemia, infection and hypoxia", "correct": true, "why": "The medical management slide lists these four as the targets for preventing secondary brain injury."},
-      {"text": "Hypotension only", "why": "The slide lists four factors; nursing care also says avoid both hyper- and hypotension."},
-      {"text": "Pain and anxiety only", "why": "Not the factors listed for secondary brain injury."},
-      {"text": "Tachycardia and hypothermia", "why": "Not the factors listed on the slide."}
+      {
+        "text": "Hypertension, hyperglycaemia, infection and hypoxia",
+        "correct": true,
+        "why": "The medical management slide lists these four as the targets for preventing secondary brain injury."
+      },
+      {
+        "text": "Hypotension only",
+        "why": "The slide lists four factors; nursing care also says avoid both hyper- and hypotension."
+      },
+      {
+        "text": "Pain and anxiety only",
+        "why": "Not the factors listed for secondary brain injury."
+      },
+      {
+        "text": "Tachycardia and hypothermia",
+        "why": "Not the factors listed on the slide."
+      }
     ],
     "explanation": "Nursing links: BP management (avoid hyper/hypotension), manage hyperglycaemia, manage fevers and infection, neurological monitoring.",
-    "cite": [{"src": "STROKE", "loc": "slides 23, 28"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 23, 28"
+      }
+    ]
   },
   {
-    "id": "ST-09", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: nursing care", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "id": "ST-09",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: nursing care",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "A patient with new facial droop and slurred speech asks for a drink of water. Which nursing consideration from the lecture applies most directly?",
     "options": [
-      {"text": "Dysphagia: swallow assessment", "correct": true, "why": "'Dysphagia (swallow assessment)' is on the lecture's list of nursing considerations, and facial and speech deficits suggest the face and mouth are affected."},
-      {"text": "DVT prophylaxis", "why": "DVT prophylaxis is on the list, but it does not answer whether the patient can safely drink."},
-      {"text": "Reduce the risk of falls", "why": "Falls prevention is on the list, but it is not the issue raised by a request to drink."},
-      {"text": "Manage delirium", "why": "Delirium management is on the list, but the question is about swallowing safely."}
+      {
+        "text": "Dysphagia: swallow assessment",
+        "correct": true,
+        "why": "'Dysphagia (swallow assessment)' is on the lecture's list of nursing considerations, and facial and speech deficits suggest the face and mouth are affected."
+      },
+      {
+        "text": "DVT prophylaxis",
+        "why": "DVT prophylaxis is on the list, but it does not answer whether the patient can safely drink."
+      },
+      {
+        "text": "Reduce the risk of falls",
+        "why": "Falls prevention is on the list, but it is not the issue raised by a request to drink."
+      },
+      {
+        "text": "Manage delirium",
+        "why": "Delirium management is on the list, but the question is about swallowing safely."
+      }
     ],
     "explanation": "The motor homunculus shows swallowing, tongue, jaw and lips next to the face, all in the MCA territory.",
-    "cite": [{"src": "STROKE", "loc": "slides 8, 9, 28"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 8, 9, 28"
+      }
+    ]
   },
   {
-    "id": "ST-10", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: types", "slo": ["SLO2"],
+    "id": "ST-10",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: types",
+    "slo": [
+      "SLO2"
+    ],
     "stem": "According to the lecture, what proportion of strokes are ischaemic?",
     "options": [
-      {"text": "4 out of 5", "correct": true, "why": "'4 out of 5 strokes are ischaemic'; the haemorrhagic slide gives 1 out of 5."},
-      {"text": "1 out of 5", "why": "1 out of 5 is the haemorrhagic proportion."},
-      {"text": "1 out of 2", "why": "Not stated in the lecture."},
-      {"text": "85%", "why": "85% is the share of subarachnoid haemorrhages caused by a ruptured aneurysm."}
+      {
+        "text": "4 out of 5",
+        "correct": true,
+        "why": "'4 out of 5 strokes are ischaemic'; the haemorrhagic slide gives 1 out of 5."
+      },
+      {
+        "text": "1 out of 5",
+        "why": "1 out of 5 is the haemorrhagic proportion."
+      },
+      {
+        "text": "1 out of 2",
+        "why": "Not stated in the lecture."
+      },
+      {
+        "text": "85%",
+        "why": "85% is the share of subarachnoid haemorrhages caused by a ruptured aneurysm."
+      }
     ],
     "explanation": "Ischaemic subtypes: embolic (a clot travels to the brain) and thrombotic (plaque formation). TIA = temporary blockage.",
-    "cite": [{"src": "STROKE", "loc": "slides 10-12"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 10-12"
+      }
+    ]
   },
   {
-    "id": "ST-11", "type": "mcq", "week": "Stroke lecture", "topic": "Stroke: types", "slo": ["SLO1", "SLO2"], "reasoning": true,
+    "id": "ST-11",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: types",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "reasoning": true,
     "stem": "A patient's facial droop and arm weakness resolve completely and a transient ischaemic attack (TIA) is diagnosed. What risk does the lecture highlight?",
     "options": [
-      {"text": "1 in 5 will have a major stroke within the next 3 months", "correct": true, "why": "The ischaemic stroke slide gives this statistic for TIA."},
-      {"text": "No further risk, because symptoms resolved", "why": "The lecture stresses a significant risk of major stroke after TIA."},
-      {"text": "85% will have a subarachnoid haemorrhage", "why": "85% is the proportion of SAH caused by ruptured aneurysm."},
-      {"text": "Functional independence in only 20%", "why": "That statistic is for haemorrhagic stroke."}
+      {
+        "text": "1 in 5 will have a major stroke within the next 3 months",
+        "correct": true,
+        "why": "The ischaemic stroke slide gives this statistic for TIA."
+      },
+      {
+        "text": "No further risk, because symptoms resolved",
+        "why": "The lecture stresses a significant risk of major stroke after TIA."
+      },
+      {
+        "text": "85% will have a subarachnoid haemorrhage",
+        "why": "85% is the proportion of SAH caused by ruptured aneurysm."
+      },
+      {
+        "text": "Functional independence in only 20%",
+        "why": "That statistic is for haemorrhagic stroke."
+      }
     ],
     "explanation": "A TIA is a temporary blockage of the vessels supplying the brain. Take it seriously: early recognition and treatment are vital to stroke outcomes.",
-    "cite": [{"src": "STROKE", "loc": "slides 9-11"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 9-12"
+      }
+    ]
   },
   {
-    "id": "ST-12", "type": "saq", "week": "Stroke lecture", "topic": "Stroke: treatment", "slo": ["SLO1", "SLO2"], "reasoning": true,
-    "prompt": "Mr K has sudden left facial droop and left arm weakness that started 1 hour ago. Using the stroke lecture, outline the initial assessment, first imaging, the time-critical ischaemic stroke treatments (with time windows), and four nursing considerations.",
+    "id": "ST-12",
+    "type": "saq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: treatment",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "reasoning": true,
+    "prompt": "A patient has sudden left facial droop and left arm weakness that started 1 hour ago. Using the stroke lecture, outline the initial assessment, first imaging, the time-critical ischaemic stroke treatments (with time windows), and four nursing considerations.",
     "model": "Initial assessment: time of symptom onset, past medical history, medications; vital signs, GCS and NIHSS. First imaging: non-contrast CT to rule out intracerebral haemorrhage (then CTA/CT perfusion). If ischaemic: IV thrombolysis (tenecteplase or alteplase) as early as possible and up to 4.5 hours after onset, if there are no contraindications (for example haemorrhage, anticoagulants within 48 hrs, coagulopathy); endovascular clot retrieval up to 24 hours (ideally under 6 hours) for some patients. Nursing: neurological monitoring (NIHSS/GCS) and vital signs after thrombolysis; BP management avoiding hyper- and hypotension; dysphagia screening (swallow assessment); managing fever, infection and hyperglycaemia; falls, pressure-area care and positioning; engaging family.",
     "rubric": [
-      {"point": "Symptom onset time, history, medications; vital signs, GCS + NIHSS", "cite": [{"src": "STROKE", "loc": "slide 20"}]},
-      {"point": "Non-contrast CT first to rule out haemorrhage", "cite": [{"src": "STROKE", "loc": "slides 20, 26"}]},
-      {"point": "Thrombolysis up to 4.5 h; ECR up to 24 h (ideally under 6 h)", "cite": [{"src": "STROKE", "loc": "slides 23-25"}]},
-      {"point": "At least one thrombolysis contraindication", "cite": [{"src": "STROKE", "loc": "slide 25"}]},
-      {"point": "Four nursing considerations (e.g. neuro obs, BP, swallow assessment, glucose/fever, falls)", "cite": [{"src": "STROKE", "loc": "slide 28"}]}
+      {
+        "point": "Symptom onset time, history, medications; vital signs, GCS + NIHSS",
+        "cite": [
+          {
+            "src": "STROKE",
+            "loc": "slide 20"
+          }
+        ]
+      },
+      {
+        "point": "Non-contrast CT first to rule out haemorrhage",
+        "cite": [
+          {
+            "src": "STROKE",
+            "loc": "slides 20, 26"
+          }
+        ]
+      },
+      {
+        "point": "Thrombolysis up to 4.5 h; ECR up to 24 h (ideally under 6 h)",
+        "cite": [
+          {
+            "src": "STROKE",
+            "loc": "slides 23-25"
+          }
+        ]
+      },
+      {
+        "point": "At least one thrombolysis contraindication",
+        "cite": [
+          {
+            "src": "STROKE",
+            "loc": "slide 25"
+          }
+        ]
+      },
+      {
+        "point": "Four nursing considerations (e.g. neuro obs, BP, swallow assessment, glucose/fever, falls)",
+        "cite": [
+          {
+            "src": "STROKE",
+            "loc": "slide 28"
+          }
+        ]
+      }
     ],
-    "cite": [{"src": "STROKE", "loc": "slides 20-28"}]
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 20-28"
+      }
+    ]
+  },
+  {
+    "id": "ST-13",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: types",
+    "slo": [
+      "SLO2"
+    ],
+    "stem": "According to the lecture, what causes 85% of subarachnoid haemorrhages?",
+    "options": [
+      {
+        "text": "A ruptured aneurysm",
+        "correct": true,
+        "why": "'85% are caused by a ruptured aneurysm'."
+      },
+      {
+        "text": "An embolus from the heart",
+        "why": "Embolic clots cause ischaemic (embolic) stroke."
+      },
+      {
+        "text": "Plaque formation",
+        "why": "Plaque formation describes thrombotic ischaemic stroke."
+      },
+      {
+        "text": "Trauma only",
+        "why": "Trauma is listed as a cause of haemorrhagic stroke, but 85% of SAH is attributed to ruptured aneurysm."
+      }
+    ],
+    "explanation": "SAH needs vascular treatment because of the risk of re-rupture: surgical clipping or endovascular coiling/stenting.",
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 10-12"
+      }
+    ]
+  },
+  {
+    "id": "ST-14",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: treatment",
+    "slo": [
+      "SLO2",
+      "SLO4"
+    ],
+    "stem": "Endovascular treatment of a cerebral aneurysm with stenting and coiling requires which medicine therapy, according to the lecture?",
+    "options": [
+      {
+        "text": "Dual antiplatelet therapy (DAPT)",
+        "correct": true,
+        "why": "The endovascular slide says it 'requires administration of dual antiplatelet therapy (DAPT)'."
+      },
+      {
+        "text": "IV thrombolysis",
+        "why": "Thrombolysis is for ischaemic stroke; haemorrhagic stroke is a contraindication."
+      },
+      {
+        "text": "Magnesium sulfate",
+        "why": "Magnesium sulfate appears in the asthma material."
+      },
+      {
+        "text": "No medication is involved",
+        "why": "The slide states DAPT is required."
+      }
+    ],
+    "explanation": "Surgical alternative: craniotomy and clipping, where the clip stays in situ permanently.",
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slides 14-15, 25"
+      }
+    ]
+  },
+  {
+    "id": "ST-15",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: types",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "stem": "Which is NOT listed in the lecture as a risk factor for cerebral aneurysm?",
+    "options": [
+      {
+        "text": "Being under 20 years of age",
+        "correct": true,
+        "why": "The listed risk factors are smoking, hypertension, family history, age over 40, and being female (women > men)."
+      },
+      {
+        "text": "Smoking",
+        "why": "Smoking is listed."
+      },
+      {
+        "text": "Hypertension",
+        "why": "Hypertension is listed."
+      },
+      {
+        "text": "Family history",
+        "why": "Family history is listed."
+      }
+    ],
+    "explanation": "Ruptured aneurysms cause subarachnoid haemorrhage and are a medical emergency.",
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 13"
+      }
+    ]
+  },
+  {
+    "id": "ST-16",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: treatment",
+    "slo": [
+      "SLO2"
+    ],
+    "stem": "In endovascular clot retrieval, how is the catheter introduced, according to the lecture?",
+    "options": [
+      {
+        "text": "Via the femoral or radial artery",
+        "correct": true,
+        "why": "The catheter is 'fed into the blocked blood vessel (via femoral or radial artery)'."
+      },
+      {
+        "text": "Through a burr hole in the skull",
+        "why": "ECR is endovascular, not a craniotomy."
+      },
+      {
+        "text": "Via a peripheral IV cannula in the hand",
+        "why": "The slide specifies the femoral or radial artery."
+      },
+      {
+        "text": "Through the jugular vein",
+        "why": "Not stated; the slide names arterial access."
+      }
+    ],
+    "explanation": "A wire stent or suction device captures the clot. ECR can be done up to 24 hours from onset (ideally under 6 hours) for some patients, often with thrombolysis.",
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 24"
+      }
+    ]
+  },
+  {
+    "id": "ST-17",
+    "type": "mcq",
+    "week": "Stroke lecture",
+    "topic": "Stroke: recognition",
+    "slo": [
+      "SLO1",
+      "SLO2"
+    ],
+    "stem": "Which age-related change does the lecture link to a reduced ability to recover from a brain insult?",
+    "options": [
+      {
+        "text": "Reduction in new neuronal growth",
+        "correct": true,
+        "why": "The slide says 'Reduction in new neuronal growth - reduce the ability to recover from insult'."
+      },
+      {
+        "text": "Increased cerebral blood flow",
+        "why": "The slide says cerebral blood flow DEcreases (more than 25% by the 80s)."
+      },
+      {
+        "text": "Improved baroreceptor function",
+        "why": "The slide says baroreceptor function decreases."
+      },
+      {
+        "text": "Growth of new synapses",
+        "why": "The slide describes a loss of synapses."
+      }
+    ],
+    "explanation": "Other changes: cerebral amyloidosis (70s), atherosclerosis, neuronal loss and shrinkage, decreased cerebral blood flow and metabolic rate.",
+    "cite": [
+      {
+        "src": "STROKE",
+        "loc": "slide 17"
+      }
+    ]
   }
 ]
