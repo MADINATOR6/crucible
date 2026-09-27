@@ -1,0 +1,266 @@
+[
+  {
+    "id": "g-ausc", "group": "Part B skills", "title": "Lung auscultation", "skill": "auscultation", "match": "auscultat|breath sound|crackle|wheeze|stridor",
+    "summary": "How to listen, where to listen, and what the sounds mean.",
+    "blocks": [
+      {"h": "Set up", "points": [
+        {"text": "Clean the stethoscope, explain and gain consent, keep the patient warm, screen for privacy, hand hygiene.", "cite": [{"src": "AUSC", "loc": "p.2"}]},
+        {"text": "Best position: sitting in a chair or on the side of the bed; some patients only tolerate lying at 45°. Expose the chest while keeping privacy and dignity.", "cite": [{"src": "AUSC", "loc": "p.2"}, {"src": "L2", "loc": "slide 7"}]},
+        {"text": "Ask the patient to breathe through their mouth.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+        {"text": "Bell for high-pitched sounds at the apex above the clavicle; diaphragm for low-pitched sounds over the rest of the chest.", "cite": [{"src": "AUSC", "loc": "p.1"}]}
+      ]},
+      {"h": "Technique", "points": [
+        {"text": "Stepladder approach, anterior 1st to 7th intercostal space, comparing side to side. Listen through a full inspiration and expiration at each point.", "cite": [{"src": "AUSC", "loc": "p.2-3"}]},
+        {"text": "Posterior: stepladder again, avoiding the scapula (you can't hear through bone). Lateral: arm aside, upper → middle → lower lobe on the right, then upper and lower on the left.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Listen for quality, intensity and adventitious (unexpected) sounds.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+        {"text": "Finish: replace clothing, explain findings, clean the stethoscope, hand hygiene, and record location, quality and where any abnormal sounds were heard.", "cite": [{"src": "AUSC", "loc": "p.3-4"}]}
+      ]},
+      {"h": "What you hear, and what it can mean", "points": [
+        {"text": "Normal: vesicular (soft, low, most of the lung field); bronchovesicular (1st-2nd ICS beside the sternum, between the scapulae); bronchial (over the manubrium); tracheal (over the trachea).", "cite": [{"src": "AUSC", "loc": "p.4 (Table 1)"}]},
+        {"text": "Crackles: mostly inspiratory, from small airways. Coarse may indicate pneumonia; fine may suggest pulmonary oedema. Also seen in COPD, fibrosis, infection, heart failure.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Wheeze: often expiratory, musical; high-pitched in asthma. An inspiratory wheeze (stridor) usually means upper airway obstruction.", "cite": [{"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Rhonchi: continuous low-pitched gurgling, most prominent over the trachea and bronchi. Friction rub: grating or creaking from inflamed pleura, commonly lower anterior and lateral thorax.", "cite": [{"src": "L2", "loc": "slide 10"}]},
+        {"text": "Absent breath sounds: e.g. pneumothorax, pleural effusion, consolidation.", "cite": [{"src": "AUSC", "loc": "p.3-4"}]},
+        {"text": "Percussion: resonant = healthy; hyper-resonant = too much air (emphysema, pneumothorax); dull = abnormal density (pneumonia, effusion, tumour).", "cite": [{"src": "L2", "loc": "slide 9"}]},
+        {"text": "Stridor needs an immediate senior doctor review; a silent chest may mean total peripheral airway obstruction.", "cite": [{"src": "COPD", "loc": "slide 9"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-ecg", "group": "Part B skills", "title": "ECG lead placement and monitoring", "skill": "ecg", "match": "ECG|electrode|lead|monitor|rhythm|telemetry",
+    "summary": "Electrode positions, preparation, and what monitoring can and can't do.",
+    "blocks": [
+      {"h": "Precordial (chest) leads", "points": [
+        {"text": "V1: 4th intercostal space, RIGHT sternal margin. V2: 4th ICS, LEFT sternal margin.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V4: 5th ICS, mid-clavicular line. V3: midway between V2 and V4.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "V5: 5th ICS, anterior axillary line. V6: 5th ICS, mid-axillary line (V5 and V6 at the same level as V4).", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]}
+      ]},
+      {"h": "Limb leads", "points": [
+        {"text": "Slightly proximal to the wrists and ankles, symmetrical, avoiding bony prominences. Inconsistent limb placement changes how the ECG looks.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]},
+        {"text": "No standard site (amputation, tremor): use the most distal available point, mirrored on the other side. Avoid torso placement for a diagnostic 12-lead, and document the modified placement on the tracing.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-2-introduction-to-performing-an-ecg"}]}
+      ]},
+      {"h": "The procedure (Lab 3 appraisal form)", "points": [
+        {"text": "Privacy and warmth; remove objects causing electrical interference; person centred on the bed, feet not touching the footboard; clip hair; wipe excess oil; electrodes on clean, dry, hair-free skin; ask them to stay still and relaxed; record; remove electrodes and clean skin.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]},
+        {"text": "After: document the procedure, assessment data and ECG interpretation; initiate nursing interventions; report abnormalities.", "cite": [{"src": "LAB3PKG", "loc": "p.21"}]}
+      ]},
+      {"h": "Monitoring vs 12-lead", "points": [
+        {"text": "Continuous monitoring (hardwire or telemetry, usually 3 or 5 electrodes) watches rhythm but does not diagnose. Record a 12-lead when a diagnosis is needed.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-3-cardiac-monitoring-and-telemetry"}]},
+        {"text": "Hardwire: movement limited to cable reach. Telemetry: the patient can walk around the ward. Each hardwire disconnection is unwatched time, so plan toileting and transfers.", "cite": [{"src": "CANVAS", "loc": "page 3-dot-3-cardiac-monitoring-and-telemetry"}]},
+        {"text": "Monitoring form: select Lead 2, set alarm settings, print a rhythm strip, document the rhythm.", "cite": [{"src": "LAB3PKG", "loc": "p.22"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-o2", "group": "Part B skills", "title": "Oxygen therapy and devices", "skill": "oxygen", "match": "oxygen|SpO2|FiO2|mask|prong|cannula|Venturi|hypercap",
+    "summary": "Prescription, targets, devices and escalation triggers.",
+    "blocks": [
+      {"h": "Principles (TSANZ 2022)", "points": [
+        {"text": "Oxygen is a drug and needs a prescription: flow rate, delivery device, SpO2 target with upper and lower limits, and criteria for deterioration and improvement.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Targets: 88-92% where there is potential for hypercapnia (chronic respiratory disease, e.g. COPD), i.e. give O2 when SpO2 < 88%. Otherwise 92-96%, i.e. give O2 when SpO2 < 92%.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Nasal cannulae are preferred in most situations for ease and practicality.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Needing high FiO2 means serious illness: senior clinician review if FiO2 ≥ 0.40 or ≥ 6 L/min via simple face mask is needed to keep the target; ICU review if FiO2 ≥ 0.50 or ≥ 8 L/min.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Stable saturations on more oxygen is deterioration.", "cite": [{"src": "L3", "loc": "p.15"}]}
+      ]},
+      {"h": "Devices", "points": [
+        {"text": "Nasal prongs: 1-4 L (93225 Canvas; above 4 L needs humidification, which standard prongs can't provide). Section 12.5: 24-44% at 1-6 L/min.", "cite": [{"src": "CANVAS", "loc": "page 2-dot-2-preparation-activities-respiratory-nursing-skills"}, {"src": "S125", "loc": "p.21"}]},
+        {"text": "Hudson (simple face) mask: 5-10 L (Canvas). Section 12.5: 40-60% at 5-8 L/min, and at least 5 L/min to prevent rebreathing CO2.", "cite": [{"src": "CANVAS", "loc": "page 2-dot-2-preparation-activities-respiratory-nursing-skills"}, {"src": "S125", "loc": "p.24"}]},
+        {"text": "Non-rebreather: 95-100% at 10-15 L/min. Inflate the reservoir before it goes on the face, and keep the flow high enough that the bag stays inflated.", "cite": [{"src": "S125", "loc": "p.25-26"}, {"src": "O2CHK", "loc": "p.2"}, {"src": "WB2", "loc": "p.~4"}]},
+        {"text": "Venturi: controlled FiO2, 24-50% at 4-10 L/min (e.g. blue 24% at 4 L/min; green 35% at 8 L/min). Turn the barrel to the ordered concentration and set the matching flow.", "cite": [{"src": "S125", "loc": "p.26-27"}, {"src": "O2CHK", "loc": "p.3"}]}
+      ]},
+      {"h": "Every device, every time", "points": [
+        {"text": "Semi-Fowler's if possible; apply the mask from the nose downwards; pad ears and bony prominences; pulse oximetry with low and high alarms; check skin for dampness or chafing; document; tell the treating doctor about changes.", "cite": [{"src": "O2CHK", "loc": "p.1-3"}]}
+      ]}
+    ],
+    "context": []
+  },
+  {
+    "id": "g-neb", "group": "Part B skills", "title": "Nebuliser and inhaled medicines", "skill": "nebuliser", "match": "nebul|inhal|spacer|puffer|salbutamol|relieve|preventer|MDI",
+    "summary": "When a nebuliser is used, the procedure, flows and safety.",
+    "blocks": [
+      {"h": "Why and when", "points": [
+        {"text": "A nebuliser turns liquid medication into a mist, inhaled via a mask or mouthpiece. For most people a puffer and spacer works as well and is more convenient.", "cite": [{"src": "S126", "loc": "p.2, p.11"}]},
+        {"text": "Still used when the person can't use an inhaler (confusion, hand problems), has lots of mucus (the humidification helps), or is really struggling to breathe.", "cite": [{"src": "S126", "loc": "p.11"}]},
+        {"text": "Relievers (e.g. salbutamol) relax airway muscle. Preventers (corticosteroids, e.g. fluticasone, budesonide) reduce swelling and mucus.", "cite": [{"src": "S126", "loc": "p.3-4"}]}
+      ]},
+      {"h": "Procedure essentials", "points": [
+        {"text": "Before: respiratory assessment (at minimum auscultate, so you can compare after). Check a valid medication order; six rights; identity (full name, DOB) and allergies; consent; sit upright.", "cite": [{"src": "S126", "loc": "p.12-15"}]},
+        {"text": "Connect the tubing to the chamber before adding the liquid (avoids spillage); add medication, close the chamber, attach the mask or mouthpiece; breathe normally; about 5-10 minutes.", "cite": [{"src": "S126", "loc": "p.15-16"}]},
+        {"text": "Flow: set 6-8 L/min. Too high (above 10 L/min) delivers the medication too fast and may pop the connection off.", "cite": [{"src": "L2", "loc": "slide 16"}]},
+        {"text": "If oxygen drives it instead of the compressor, always monitor SpO2.", "cite": [{"src": "S126", "loc": "p.16"}]},
+        {"text": "After: reassess breathing, RR and auscultate; rinse the chamber; document, including breath sounds before and after; stop and escalate if the person deteriorates.", "cite": [{"src": "S126", "loc": "p.17-18"}, {"src": "WB2", "loc": "p.~7"}]}
+      ]},
+      {"h": "Driving gas (sources differ)", "points": [
+        {"text": "COPD / chronic respiratory failure: MDI and spacer preferred; if a nebuliser is necessary it should be air-driven, with oxygen continued via nasal cannulae.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Life-threatening acute asthma (Asthma Handbook figure in the FNP2B tutorial): oxygen drives continuous salbutamol nebulisation.", "cite": [{"src": "ASTHMA", "loc": "slide 15"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-agh", "group": "Assessment", "title": "A–G (+H) and focused assessment", "match": "A-G|A–H|A-H|assessment|holistic",
+    "summary": "The structured approach behind Part A reasoning questions.",
+    "blocks": [
+      {"h": "Why it matters", "points": [
+        {"text": "Know what normal is so you can identify abnormal, however subtle the change.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-1-look-listen-feel-interpret-this-is-must-know-stuff"}]},
+        {"text": "Admission assessment: history, general appearance, examination, vital signs on admission. Shift assessment: at the start of each shift or when the condition changes. Focused assessment: detailed assessment of the system(s) related to the presenting problem, usually combined with others.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-1-look-listen-feel-interpret-this-is-must-know-stuff"}]},
+        {"text": "The A-G (+H) table is the GATHER part of the 'collect cues' stage of the Clinical Reasoning Cycle.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]}
+      ]},
+      {"h": "H: holistic care", "points": [
+        {"text": "Look: support people, non-verbal cues, documented psychosocial concerns. Listen: what matters most, goals, language or health literacy needs. Feel: empathic presence. Consider: social determinants, goals of care and advance care plan, cultural and spiritual needs, functional baseline, carer communication.", "cite": [{"src": "L1", "loc": "p.25"}]}
+      ]},
+      {"h": "Respiratory history questions", "points": [
+        {"text": "Previous admissions or ICU/intubation for breathing; asthma/COPD and last exacerbation; smoking or vaping amount; regular puffers and how often; current cough/cold/flu; breathless on movement or at rest; sleeping on more pillows.", "cite": [{"src": "L2", "loc": "slide 6"}]},
+        {"text": "Inspection: RR for a full minute (depth, rhythm, symmetry), accessory muscles (tracheal tug, subcostal/intercostal recession), pursed-lip breathing, bruising or lumps.", "cite": [{"src": "L2", "loc": "slide 7"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-neuro", "group": "Assessment", "title": "Neurological assessment: AVPU, GCS, limbs", "match": "GCS|AVPU|neuro|limb|pupil|conscious|cranial",
+    "summary": "Level of consciousness and the focused neuro assessment.",
+    "blocks": [
+      {"h": "Focused neuro assessment", "points": [
+        {"text": "Done with other assessments, and at minimum with vital signs, because most vital-sign changes are a sign of end-stage neurological injury. Assess LOC, limb strength, pupillary response and cranial nerves as applicable.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+        {"text": "Non-neuro patients need it too, e.g. pneumonia with hypoxia, or post-op blood loss.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]}
+      ]},
+      {"h": "AVPU and GCS", "points": [
+        {"text": "AVPU: Alert (eyes open spontaneously); Verbal (eyes open to a verbal stimulus); Pain (responds only to painful stimuli); Unresponsive.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+        {"text": "Limb strength comes after the GCS; score each limb separately, upper to lower, proximal to distal.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-2-preparation-activities-patient-assessment"}]},
+        {"text": "GCS: eyes 4/3/2/1 (spontaneous, to speech, to pain, none); verbal 5-1 (orientated, confused, inappropriate words, incomprehensible sounds, none); motor 6-1 (obeys, localises, withdraws, flexion, extension, none). Rate the highest response. A 1-point drop → clinical review; a 2-point drop → rapid response.", "cite": [{"src": "STROKE", "loc": "slide 21"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-bls", "group": "Assessment", "title": "Basic life support", "match": "BLS|life support|CPR|airway|bag|arrest|DRSABCD",
+    "summary": "Recognising arrest and the BLS response.",
+    "blocks": [
+      {"h": "Key points", "points": [
+        {"text": "Start CPR when a person is unresponsive and not breathing normally. No pulse check: pulse checks are not part of BLS and are unreliable.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+        {"text": "Agonal gasps (slow, laboured, irregular) are NOT breathing, and gasping indicates cardiac arrest.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+        {"text": "Respiratory arrest (cardiac output at first) and cardiac arrest (no output) get the same BLS response: DRSABCD.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+        {"text": "On day one of every placement, find out: the emergency number, what to say, where the resus trolley and AED are, whether there is a rapid response/MET call, and where the emergency buttons are.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]}
+      ]},
+      {"h": "Airway adjuncts and bag-valve-mask", "points": [
+        {"text": "OPA: indicated when unresponsive with soft-tissue obstruction despite manual positioning; contraindicated with any gag or cough reflex. Size it, never force it, and confirm chest rise. It does not replace head tilt-chin lift.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+        {"text": "NPA: avoid if basal skull fracture is suspected; an oral airway is preferred.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]},
+        {"text": "BVM: high-flow oxygen at 15 L/min with the reservoir attached. It needs a patent airway, an adequate seal and good technique; two rescuers are recommended; the main hazard is gastric inflation and regurgitation.", "cite": [{"src": "CANVAS", "loc": "page 1-dot-3-basic-life-support"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-asthma", "group": "Conditions", "title": "Asthma", "match": "asthma",
+    "summary": "Severity, oxygen, bronchodilators and self-management.",
+    "blocks": [
+      {"h": "Assessment and severity", "points": [
+        {"text": "Severe: any of unable to speak in sentences, visibly breathless, increased work of breathing, SpO2 90-94%. Life-threatening: drowsy, collapsed, exhausted, cyanotic, poor respiratory effort, soft/absent breath sounds, SpO2 < 90%.", "cite": [{"src": "ASTHMA", "loc": "slides 15-16"}]},
+        {"text": "Auscultation: high-pitched musical wheeze, often more evident on expiration.", "cite": [{"src": "AUSC", "loc": "p.3"}]}
+      ]},
+      {"h": "Treatment and escalation", "points": [
+        {"text": "Salbutamol (reliever) via pMDI and spacer; in life-threatening asthma, continuous nebulisation driven by oxygen, immediate transfer to higher-level care, notify senior staff; IV magnesium sulfate if poor response.", "cite": [{"src": "ASTHMA", "loc": "slides 15-16, 18"}, {"src": "S126", "loc": "p.3-4"}]},
+        {"text": "FNP2B doctor's notes: give O2 if SpO2 < 92% (adults) or < 95% (children); salbutamol only hourly on the ward, with ICU review if more is needed; observe at least 3 hours after distress resolves.", "cite": [{"src": "ASTHMA", "loc": "slide 18"}]}
+      ]},
+      {"h": "Self-management", "points": [
+        {"text": "A written asthma action plan says when and how to increase treatment, for how long, and when to seek urgent help. Teach inhaler technique, adherence and trigger avoidance, and review every 6 months.", "cite": [{"src": "ASTHMA", "loc": "slides 23-26"}]},
+        {"text": "Puffer technique: cap off and upright, shake, breathe out gently, seal lips, press as you start a slow deep breath, hold about 5 seconds. Clean spacers about monthly.", "cite": [{"src": "S126", "loc": "p.5-7"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-copd", "group": "Conditions", "title": "COPD", "match": "COPD|hypercap|chronic obstructive",
+    "summary": "Oxygen targets, bronchodilator delivery and long-term care.",
+    "blocks": [
+      {"h": "Key points", "points": [
+        {"text": "SpO2 target 88-92% where there is potential for hypercapnia; give O2 when SpO2 < 88%.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Bronchodilators by MDI and spacer; if nebulised, air-driven with oxygen via nasal cannulae.", "cite": [{"src": "TSANZ", "loc": "p.2 (Table 1)"}]},
+        {"text": "Percussion may be hyper-resonant (too much air, e.g. emphysema). Crackles can occur in COPD.", "cite": [{"src": "L2", "loc": "slide 9"}, {"src": "AUSC", "loc": "p.3"}]},
+        {"text": "Stable COPD: stepwise inhaled therapy starting with short-acting relievers (SABA or SAMA); smoking cessation, influenza and pneumococcal vaccines, pulmonary rehabilitation for symptomatic patients; check inhaler technique at every visit.", "cite": [{"src": "COPD", "loc": "slide 29"}]},
+        {"text": "Person-centred: social history (home, carer role, finances, access to GP and pharmacy, living with a smoker), health literacy, and discharge planning from admission.", "cite": [{"src": "COPD", "loc": "slides 25-27"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-pneu", "group": "Conditions", "title": "Pneumonia", "match": "pneumonia|sputum|consolidat",
+    "summary": "Signs, auscultation findings and specimens.",
+    "blocks": [
+      {"h": "Key points", "points": [
+        {"text": "Coarse crackles may indicate pneumonia; percussion over consolidation is dull.", "cite": [{"src": "AUSC", "loc": "p.3"}, {"src": "L2", "loc": "slide 9"}]},
+        {"text": "Symptom diagram (FNP2B): high fever and chills, cough with sputum, shortness of breath, pleuritic chest pain, high heart rate, low blood pressure, nausea and vomiting, fatigue.", "cite": [{"src": "COPD", "loc": "slide 13"}]},
+        {"text": "Sputum collection: confirm identity and the request, consent, PPE, sterile labelled container, deep breathing and coughing (or suction), avoid contaminating the container, label, send promptly, document.", "cite": [{"src": "WB2", "loc": "p.~6"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-cardfind", "group": "Conditions", "title": "Cardiac findings and escalation", "match": "escalat|deteriorat|urine|oedema|pulse|ISBAR|weight",
+    "summary": "Finding → what it might mean → nursing response → escalate?",
+    "blocks": [
+      {"h": "Findings that should worry you", "points": [
+        {"text": "New fast or irregular pulse: manual radial pulse; if irregular, count apically for a full minute (a radial count undercounts); BP, 12-lead ECG, monitoring, conscious state. Escalate immediately if hypotensive, chest pain, breathless or altered consciousness.", "cite": [{"src": "L3", "loc": "p.10"}]},
+        {"text": "Reduced urine output: escalate if under 100 mL over 4 hours (or under 0.5 mL/kg/hr via an IDC), or if it falls alongside a dropping BP.", "cite": [{"src": "L3", "loc": "p.10"}]},
+        {"text": "New peripheral oedema: bilateral and dependent fits cardiac; unilateral with warmth or calf pain needs a DVT assessment. Escalate if rapid onset or with breathlessness.", "cite": [{"src": "L3", "loc": "p.11"}]},
+        {"text": "Increased breathlessness: sit upright, full vital signs, listen to the chest, fluid balance and weight trend, O2 if indicated. Escalate if SpO2 is falling, RR is rising, breathless at rest, or unable to speak in sentences.", "cite": [{"src": "L3", "loc": "p.13"}]},
+        {"text": "'I just don't feel right' is often the first sign of deterioration in a cardiac patient: do a full A-H with vital signs before you reassure.", "cite": [{"src": "L3", "loc": "p.14"}]},
+        {"text": "Daily charts: escalate if weight is up more than 2 kg in 3 days, doses are repeatedly withheld or PRN GTN use is increasing, or potassium/renal function shifts after a diuretic change.", "cite": [{"src": "L3", "loc": "p.15"}]}
+      ]},
+      {"h": "Escalating", "points": [
+        {"text": "ISBAR: Identify, Situation, Background, Assessment (your A-H findings), Recommendation (what you want and by when). Document the actual numbers, not 'obs satisfactory', plus what you did, who you told and when you will reassess.", "cite": [{"src": "L3", "loc": "p.16"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-acs", "group": "Conditions", "title": "Acute coronary syndrome", "match": "ACS|STEMI|chest pain|troponin|PCI|GTN|angina",
+    "summary": "Recognition, first 10 minutes, and care after PCI.",
+    "blocks": [
+      {"h": "Recognition", "points": [
+        {"text": "UA: new, worsening or rest pain, troponin not raised. NSTEMI: troponin raised, no ST elevation. STEMI: ST elevation on the 12-lead; don't delay reperfusion waiting for troponin.", "cite": [{"src": "L3", "loc": "p.20"}]},
+        {"text": "Women, older adults and people with diabetes more often present without chest pain (fatigue, breathlessness, nausea, jaw/back discomfort). If the patient is at risk, do the ECG anyway.", "cite": [{"src": "L3", "loc": "p.21"}]},
+        {"text": "The ECG answers 'is there ischaemia'; troponin answers 'has muscle died'. Record the actual collection time. Raised troponin doesn't always mean ACS; normal troponin doesn't rule out infarct.", "cite": [{"src": "L3", "loc": "p.26"}]}
+      ]},
+      {"h": "Immediate nursing response", "points": [
+        {"text": "Treat chest pain as possible ACS: full vital signs, PQRST pain assessment, 12-lead ECG within 10 minutes, IV access; escalate every time. One normal ECG doesn't exclude ACS: repeat it.", "cite": [{"src": "L3", "loc": "p.12"}]},
+        {"text": "Oxygen: consider if dyspnoeic; titrate to SpO2 over 93% (88-92% if at risk of hypercapnia). Not required in stable patients with SpO2 ≥ 93% (PACSA).", "cite": [{"src": "L3", "loc": "p.12, p.27"}]},
+        {"text": "Do not give GTN after recent PDE5 inhibitors (e.g. sildenafil within 24 h, tadalafil 48 h) or in known severe anaemia. Students do not administer under the ECAT protocol.", "cite": [{"src": "L3", "loc": "p.27"}]}
+      ]},
+      {"h": "After angiogram or PCI", "points": [
+        {"text": "Baseline neurovascular observations before, and compare after. Radial: increasing forearm pain, swelling or tightness is compartment syndrome, so escalate immediately. Femoral: back or flank pain with hypotension suggests retroperitoneal bleeding.", "cite": [{"src": "L3", "loc": "p.28, p.30"}]},
+        {"text": "Bleeding or swelling at the site: direct pressure above the puncture point, someone else calls for help, mark and time the swelling edge, full vital signs.", "cite": [{"src": "L3", "loc": "p.12"}]},
+        {"text": "Never omit a dose of dual antiplatelet therapy (it risks the stent). Watch for arrhythmia, heart failure, cardiogenic shock, recurrent ischaemia and bleeding.", "cite": [{"src": "L3", "loc": "p.30, p.32"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-hf", "group": "Conditions", "title": "Heart failure", "match": "heart failure|diuretic|fluid balance|HFrEF",
+    "summary": "Daily nursing work, medication safety, going home.",
+    "blocks": [
+      {"h": "Daily nursing", "points": [
+        {"text": "Fluid and sodium restriction where prescribed; fluid balance including urine output and diuretic response; daily weight; respiratory status, lung sounds, oedema, JVP; sit upright to ease breathing.", "cite": [{"src": "L3", "loc": "p.35"}]},
+        {"text": "Daily weight: same time, same scales, same clothing, before breakfast.", "cite": [{"src": "L3", "loc": "p.15"}]},
+        {"text": "Document mobility specifically; pace care; falls risk (postural drop after diuretics); poor appetite can signal gut congestion.", "cite": [{"src": "L3", "loc": "p.35"}]}
+      ]},
+      {"h": "Medication safety", "points": [
+        {"text": "Diuretics. Before: BP, weight, fluid balance, electrolytes and renal function. After: urine output, postural BP, weight, potassium, magnesium.", "cite": [{"src": "L3", "loc": "p.34"}]},
+        {"text": "HFrEF 'four pillars': beta blocker, ACE inhibitor/ARNI, MRA (spironolactone), SGLT2 inhibitor. Check HR, BP, potassium and renal function first; if low BP or pulse, or rising potassium or creatinine, ask the MO. Don't just withhold.", "cite": [{"src": "L3", "loc": "p.34"}]}
+      ]},
+      {"h": "Going home", "points": [
+        {"text": "Weigh every morning; call the HF nurse or GP if weight goes up about 2 kg in two days or symptoms worsen; call 000 for chest pain or breathlessness at rest. Take the fluid tablet in the morning. Check understanding with teach-back.", "cite": [{"src": "L3", "loc": "p.37"}]},
+        {"text": "Refer to cardiac rehabilitation before discharge, and arrange written follow-up and allied health.", "cite": [{"src": "L3", "loc": "p.37"}]}
+      ]}
+    ]
+  },
+  {
+    "id": "g-stroke", "group": "Conditions", "title": "Stroke", "match": "stroke|TIA|swallow|ASSIST|NIHSS|dysphagia|NGT",
+    "summary": "Diagnosis, nursing care and swallow safety.",
+    "blocks": [
+      {"h": "Types and diagnosis", "points": [
+        {"text": "Haemorrhagic, ischaemic, TIA. Diagnosed with CT angiography, NIHSS (measures stroke severity), FAST positive, MRI brain.", "cite": [{"src": "L4", "loc": "p.5-6"}]},
+        {"text": "Thrombolysis up to 4.5 h after onset (contraindicated in haemorrhagic stroke or anticoagulants within 48 h); clot retrieval up to 24 h (ideally < 6 h).", "cite": [{"src": "STROKE", "loc": "slides 23-25"}]}
+      ]},
+      {"h": "Nursing considerations (Lecture 4)", "points": [
+        {"text": "Regular neuro assessments; NBM until swallowing is assessed as safe; head of bed at 30°; manage BP (particularly severe systolic hypertension), BGL and temperature.", "cite": [{"src": "L4", "loc": "p.11"}]},
+        {"text": "Pressure injury prevention and a Waterlow assessment; DVT prophylaxis as prescribed; falls risk screening; NGT care.", "cite": [{"src": "L4", "loc": "p.11"}]}
+      ]},
+      {"h": "Swallow screening (ASSIST)", "points": [
+        {"text": "ASSIST is a validated bedside swallow screen, only for adults with suspected or confirmed acute stroke/TIA. About 27-64% of stroke patients have dysphagia.", "cite": [{"src": "CANVAS", "loc": "page 4-dot-3-assist-screening-tool"}]},
+        {"text": "It is an accredited skill: students are not accredited to perform it on placement. Patients who don't pass stay NBM and are referred to speech pathology.", "cite": [{"src": "CANVAS", "loc": "page 4-dot-3-assist-screening-tool"}]},
+        {"text": "NGT: never use auscultation to confirm tube position.", "cite": [{"src": "NGTPOL", "loc": "p.13"}]}
+      ]}
+    ]
+  }
+]

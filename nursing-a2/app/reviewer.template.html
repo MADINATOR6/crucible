@@ -141,7 +141,14 @@ function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function uniq(a){ return [...new Set(a)].filter(v => v !== undefined && v !== null && v !== ""); }
 function citeText(cites){
-  return (cites||[]).map(c => { const s = C.sources[c.src] || {}; return esc((s.file || c.src) + (c.loc ? ", " + c.loc : "")); }).join("; ");
+  return (cites||[]).map(c => {
+    const s = C.sources[c.src] || {};
+    if(c.src === "CANVAS"){ // Canvas page slugs -> "93225 Canvas: 3.2 introduction to performing an ecg"
+      const page = String(c.loc||"").replace(/^page\s+/, "").replace(/-dot-/g, ".").replace(/-\|-/g, " ").replace(/-/g, " ");
+      return esc("93225 Canvas page: " + page);
+    }
+    return esc((s.file || c.src) + (c.loc ? ", " + c.loc : ""));
+  }).join("; ");
 }
 function citeHTML(cites){ return cites && cites.length ? `<div class="cite">${citeText(cites)}</div>` : ""; }
 function pct(x){ return Math.round(x*100) + "%"; }
@@ -563,7 +570,8 @@ function renderGuide(){
     return;
   }
   const g = GUIDE.find(x => x.id === GSEC), i = GUIDE.indexOf(g);
-  const qids = Q.filter(q => (g.skill && q.skill === g.skill) || (g.topics||[]).includes(q.topic)).map(q => q.id);
+  const rx = g.match ? new RegExp(g.match, "i") : null;
+  const qids = Q.filter(q => (g.skill && q.skill === g.skill) || (rx && rx.test(q.topic + " " + (q.stem || q.prompt)))).map(q => q.id);
   $("#main").innerHTML = `<div class="card noprint row"><button id="gBack">All sections</button><span class="muted small">${esc(g.group)}</span></div>
     <div class="card"><h2 class="big" style="margin-top:0">${esc(g.title)}</h2>${g.summary ? `<p>${esc(g.summary)}</p>` : ""}
     ${g.blocks.map(b => `<h3>${esc(b.h)}</h3><ul>${b.points.map(p => `<li style="margin:6px 0">${isSuppCite(p.cite)?suppTag:""}${esc(p.text)}${citeHTML(p.cite)}</li>`).join("")}</ul>`).join("")}

@@ -33,6 +33,8 @@ def load():
         for q in data:
             q["_file"] = f.name
         base["questions"].extend(data)
+    guide = CONTENT / "guide.json"
+    base["guide"] = json.loads(guide.read_text(encoding="utf-8")) if guide.exists() else []
     for f in sorted(CONTENT.glob("skill-*.json")):
         skill = json.loads(f.read_text(encoding="utf-8"))
         for i, s in enumerate(base["skills"]):
@@ -127,6 +129,27 @@ def validate(c):
         where = f"skill {s['id']}"
         for k, n in enumerate(s.get("notes", [])):
             check_cites(f"{where} note {k + 1}", n.get("cite"))
+    gids = set()
+    for g in c.get("guide", []):
+        where = f"guide {g.get('id', '?')}"
+        if g.get("id") in gids:
+            errors.append(f"{where}: duplicate id")
+        gids.add(g.get("id"))
+        if not g.get("title") or not g.get("group") or not g.get("blocks"):
+            errors.append(f"{where}: needs title, group and blocks")
+        if g.get("match"):
+            try:
+                re.compile(g["match"])
+            except re.error as exc:
+                errors.append(f"{where}: bad match pattern ({exc})")
+        for b in g.get("blocks", []):
+            for k, pt in enumerate(b.get("points", [])):
+                if not pt.get("text"):
+                    errors.append(f"{where} / {b.get('h')} point {k + 1}: no text")
+                check_cites(f"{where} / {b.get('h')} point {k + 1}", pt.get("cite"))
+        for cid in g.get("context", []):
+            if cid not in ctx_ids:
+                errors.append(f"{where}: unknown context note {cid!r}")
     return errors, warnings
 
 
