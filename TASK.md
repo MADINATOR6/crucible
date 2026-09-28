@@ -1,26 +1,30 @@
 # Task
 
+<!-- Task spec for Dispatch-mode work (Parallel tasks use their handoff note instead). May be overwritten per task after checking it holds no uncommitted manual edits. Reference paths; do not paste files. -->
+
 ## Mode and Owner
-Task ID: NA2-REVIEW-4. Depth: normal. Dispatch (review). Codex reviews; Claude fixes and commits.
+<!-- Task ID and depth (trivial / normal / complex / frontier). Dispatch or Parallel. Who implements, who reviews. -->
 
 ## Goal
-Check `nursing-a2/content/questions-hf.json` (HF-01 to HF-07) against the cited source text: every stem, keyed answer, option `why`, explanation, SAQ model and rubric point. Write `nursing-a2/REVIEW-4.md`.
+<!-- What must be accomplished. -->
 
 ## Relevant Files
-- Source key L3 → `nursing-a2/modules/CP2B_Lecture_3_slides.pdf`; text with `[[p.N]]` markers in `nursing-a2/modules_text/CP2B_Lecture_3_slides.pdf.txt`.
+<!-- Only likely relevant files/directories. -->
 
 ## Write Allowlist
-- `nursing-a2/REVIEW-4.md` only.
+<!-- Exact paths the implementer may change or create, and where temporary files may go. -->
 
 ## Constraints
-Judge only against the cited source; general knowledge is not a source. Australian spelling is intended.
+<!-- Important requirements, resolved business/data rules, and things that must not change. -->
+
+## Out of Scope
+<!-- Adjacent work that must NOT be done. -->
 
 ## Done When
-1. (Codex) REVIEW-4.md: a summary line; table `Item ID | Issue type (factual error / wrong key / unsupported / ambiguous / wrong distractor logic / missing or wrong citation) | What is wrong | Source quote < 15 words | Suggested fix`; then the IDs with no problems.
-2. (Claude) Fixes, rebuilds, commits.
+<!-- Concrete acceptance criteria, each marked (Codex) or (Claude) for verification. -->
 
 ## Verify
-- `python nursing-a2/tools/build_reviewer.py --check` prints `0 errors`.
+<!-- Commands/checks proving the task works. -->
 
 ## Stop Conditions
-Do not edit any other file.
+<!-- When to stop and report instead of continuing (for example: a check fails twice, the sandbox blocks a step, data-loss risk). -->

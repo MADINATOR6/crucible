@@ -578,6 +578,56 @@
         ]
       },
       {
+        "h": "A-H table, Year 2 level (Look / Listen / Feel / Tests)",
+        "points": [
+          {
+            "text": "A Airway. Look: signs of obstruction, tracheal tug, swelling/haematoma. Listen: noisy breathing (gurgling, snoring, stridor); does speech sound normal or obstructed? Feel: air movement.",
+            "cite": [
+              {
+                "src": "AH",
+                "loc": "p.1 (A-H Yr2 table, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "B Breathing. Look: chest movement and symmetry, accessory muscles, RR for 1 minute. Listen: can they complete full sentences? Noisy breathing (stridor, wheezing); chest pain. Feel: trachea central, surgical emphysema/crepitus, diaphoresis. Tests: SpO2, O2 requirements and delivery mode, PQRST.",
+            "cite": [
+              {
+                "src": "AH",
+                "loc": "p.1 (A-H Yr2 table, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "C Circulation. Look: pallor or cyanosis (peripheral, oral mucosa), capillary refill, JVP. Listen: dizziness, headache, chest pain; manual BP. Feel: warm or cold hands and feet, oedema, pulses (presence, rate, quality, regularity, equality). Tests: manual BP, ECG, PQRST, conscious state, fluid balance, urine.",
+            "cite": [
+              {
+                "src": "AH",
+                "loc": "p.1 (A-H Yr2 table, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "D Disability. Look: level of consciousness, facial symmetry, abnormal movements, seizure activity, limb movements, pupil size, equality and reaction to light. Listen: response to stimuli, pain, slurred speech, orientation to person, place and time. Feel: response to stimuli, muscle power and strength. Tests: LOC (GCS, AVPU), pain scale, mobility and falls risk.",
+            "cite": [
+              {
+                "src": "AH",
+                "loc": "p.1 (A-H Yr2 table, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "E Exposure: bleeding, rash, contusion, skin integrity, wounds and drains hidden by bed clothes; air leaks in drains; bowel sounds; abdomen; temperature and pressure injury risk. F Fluids: observation and fluid charts, input and output, drain losses, urine amount and colour, urinalysis; thirst; skin turgor; IV access. G Glucose: BGL, signs of low or high glucose, insulin/hypoglycaemics on the chart; thirst; orientation; sweaty, cold or clammy skin. H Holistic: visitors and support system, psychosocial history, ask about psychosocial aspects of care.",
+            "cite": [
+              {
+                "src": "AH",
+                "loc": "p.1 (A-H Yr2 table, image; transcribed visually)"
+              }
+            ]
+          }
+        ]
+      },
+      {
         "h": "H: holistic care",
         "points": [
           {
@@ -677,6 +727,115 @@
               {
                 "src": "STROKE",
                 "loc": "slide 21"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "g-rhythm",
+    "group": "Assessment",
+    "title": "Rhythm interpretation (flow chart)",
+    "match": "rhythm|fibrillation|tachycardia|heart block|asystole|sinus|flutter",
+    "summary": "The Module 3 rhythm analysis flow chart, step by step.",
+    "blocks": [
+      {
+        "h": "Work through the questions in order",
+        "points": [
+          {
+            "text": "1. Can upright, smooth, rounded P waves be clearly seen? YES → 2. Is every P wave followed by a QRS in a 1:1 ratio?",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "P waves, 1:1: is the PR interval ≤ 0.2 s? YES → sinus: HR < 60 sinus bradycardia; 60-100 sinus rhythm; > 100 sinus tachycardia (QRS > 0.1 s means aberrant conduction). NO → 1st-degree heart block.",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "P waves, not 1:1: are the QRS complexes > 0.1 s wide? YES → 3rd-degree heart block. NO → are the PR intervals all the same length? NO → 2nd-degree type 1; YES → 2nd-degree type 2.",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "No clear P waves: can narrow or broad QRS complexes be clearly seen? NO → any electrical activity? YES → ventricular fibrillation; NO → asystole.",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "QRS seen and ≤ 0.1 s (narrow). Irregular: saw-tooth flutter waves → atrial flutter (variable block), otherwise atrial fibrillation. Regular: flutter waves → atrial flutter (fixed block); otherwise rate > 100 → atrial tachycardia / SVT / junctional tachycardia (by P-wave shape), ≤ 100 → junctional rhythms (< 40 junctional bradycardia, 40-60 junctional, 60-100 accelerated junctional).",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "QRS > 0.1 s (broad). Irregular → AF with aberration. Regular: rate > 100 → ventricular tachycardia OR SVT with aberration; ≤ 100 → idioventricular rhythm.",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          },
+          {
+            "text": "The chart does not account for atrial or ventricular ectopics, which can make a rhythm irregular. Report them as an event on top of the rhythm (e.g. sinus rhythm with atrial ectopics).",
+            "cite": [
+              {
+                "src": "RHYTHM",
+                "loc": "p.1 (flow chart, image; transcribed visually)"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "h": "Life-threatening rhythms and the response",
+        "points": [
+          {
+            "text": "Second-year students should identify normal sinus rhythm and the life-threatening rhythms VT, VF and asystole.",
+            "cite": [
+              {
+                "src": "ACS",
+                "loc": "slide 25"
+              }
+            ]
+          },
+          {
+            "text": "VF: no real rate, grossly irregular, no identifiable P waves → immediate cardioversion/defibrillation. VT: rate 100-250, regular, QRS ≥ 0.12 s and bizarre.",
+            "cite": [
+              {
+                "src": "ACS",
+                "loc": "slides 30-31"
+              }
+            ]
+          },
+          {
+            "text": "Unresponsive and not breathing normally → start CPR and follow DRSABCD; don't check for a pulse.",
+            "cite": [
+              {
+                "src": "CANVAS",
+                "loc": "page 1-dot-3-basic-life-support"
               }
             ]
           }
