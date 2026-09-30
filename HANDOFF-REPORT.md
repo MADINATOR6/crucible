@@ -1,34 +1,213 @@
-# Report for Madison: 27 September 2026
+# Report for Madison: ccx upgrade (30 Sep - 1 Oct 2026)
 
-Everything is saved on GitHub. Two things need you (see the end).
+Branch `claude/architecture-audit-migration-649829`, based on `c2f515b`. Nothing is pushed or merged into `main`; that needs your approval (see the end).
 
-## What was done
+## 1. Status
 
-1. **Ladder wording change is live.** Both test sets passed: 23 of 23 and 22 of 22. I merged the change into `main` and uploaded it to GitHub. I checked that GitHub now shows the same version as your computer, then deleted the finished branch, both locally and on GitHub.
+**Nearly complete.** Everything is built, tested, independently verified by Codex, and committed. Two steps are waiting for Codex's next usage window (11:12 AM, 1 Oct):
+- CCX-4c: Codex re-checks three of the fixes.
+- CCX-5b: the second end-to-end task.
 
-2. **Mythos check.** I read your Mythos file and compared it with the ladder and the rules in AGENTS.md and HANDOFF.md.
-   - The ladder itself agrees with Mythos. Nothing to change.
-   - I fixed two places where the rules fell short of Mythos. Each is its own small change, tests pass, and both are on GitHub:
-     - Save progress notes (MEMORY.md) at least every 30 minutes, not only when a task ends.
-     - Before handing work to Codex, the task must name its ID and the exact commands that check it.
+Both are scheduled in this session; if it closed, say "continue".
 
-3. **Codex code size.** There was no real Codex task to measure it on, so it is still open. It's noted in MEMORY.md for the next real task.
+## 2. What changed
 
-4. **Powerlifting cleanup.** Every step is written to `C:\Users\Madison\powerlifting-delete.log`.
-   - `claude-codex-smoke`: sent to the Recycle Bin.
-   - OneDrive copy (`OneDrive\AgentWorkspace\claude-codex-template`): already gone before I started. There was nothing to remove.
-   - `claude-codex-template`: **not removed.** Windows said another program was using it. As you asked, I didn't force it or close anything. The folder is untouched.
+The template now has a control plane called **ccx**. It is a set of PowerShell scripts plus one policy file, with no services, databases or new dependencies. It is optional: the old way of dispatching Codex still works exactly as before.
 
-## Why sessions kept opening in the powerlifting folder
+| Master prompt layer | What exists now |
+|---|---|
+| Master Computer | `ccx status`: tasks, approvals, notifications, worktrees, routing history and agent availability. `-Brief` gives 5 lines. |
+| OMNIROUTE | `ccx route` plus `ccx/policy.json`. Deterministic rules, no model involved. It is **not** the third-party OmniRoute gateway, which stays rejected. |
+| Orchestrator | Claude, recording each task with `ccx task` (owner, files owned, class, risk, budget). |
+| Kairos-style runtime | A durable event queue and `ccx tick`: deduplicated, leased, retried with backoff, dead-lettered. No background process. |
+| Workers | Codex through `scripts\codex-dispatch.ps1 -TaskId`, Claude, and two scoped Claude subagents. |
+| Worktrees | `ccx worktree add / list / prune` and `ccx merge-check`. |
+| Verification | `ccx verify`, launcher post-checks, reviews, and a gated `task done`. |
+| Approval gate | `ccx gate / approve / deny`, with permission levels L0 to L5. |
 
-The Claude app starts a new session in the folder chosen when the session is created, and this one was set to the old powerlifting folder. I moved this session to `claude-codex-collab`. Once the powerlifting folder is in the Recycle Bin, it can't be chosen by mistake any more. Until then, pick `claude-codex-collab` when you start a new session.
+## 3. Claude and Codex collaboration
 
-## What needs you
+1. Claude registers the task: `ccx task add` with type, class, risk, owner, owned files and spec file.
+2. OMNIROUTE picks the route, model, effort, budget and required checks.
+3. `ccx worktree add` gives the task its own worktree, after checking nobody else owns those files.
+4. `codex-dispatch.ps1 -TaskId <id>` runs Codex with the routed model and effort. Afterwards it records tokens, status and post-checks automatically.
+5. `ccx verify` runs the full pipeline.
+6. The *other* model reviews: `task review`. The author cannot review their own work.
+7. `task done` refuses anything unverified or unreviewed.
+8. `merge-check`, then merge (logged). Pushing needs your approval.
 
-1. **Recycle the last powerlifting folder.** Close any Claude sessions, terminals or editors that are open in `C:\Users\Madison\code\claude-codex-template`, then move it to the Recycle Bin. Note that it holds unsaved powerlifting app edits that exist nowhere else. That's fine if you don't want them.
-2. **Decisions where Mythos and the current rules differ.** I didn't change any of these on my own:
-   - Should Codex double-check *every* task (Mythos), or only risky ones (current rules)? Checking every task costs more Codex usage.
-   - If Codex fails twice, should the whole session stop (Mythos), or should Claude finish the work (current rules)?
-   - Should the Mythos stop rules (for example, stop after 4 hours) and pre-flight checks be written into AGENTS.md?
-   - Should the progress notes file be used in every session (Mythos), or only in long unattended ones (current rules)?
-3. **Old branch on GitHub.** `claude/codex-mythos-upgrade-analysis-nv6hg1` was merged long ago. Should I delete it?
+Review loops are capped at 2.
+
+What actually happened in this upgrade:
+- Codex wrote most of the code, then hit its usage limit four times.
+- With your agreement, Claude finished Codex's partial work.
+- Codex then verified everything independently (CCX-4).
+
+## 4. OMNIROUTE
+
+**Routing order, cheapest reliable first:**
+1. a plain tool (no AI);
+2. an existing result;
+3. a script;
+4. a cheap model (Haiku scout, or Codex at low effort);
+5. a worker;
+6. a premium model;
+7. the Mythos tier.
+
+Two special routes: `defer` (Codex is at its limit) and `surface` (stop and ask you).
+
+**Models:**
+- Codex dispatches use GPT-6 Astra. GPT-5.3-Codex is not in your Codex model list.
+- Claude uses Opus 5.5.
+- Claude's cheap subagent uses Haiku 4.5.
+
+**Effort by class:**
+
+| Class | Effort |
+|---|---|
+| routine | low |
+| normal | medium |
+| complex | high |
+| critical and exceptional | xhigh |
+
+- A failure or ambiguity raises effort one step, within the class cap.
+- Max needs two failed attempts.
+
+**Seen working live:**
+- The CCX-5a trial was routed to Astra **low** and used about 56k effective tokens.
+- The CCX-4 verifier was routed to Astra **high**.
+- After Codex hit its limit, routing switched to `defer` by itself.
+
+**Adaptive routing** learns from telemetry, within fixed bounds. Quota exits never count as model failures.
+
+## 5. Persistent runtime and memory
+
+**Runtime:**
+- Events come from dispatches, verification and approvals.
+- `ccx status` runs one tick first, so you always see current notifications.
+- Handlers are capped at permission level L2 and never launch Codex on their own.
+- `ccx runtime off` pauses it.
+
+**Memory:**
+- MEMORY.md was consolidated; the old checkpoints are in MEMORY-ARCHIVE.md.
+- `ccx memory lint` checks for secrets, size caps, duplicate lines and checkpoint overflow. It also runs as a verification stage.
+
+## 6. Verification (all actually run)
+
+**Test suites (the suites grew during the work):**
+
+| Suite | Tests | Result |
+|---|---|---|
+| test-ccx | 29 | pass |
+| test-ccx-ops | 15 | pass |
+| test-codex-dispatch | 46 | pass; it had 23 at baseline |
+| test-sync-mirror | 21, plus 1 skip | pass |
+
+**Real checks:**
+- `ccx verify` passes on every task.
+- `ccx health` exits 0. Its only warning is Codex being at its limit.
+
+**Rollback rehearsal:**
+1. Merged the upgrade into a copy of `main`.
+2. Reverted it with `git revert -m 1`.
+3. The tree was identical to `c2f515b`, and the old suites passed there: 23/23 and 21/21 plus 1 skip.
+
+**Independent verification by Codex (CCX-4):** it attacked 8 areas and found 5 real defects that no test had caught. All five are fixed, each with a new regression test.
+
+| Defect | Found by | Fixed |
+|---|---|---|
+| A private-key body leaking past redaction | CCX-4 | yes |
+| Committed broken code passing verification | CCX-4 | yes |
+| A "laundering" hole in task baselines | CCX-4, plus two more paths found by CCX-4b | yes |
+| A rename slipping past merge-check | CCX-4 | yes |
+| An explicit effort bypassing the retry cap | CCX-4 | yes |
+| worktree add starting from the wrong commit | the end-to-end trial | yes |
+| A status parse miss | CCX-4's own report | yes |
+| A health false warning | the real health run | yes |
+
+Codex's re-check (CCX-4b):
+- F2 and F4 passed.
+- F3 had two more laundering paths, now fixed as CCX-6.
+- F1 and F5 were not reached before the usage limit. Both pass their new regression tests; Codex re-checks them in CCX-4c.
+
+## 7. Security and permissions
+
+| Level | Covers | Rule |
+|---|---|---|
+| L0 | read | automatic |
+| L1 | write in the task | automatic |
+| L2 | build, test, dispatch | automatic |
+| L3 | branches, worktrees, local commits and merges | allowed and logged |
+| L4 | push, pull requests, messages, publishing, Codex full access | needs approval, in chat or in your terminal |
+| L5 | production, credentials, force-push, history rewrite | needs you to type the approval in your own terminal |
+
+- **What is enforced technically:**
+  - Codex's sandbox cannot touch the state at all.
+  - AI shells cannot pass the interactive approval.
+  - Codex full access is gated.
+  - Tick handlers cannot go above L2.
+- **What relies on rules instead:** anything with full shell access could still edit state files directly.
+- **Secrets and private data:**
+  - Secrets are redacted everywhere ccx writes.
+  - `nursing-a2/` is excluded by policy and never read or scanned.
+  - No secrets were found in any commit.
+
+## 8. Cost and token controls
+
+- **Per-class budgets:**
+  - dispatches: 2 to 4;
+  - model escalations;
+  - review cycles;
+  - timeouts;
+  - token targets.
+
+  The launcher, router and `task review` enforce them.
+- **Usage-limit runs** do not use up a retry.
+- **Measured quota:** about 35 minutes of Astra at high effort per usage window. Parallel Codex runs used it in 19 minutes. The docs now say: one Codex task at a time, and spend Codex first on verification.
+
+## 9. Files
+
+- **New:**
+  - `ccx/policy.json`, `ccx/ARCHITECTURE.md`;
+  - `scripts/ccx.ps1`, `scripts/ccx-core.ps1`, `scripts/ccx-ops.ps1`, `scripts/test-ccx.ps1`, `scripts/test-ccx-ops.ps1`;
+  - `.claude/agents/ccx-scout.md`, `.claude/agents/ccx-reviewer.md`;
+  - `tasks/CCX-*.md`, `MEMORY-ARCHIVE.md`.
+- **Changed:**
+  - `scripts/codex-dispatch.ps1`, `scripts/test-codex-dispatch.ps1`, `scripts/test-sync-mirror.ps1`;
+  - AGENTS.md, HANDOFF.md, README.md, BOOTSTRAP.md, MEMORY.md, FRICTION.md, TASK.md (reset), `.gitignore`.
+- **Local only, never committed:** `.git/ccx/` (the state) and one line in `.git/info/exclude` (`.ccx-worktrees/`).
+
+## 10. Remaining issues
+
+- **Waiting for Codex (11:12 AM):**
+  - CCX-4c: re-check F1, F3 and F5 plus the status parse.
+  - CCX-5b: blocked on purpose until CCX-3 is done, because both own the dispatch test.
+- **Your approval:** merging into `main` and pushing (L4). I will ask; nothing is pushed.
+- **After merging:** `ccx worktree prune -Apply` removes the finished task worktrees under `.ccx-worktrees`.
+- **Slow tests:** about 4.3 s per PowerShell start on this machine, so the core suite takes about 15 minutes.
+- **Still open from 27 Sept:** the Mythos rule questions, deleting the old merged branch `claude/codex-mythos-upgrade-analysis-nv6hg1`, and recycling `claude-codex-template`.
+
+## 11. How to use it
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 status
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 health
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 approve -Id A-0001
+```
+
+- `status` shows what's going on.
+- `health` checks the setup.
+- `approve` approves something. Run it in *your* terminal when asked.
+
+Day to day, just ask Claude for work as usual. Claude runs the ccx steps.
+
+## 12. Rollback
+
+- **Before merging into main:** nothing to undo. Delete the branch if you don't want it.
+- **After merging:**
+  1. `git revert -m 1 <merge commit>` on a branch.
+  2. Run the old test suites.
+  3. Merge and push that branch.
+  4. Delete `.git\ccx`.
+
+  This was rehearsed; the result is in section 6. Never reset or force-push `main`.
