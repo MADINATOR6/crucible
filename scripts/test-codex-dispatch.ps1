@@ -264,6 +264,10 @@ else if (mode === 'ready' || mode === 'stray') {
   event({type:'turn.completed', usage:{input_tokens:200,cached_input_tokens:20,output_tokens:7}});
   write('Status: READY_FOR_CLAUDE_REVIEW\n');
 }
+else if (mode === 'bold') {
+  event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
+  write('**Status:** **READY_FOR_CLAUDE_REVIEW**\n');
+}
 else if (mode === 'error') {
   event({type:'error', message:'first error'});
   event({type:'turn.failed', error:{message:'first error'}});
@@ -598,6 +602,12 @@ else {
     Check-Code $r 9
     Assert ($r.Stdout -match 'SCOPE VIOLATION: stray.txt') 'scope violation not printed'
     Assert ((Read-CcxState).tasks.T1.lastDispatch.exit -eq 9) 'final post-check code not recorded'
+  }
+  Ccx-Case 'markdown-emphasised report status is parsed' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'bold'
+    Check-Code $r 0
+    Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'bold status not parsed'
   }
   Ccx-Case 'baseline dirty permits pre-existing path' {
     Add-CcxTask

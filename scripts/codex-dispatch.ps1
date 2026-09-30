@@ -356,7 +356,8 @@ try {
     $codexCode = $code
     try {
       $status = 'NONE'
-      $statusMatch = [regex]::Match($report, '(?m)^\s*Status:\s*(READY_FOR_CLAUDE_REVIEW|PARTIAL|BLOCKED)\b')
+      # Tolerate Markdown emphasis: Codex sometimes writes Status: **READY_FOR_CLAUDE_REVIEW**.
+      $statusMatch = [regex]::Match($report, '(?m)^\s*\**Status:?\**\s*\**\s*(READY_FOR_CLAUDE_REVIEW|PARTIAL|BLOCKED)\b')
       if ($statusMatch.Success) { $status = $statusMatch.Groups[1].Value }
       $postChecks = $null; $scopeViolations = @()
       if ($Role -eq 'implement') {
