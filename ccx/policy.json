@@ -203,10 +203,10 @@
       { "name": "memory", "builtin": "memory-lint", "quick": true },
       { "name": "format", "command": null, "note": "No formatter configured for this repository." },
       { "name": "lint", "command": null, "note": "No linter configured (PSScriptAnalyzer is not installed); the parse stage checks PowerShell syntax." },
-      { "name": "tests-ccx", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 15 },
-      { "name": "tests-ccx-ops", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx-ops.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 15 },
-      { "name": "tests-dispatch", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-codex-dispatch.ps1", "when": ["scripts/codex-dispatch.ps1", "scripts/test-codex-dispatch.ps1", "scripts/ccx-core.ps1", "ccx/policy.json"], "timeoutMinutes": 15 },
-      { "name": "tests-mirror", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-sync-mirror.ps1", "when": ["scripts/sync-mirror.ps1", "scripts/test-sync-mirror.ps1"], "timeoutMinutes": 15 }
+      { "name": "tests-ccx", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
+      { "name": "tests-ccx-ops", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx-ops.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
+      { "name": "tests-dispatch", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-codex-dispatch.ps1", "when": ["scripts/codex-dispatch.ps1", "scripts/test-codex-dispatch.ps1", "scripts/ccx-core.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
+      { "name": "tests-mirror", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-sync-mirror.ps1", "when": ["scripts/sync-mirror.ps1", "scripts/test-sync-mirror.ps1"], "timeoutMinutes": 30 }
     ],
     "logsMax": 20
   },

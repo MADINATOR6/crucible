@@ -170,11 +170,12 @@ try {
     Assert (@($notes | Where-Object { $_.level -eq 'warn' }).Count -ge 1) 'limit notice absent'
     Assert (@($notes | Where-Object { $_.level -eq 'action' -and $_.text -match 'suggested route' }).Count -eq 1) 'failure route notice absent'
     Assert (-not (Test-Path -LiteralPath (Join-Path (Split-Path $repo -Parent) 'bin/calls.log'))) 'tick launched Codex'
-    Queue 'dispatch-finished' 'replay-ready' 'T1' @{exit=0;status='READY_FOR_CLAUDE_REVIEW';dispatch=1;role='implement'}
-    State-Edit { param($s) $s.eventQueue[0].status='processing'; $s.eventQueue[0].leaseUntil=[DateTime]::UtcNow.AddSeconds(-2).ToString('o') }
+    # Lease recovery re-runs the same event (same key): its handler must not duplicate the notification.
+    State-Edit { param($s) $s.eventQueue = @($s.eventQueue) + @(@{ id='E-replay01'; at=(Get-CcxNow); type='dispatch-finished'; key='dispatch:T1:1'; taskId='T1'; data=@{exit=0;status='READY_FOR_CLAUDE_REVIEW';dispatch=1;role='implement'}; status='processing'; attempts=1; nextAt=(Get-CcxNow); leaseUntil=[DateTime]::UtcNow.AddSeconds(-2).ToString('yyyy-MM-ddTHH:mm:ssZ') }) }
     $count = @((Get-CcxState).notifications).Count
     Check-Code (Run-Cli @('tick')) 0
     Assert (@((Get-CcxState).notifications).Count -eq $count) 'replayed handler duplicated notification'
+    Assert (@((Get-CcxState).eventQueue | Where-Object { $_.id -eq 'E-replay01' }).Count -eq 0) 'replayed event was not completed'
     Queue 'verification-failed' 'block:T1' 'T1'
     Check-Code (Run-Cli @('tick')) 0
     Assert ((Task).status -eq 'blocked') 'block handler did not block task'
@@ -232,9 +233,10 @@ try {
   Case 'verify command timeout and unknown stage' {
     $pidFile = Join-Path (Split-Path $repo -Parent) 'sleep.pid'
     $sleepScript = Join-Path (Split-Path $repo -Parent) 'sleep.ps1'
-    Write-Text $sleepScript ("[IO.File]::WriteAllText($(Quote-Ps $pidFile), [string]`$PID); Start-Sleep -Seconds 20")
+    Write-Text $sleepScript ("[IO.File]::WriteAllText($(Quote-Ps $pidFile), [string]`$PID); Start-Sleep -Seconds 60")
     $command = 'powershell -NoProfile -ExecutionPolicy Bypass -File ' + (ConvertTo-CcxArgument $sleepScript)
-    $policy.verify.stages += @{name='timeout';command=$command;when=@('src/*');timeoutMinutes=0.02}; Save-Policy
+    # 15 s: long enough for a slow PowerShell start (~4-5 s here), far shorter than the 60 s sleep.
+    $policy.verify.stages += @{name='timeout';command=$command;when=@('src/*');timeoutMinutes=0.25}; Save-Policy
     Write-Text (Join-Path $repo 'src/one.txt') 'changed'
     Check-Code (Run-Cli @('verify','-Stage','timeout')) 1
     Assert ([IO.File]::Exists($pidFile)) 'sleep child did not start'

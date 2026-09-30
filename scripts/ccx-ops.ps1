@@ -37,7 +37,7 @@ function Invoke-CcxEventHandler($Event) {
     $message = $null
     switch ($handler) {
         'notify-dispatch' {
-            $key = 'dispatch:' + $Event.taskId + ':' + $Event.data.dispatch
+            # The launcher's event key is unique per run (verify runs and usage-limit runs included).
             if ($Event.data.exit -eq 0 -and $Event.data.status -eq 'READY_FOR_CLAUDE_REVIEW') {
                 $message = "$($Event.taskId) ready for Claude review"
             } elseif ($Event.data.exit -eq 4) {
@@ -618,8 +618,8 @@ function Invoke-CcxHealth {
         $checks += @{ name='codex-model'; result=$(if ($available) { 'PASS' } else { 'WARN' }); details=@($(if ($available) { $policy.models.codex.default } elseif ($fallback.Count) { 'default absent; fallback ' + $fallback[0] } else { 'no configured model in catalog' })) }
     } catch { $checks += @{ name='codex-model'; result='WARN'; details=@('catalog missing or unreadable') } }
     $claude = @(Get-Command claude.exe,claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)
-    # The task's out-of-scope rule forbids invoking real Claude. Presence is safe to inspect.
-    $checks += @{ name='claude'; result=$(if ($claude.Count) { 'SKIP' } else { 'WARN' }); details=@($(if ($claude.Count) { 'present; version invocation outside task scope' } else { 'CLI missing; desktop app may be in use' })) }
+    # Presence only: health never invokes Claude.
+    $checks += @{ name='claude'; result=$(if ($claude.Count) { 'PASS' } else { 'WARN' }); details=@($(if ($claude.Count) { 'CLI present' } else { 'CLI missing; desktop app may be in use' })) }
     $mythos = $policy.models.mythos
     $checks += @{ name='mythos'; result=$(if ($mythos.available -and -not $mythos.model) { 'FAIL' } else { 'PASS' }); details=@($(if (-not $mythos.available) { 'not configured; escalation falls back to ' + (($mythos.fallback | ForEach-Object { $_.model }) -join ', ') } elseif (-not $mythos.model) { 'available without model' } else { $mythos.model })) }
     foreach ($agentName in @($policy.models.claude.cheapSubagent, $policy.models.claude.reviewSubagent)) {
