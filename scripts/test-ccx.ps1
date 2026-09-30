@@ -356,6 +356,11 @@ try {
   }
   Case 'adaptive upgrade follows failed dispatches and explicit escalation wins' {
     foreach ($i in 1..$policy.adaptive.minSamples) {
+      # Usage-limit exits must never count as model failures.
+      Write-CcxTelemetry -Record @{kind='dispatch';type='implement';agent='codex';effort='medium';exit=4;status='NONE';tokens=@{input=0;cached=0;output=0}} | Out-Null
+    }
+    Assert ((Cli-Json @('route','-Type','implement','-Class','normal')).effort -eq 'medium') 'usage-limit exits upgraded effort'
+    foreach ($i in 1..$policy.adaptive.minSamples) {
       Write-CcxTelemetry -Record @{kind='dispatch';type='implement';agent='codex';effort='medium';exit=1;exitCode=1;status='FAILED';tokens=@{input=100;cached=20;output=10}} | Out-Null
     }
     Assert ((Cli-Json @('route','-Type','implement','-Class','normal')).effort -eq 'high') 'failed telemetry did not upgrade effort'

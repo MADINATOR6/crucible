@@ -513,8 +513,10 @@ function Get-CcxStats {
         }
         $group = $groups[$key]
         if ($record.kind -eq 'dispatch') {
-            $group.dispatches++
             $exitCode = if ($record.Keys -contains 'exitCode') { $record.exitCode } else { $record.exit }
+            # Usage limits (4) and pre-launch refusals (6,7,8,10) say nothing about model quality.
+            if ($exitCode -in @(4,6,7,8,10)) { continue }
+            $group.dispatches++
             if ($exitCode -ne 0 -or $record.status -ne 'READY_FOR_CLAUDE_REVIEW') { $group.failures++ }
             $group.effectiveTokens += [double]$record.tokens.input - [double]$record.tokens.cached + [double]$record.tokens.output
         } elseif ($record.accepted) {
