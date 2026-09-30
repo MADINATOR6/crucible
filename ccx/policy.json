@@ -106,7 +106,7 @@
     "refactor": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L1" },
     "test-write": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L1" },
     "debug": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L2" },
-    "verify": { "route": "worker", "agent": "codex", "codexRole": "verify", "level": "L0" },
+    "verify": { "route": "worker", "agent": "codex", "codexRole": "verify", "level": "L0", "verification": ["deterministic", "cross-model-review"] },
     "review": { "route": "worker", "agent": "cross-model", "level": "L0" },
     "architecture": { "route": "premium", "agent": "claude", "level": "L0" },
     "plan": { "route": "premium", "agent": "claude", "level": "L0" }
@@ -175,7 +175,7 @@
   "redaction": {
     "maxFieldChars": 200,
     "patterns": [
-      "-----BEGIN [A-Z ]*PRIVATE KEY-----",
+      "-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)",
       "\\bAKIA[0-9A-Z]{16}\\b",
       "\\bgh[pousr]_[A-Za-z0-9]{36,}\\b",
       "\\bgithub_pat_[A-Za-z0-9_]{40,}\\b",

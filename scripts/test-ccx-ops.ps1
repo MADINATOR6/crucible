@@ -290,6 +290,29 @@ try {
       Assert (-not (Task 'T1').worktree) 'prune did not clear task worktree'
     } finally { $null = Run-Git @('worktree','remove',$manual) }
   }
+  Case 'worktree add bases on the caller worktree HEAD' {
+    # Regression: git worktree add runs in the main checkout, where HEAD means main, not the caller's branch.
+    Add-Task 'T1' 'src/one.txt'
+    $side = Join-Path (Split-Path $repo -Parent) 'side-worktree'
+    $mainRepo = $script:repo
+    $null = Run-Git @('worktree','add','-b','side',$side,'HEAD')
+    try {
+      Write-Text (Join-Path $side 'src/side.txt') 'side commit'
+      $null = Run-Git @('add','src/side.txt') $side
+      $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','side commit') $side
+      $sideHead = (Run-Git @('rev-parse','HEAD') $side).Trim()
+      Assert ($sideHead -ne (Run-Git @('rev-parse','HEAD')).Trim()) 'fixture heads should differ'
+      $script:repo = $side
+      Check-Code (Run-Cli @('worktree','add','-TaskId','T1')) 0
+      $script:repo = $mainRepo
+      Assert ((Run-Git @('rev-parse','HEAD') (Task 'T1').worktree).Trim() -eq $sideHead) 'worktree add used the main checkout HEAD, not the caller HEAD'
+    } finally {
+      $script:repo = $mainRepo
+      $created = (Task 'T1').worktree
+      if ($created -and (Test-Path -LiteralPath $created)) { $null = Run-Git @('worktree','remove',$created) }
+      $null = Run-Git @('worktree','remove',$side)
+    }
+  }
   Case 'merge check clean, conflict and scope' {
     Add-Task 'T1' 'src/'
     $base = (Run-Git @('branch','--show-current')).Trim()
@@ -304,6 +327,24 @@ try {
     Write-Text (Join-Path $repo 'src/one.txt') 'base'; $null = Run-Git @('add','src/one.txt'); $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','base')
     $r = Run-Cli @('merge-check','-Branch','feature-clean','-Into',$base); Check-Code $r 1
     Assert ($r.Out -match 'CONFLICT src/one.txt') 'merge conflict not reported'
+    # CCX-4 F4: renaming an unowned file into owned scope must flag the deleted source.
+    Write-Text (Join-Path $repo 'outside.txt') 'unowned source'; $null = Run-Git @('add','outside.txt'); $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','unowned source')
+    $null = Run-Git @('checkout','-qb','feature-rename')
+    $null = Run-Git @('mv','outside.txt','src/renamed.txt'); $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','rename into owned scope')
+    $null = Run-Git @('checkout',$base)
+    Add-Task 'T2' 'src/'
+    Check-Code (Run-Cli @('task','update','-Id','T2','-Branch','feature-rename')) 0
+    $r = Run-Cli @('merge-check','-Branch','feature-rename','-Into',$base); Check-Code $r 1
+    Assert ($r.Out -match 'SCOPE outside.txt') 'rename source outside owns not reported'
+  }
+  Case 'verify certifies committed owned files beside dirty ones' {
+    # CCX-4 F2: a committed broken script must still fail when a sibling owned file is dirty.
+    Add-Task 'T1' 'src/'; Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Write-Text (Join-Path $repo 'src/broken.ps1') 'function {'
+    $null = Run-Git @('add','src/broken.ps1'); $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','broken script')
+    Write-Text (Join-Path $repo 'src/one.txt') 'dirty sibling'
+    $r = Run-Cli @('verify','-TaskId','T1','-Stage','parse'); Check-Code $r 1
+    Assert ($r.Out -match 'FAIL parse') 'committed broken owned script passed verification'
   }
   Case 'health JSON, warning inventory, mythos and agent failures, cleanup' {
     # Health checks inspect agent definitions in the fixture repository.

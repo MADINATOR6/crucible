@@ -394,7 +394,8 @@ else {
     # Under -File a binding failure exits 1; this harness calls the script with &, so check the refusal itself.
     $log = Join-Path $scratch 'badmodel.json'
     $r = Run-Launcher $repo ($common + @('-Model', 'gpt 6 & x')) 'success' 'fake' $false 25 $log
-    Assert ($r.Stderr -match "Cannot validate argument on parameter 'Model'") 'model validation message absent'
+    # Hosts wrap long error lines; compare with whitespace collapsed.
+    Assert (($r.Stderr -replace '\s+', '') -match "Cannotvalidateargumentonparameter'Model'") 'model validation message absent'
     Assert (-not (Test-Path -LiteralPath $log)) 'fake codex ran with an unsafe model'
   }
   Case 'research requires task file' {
@@ -496,6 +497,10 @@ else {
     Check-Code $r 8
     Assert ($r.Stdout -match 'Route: (premium|surface)') 'route refusal absent'
     Assert (-not (Test-Path -LiteralPath $log)) 'fake ran beyond dispatch cap'
+    # CCX-4 F5: an explicit effort must not bypass the cap.
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Effort','medium')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 8
+    Assert (-not (Test-Path -LiteralPath $log)) 'explicit effort bypassed the dispatch cap'
   }
   Ccx-Case 'token target refused' {
     Add-CcxTask

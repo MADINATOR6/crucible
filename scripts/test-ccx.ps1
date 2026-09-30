@@ -249,6 +249,11 @@ try {
     Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo).Count -eq 0) 'baseline dirty change blamed on task'
     Write-Utf8File (Join-Path $repo 'later.txt') 'new out-of-scope change'
     Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo).Count -gt 0) 'new out-of-scope change missed'
+    # CCX-4 F3: restarting must not launder the stray change into baselineDirty.
+    Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'later.txt') 'restart laundered a stray change into the baseline'
+    $verifyRoute = Cli-Json @('route','-Type','verify','-Class','complex','-Risk','high')
+    Assert (@($verifyRoute.verification) -notcontains 'independent-verifier') 'verify tasks must not need a verifier of their own'
     Assert (Test-CcxPathOverlap -A 'Src/' -B 'src/one.txt') 'directory overlap is not case insensitive'
     Assert (-not (Test-CcxPathOverlap -A 'src/' -B 'src-other/a.txt')) 'sibling incorrectly overlaps'
   }
@@ -451,6 +456,12 @@ try {
       Assert ($hits.Count -gt 0 -and $hits[0].patternIndex -eq $i -and $hits[0].line -eq 1) "secret metadata $i incorrect"
       Assert (($json.Serialize($hits)) -notlike ('*' + $samples[$i] + '*')) "scanner exposed pattern $i"
     }
+    # CCX-4 F1: the whole PEM block goes, body included, terminated or cut off.
+    $body = 'MIIEpAIBAAKCAQEA' + ('Q' * 40)
+    $pem = 'before ' + '-----BEGIN ' + 'RSA PRIVATE KEY-----' + "`n$body`n" + '-----END ' + 'RSA PRIVATE KEY-----' + ' after'
+    $red = Protect-CcxText $pem -Full
+    Assert ($red -notmatch [regex]::Escape($body) -and $red -match '^before \[REDACTED\] after$') 'PEM key body leaked'
+    Assert ((Protect-CcxText ('-----BEGIN ' + 'PRIVATE KEY-----' + "`n$body") -Full) -notmatch [regex]::Escape($body)) 'unterminated PEM body leaked'
     $cut = Protect-CcxText ('z' * ($policy.redaction.maxFieldChars + 100))
     Assert ($cut.Length -le $policy.redaction.maxFieldChars -and $cut.EndsWith('...')) 'truncation missing or over limit'
     Add-Task

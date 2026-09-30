@@ -262,7 +262,9 @@ function Invoke-CcxCommandStage {
     $safeTask = if ($TaskId) { [regex]::Replace($TaskId, '[^A-Za-z0-9._-]', '_') } else { 'none' }
     $logPath = Join-Path $logDir ("verify-$safeTask-$safeName-" + [DateTime]::UtcNow.ToString('yyyyMMddHHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '.log')
     # Redact before persistence as well as display; command output can contain credentials.
-    $lines = @(($result.stdout + [char]10 + $result.stderr) -split '\r?\n' | ForEach-Object { Protect-CcxText $_ })
+    # Whole text first: a secret can span lines (PEM blocks); then cap each line.
+    $clean = Protect-CcxText -Text ($result.stdout + [char]10 + $result.stderr) -Full
+    $lines = @($clean -split '\r?\n' | ForEach-Object { Protect-CcxText $_ })
     Invoke-CcxLocked {
         param($state)
         [void][IO.Directory]::CreateDirectory($logDir)
@@ -286,12 +288,10 @@ function Invoke-CcxVerify {
         if ($name -notin @($policy.verify.stages | ForEach-Object { $_.name })) { throw (New-CcxError "Unknown verify stage: $name" 2) }
     }
     if ($task) {
-        $paths = @(Get-CcxChangedPaths -Root $root | Where-Object { Test-CcxPathOwned -Path $_ -Owns $task.owns })
-        if (-not $paths.Count) {
-            # Committed work: parse and secret-scan the owned files themselves, not nothing.
-            $raw = Invoke-CcxGit -Root $root -Arguments (@('ls-files','-z','--') + @($task.owns | ForEach-Object { ':(literal)' + $_ }))
-            $paths = @($raw.Split([char]0) | Where-Object { $_ })
-        }
+        # Certify all owned content (the fingerprint's file set), committed or not: checking only
+        # changed files let committed broken code pass beside a dirty sibling.
+        $raw = Invoke-CcxGit -Root $root -Arguments (@('ls-files','-z','--cached','--others','--exclude-standard','--') + @($task.owns | ForEach-Object { ':(literal)' + $_ }))
+        $paths = @($raw.Split([char]0) | Where-Object { $_ })
     } else {
         $specs = @('.')
         foreach ($excluded in $policy.privacy.excludePaths) {
@@ -431,8 +431,10 @@ function Invoke-CcxCmdWorktree($P) {
         $branchExists = Invoke-CcxGitResult -Root $main -Arguments @('show-ref','--verify','--quiet',('refs/heads/' + $branch))
         if ([IO.Directory]::Exists($path) -or [IO.File]::Exists($path) -or $branchExists.code -eq 0 -or $task.worktree) { throw (New-CcxError 'Worktree path or branch already exists.' 2) }
         if ($branchExists.timeout -or $branchExists.code -ne 1) { throw (New-CcxError 'Cannot inspect worktree branch.') }
-        $baseRef = if ($P.Base) { $P.Base } else { 'HEAD' }
-        if ($baseRef.StartsWith('-')) { throw (New-CcxError 'Invalid base ref.' 2) }
+        $baseInput = if ($P.Base) { $P.Base } else { 'HEAD' }
+        if ($baseInput.StartsWith('-')) { throw (New-CcxError 'Invalid base ref.' 2) }
+        # Resolve in the caller's worktree: worktree add runs in the main checkout, where HEAD means main.
+        $baseRef = (Invoke-CcxGit -Arguments @('rev-parse','--verify',($baseInput + '^{commit}'))).Trim()
         $gate = Invoke-CcxGate -Action create-worktree -Target $path -TaskId $task.id
         if ($gate.code) { Write-CcxOutput $gate $P; return [int]$gate.code }
         $result = Invoke-CcxLocked {
@@ -502,7 +504,8 @@ function Invoke-CcxCmdMergeCheck($P) {
     if ($failed) {
         foreach ($line in @($merge.stdout -split '\r?\n' | Select-Object -Skip 1 | Where-Object { $_ })) { $lines += 'CONFLICT ' + $line }
     }
-    $raw = Invoke-CcxGit -Root $main -Arguments @('diff','--name-only','-z',("$into...$($P.Branch)"))
+    # --no-renames: a rename from an unowned path must show its deleted source too.
+    $raw = Invoke-CcxGit -Root $main -Arguments @('diff','--name-only','--no-renames','-z',("$into...$($P.Branch)"))
     $paths = @($raw.Split([char]0) | Where-Object { $_ })
     $state = Get-CcxState
     $task = @($state.tasks.Values | Where-Object { $_.branch -eq $P.Branch } | Select-Object -First 1)

@@ -123,11 +123,12 @@ function Get-CcxPolicy {
     } catch { throw (New-CcxError 'Invalid CCX policy: required sections, effort ranges, permission levels, budgets or limits are missing or invalid.') }
 }
 function Protect-CcxText {
-    param([AllowNull()][string]$Text, $Policy = (Get-CcxPolicy))
+    # -Full redacts without truncating (whole command output, before it is split into lines).
+    param([AllowNull()][string]$Text, $Policy = (Get-CcxPolicy), [switch]$Full)
     if ($null -eq $Text) { return $null }
     foreach ($pattern in $Policy.redaction.patterns) { $Text = [regex]::Replace($Text, $pattern, '[REDACTED]') }
     $limit = [int]$Policy.redaction.maxFieldChars
-    if ($Text.Length -gt $limit) { $Text = $Text.Substring(0, $limit - 3) + '...' }
+    if (-not $Full -and $Text.Length -gt $limit) { $Text = $Text.Substring(0, $limit - 3) + '...' }
     return $Text
 }
 function Protect-CcxValue {
@@ -477,7 +478,9 @@ function Get-CcxClass {
     return $Class
 }
 function Get-CcxVerification {
-    param($Policy, [string]$Class, [string]$Risk)
+    param($Policy, [string]$Class, [string]$Risk, [string]$Type)
+    # A type may set its own list: a verification task needs no verifier of its own.
+    if ($Type -and $Policy.taskTypes.ContainsKey($Type) -and $Policy.taskTypes[$Type].ContainsKey('verification')) { return @($Policy.taskTypes[$Type].verification) }
     $requirements = @($Policy.classes[$Class].verification)
     if ($Risk -eq $Policy.risk.levels[-1]) { $requirements += @($Policy.risk.high.addVerification) }
     $requirements | Select-Object -Unique
@@ -579,7 +582,7 @@ function Invoke-CcxRoute {
     if ($Class -and $Class -ne $effectiveClass) { $decision.reasons += 'high risk raises the minimum class' }
     $Class = $effectiveClass
     $decision.class = $Class; $decision.risk = $Risk
-    $decision.verification = @(Get-CcxVerification $policy $Class $Risk)
+    $decision.verification = @(Get-CcxVerification $policy $Class $Risk $Type)
     $decision.budget = Get-CcxBudget $policy $Class $task
     $decision.agent = $typePolicy.agent
     if ($decision.agent -eq 'cross-model') {
@@ -844,10 +847,15 @@ function Start-CcxTaskInState {
     param($State, $Task, [string]$Worktree, [string]$Branch)
     if ($Task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal tasks cannot be restarted.' 2) }
     Assert-CcxTaskOwnership $State $Task
+    $firstStart = $Task.status -eq 'planned'
+    $moved = $Worktree -and -not ($Task.worktree -and [IO.Path]::GetFullPath($Task.worktree).TrimEnd('\','/') -ieq [IO.Path]::GetFullPath($Worktree).TrimEnd('\','/'))
     if ($Worktree) { Assert-CcxExactField $Worktree 'Worktree'; $Task.worktree = $Worktree }
     if ($Branch) { Assert-CcxExactField $Branch 'Branch'; $Task.branch = $Branch }
-    $root = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
-    $Task.baselineDirty = @(Get-CcxChangedPaths -Root $root | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $Task.owns) })
+    # Baseline once (first start or a move to another worktree): a restart must not launder strays into it.
+    if ($firstStart -or $moved) {
+        $root = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
+        $Task.baselineDirty = @(Get-CcxChangedPaths -Root $root | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $Task.owns) })
+    }
     $Task.status = 'active'
     $Task.updated = Get-CcxNow
 }
@@ -964,7 +972,7 @@ function Invoke-CcxCmdTask {
                 if (-not $task.verification -or $task.verification.status -ne 'PASS' -or $task.verification.full -ne $true) { $missing += 'full PASS verification' }
                 $root = if ($task.worktree) { $task.worktree } else { Get-CcxRepoRoot }
                 if (-not $task.verification -or $task.verification.fingerprint -ne (Get-CcxFingerprint -Task $task -Root $root)) { $missing += 'current verification fingerprint' }
-                foreach ($requirement in @(Get-CcxVerification $policy $effectiveClass $task.risk)) {
+                foreach ($requirement in @(Get-CcxVerification $policy $effectiveClass $task.risk $task.type)) {
                     switch ($requirement) {
                         'cross-model-review' {
                             if (-not @($task.reviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }

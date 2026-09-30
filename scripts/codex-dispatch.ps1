@@ -195,18 +195,20 @@ try {
       $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
       throw (New-CcxError "USAGE LIMIT (recorded): Codex resumes at $resume" 4)
     }
+    # Always route: retry caps, deferral and ownership refusals apply even with explicit -Effort/-Model.
+    $routeArgs = @{ TaskId = $TaskId; Type = $task.type }
+    if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
+    $decision = Invoke-CcxRoute @routeArgs
+    if ($decision.agent -ne 'codex' -or $decision.route -notin @('worker','cheap','script')) {
+      throw (New-CcxError ("Route: $($decision.route) - " + ($decision.reasons -join '; ')) 8)
+    }
     if (-not $PSBoundParameters.ContainsKey('Effort') -and -not $PSBoundParameters.ContainsKey('Model')) {
-      $routeArgs = @{ TaskId = $TaskId; Type = $task.type }
-      if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
-      $decision = Invoke-CcxRoute @routeArgs
-      if ($decision.agent -ne 'codex' -or $decision.route -notin @('worker','cheap','script')) {
-        throw (New-CcxError ("Route: $($decision.route) - " + ($decision.reasons -join '; ')) 8)
-      }
       $Model = $decision.model; $Effort = $decision.effort
       if ($Model -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$' -or $Effort -notin @('low','medium','high','xhigh','max')) {
         throw 'Route returned an invalid model or effort.'
       }
-      Write-Output "Route: $($decision.route) $Model $Effort - $($decision.reasons | Select-Object -First 1)"
+      $firstReason = @($decision.reasons | Select-Object -First 1)
+      Write-Output ("Route: $($decision.route) $Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
     } else { Write-Output 'Route: explicit' }
     if ($Sandbox -eq 'danger-full-access') {
       $gate = Invoke-CcxGate -Action codex-full-access -Target $TaskId -TaskId $TaskId
