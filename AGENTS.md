@@ -8,7 +8,7 @@ Not set.
 
 # Folder Map
 
-Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `scripts/sync-mirror.ps1`, `.codex/`.
+Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `tasks/` (one spec per concurrent task), `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `scripts/sync-mirror.ps1`, `.codex/`. Control plane: `ccx/` (policy, architecture), `scripts/ccx*.ps1`, `.claude/agents/ccx-*.md`.
 
 # Commands
 
@@ -28,8 +28,8 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 
 # Roles
 
-- **Claude Code:** planning, ambiguous or cross-cutting design, TASK.md, risky-diff review, final acceptance, commits to the base branch, push, mirror sync.
-- **Codex:** implementation of well-specified tasks, independent verification and research (read-only roles in HANDOFF.md), running checks, reporting evidence.
+- **Claude Code:** architecture audits, planning, ambiguous or cross-cutting design, migrations, task specs, risky-diff review, final acceptance, commits to the base branch, push, mirror sync.
+- **Codex:** implementation of well-specified tasks (modules, refactors, tests, debugging), independent verification and research (read-only roles in HANDOFF.md), running checks, reporting evidence.
 - Either may do trivial tasks directly. Never have both solve the same problem.
 
 # Modes
@@ -45,6 +45,24 @@ Pick one per task. Record the task once: in the task file (default TASK.md) for 
 - Normal and clear: short task spec (goal, write allowlist, Done When, stop conditions) → Codex implements → verify → commit.
 - Complex or ambiguous: Claude plans → task spec → Codex implements → verify → commit.
 - Risky (see Risky Changes): as complex, plus Claude reviews the task spec, the diff, changed files and relevant tests, and a Codex verifier run tries to break it (file-system changes also get a read-only dry run on the real target) → fix → final verification → commit.
+- Deterministic work (git state, search, lint, tests, health) goes to the tool, never a model. `ccx route` applies these tiers from `ccx/policy.json` (OMNIROUTE): it returns agent, model, effort, budget and required verification for a task's type, class and risk.
+
+# Control Plane
+
+Optional: plain Dispatch without `-TaskId` works as before. The details are in `ccx/ARCHITECTURE.md`. Run it as `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 <command>`.
+
+- **Task lifecycle:**
+  1. Register non-trivial work with `task add` (type, class, risk, owner, owns, task file).
+  2. `codex-dispatch.ps1 -TaskId <id>` then routes model and effort and enforces ownership, budget and retry caps.
+  3. Finish with `verify -TaskId`, a `task review` by the other model, and `task done`, which refuses unverified or unreviewed work.
+- **Permission levels:**
+  - **Autonomous:** L0 read, L1 project write, L2 local build, test or dispatch.
+  - **Logged:** L3 branch, worktree, local commit or merge, dependency, mirror sync.
+  - **Approval:** L4 push, PR, remote merge or delete, messages, publishing, paid actions, Codex full access. L5 production, credentials, security settings, force-push, history rewrite and irreversible migrations need the user at an interactive console.
+  - Run `ccx gate -Action <action>` before any L4 or L5 action. Broad machine access is never authorisation.
+- **Caps:** at most two review cycles and two architecture challenge rounds, then decide on evidence or ask the user. A route of `defer` means Codex is at its usage limit: do non-Codex work. `surface` means stop and ask.
+- **Views:** `ccx status` shows tasks, approvals, notifications and worktrees. `ccx health` checks the stack. Unattended sessions start with `ccx status -Brief`.
+- **Secrets and private data:** never put secrets in task specs, notes, state or telemetry. Paths in `privacy.excludePaths` are never read or scanned.
 
 # Token Efficiency
 
@@ -57,8 +75,17 @@ Pick one per task. Record the task once: in the task file (default TASK.md) for 
 
 # Effort
 
-- Claude: medium effort for routine work; high for architecture, ambiguous requirements, important planning, risky or security review, and cross-cutting debugging. Change effort mid-session rather than starting a new session.
-- Codex: default coding model at medium reasoning. High when one reasonable attempt failed, debugging is hard, several systems interact, or being wrong is costly. Never above high by default. `.codex/config.toml` sets medium once the folder is trusted; otherwise pass `-c model_reasoning_effort=medium`.
+- Models and effort come from `ccx/policy.json`; `ccx route` applies them. Never use high, xhigh or max merely because it exists.
+- Claude:
+  - Medium effort for routine work.
+  - High for architecture, ambiguous requirements, important planning, risky or security review, and cross-cutting debugging.
+  - Max only for exceptional one-off work, such as a system migration.
+  - Change effort mid-session rather than starting a new session.
+- Codex dispatches:
+  - Model gpt-6-astra (`-Model`).
+  - Effort by class: routine low, normal medium, complex high, critical and exceptional xhigh.
+  - A failed attempt or declared ambiguity raises effort one step, within the class cap. Max needs two failed attempts on exceptional work.
+- Everyday Codex keeps the user's own default. `.codex/config.toml` sets medium for manual runs once the folder is trusted; otherwise pass `-c model_reasoning_effort=medium`.
 
 # Scope
 

@@ -8,6 +8,7 @@ How work passes between Claude Code and Codex. This is the handoff contract (som
 1. [ ] `git status` clean or pre-existing paths recorded; task file filled and committed-or-saved; note HEAD.
 2. [ ] The task file has a task ID, write allowlist, out-of-scope list, resolved business rules, exact Verify commands, stop conditions, and each Done When item assigned to Codex or Claude.
 3. [ ] Say whether temporary scripts or fixtures are allowed, and where. Synthetic data only unless the user authorised real data.
+4. [ ] With ccx: `ccx task add -Id <id> ... -TaskFile <path>` registers the task. For tasks running at the same time, give each its own spec in `tasks/<ID>.md` and run each from its own worktree (`ccx worktree add -TaskId <id>`).
 
 ### Launcher (repo root)
 
@@ -15,14 +16,39 @@ How work passes between Claude Code and Codex. This is the handoff contract (som
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\codex-dispatch.ps1
 ```
 
-Options: `-Role verify` or `-Role research` (read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`); `-TaskFile <path>` for a brief other than TASK.md; `-Effort high` only when AGENTS.md's escalation rules apply; `-TimeoutMinutes <n>` (default 60); `-CaptureDir` (default `%USERPROFILE%\codex-captures`, outside the repo and OneDrive). The script passes Codex a one-line prompt naming the role's instruction below and the task file (`codex.cmd` breaks on multi-line prompts), gives it a closed stdin, prints its token usage and report, and holds a lock so only one write dispatch runs per checkout. Claude Code: run it in the background; a dispatch can outlast the shell tool's timeout. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
+Options:
+- `-Role verify` or `-Role research`: read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`.
+- `-TaskFile <path>` for a brief other than TASK.md.
+- `-TaskId <id>` ties the run to ccx. It checks ownership, worktree, budget, recorded usage limits and the retry cap. OMNIROUTE picks the model and effort unless `-Model` or `-Effort` is given. Full access needs an approval. After the run it records tokens, status, post-checks and telemetry.
+- `-Model <slug>` and `-Effort low|medium|high|xhigh|max` for runs outside ccx, or to override the route.
+- `-TimeoutMinutes <n>` (default 60).
+- `-CaptureDir` (default `%USERPROFILE%\codex-captures`, outside the repo and OneDrive).
 
-Exit codes: Codex's own (0 = turn completed, never acceptance); 1 refused or launcher failure (the message says why; if Codex ran, inspect the captures and the diff); 3 no report; 4 Codex usage limit (do non-Codex work; `RESETS:` gives the time when Codex states one); 5 timeout (Codex's process tree was killed); 6 another write dispatch is running.
+The script passes Codex a one-line prompt naming the role's instruction below and the task file (`codex.cmd` breaks on multi-line prompts), gives it a closed stdin, prints its token usage and report, and holds a lock so only one write dispatch runs per checkout. Claude Code: run it in the background; a dispatch can outlast the shell tool's timeout. Re-check flags with `codex.cmd exec --help` after a Codex upgrade.
+
+Exit codes:
+- Codex's own code: 0 means the turn completed, never acceptance.
+- 1: refused, or a launcher failure. The message says why; if Codex ran, inspect the captures and the diff.
+- 3: no report.
+- 4: Codex usage limit. Do non-Codex work. `RESETS:` gives the time when Codex states one; with `-TaskId` it is recorded, and routing defers until then.
+- 5: timeout. Codex's process tree was killed.
+- 6: another write dispatch is running.
+- 7: ownership or worktree conflict (`-TaskId`).
+- 8: budget, retry cap or route refusal (`-TaskId`). Run `ccx route -TaskId <id>` for the reason.
+- 9: the turn completed but post-checks failed, for example a file changed outside the task's owns.
+- 10: approval required (`ccx approve`).
 
 On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run once with a `-TaskFile` naming only the open items; if items remain, review instead.
 
 ### After return (Claude)
 Match the report's task and baseline to this run → inspect the diff for correctness and scope → resolve every non-PASS item → re-run the checks Codex marked PASS, then Claude-owned checks → deeper review if risky → commit only task-owned changes → mirror sync if used.
+
+With ccx, the steps before committing are:
+1. `ccx verify -TaskId <id>`.
+2. `ccx task review -Id <id> -Result pass|changes -By claude`, plus `-Kind verifier` for a verifier run.
+3. `ccx task done -Id <id>`.
+
+Stop after two review cycles: decide on evidence or ask the user. Before merging a task branch, `ccx merge-check -Branch <b>` must be clean.
 
 ### Implementer instruction (Codex)
 
@@ -76,8 +102,8 @@ READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it
 ## Parallel mode (both tools running)
 
 1. The user assigns each tool a distinct task and file set. Record them in the handoff note, not TASK.md, so branches do not conflict on merge.
-2. Preflight: confirm you can create a worktree, commit, and push. If any step is blocked, do not weaken the sandbox: keep your edits in place and name the exact blocked Git command for Claude or the user to run. Codex's `workspace-write` sandbox protects `.git`, so it cannot create branches, worktrees or commits: Parallel mode needs Codex in full-access mode, or Claude runs every Git step for Codex. Claude may pre-create the Codex worktree and branch and name it in the assignment.
+2. Preflight: confirm you can create a worktree, commit, and push. If any step is blocked, do not weaken the sandbox: keep your edits in place and name the exact blocked Git command for Claude or the user to run. Codex's `workspace-write` sandbox protects `.git`, so it cannot create branches, worktrees or commits: Parallel mode needs Codex in full-access mode, or Claude runs every Git step for Codex. Claude may pre-create the Codex worktree and branch and name it in the assignment (`ccx worktree add -TaskId <id> -Agent codex`).
 3. Each tool: own worktree, own branch (`claude/<task>` or `codex/<task>`), commits only there. Worktrees cannot see each other's uncommitted files.
 4. Handoff order: write a new note `handoffs/YYYY-MM-DD-<agent>-<task>.md` from `handoffs/TEMPLATE.md` (never edit another agent's note) → commit → push → verify the remote tip with `git ls-remote origin <branch>` → tell the user.
 5. The receiver reads AGENTS.md, the handoff note, and `git log`/`git diff <base>...<branch>` before continuing.
-6. Claude reviews and merges into the base branch unless the user assigns another owner, then runs the relevant checks on the merged result before pushing the base branch or syncing its mirror.
+6. Claude reviews and merges into the base branch unless the user assigns another owner. `ccx merge-check -Branch <b>` must be clean first. Claude then runs the relevant checks on the merged result before pushing the base branch (after `ccx gate -Action push`) or syncing its mirror.

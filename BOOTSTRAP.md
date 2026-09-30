@@ -9,11 +9,15 @@ Not copied into projects. In Claude Code opened in the target repository, say:
 Apply the Claude Code + Codex workflow from the folder containing this BOOTSTRAP.md (the template) to this repository.
 
 1. Run `git status`. Note existing uncommitted work and do not modify, stage or commit it.
-2. Bring in AGENTS.md, CLAUDE.md, HANDOFF.md, TASK.md, FRICTION.md, handoffs/TEMPLATE.md, scripts/codex-dispatch.ps1, scripts/sync-mirror.ps1 and .codex/config.toml. Copy TASK.md and FRICTION.md blank (headings, comments and the table header only): the template's copies may hold its own live task and friction rows. Do not bring in the template's MEMORY.md, HANDOFF-REPORT.md, other handoff notes, scripts/test-*.ps1 or prompts/. If a file already exists, merge it: keep project-specific content, add missing workflow rules, remove only exact duplicates. For an existing CLAUDE.md, put `@AGENTS.md` first and keep its Claude-specific lines. Never overwrite blindly.
+2. Bring in AGENTS.md, CLAUDE.md, HANDOFF.md, TASK.md, FRICTION.md, handoffs/TEMPLATE.md, scripts/codex-dispatch.ps1, scripts/sync-mirror.ps1, .codex/config.toml, and the ccx control plane: ccx/policy.json, ccx/ARCHITECTURE.md, scripts/ccx.ps1, scripts/ccx-core.ps1, scripts/ccx-ops.ps1 and .claude/agents/ccx-*.md.
+   - In the copied ccx/policy.json:
+     - empty `privacy.excludePaths` (the template lists its own private folder);
+     - set `verify.stages` to the target repository's verified commands (step 4).
+   - Add `.ccx-worktrees/` to .gitignore. Copy TASK.md and FRICTION.md blank (headings, comments and the table header only): the template's copies may hold its own live task and friction rows. Do not bring in the template's MEMORY.md, HANDOFF-REPORT.md, other handoff notes, scripts/test-*.ps1 or prompts/. If a file already exists, merge it: keep project-specific content, add missing workflow rules, remove only exact duplicates. For an existing CLAUDE.md, put `@AGENTS.md` first and keep its Claude-specific lines. Never overwrite blindly.
 3. Inspect read-only, skipping node_modules, vendor, dist, build, coverage and generated output: languages, frameworks, package manager, database, important folders, and the real dev/test/lint/typecheck/build commands from manifests, scripts and CI config.
 4. Run those commands where practical and safe. Record only commands that ran successfully; list missing or failing ones separately. Do not add placeholder tests or tooling.
 5. Fill Project, Stack, Folder Map and Commands in AGENTS.md concisely. Keep the workflow sections unchanged; merged project-specific rules may stay.
 6. Report: files added or merged, verified commands, missing verification, UNKNOWN / CHECKED / NEEDED items, and `git status`. Do not commit unless asked.
 7. Remind me to open the repository in Codex once and trust it, so `.codex/config.toml` applies.
 
-Do not add agents, orchestration, extra files or architecture.
+Do not add agents, orchestration, files or architecture beyond this template's.

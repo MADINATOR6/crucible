@@ -6,13 +6,13 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
 - Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
 - Task: ccx upgrade (user's CLAUDE_CODEX_MASTER_UPGRADE_PROMPT, 2026-09-30) on branch claude/architecture-audit-migration-649829 from c2f515b. Queue below.
-- Status: CCX-1 dispatch. Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
+- Status: CCX-1 implemented by Codex (28/28) then hit the Codex usage limit (resets 16:21 local); Claude review fixes applied. CCX-2/CCX-3 wait for Codex (route: defer). Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
 - Open: measure Codex code size (ladder effect) on the next real Dispatch task; none existed on 2026-09-27.
 
 ## Task queue (2026-09-30 ccx upgrade)
 Roles per the user: Claude Opus 5.5 max = architecture, orchestration, decisions, review; Codex gpt-6-astra high (xhigh on failure or ambiguity) = implementation, tests, independent review.
 - [x] CCX-0 [trivial, Claude] Launcher `-Model` and low/xhigh/max effort, so dispatches can run Astra. 26/26.
-- [ ] CCX-1 [complex, Codex] ccx core + CLI: state/lock, tasks/ownership, OMNIROUTE router, gate/approvals, events, telemetry, quick checks.
+- [x] CCX-1 [complex, Codex] ccx core + CLI: state/lock, tasks/ownership, OMNIROUTE router, gate/approvals, events, telemetry, quick checks. Codex hit the usage limit after finishing; Claude review fixes.
 - [ ] CCX-2 [complex, Codex] ccx-ops: tick/runtime, verify pipeline, memory lint, worktrees, merge-check, health, status.
 - [ ] CCX-3 [complex, Codex] Launcher integration (-TaskId: ownership, budget, route, gate, telemetry, post-checks).
 - [ ] CCX-4 [complex, Codex verify] Adversarial verifier on the combined change.
@@ -67,6 +67,10 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-30 | L5 approvals need a human at an interactive console; L4 also accepts a quoted chat approval | Agents' shells have redirected stdin, so they cannot approve through the CLI; Codex cannot write state at all | CCX-1
 - 2026-09-30 | ccx task worktrees under `.ccx-worktrees/` (gitignored) inside the repo | User rule: work only inside claude-codex-collab; `.claude/worktrees/` belongs to the desktop app | CCX-2
 - 2026-09-30 | `nursing-a2/` in this worktree is untracked study data left from branch claude/uts-nursing-assessment-reviewer-013cf5; never read, scan or stage it | Unrelated private data | -
+- 2026-09-30 | Private paths live in policy `privacy.excludePaths` (nursing-a2/), not in code | Codex hard-coded nursing-a2 into ccx-core; a template must not | CCX-1 review
+- 2026-09-30 | Task owner decides the agent for its own type; `task escalate` records a model escalation (attempts restart, max effort still counts earlier failures) | Router returned premium forever: nothing incremented modelEscalations | CCX-1 review
+- 2026-09-30 | Codex usage limit at 12:32 after ~35 min of Astra-high (earlier Codex use today); route defers Codex work until 16:21; Claude does review, docs and non-Codex work meanwhile | Policy onUnavailable=defer; user assigned implementation to Codex | CCX-1
+- 2026-09-30 | ccx test suites are slow (~700 s) because a bare `powershell -NoProfile` start costs ~4.3 s on this host; policy/root caching did not change suite time | Measured | CCX-1 review
 
 ## Open questions
 - Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
@@ -108,3 +112,5 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 19:53 +10:00: fresh clone of pushed 3389199 passes both suites (23/23; 20/20 + 1 SKIP). Clone removed. Writing HANDOFF-REPORT.md; session stopping (queue complete).
 - 2026-09-27 10:56 +10:00: merged claude/ladder-wording-fix (ff to 038824a, both suites pass, branch deleted local+remote); Mythos fixes 000b1a6, c5df6b5 pushed; claude-codex-smoke recycled; claude-codex-template locked (left); OneDrive copy was already gone. Log: %USERPROFILE%\powerlifting-delete.log.
 - 2026-09-30 11:55 +10:00: ccx upgrade start (attended; user set Claude max, Codex high). Audit done, baseline recorded, CCX-0 done, policy + CCX-1 spec written; dispatching CCX-1.
+- 2026-09-30 13:10 +10:00: CCX-1 Codex exit 4 (usage limit, no report; edits complete, 28/28). Claude review fixes (policy caching, privacy.excludePaths, defaults, owner routing, task escalate, Start-CcxTask); docs, agents, task specs written. Next: commit CCX-1, prepare worktrees, dispatch CCX-2 + CCX-3 at 16:21.
+- 2026-10-01 01:05 +10:00: session resumed after an interruption (the 16:24 resume never ran). test-ccx 29/29 (836 s). Committing CCX-1 and docs; dispatching CCX-2 and CCX-3 in parallel worktrees.
