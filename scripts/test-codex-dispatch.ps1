@@ -5,6 +5,7 @@ Run from the repository root with Windows PowerShell 5.1.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $launcher = Join-Path $PSScriptRoot 'codex-dispatch.ps1'
+$ccx = Join-Path $PSScriptRoot 'ccx.ps1'
 $scratch = Join-Path $env:TEMP 'ccx-t2'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $powershell = Join-Path $PSHOME 'powershell.exe'
@@ -40,11 +41,11 @@ function Run-Git([string[]]$gitArgs) {
 function Run-Launcher {
   param([string]$cwd, [string[]]$arguments = @(), [string]$mode = 'success',
         [string]$pathMode = 'fake', [bool]$keepStdin = $false,
-        [int]$limitSeconds = 25, [string]$fakeLog = '')
+        [int]$limitSeconds = 25, [string]$fakeLog = '', [bool]$probeCapture = $false)
   Assert (($arguments.Count % 2) -eq 0) 'test harness arguments must be name/value pairs'
   $parts = New-Object 'System.Collections.Generic.List[string]'
   for ($i = 0; $i -lt $arguments.Count; $i += 2) {
-    Assert ($arguments[$i] -in @('-CaptureDir', '-TimeoutMinutes', '-Sandbox', '-Role', '-TaskFile', '-Effort', '-Model')) 'unexpected test harness parameter'
+    Assert ($arguments[$i] -in @('-CaptureDir', '-TimeoutMinutes', '-Sandbox', '-Role', '-TaskFile', '-Effort', '-Model', '-TaskId')) 'unexpected test harness parameter'
     $parts.Add($arguments[$i])
     $parts.Add((Quote-Ps $arguments[$i + 1]))
   }
@@ -82,6 +83,26 @@ function Run-Launcher {
     $err = New-Object System.IO.MemoryStream
     $outTask = $process.StandardOutput.BaseStream.CopyToAsync($out)
     $errTask = $process.StandardError.BaseStream.CopyToAsync($err)
+    $readable = $false
+    if ($probeCapture) {
+      $deadline = [DateTime]::UtcNow.AddSeconds(5)
+      while ([DateTime]::UtcNow -lt $deadline -and -not $readable -and -not $process.HasExited) {
+        $files = @(Get-ChildItem -LiteralPath ($arguments[[array]::IndexOf($arguments, '-CaptureDir') + 1]) -File -ErrorAction SilentlyContinue)
+        $events = @($files | Where-Object { $_.Name -like '*.events.jsonl' }) | Select-Object -Last 1
+        $stderrFile = @($files | Where-Object { $_.Name -like '*.stderr.log' }) | Select-Object -Last 1
+        if ($fakeLog -and (Test-Path -LiteralPath $fakeLog) -and $events -and $stderrFile) {
+          try {
+            $a = [IO.File]::Open($events.FullName, 'Open', 'Read', 'ReadWrite')
+            $b = [IO.File]::Open($stderrFile.FullName, 'Open', 'Read', 'ReadWrite')
+            $readable = $true
+          } catch [IO.IOException] { } finally {
+            if ($a) { $a.Dispose(); $a = $null }
+            if ($b) { $b.Dispose(); $b = $null }
+          }
+        }
+        if (-not $readable) { Start-Sleep -Milliseconds 50 }
+      }
+    }
     if (-not $process.WaitForExit($limitSeconds * 1000)) { throw "launcher child exceeded ${limitSeconds}s" }
     if (-not $outTask.Wait(5000) -or -not $errTask.Wait(5000)) {
       throw 'launcher exited but a fake descendant kept a capture pipe open'
@@ -93,6 +114,7 @@ function Run-Launcher {
       Stdout = $utf8.GetString($out.ToArray())
       Stderr = $utf8.GetString($err.ToArray())
       Bytes = $out.ToArray()
+      ProbeRead = $readable
     }
     Assert ($result.Stderr -notmatch 'SAFETY:') $result.Stderr
     $failed = $false
@@ -141,6 +163,59 @@ function New-Task([string]$path, [string]$text = "# Task`nDo this task.`n") {
 function Check-Code($result, [int]$expected) {
   Assert ($result.Code -eq $expected) "exit $($result.Code), expected $expected; stdout=$($result.Stdout); stderr=$($result.Stderr)"
 }
+function Read-CcxState {
+  return (([IO.File]::ReadAllText((Join-Path $env:CCX_STATE_DIR 'state.json'), $utf8)) | ConvertFrom-Json)
+}
+function Write-CcxState($state) {
+  Write-Utf8File (Join-Path $env:CCX_STATE_DIR 'state.json') ($state | ConvertTo-Json -Depth 30 -Compress)
+}
+function Run-Ccx([string[]]$arguments) {
+  $parts = @($arguments | ForEach-Object { if ($_ -cmatch '^-[A-Za-z]+$') { $_ } else { Quote-Ps $_ } }) -join ' '
+  $command = "Set-Location -LiteralPath $(Quote-Ps $repo); & $(Quote-Ps $ccx) $parts; exit `$LASTEXITCODE"
+  $info = New-Object Diagnostics.ProcessStartInfo
+  $info.FileName = $powershell
+  $info.Arguments = '-NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+  $info.WorkingDirectory = $repo
+  $info.UseShellExecute = $false
+  $info.CreateNoWindow = $true
+  $info.RedirectStandardInput = $true
+  $info.RedirectStandardOutput = $true
+  $info.RedirectStandardError = $true
+  $p = New-Object Diagnostics.Process
+  $p.StartInfo = $info
+  try {
+    [void]$p.Start()
+    $p.StandardInput.Close()
+    $out = $p.StandardOutput.ReadToEndAsync()
+    $err = $p.StandardError.ReadToEndAsync()
+    Assert ($p.WaitForExit(30000)) 'ccx child timed out'
+    Assert ($out.Wait(5000) -and $err.Wait(5000)) 'ccx capture pipe stayed open'
+    return [pscustomobject]@{ Code=$p.ExitCode; Stdout=$out.Result; Stderr=$err.Result }
+  } finally {
+    if (-not $p.HasExited) { $p.Kill() }
+    $p.Dispose()
+  }
+}
+function Ccx-Case([string]$name, [scriptblock]$body) {
+  Case $name {
+    $previous = @{}
+    foreach ($key in @('CCX_STATE_DIR','CCX_POLICY','CODEX_HOME')) { $previous[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
+    $fixture = Join-Path $scratch ('ccx-' + $script:total)
+    $env:CCX_STATE_DIR = Join-Path $fixture 'state'
+    $env:CCX_POLICY = Join-Path $fixture 'policy.json'
+    $env:CODEX_HOME = Join-Path $fixture 'catalog'
+    [void][IO.Directory]::CreateDirectory($fixture)
+    [IO.File]::Copy((Join-Path $root 'ccx/policy.json'), $env:CCX_POLICY)
+    [void][IO.Directory]::CreateDirectory($env:CODEX_HOME)
+    Write-Utf8File (Join-Path $env:CODEX_HOME 'models_cache.json') '{"models":[{"slug":"gpt-6-astra"}]}'
+    try { & $body } finally {
+      foreach ($key in $previous.Keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }
+    }
+  }
+}
+function Add-CcxTask([string]$id = 'T1', [string]$owns = 'owned.txt', [string]$owner = 'codex', [string]$type = 'implement', [string]$taskFile = 'TASK.md') {
+  Check-Code (Run-Ccx @('task','add','-Id',$id,'-Title','Synthetic task','-Type',$type,'-Class','normal','-Risk','low','-Owner',$owner,'-Owns',$owns,'-TaskFile',$taskFile)) 0
+}
 
 if (Test-Path -LiteralPath $scratch) {
   # Never delete a folder this run did not create (another run may be using it).
@@ -180,6 +255,12 @@ else if (mode === 'usage') {
   process.stderr.write(usage + '\n');
   process.exit(1);
 }
+else if (mode === 'ready' || mode === 'stray') {
+  fs.writeFileSync(mode === 'stray' ? 'stray.txt' : 'owned.txt', 'synthetic change');
+  event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
+  event({type:'turn.completed', usage:{input_tokens:200,cached_input_tokens:20,output_tokens:7}});
+  write('Status: READY_FOR_CLAUDE_REVIEW\n');
+}
 else if (mode === 'error') {
   event({type:'error', message:'first error'});
   event({type:'turn.failed', error:{message:'first error'}});
@@ -200,7 +281,9 @@ else {
   Run-Git @('-C', $repo, 'config', 'user.name', 'Fake')
   New-Task (Join-Path $repo 'TASK.md')
   Write-Utf8File (Join-Path $repo 'HANDOFF.md') '# Handoff'
-  Run-Git @('-C', $repo, 'add', 'TASK.md', 'HANDOFF.md')
+  [void](New-Item -ItemType Directory -Path (Join-Path $repo 'ccx'))
+  [IO.File]::Copy((Join-Path $root 'ccx/policy.json'), (Join-Path $repo 'ccx/policy.json'))
+  Run-Git @('-C', $repo, 'add', 'TASK.md', 'HANDOFF.md', 'ccx/policy.json')
   Run-Git @('-C', $repo, 'commit', '-m', 'fixture')
   $captures = Join-Path $scratch 'captures'
   $common = @('-CaptureDir', $captures)
@@ -369,6 +452,178 @@ else {
   }
   Case 'unsafe percent capture path refused' {
     $r = Run-Launcher $repo @('-CaptureDir', (Join-Path $scratch 'bad%capture')); Check-Code $r 1
+  }
+  Ccx-Case 'unknown task refused before fake runs' {
+    $log = Join-Path $scratch 'unknown.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','UNKNOWN')) 'success' 'fake' $false 25 $log
+    Check-Code $r 1
+    Assert ($r.Stdout -match 'unknown task') 'unknown task message absent'
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran for unknown task'
+  }
+  Ccx-Case 'ownership conflict refused' {
+    Add-CcxTask 'T1' 'owned.txt'
+    Add-CcxTask 'T2' 'owned.txt'
+    Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
+    $log = Join-Path $scratch 'overlap.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T2')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 7
+    Assert ($r.Stdout -match 'Ownership conflict') 'overlap reason absent'
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran after ownership conflict'
+  }
+  Ccx-Case 'worktree mismatch refused' {
+    Add-CcxTask
+    Check-Code (Run-Ccx @('task','update','-Id','T1','-Worktree',(Join-Path $scratch 'other-worktree'))) 0
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1'))
+    Check-Code $r 7
+    Assert ($r.Stdout -match "run from the task's worktree") 'worktree message absent'
+  }
+  Ccx-Case 'claude owner implement refused' {
+    Add-CcxTask 'T1' 'owned.txt' 'claude'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1'))
+    Check-Code $r 7
+  }
+  Ccx-Case 'dispatch cap refused by route' {
+    Add-CcxTask
+    $state = Read-CcxState
+    $state.tasks.T1.dispatches = 3
+    Write-CcxState $state
+    $log = Join-Path $scratch 'cap.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'Route: (premium|surface)') 'route refusal absent'
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran beyond dispatch cap'
+  }
+  Ccx-Case 'token target refused' {
+    Add-CcxTask
+    $state = Read-CcxState
+    $state.tasks.T1.tokens.input = 400000
+    Write-CcxState $state
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1'))
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'BUDGET: token target reached') 'budget message absent'
+  }
+  Ccx-Case 'recorded usage limit refused' {
+    Add-CcxTask
+    $state = Read-CcxState
+    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    Write-CcxState $state
+    $log = Join-Path $scratch 'recorded-limit.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 4
+    Assert ($r.Stdout -match 'USAGE LIMIT \(recorded\)') 'recorded limit message absent'
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran during recorded limit'
+  }
+  Ccx-Case 'routed normal effort and task file' {
+    New-Task (Join-Path $repo 'ccx-task.md')
+    Add-CcxTask 'T1' 'owned.txt,ccx-task.md' 'codex' 'implement' 'ccx-task.md'
+    $log = Join-Path $scratch 'routed.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    Assert ($r.Stdout -match 'Route: worker gpt-6-astra medium') 'normal route absent'
+    $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+    Assert (($args -join '|') -match '\|-m\|gpt-6-astra\|') 'routed model absent'
+    Assert ($args -contains 'model_reasoning_effort=medium') 'routed medium effort absent'
+    Assert ($args[-1] -match 'ccx-task.md\.$') 'task file not selected'
+  }
+  Ccx-Case 'second implementation attempt routes high' {
+    Add-CcxTask
+    $state = Read-CcxState
+    $state.tasks.T1.dispatches = 1
+    Write-CcxState $state
+    $log = Join-Path $scratch 'attempt-two.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+    Assert ($args -contains 'model_reasoning_effort=high') 'second attempt did not route high'
+  }
+  Ccx-Case 'explicit effort keeps default model' {
+    Add-CcxTask
+    $log = Join-Path $scratch 'explicit.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Effort','low')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    Assert ($r.Stdout -match 'Route: explicit') 'explicit route message absent'
+    $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+    Assert ($args -contains 'model_reasoning_effort=low') 'explicit effort lost'
+    Assert (-not ($args -contains '-m')) 'unbound model was passed'
+  }
+  Ccx-Case 'usage reset recorded' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'usage'
+    Check-Code $r 4
+    $until = [DateTime]::Parse((Read-CcxState).agents.codex.unavailableUntil).ToLocalTime()
+    Assert ($until -gt [DateTime]::Now) 'recorded reset is not future'
+    Assert ($until.Hour -eq 17 -and $until.Minute -eq 33) 'recorded reset time incorrect'
+  }
+  Ccx-Case 'full access requires and consumes chat approval' {
+    Add-CcxTask
+    $args = $common + @('-TaskId','T1','-Sandbox','danger-full-access')
+    $log = Join-Path $scratch 'approved.json'
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 10
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran without approval'
+    $state = Read-CcxState
+    $pending = @($state.approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'codex-full-access' -and $_.status -eq 'pending' })
+    Assert ($pending.Count -eq 1) 'pending approval absent'
+    Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic fixture dispatch')) 0
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    Assert (Test-Path -LiteralPath $log) 'fake did not run after approval'
+    Assert ((Read-CcxState).approvals.($pending[0].id).status -eq 'used') 'approval was not consumed'
+  }
+  Ccx-Case 'ready dispatch records state telemetry and event' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+    Check-Code $r 0
+    $state = Read-CcxState
+    $task = $state.tasks.T1
+    Assert ($task.dispatches -eq 1 -and $task.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'dispatch state missing'
+    Assert ($task.tokens.input -eq 300 -and $task.tokens.cached -eq 30 -and $task.tokens.output -eq 12) 'summed tokens absent'
+    Assert (@($state.eventQueue | Where-Object { $_.type -eq 'dispatch-finished' -and $_.key -eq 'dispatch:T1:1' }).Count -eq 1) 'dispatch event missing'
+    $records = @([IO.File]::ReadAllLines((Join-Path $env:CCX_STATE_DIR 'telemetry.jsonl')) | ForEach-Object { $_ | ConvertFrom-Json })
+    Assert (@($records | Where-Object { $_.kind -eq 'dispatch' -and $_.taskId -eq 'T1' -and $_.exit -eq 0 }).Count -eq 1) 'dispatch telemetry absent'
+  }
+  Ccx-Case 'stray write gives post-check exit nine' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'stray'
+    Check-Code $r 9
+    Assert ($r.Stdout -match 'SCOPE VIOLATION: stray.txt') 'scope violation not printed'
+    Assert ((Read-CcxState).tasks.T1.lastDispatch.exit -eq 9) 'final post-check code not recorded'
+  }
+  Ccx-Case 'baseline dirty permits pre-existing path' {
+    Add-CcxTask
+    Write-Utf8File (Join-Path $repo 'stray.txt') 'existing synthetic edit'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'stray'
+    Check-Code $r 0
+    Assert ((Read-CcxState).tasks.T1.baselineDirty -contains 'stray.txt') 'baselineDirty was not captured'
+  }
+  Ccx-Case 'verify run does not consume implementation cap' {
+    Add-CcxTask 'T1' 'owned.txt' 'claude'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','verify')) 'success'
+    Check-Code $r 0
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'verify consumed implementation dispatch'
+  }
+  Ccx-Case 'research run does not consume implementation cap' {
+    Add-CcxTask 'T1' 'owned.txt' 'claude'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','research')) 'success'
+    Check-Code $r 0
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'research consumed implementation dispatch'
+  }
+  Case 'legacy dispatch argv unchanged' {
+    $log = Join-Path $scratch 'legacy-argv.json'
+    $r = Run-Launcher $repo $common 'success' 'fake' $false 25 $log
+    Check-Code $r 0
+    $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+    Assert ($args.Count -eq 9) 'legacy argument count changed'
+    Assert ((($args[0..6]) -join '|') -ceq 'exec|-s|workspace-write|-c|model_reasoning_effort=medium|--json|--output-last-message') 'legacy flags changed'
+    Assert ($args[7] -match '\.report\.md$') 'legacy report argument changed'
+    Assert ($args[8] -ceq ('Read HANDOFF.md and follow its Implementer instruction for ' + (Join-Path $repo 'TASK.md') + '.')) 'legacy prompt changed'
+  }
+  Case 'capture streams readable during run' {
+    $liveCaptures = Join-Path $scratch 'live-captures'
+    $log = Join-Path $scratch 'live.json'
+    $r = Run-Launcher $repo @('-CaptureDir',$liveCaptures,'-TimeoutMinutes','0.05') 'sleep' 'fake' $false 25 $log $true
+    Check-Code $r 5
+    Assert ($r.ProbeRead) 'capture streams could not be opened while fake Codex ran'
   }
 } finally {
   $timeoutLog = Join-Path $scratch 'timeout.json'
