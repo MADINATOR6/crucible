@@ -82,7 +82,8 @@ function Fixture {
   )
   Save-Policy
   Write-Json (Join-Path $env:CODEX_HOME $policy.models.codex.catalogFile) @{models=@(@{slug=$policy.models.codex.default})}
-  Write-Text (Join-Path $env:CODEX_HOME 'config.toml') "[mcp_servers.extra_fixture]`ncommand = 'unused'`n"
+  # node_repl is allowed; its .env sub-table must not count as another server.
+  Write-Text (Join-Path $env:CODEX_HOME 'config.toml') "[mcp_servers.node_repl]`ncommand = 'unused'`n[mcp_servers.node_repl.env]`nX = 'y'`n[mcp_servers.extra_fixture]`ncommand = 'unused'`n"
   $bin = Join-Path $caseRoot 'bin'; [void][IO.Directory]::CreateDirectory($bin)
   Write-Text (Join-Path $bin 'codex.cmd') @'
 @echo off
@@ -315,6 +316,7 @@ try {
     Assert (@($result).Count -gt 5) 'health JSON omitted checks'
     $r = Run-Cli @('health'); Check-Code $r 0
     Assert ($r.Out -match 'WARN.*extra_fixture') 'extra MCP server not warned'
+    Assert ($r.Out -notmatch 'node_repl') 'allowed server or its sub-table reported as extra'
     Assert ((Run-Git @('worktree','list','--porcelain')) -ceq $before) 'health left a registered worktree'
     $policy.models.mythos.available = $true; $policy.models.mythos.model = $null; Save-Policy
     Check-Code (Run-Cli @('health')) 1

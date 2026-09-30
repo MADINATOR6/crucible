@@ -649,10 +649,11 @@ function Invoke-CcxHealth {
         $servers = @()
         if ([IO.File]::Exists($config)) {
             foreach ($line in [IO.File]::ReadLines($config)) {
-                if ($line -match '^\s*\[mcp_servers\.([^\]]+)\]\s*(?:#.*)?$') { $servers += $Matches[1].Trim('"', "'") }
+                # Server name only: [mcp_servers.node_repl.env] is a sub-table of node_repl.
+                if ($line -match "^\s*\[mcp_servers\.(?:`"([^`"]+)`"|'([^']+)'|([^.\]\s]+))") { $servers += @($Matches[1], $Matches[2], $Matches[3] | Where-Object { $_ })[0] }
             }
         }
-        $extra = @($servers | Where-Object { $_ -notin $policy.mcp.codexAllowedServers })
+        $extra = @($servers | Select-Object -Unique | Where-Object { $_ -notin $policy.mcp.codexAllowedServers })
         $checks += @{ name='codex-mcp'; result=$(if ($extra.Count) { 'WARN' } else { 'PASS' }); details=@($(if ($extra.Count) { 'extra servers: ' + ($extra -join ', ') } else { 'allowed headers only' })) }
         $project = Get-CcxSafeFile -Root $Root -Path '.mcp.json'
         $extra = @()
