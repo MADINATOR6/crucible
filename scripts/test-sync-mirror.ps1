@@ -1,11 +1,12 @@
 <#
 Regression tests for sync-mirror.ps1 on Windows PowerShell 5.1.
 Run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-sync-mirror.ps1
-Synthetic repositories and child OneDrive/TEMP paths stay under TEMP\ccx-t3.
+Synthetic repositories and child OneDrive/TEMP paths stay under TEMP\ccx-t3-<8 random hex>.
 #>
 $ErrorActionPreference = 'Stop'
 $launcher = Join-Path $PSScriptRoot 'sync-mirror.ps1'
-$scratch = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'ccx-t3')).TrimEnd('\')
+$scratchName = 'ccx-t3-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+$scratch = [IO.Path]::GetFullPath((Join-Path $env:TEMP $scratchName)).TrimEnd('\')
 $fakeDrive = Join-Path $scratch 'OneDrive'
 $childTemp = Join-Path $scratch 'temp'
 $realOneDrive = $env:OneDrive
@@ -319,7 +320,7 @@ try {
 } finally {
   if ($ownsScratch) {
     try {
-      $expected = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'ccx-t3')).TrimEnd('\')
+      $expected = [IO.Path]::GetFullPath((Join-Path $env:TEMP $scratchName)).TrimEnd('\')
       Assert ($scratch -ieq $expected) 'SAFETY: scratch cleanup escaped test root'
       Check-NoLinks $scratch
       foreach ($item in Get-ChildItem -LiteralPath $scratch -Recurse -Force) {
