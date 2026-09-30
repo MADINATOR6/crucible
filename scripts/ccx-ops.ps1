@@ -720,7 +720,7 @@ function Invoke-CcxCmdStatus($P) {
     }
     $policy = Get-CcxPolicy; $state = Get-CcxState; $root = Get-CcxRepoRoot
     $tasks = @()
-    foreach ($task in @($state.tasks.Values | Where-Object { $_.status -ne 'done' } | Sort-Object { $_.id })) {
+    foreach ($task in @($state.tasks.Values | Where-Object { $_.status -notin @('done','abandoned') } | Sort-Object { $_.id })) {
         $budget = Get-CcxBudget $policy (Get-CcxClass $policy $task.class $task.risk) $task
         $tasks += @{ id=$task.id; status=$task.status; owner=$task.owner; model=$task.lastDispatch.model; effort=$task.lastDispatch.effort; dispatches=$task.dispatches; maxDispatches=$budget.maxDispatches; effectiveTokens=([long]$task.tokens.input - [long]$task.tokens.cached + [long]$task.tokens.output); tokenTarget=$budget.tokenTarget; verification=$task.verification.status; reviews=$task.reviews }
     }
