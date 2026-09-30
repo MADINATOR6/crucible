@@ -1,6 +1,13 @@
 {
   "schema": 1,
-  "about": "OMNIROUTE policy and ccx configuration. See ccx/ARCHITECTURE.md. Scripts read this file: change behaviour here, not in code. Never put secrets here.",
+  "about": "OMNIROUTE policy and ccx configuration. See ccx/ARCHITECTURE.md. Scripts read this file: change behaviour here, not in code. Never put secrets here. Classes are listed in rank order, lowest first.",
+
+  "defaults": { "class": "normal", "risk": "low" },
+
+  "privacy": {
+    "excludePaths": ["nursing-a2/"],
+    "note": "Repo-relative paths ccx never lists, owns, scans or fingerprints: unrelated private data. nursing-a2/ is this repository's study-material project on its own branch. Clear the list when copying the template to another repository."
+  },
 
   "models": {
     "claude": {
