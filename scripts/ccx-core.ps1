@@ -847,15 +847,22 @@ function Start-CcxTaskInState {
     param($State, $Task, [string]$Worktree, [string]$Branch)
     if ($Task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal tasks cannot be restarted.' 2) }
     Assert-CcxTaskOwnership $State $Task
-    $firstStart = $Task.status -eq 'planned'
-    $moved = $Worktree -and -not ($Task.worktree -and [IO.Path]::GetFullPath($Task.worktree).TrimEnd('\','/') -ieq [IO.Path]::GetFullPath($Worktree).TrimEnd('\','/'))
+    $previousRoot = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
+    if ($Task.baselines -isnot [Collections.IDictionary]) {
+        # Tasks started before per-worktree baselines keep their existing baseline for their current root.
+        $Task.baselines = @{}
+        if ($Task.status -ne 'planned') { $Task.baselines[[IO.Path]::GetFullPath($previousRoot).TrimEnd('\','/').ToLowerInvariant()] = @($Task.baselineDirty) }
+    }
     if ($Worktree) { Assert-CcxExactField $Worktree 'Worktree'; $Task.worktree = $Worktree }
     if ($Branch) { Assert-CcxExactField $Branch 'Branch'; $Task.branch = $Branch }
-    # Baseline once (first start or a move to another worktree): a restart must not launder strays into it.
-    if ($firstStart -or $moved) {
-        $root = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
-        $Task.baselineDirty = @(Get-CcxChangedPaths -Root $root | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $Task.owns) })
+    $root = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
+    $key = [IO.Path]::GetFullPath($root).TrimEnd('\','/').ToLowerInvariant()
+    # One baseline per worktree, taken the first time the task is there: restarts, resets to planned,
+    # naming the same root explicitly, and moving away and back never re-baseline (no laundering).
+    if (-not $Task.baselines.ContainsKey($key)) {
+        $Task.baselines[$key] = @(Get-CcxChangedPaths -Root $root | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $Task.owns) })
     }
+    $Task.baselineDirty = @($Task.baselines[$key])
     $Task.status = 'active'
     $Task.updated = Get-CcxNow
 }

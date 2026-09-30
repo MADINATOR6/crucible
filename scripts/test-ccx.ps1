@@ -252,6 +252,12 @@ try {
     # CCX-4 F3: restarting must not launder the stray change into baselineDirty.
     Check-Code (Run-Cli @('task','start','-Id','T1')) 0
     Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'later.txt') 'restart laundered a stray change into the baseline'
+    # CCX-4b F3 residuals: naming the same root explicitly, or a reset to planned, must not re-baseline either.
+    Check-Code (Run-Cli @('task','start','-Id','T1','-Worktree',$repo)) 0
+    Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'later.txt') 'explicit same worktree laundered a stray change'
+    Check-Code (Run-Cli @('task','update','-Id','T1','-Status','planned')) 0
+    Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'later.txt') 'reset to planned laundered a stray change'
     $verifyRoute = Cli-Json @('route','-Type','verify','-Class','complex','-Risk','high')
     Assert (@($verifyRoute.verification) -notcontains 'independent-verifier') 'verify tasks must not need a verifier of their own'
     Assert (Test-CcxPathOverlap -A 'Src/' -B 'src/one.txt') 'directory overlap is not case insensitive'
