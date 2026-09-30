@@ -44,7 +44,7 @@ function Run-Launcher {
   Assert (($arguments.Count % 2) -eq 0) 'test harness arguments must be name/value pairs'
   $parts = New-Object 'System.Collections.Generic.List[string]'
   for ($i = 0; $i -lt $arguments.Count; $i += 2) {
-    Assert ($arguments[$i] -in @('-CaptureDir', '-TimeoutMinutes', '-Sandbox', '-Role', '-TaskFile', '-Effort')) 'unexpected test harness parameter'
+    Assert ($arguments[$i] -in @('-CaptureDir', '-TimeoutMinutes', '-Sandbox', '-Role', '-TaskFile', '-Effort', '-Model')) 'unexpected test harness parameter'
     $parts.Add($arguments[$i])
     $parts.Add((Quote-Ps $arguments[$i + 1]))
   }
@@ -286,6 +286,29 @@ else {
     Assert (($args -join '|') -match '\|-s\|read-only\|') 'read-only sandbox absent'
     $wanted = 'Read HANDOFF.md and follow its Verifier instruction for ' + (Join-Path $repo 'TASK.md') + '.'
     Assert ($args[-1] -ceq $wanted) 'Verifier prompt differs'
+  }
+  Case 'model and xhigh effort passed' {
+    $log = Join-Path $scratch 'model.json'
+    $r = Run-Launcher $repo ($common + @('-Model', 'gpt-6-astra', '-Effort', 'xhigh')) 'success' 'fake' $false 25 $log
+    Check-Code $r 0
+    $joined = ((Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args) -join '|'
+    Assert ($joined -match '\|-m\|gpt-6-astra\|') 'model flag absent'
+    Assert ($joined -match '\|model_reasoning_effort=xhigh\|') 'xhigh effort absent'
+    Assert ($r.Stdout -match 'model=gpt-6-astra effort=xhigh') 'dispatch line lacks model or effort'
+  }
+  Case 'default model omits flag' {
+    $log = Join-Path $scratch 'nomodel.json'
+    $r = Run-Launcher $repo $common 'success' 'fake' $false 25 $log
+    Check-Code $r 0
+    $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+    Assert (-not ($args -contains '-m')) 'model flag passed without -Model'
+  }
+  Case 'unsafe model refused' {
+    # Under -File a binding failure exits 1; this harness calls the script with &, so check the refusal itself.
+    $log = Join-Path $scratch 'badmodel.json'
+    $r = Run-Launcher $repo ($common + @('-Model', 'gpt 6 & x')) 'success' 'fake' $false 25 $log
+    Assert ($r.Stderr -match "Cannot validate argument on parameter 'Model'") 'model validation message absent'
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake codex ran with an unsafe model'
   }
   Case 'research requires task file' {
     $r = Run-Launcher $repo ($common + @('-Role', 'research')); Check-Code $r 1

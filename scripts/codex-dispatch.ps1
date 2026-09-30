@@ -1,6 +1,7 @@
 <#
 Dispatch-mode launcher for Windows PowerShell 5.1.
-Parameters: -Effort medium|high (medium), -Role implement|verify|research
+Parameters: -Effort low|medium|high|xhigh|max (medium), -Model <slug> (Codex's
+configured default when omitted), -Role implement|verify|research
 (implement), -TaskFile <path> (TASK.md; required for research),
 -CaptureDir <path> (%USERPROFILE%\codex-captures), -TimeoutMinutes <n> (60; fractions allowed),
 -Sandbox read-only|workspace-write|danger-full-access (workspace-write for
@@ -10,7 +11,8 @@ Exit codes: 0 success; Codex's own code otherwise; 3 missing/blank report;
 The execution-policy bypass, if supplied by the caller, affects that process only.
 #>
 param(
-  [ValidateSet('medium', 'high')] [string]$Effort = 'medium',
+  [ValidateSet('low', 'medium', 'high', 'xhigh', 'max')] [string]$Effort = 'medium',
+  [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$')] [string]$Model,
   [ValidateSet('implement', 'verify', 'research')] [string]$Role = 'implement',
   [string]$TaskFile = 'TASK.md',
   [string]$CaptureDir = (Join-Path $env:USERPROFILE 'codex-captures'),
@@ -159,8 +161,10 @@ try {
   $instruction = @{ implement = 'Implementer'; verify = 'Verifier'; research = 'Researcher' }[$Role]
   $prompt = "Read HANDOFF.md and follow its $instruction instruction for $taskPath."
   $head = Invoke-Git 'rev-parse --short HEAD'
-  Write-Output "Dispatching Codex: HEAD=$head effort=$Effort sandbox=$Sandbox"
-  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$Effort", '--json', '--output-last-message', ($base + '.report.md'), $prompt)
+  $modelName = if ($Model) { $Model } else { 'default' }
+  Write-Output "Dispatching Codex: HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
+  $modelArguments = if ($Model) { @('-m', $Model) } else { @() }
+  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$Effort") + $modelArguments + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
   # Quote every cmd argument and disable delayed expansion; no shell redirection touches paths.
   $commandLine = ($arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
   $info = New-Object Diagnostics.ProcessStartInfo
