@@ -287,6 +287,11 @@ function Invoke-CcxVerify {
     }
     if ($task) {
         $paths = @(Get-CcxChangedPaths -Root $root | Where-Object { Test-CcxPathOwned -Path $_ -Owns $task.owns })
+        if (-not $paths.Count) {
+            # Committed work: parse and secret-scan the owned files themselves, not nothing.
+            $raw = Invoke-CcxGit -Root $root -Arguments (@('ls-files','-z','--') + @($task.owns | ForEach-Object { ':(literal)' + $_ }))
+            $paths = @($raw.Split([char]0) | Where-Object { $_ })
+        }
     } else {
         $specs = @('.')
         foreach ($excluded in $policy.privacy.excludePaths) {

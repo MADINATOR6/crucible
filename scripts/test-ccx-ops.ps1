@@ -194,6 +194,8 @@ try {
     $null = Run-Git @('add','src/one.txt'); $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','owned change')
     $committed = Run-Cli @('verify','-TaskId','T1','-Stage','pass-command'); Check-Code $committed 0
     Assert ($committed.Out -match 'PASS pass-command') 'empty changed set did not use owns for applicability'
+    $scan = Run-Cli @('verify','-TaskId','T1','-Stage','secrets'); Check-Code $scan 0
+    Assert ($scan.Out -match 'PASS secrets') 'committed owned files were not secret-scanned'
     Check-Code (Run-Cli @('verify','-TaskId','T1','-Quick')) 0
     Assert (-not (Task).verification.full) 'quick verification marked full'
     Check-Code (Run-Cli @('task','done','-Id','T1')) 8

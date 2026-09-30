@@ -189,7 +189,7 @@
   },
 
   "memory": {
-    "files": ["MEMORY.md", "FRICTION.md", "HANDOFF-REPORT.md"],
+    "files": ["MEMORY.md", "MEMORY-ARCHIVE.md", "FRICTION.md", "HANDOFF-REPORT.md"],
     "maxLines": { "MEMORY.md": 400, "FRICTION.md": 200, "HANDOFF-REPORT.md": 200 },
     "maxCheckpoints": 12
   },
