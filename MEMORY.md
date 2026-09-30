@@ -71,6 +71,9 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-30 | Task owner decides the agent for its own type; `task escalate` records a model escalation (attempts restart, max effort still counts earlier failures) | Router returned premium forever: nothing incremented modelEscalations | CCX-1 review
 - 2026-09-30 | Codex usage limit at 12:32 after ~35 min of Astra-high (earlier Codex use today); route defers Codex work until 16:21; Claude does review, docs and non-Codex work meanwhile | Policy onUnavailable=defer; user assigned implementation to Codex | CCX-1
 - 2026-09-30 | ccx test suites are slow (~700 s) because a bare `powershell -NoProfile` start costs ~4.3 s on this host; policy/root caching did not change suite time | Measured | CCX-1 review
+- 2026-10-01 | User chose: Claude finishes CCX-2/CCX-3 from Codex's partial work; Codex's next window (06:06) goes to independent verification (CCX-4) and the E2E trial | Codex limit hit again after 19 min of two parallel Astra-high runs | CCX-2, CCX-3
+- 2026-10-01 | Codex WIP committed on codex/ccx-2 and codex/ccx-3, merged into the session branch; Claude finishes there | The desktop app blocks this session from editing files outside its own worktree (.ccx-worktrees is under the main checkout) | CCX-2, CCX-3
+- 2026-10-01 | Usage-limit runs do not consume a retry, get a distinct event key, and are ignored by adaptive stats | Found by dogfooding: quota exits would otherwise raise effort and burn quota faster | CCX-3 review
 
 ## Open questions
 - Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
@@ -114,3 +117,4 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-30 11:55 +10:00: ccx upgrade start (attended; user set Claude max, Codex high). Audit done, baseline recorded, CCX-0 done, policy + CCX-1 spec written; dispatching CCX-1.
 - 2026-09-30 13:10 +10:00: CCX-1 Codex exit 4 (usage limit, no report; edits complete, 28/28). Claude review fixes (policy caching, privacy.excludePaths, defaults, owner routing, task escalate, Start-CcxTask); docs, agents, task specs written. Next: commit CCX-1, prepare worktrees, dispatch CCX-2 + CCX-3 at 16:21.
 - 2026-10-01 01:05 +10:00: session resumed after an interruption (the 16:24 resume never ran). test-ccx 29/29 (836 s). Committing CCX-1 and docs; dispatching CCX-2 and CCX-3 in parallel worktrees.
+- 2026-10-01 01:40 +10:00: CCX-2 and CCX-3 Codex both exit 4 at 01:25 (resets 06:06); WIP committed (e826230, 41db4e0); user chose Claude finishes, Codex verifies. CCX-3 merged (b038223) with retry/event-key fixes; suites running. Removed 5 stale test scratch dirs left by the interrupted Codex runs.

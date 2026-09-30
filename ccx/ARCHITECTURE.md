@@ -182,6 +182,7 @@ Add an agent only when parallelism or real specialist value justifies it: no rev
 
 - `ccx worktree add -TaskId X` creates `.ccx-worktrees/<agent>-X` (gitignored, inside the repo) on branch `<agent>/x`, after the ownership check.
 - Codex's sandbox cannot write `.git`, so Claude creates worktrees and commits for Codex.
+- **Claude's own work stays in its session worktree.** A desktop-app session may only edit files inside its own worktree (`.claude/worktrees/<session>`). So `ccx worktree add` is for Codex tasks. To finish Codex's work, Claude commits it on the Codex branch, merges it into the session branch and continues there.
 - **Merge workflow:**
   1. Commit on the task branch.
   2. `ccx merge-check -Branch <b>` checks conflicts (`git merge-tree`) and scope.
@@ -327,6 +328,9 @@ An unknown action counts as L4, so the gate fails closed.
   2. Claude re-dispatches with only the open items (HANDOFF.md).
   3. Past the cap, the route says premium. Claude records `ccx task escalate` and finishes the task, or surfaces it once the escalation cap is used.
 - **Codex usage limit (exit 4):** the reset time is recorded. Routing returns `defer`, and the launcher refuses until the reset.
+  - A run cut off by the limit does not use one of the task's retries.
+  - Adaptive routing ignores exits 4, 6, 7, 8 and 10, so quota never raises effort.
+  - Measured on this account (2026-09-30/10-01): one GPT-6 Astra high-effort dispatch used the window in about 35 minutes, and two in parallel used it in about 19. Under that limit, prefer one Codex task at a time, and spend Codex quota first on work only a second model can do, such as independent verification.
 - **Crashes:**
   - The launcher lock is a held handle, so a crash cannot leave it stale.
   - Tick leases expire.
