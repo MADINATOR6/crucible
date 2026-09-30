@@ -20,7 +20,7 @@ Options:
 - `-Role verify` or `-Role research`: read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`.
 - `-TaskFile <path>` for a brief other than TASK.md.
 - `-TaskId <id>` ties the run to ccx. It checks ownership, worktree, budget, recorded usage limits and the retry cap. OMNIROUTE picks the model and effort unless `-Model` or `-Effort` is given. Full access needs an approval. After the run it records tokens, status, post-checks and telemetry.
-- `-Model <slug>` and `-Effort low|medium|high|xhigh|max` for runs outside ccx, or to override the route.
+- `-Model <slug>` and `-Effort low|medium|high|xhigh|max` for runs outside ccx, or to override the route's model and effort. With `-TaskId`, caps, deferral and ownership still apply.
 - `-TimeoutMinutes <n>` (default 60).
 - `-CaptureDir` (default `%USERPROFILE%\codex-captures`, outside the repo and OneDrive).
 

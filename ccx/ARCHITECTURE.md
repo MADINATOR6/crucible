@@ -175,12 +175,15 @@ Add an agent only when parallelism or real specialist value justifies it: no rev
 - **Writes:** every write holds `state.lock`, then replaces `state.json` atomically and keeps `state.json.bak`.
 - **Contents:** tasks (owner, owns, status, worktree, branch, budget, dispatches, tokens, verification, reviews), approvals, the event queue and dedup keys, notifications, the routing log, and the runtime flag.
 - **Ownership:** `task start`, `worktree add` and the launcher refuse (exit 7) when two active tasks own overlapping paths.
+- **Baseline:** pre-existing unrelated changes are recorded once per worktree, the first time a task starts there. Restarts, resets to `planned`, naming the same worktree again, and moving away and back never re-take it, so stray edits cannot be laundered into the baseline (CCX-4/4b findings).
 - **Never stored:** secrets, file contents or prompts. Strings pass through redaction.
 - **Private data:** paths in `privacy.excludePaths` are never listed, owned, scanned or fingerprinted. Here that is `nursing-a2/`, the study-material project on its own branch. Clear the list when copying the template.
 
 ## 9. Worktrees
 
 - `ccx worktree add -TaskId X` creates `.ccx-worktrees/<agent>-X` (gitignored, inside the repo) on branch `<agent>/x`, after the ownership check.
+  - It starts from the caller's HEAD, or from `-Base`, resolved in the caller's worktree. Git itself would resolve HEAD in the main checkout, which the CCX-5a trial caught.
+  - `merge-check` compares with `--no-renames`, so a rename out of unowned scope flags its source.
 - Codex's sandbox cannot write `.git`, so Claude creates worktrees and commits for Codex.
 - **Claude's own work stays in its session worktree.** A desktop-app session may only edit files inside its own worktree (`.claude/worktrees/<session>`). So `ccx worktree add` is for Codex tasks. To finish Codex's work, Claude commits it on the Codex branch, merges it into the session branch and continues there.
 - **Merge workflow:**
@@ -293,6 +296,9 @@ An unknown action counts as L4, so the gate fails closed.
 
 - **Result values:** SKIP and N/A never count as failures, and are printed so they stay visible. A FAIL blocks.
 - **Recording:** `ccx verify -TaskId` records the result against a fingerprint of the task's owned files.
+- **Coverage:** the built-in stages check every owned file, tracked or untracked, not only the changed ones. Committed broken code beside a dirty sibling still fails (CCX-4 F2).
+- **Command output:** it is redacted as one text before it is split into log lines, so a secret spanning lines is removed whole (CCX-4 F1).
+- **Verify tasks:** a task of type `verify` needs deterministic checks and a cross-model review, but no verifier of its own.
 - **`task done` requires:**
   - a passing full verification whose fingerprint still matches;
   - a cross-model review, for normal work and above;

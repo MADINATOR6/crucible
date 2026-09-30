@@ -6,18 +6,21 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
 - Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
 - Task: ccx upgrade (user's CLAUDE_CODEX_MASTER_UPGRADE_PROMPT, 2026-09-30) on branch claude/architecture-audit-migration-649829 from c2f515b. Queue below.
-- Status: CCX-1 implemented by Codex (28/28) then hit the Codex usage limit (resets 16:21 local); Claude review fixes applied. CCX-2/CCX-3 wait for Codex (route: defer). Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
+- Status: ccx built, verified and dogfooded; waiting for Codex (limit until 11:12 local, 2026-10-01) to re-verify F1/F3/F5 (CCX-4c) and run CCX-5b. Nothing pushed; merge/push needs the user's approval. Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
+- Next (exact): 1) CCX-4c: fast-forward .ccx-worktrees/codex-CCX-4 to the tip, dispatch `-TaskId CCX-4 -Role verify -TaskFile tasks\CCX-4c.md -Sandbox workspace-write` (write the spec: re-check F1, F3 incl. residuals, F5, bold status). 2) Record reviews; `task done` CCX-3, CCX-4, CCX-6. 3) CCX-5b: `ccx worktree add -TaskId CCX-5b`, dispatch `-TaskId CCX-5b`, verify, review, done, commit, merge-check, merge. 4) Final suites, health, HANDOFF-REPORT.md, ask for push approval (`ccx gate -Action push`).
 - Open: measure Codex code size (ladder effect) on the next real Dispatch task; none existed on 2026-09-27.
 
 ## Task queue (2026-09-30 ccx upgrade)
 Roles per the user: Claude Opus 5.5 max = architecture, orchestration, decisions, review; Codex gpt-6-astra high (xhigh on failure or ambiguity) = implementation, tests, independent review.
 - [x] CCX-0 [trivial, Claude] Launcher `-Model` and low/xhigh/max effort, so dispatches can run Astra. 26/26.
 - [x] CCX-1 [complex, Codex] ccx core + CLI: state/lock, tasks/ownership, OMNIROUTE router, gate/approvals, events, telemetry, quick checks. Codex hit the usage limit after finishing; Claude review fixes.
-- [ ] CCX-2 [complex, Codex] ccx-ops: tick/runtime, verify pipeline, memory lint, worktrees, merge-check, health, status.
-- [ ] CCX-3 [complex, Codex] Launcher integration (-TaskId: ownership, budget, route, gate, telemetry, post-checks).
-- [ ] CCX-4 [complex, Codex verify] Adversarial verifier on the combined change.
-- [ ] CCX-5 [routine] End-to-end trial through the whole flow in an isolated worktree.
-- [ ] CCX-6 [Claude] Docs (ccx/ARCHITECTURE.md, AGENTS/HANDOFF/README/BOOTSTRAP), agent definitions, rollback test, report.
+- [x] CCX-2 [complex] ccx-ops. Codex WIP (usage limit), Claude finished; CCX-4 F2/F4 fixed and re-verified by Codex (CCX-4b PASS); ccx task done.
+- [ ] CCX-3 [complex] Launcher integration. Codex WIP, Claude finished; CCX-4 F5 fixed (regression test passes); awaiting Codex re-verification (CCX-4c).
+- [ ] CCX-4 [complex, Codex verify] Adversarial verifier: 5 findings (F1-F5), all fixed; CCX-4b re-verified F2/F4 PASS, F3 FAIL (residuals, now fixed as CCX-6), F1/F5 not reached (usage limit).
+- [x] CCX-5a [routine] End-to-end trial: routed Codex low, post-checks, verify, review, done, merge-check, merge. Found the worktree-add base bug.
+- [ ] CCX-5b [routine] Dispatch test per-run scratch; blocked by ownership until CCX-3 is done (correct).
+- [ ] CCX-6 [complex, Claude] F3 residuals: per-worktree baselines. Awaiting Codex re-verification (CCX-4c).
+- [x] Docs, agents, rollback rehearsal (tree == c2f515b after revert; old suites pass), memory consolidation, real health (exit 0).
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
@@ -74,6 +77,9 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-10-01 | User chose: Claude finishes CCX-2/CCX-3 from Codex's partial work; Codex's next window (06:06) goes to independent verification (CCX-4) and the E2E trial | Codex limit hit again after 19 min of two parallel Astra-high runs | CCX-2, CCX-3
 - 2026-10-01 | Codex WIP committed on codex/ccx-2 and codex/ccx-3, merged into the session branch; Claude finishes there | The desktop app blocks this session from editing files outside its own worktree (.ccx-worktrees is under the main checkout) | CCX-2, CCX-3
 - 2026-10-01 | Usage-limit runs do not consume a retry, get a distinct event key, and are ignored by adaptive stats | Found by dogfooding: quota exits would otherwise raise effort and burn quota faster | CCX-3 review
+- 2026-10-01 | Codex quota on this account: ~35 min of Astra-high per window; hit 4 times (12:32, 01:25 x2, 07:05). Spend it on independent verification first; one Codex task at a time | Measured | all
+- 2026-10-01 | CCX-4 independent verifier (Codex, 149k effective tokens) found 5 real defects none of our tests caught (PEM body leak, committed-code verify gap, baseline laundering, rename scope, explicit-effort cap bypass); all fixed with regression tests | Cross-model verification pays | CCX-4
+- 2026-10-01 | Verify-type tasks need deterministic + cross-model review, no verifier of their own | Master prompt: no reviewer-of-reviewer | CCX-4
 
 ## Open questions
 - Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
