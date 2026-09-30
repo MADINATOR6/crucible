@@ -5,9 +5,19 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 ## Current state
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
 - Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
-- Task: none (2026-09-27 queue complete)
-- Status: idle. Next session: read HANDOFF-REPORT.md, then ask the user for a new queue or the open questions below.
+- Task: ccx upgrade (user's CLAUDE_CODEX_MASTER_UPGRADE_PROMPT, 2026-09-30) on branch claude/architecture-audit-migration-649829 from c2f515b. Queue below.
+- Status: CCX-1 dispatch. Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
 - Open: measure Codex code size (ladder effect) on the next real Dispatch task; none existed on 2026-09-27.
+
+## Task queue (2026-09-30 ccx upgrade)
+Roles per the user: Claude Opus 5.5 max = architecture, orchestration, decisions, review; Codex gpt-6-astra high (xhigh on failure or ambiguity) = implementation, tests, independent review.
+- [x] CCX-0 [trivial, Claude] Launcher `-Model` and low/xhigh/max effort, so dispatches can run Astra. 26/26.
+- [ ] CCX-1 [complex, Codex] ccx core + CLI: state/lock, tasks/ownership, OMNIROUTE router, gate/approvals, events, telemetry, quick checks.
+- [ ] CCX-2 [complex, Codex] ccx-ops: tick/runtime, verify pipeline, memory lint, worktrees, merge-check, health, status.
+- [ ] CCX-3 [complex, Codex] Launcher integration (-TaskId: ownership, budget, route, gate, telemetry, post-checks).
+- [ ] CCX-4 [complex, Codex verify] Adversarial verifier on the combined change.
+- [ ] CCX-5 [routine] End-to-end trial through the whole flow in an isolated worktree.
+- [ ] CCX-6 [Claude] Docs (ccx/ARCHITECTURE.md, AGENTS/HANDOFF/README/BOOTSTRAP), agent definitions, rollback test, report.
 
 ## Task queue
 Derived 2026-09-25 from the repo's open items and the gaps between this template and the user's autonomous operating prompt. There was no queue before.
@@ -49,6 +59,14 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-26 | OmniRoute rejected | Proxies prompts, code and provider credentials through a third-party gateway to bypass usage limits; conflicts with AGENTS.md Security and likely provider terms. Launcher exit 4 already handles Codex limits | -
 - 2026-09-26 | Graphify parked until the template is applied to a large codebase | This repo is a small set of Markdown files plus two scripts; `graphify claude install` would edit Claude-owned config. Re-test then with a before/after token count | -
 - 2026-09-27 | Ladder reworded: "use the first that fully meets the task, then finish", "existing project dependency", "one clear line" | Codex verifier: "stop" means halt-and-report elsewhere in the implementer block; bare existence ignored suitability; "installed" could mean machine-only; "one line" rewarded dense code | -
+- 2026-09-30 | OMNIROUTE = local policy router (`ccx/policy.json` + `scripts/ccx.ps1 route`), not the OmniRoute gateway | 2026-09-26 rejection stands (third-party proxy of prompts and credentials); the upgrade prompt forbids bypassing provider controls | CCX-1
+- 2026-09-30 | Kairos-style runtime = durable event queue + idempotent `tick`; no daemon or service | Event-driven, bounded, reversible; a scheduled tick stays optional and user-installed | CCX-2
+- 2026-09-30 | Shared state in `<git common dir>/ccx/` | Shared by every worktree, never committed or mirrored, unwritable from Codex's sandbox | CCX-1
+- 2026-09-30 | Codex model gpt-6-astra for dispatches; user's pasted GPT-5.3-Codex is not in the Codex catalog (models_cache.json); global default stays gpt-6-sol | Upgrade prompt names Astra; catalog lists astra/sol/luna and gpt-5.6-*, efforts low..max(/ultra) | CCX-0
+- 2026-09-30 | Effort escalates one ladder step on a failed attempt or ambiguity, capped by class; max needs 2 failed attempts | User: HIGH, failure/ambiguity -> XHIGH; prompt: max only with representative failures | CCX-1
+- 2026-09-30 | L5 approvals need a human at an interactive console; L4 also accepts a quoted chat approval | Agents' shells have redirected stdin, so they cannot approve through the CLI; Codex cannot write state at all | CCX-1
+- 2026-09-30 | ccx task worktrees under `.ccx-worktrees/` (gitignored) inside the repo | User rule: work only inside claude-codex-collab; `.claude/worktrees/` belongs to the desktop app | CCX-2
+- 2026-09-30 | `nursing-a2/` in this worktree is untracked study data left from branch claude/uts-nursing-assessment-reviewer-013cf5; never read, scan or stage it | Unrelated private data | -
 
 ## Open questions
 - Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
@@ -89,3 +107,4 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-09-25 19:38 +10:00: T3 Codex verifier (medium; 687k input / 645k cached / 5.2k output) found 2 high bugs: staging/destination overlap, export-ignore dropping committed files. Claude fixed both (checkout-index with private index; containment refusal); mirror suite 20/20 + 1 SKIP via -File, 21/21 via -Command; real dry run lists 22 = git ls-files. Removed verifier leftovers %TEMP%\ccx-t3v (no links inside).
 - 2026-09-25 19:53 +10:00: fresh clone of pushed 3389199 passes both suites (23/23; 20/20 + 1 SKIP). Clone removed. Writing HANDOFF-REPORT.md; session stopping (queue complete).
 - 2026-09-27 10:56 +10:00: merged claude/ladder-wording-fix (ff to 038824a, both suites pass, branch deleted local+remote); Mythos fixes 000b1a6, c5df6b5 pushed; claude-codex-smoke recycled; claude-codex-template locked (left); OneDrive copy was already gone. Log: %USERPROFILE%\powerlifting-delete.log.
+- 2026-09-30 11:55 +10:00: ccx upgrade start (attended; user set Claude max, Codex high). Audit done, baseline recorded, CCX-0 done, policy + CCX-1 spec written; dispatching CCX-1.

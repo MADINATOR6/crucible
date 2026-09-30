@@ -1,0 +1,220 @@
+{
+  "schema": 1,
+  "about": "OMNIROUTE policy and ccx configuration. See ccx/ARCHITECTURE.md. Scripts read this file: change behaviour here, not in code. Never put secrets here.",
+
+  "models": {
+    "claude": {
+      "lead": "claude-opus-5-5",
+      "standard": "claude-sonnet-5",
+      "cheap": "claude-haiku-4-5-20251001",
+      "cheapSubagent": "ccx-scout",
+      "reviewSubagent": "ccx-reviewer"
+    },
+    "codex": {
+      "default": "gpt-6-astra",
+      "fallbacks": ["gpt-6-sol", "gpt-5.6-sol"],
+      "catalogFile": "models_cache.json",
+      "unavailableBackoffMinutes": 60,
+      "onUnavailable": "defer"
+    },
+    "mythos": {
+      "available": false,
+      "agent": null,
+      "model": null,
+      "maxPermissionLevel": "L0",
+      "allowedClasses": ["exceptional"],
+      "requiredVerification": ["independent-review", "deterministic", "human-approval-if-consequential"],
+      "fallback": [
+        { "agent": "claude", "model": "claude-opus-5-5", "effort": "max" },
+        { "agent": "codex", "model": "gpt-6-astra", "effort": "xhigh" }
+      ],
+      "note": "Escalation-only tier. Set available=true, agent and model only when the account has legitimate, authorised access. Never spoof identifiers or work around provider controls."
+    }
+  },
+
+  "effortLadder": ["low", "medium", "high", "xhigh", "max"],
+
+  "classes": {
+    "routine": {
+      "effort": { "codex": { "base": "low", "max": "medium" }, "claude": { "base": "medium", "max": "medium" }, "min": "low" },
+      "verification": ["deterministic"],
+      "budget": { "maxDispatches": 2, "maxModelEscalations": 0, "maxReviewCycles": 1, "maxAgents": 1, "maxParallel": 1, "timeoutMinutes": 30, "tokenTarget": 150000 }
+    },
+    "normal": {
+      "effort": { "codex": { "base": "medium", "max": "high" }, "claude": { "base": "medium", "max": "high" }, "min": "low" },
+      "verification": ["deterministic", "cross-model-review"],
+      "budget": { "maxDispatches": 3, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 2, "maxParallel": 1, "timeoutMinutes": 60, "tokenTarget": 400000 }
+    },
+    "complex": {
+      "effort": { "codex": { "base": "high", "max": "xhigh" }, "claude": { "base": "high", "max": "xhigh" }, "min": "medium" },
+      "verification": ["deterministic", "cross-model-review", "independent-verifier"],
+      "budget": { "maxDispatches": 4, "maxModelEscalations": 1, "maxReviewCycles": 2, "maxAgents": 4, "maxParallel": 3, "timeoutMinutes": 120, "tokenTarget": 1500000 }
+    },
+    "critical": {
+      "effort": { "codex": { "base": "xhigh", "max": "xhigh" }, "claude": { "base": "xhigh", "max": "max" }, "min": "high" },
+      "verification": ["deterministic", "cross-model-review", "independent-verifier", "human-approval"],
+      "budget": { "maxDispatches": 4, "maxModelEscalations": 2, "maxReviewCycles": 2, "maxAgents": 4, "maxParallel": 3, "timeoutMinutes": 180, "tokenTarget": 3000000 }
+    },
+    "exceptional": {
+      "effort": { "codex": { "base": "xhigh", "max": "max" }, "claude": { "base": "max", "max": "max" }, "min": "high" },
+      "verification": ["deterministic", "cross-model-review", "independent-verifier", "human-approval"],
+      "budget": { "maxDispatches": 4, "maxModelEscalations": 2, "maxReviewCycles": 2, "maxAgents": 5, "maxParallel": 3, "timeoutMinutes": 240, "tokenTarget": 5000000 }
+    }
+  },
+
+  "risk": {
+    "levels": ["low", "medium", "high"],
+    "high": { "minClass": "complex", "addVerification": ["independent-verifier"] }
+  },
+
+  "escalation": {
+    "stepsOnFailedAttempt": 1,
+    "stepsOnAmbiguity": 1,
+    "maxSteps": 2,
+    "maxEffortNeedsFailedAttempts": 2
+  },
+
+  "adaptive": {
+    "enabled": true,
+    "minSamples": 3,
+    "downgradeFirstTryRate": 0.9,
+    "upgradeFailureRate": 0.5,
+    "maxStepsPerDecision": 1,
+    "allowAgentSwitch": false
+  },
+
+  "taskTypes": {
+    "git-state": { "route": "tool", "level": "L0", "command": "git status --short --branch" },
+    "list-files": { "route": "tool", "level": "L0", "command": "git ls-files" },
+    "search": { "route": "tool", "level": "L0", "command": "git grep -n -I -e <pattern> (or the agent's own Grep tool)" },
+    "format": { "route": "tool", "level": "L1", "verifyStage": "format" },
+    "lint": { "route": "tool", "level": "L2", "verifyStage": "parse" },
+    "test": { "route": "tool", "level": "L2", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\ccx.ps1 verify" },
+    "health": { "route": "tool", "level": "L2", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\ccx.ps1 health" },
+    "mechanical-migration": { "route": "script", "agent": "codex", "level": "L1", "note": "The agent writes or reuses a deterministic script; the script makes the edits." },
+    "extract": { "route": "cheap", "agent": "claude-subagent", "level": "L0" },
+    "research": { "route": "cheap", "agent": "codex", "codexRole": "research", "level": "L0" },
+    "docs": { "route": "worker", "agent": "claude", "level": "L1" },
+    "implement": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L1" },
+    "refactor": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L1" },
+    "test-write": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L1" },
+    "debug": { "route": "worker", "agent": "codex", "codexRole": "implement", "level": "L2" },
+    "verify": { "route": "worker", "agent": "codex", "codexRole": "verify", "level": "L0" },
+    "review": { "route": "worker", "agent": "cross-model", "level": "L0" },
+    "architecture": { "route": "premium", "agent": "claude", "level": "L0" },
+    "plan": { "route": "premium", "agent": "claude", "level": "L0" }
+  },
+
+  "permissions": {
+    "levels": {
+      "L0": { "name": "read-only", "mode": "autonomous" },
+      "L1": { "name": "project-write", "mode": "autonomous" },
+      "L2": { "name": "safe-local-execution", "mode": "autonomous" },
+      "L3": { "name": "system-dependency-git", "mode": "logged" },
+      "L4": { "name": "external-remote", "mode": "approval", "approvalProvenance": ["interactive", "chat"] },
+      "L5": { "name": "high-consequence", "mode": "approval", "approvalProvenance": ["interactive"] }
+    },
+    "actions": {
+      "read": "L0", "search": "L0", "status": "L0",
+      "edit": "L1", "create-file": "L1",
+      "build": "L2", "lint": "L2", "test": "L2", "run-project-script": "L2", "codex-dispatch": "L2",
+      "install-dependency": "L3", "create-branch": "L3", "create-worktree": "L3", "remove-worktree": "L3",
+      "local-commit": "L3", "local-merge": "L3", "dev-config-change": "L3", "mirror-sync": "L3",
+      "codex-full-access": "L4", "push": "L4", "open-pr": "L4", "merge-remote": "L4", "delete-remote-branch": "L4",
+      "send-message": "L4", "remote-resource": "L4", "publish": "L4", "paid-action": "L4", "task-accept": "L4",
+      "deploy-production": "L5", "delete-remote-data": "L5", "credential-change": "L5", "security-setting": "L5",
+      "force-push": "L5", "history-rewrite": "L5", "irreversible-migration": "L5", "destructive-system-change": "L5"
+    },
+    "unknownActionLevel": "L4",
+    "approvalTtlMinutes": 120
+  },
+
+  "runtime": {
+    "maxAutonomousLevel": "L2",
+    "maxEventsPerTick": 20,
+    "leaseSeconds": 300,
+    "maxAttempts": 5,
+    "backoffBaseSeconds": 60,
+    "backoffMaxSeconds": 3600,
+    "dedupWindowMinutes": 1440,
+    "staleTaskHours": 24,
+    "autoDispatch": false,
+    "handlers": {
+      "dispatch-finished": "notify-dispatch",
+      "verification-failed": "block-task",
+      "approval-requested": "notify",
+      "health-check": "run-health",
+      "stale-scan": "stale-scan",
+      "user": "notify"
+    },
+    "defaultHandler": "notify"
+  },
+
+  "state": {
+    "dirEnv": "CCX_STATE_DIR",
+    "lockTimeoutSeconds": 10,
+    "routingLogMax": 50,
+    "notificationsMax": 100,
+    "checkpointsMax": 20,
+    "reviewsMax": 20,
+    "historyMaxBytes": 1048576
+  },
+
+  "telemetry": {
+    "enabled": true,
+    "maxBytes": 1048576
+  },
+
+  "redaction": {
+    "maxFieldChars": 200,
+    "patterns": [
+      "-----BEGIN [A-Z ]*PRIVATE KEY-----",
+      "\\bAKIA[0-9A-Z]{16}\\b",
+      "\\bgh[pousr]_[A-Za-z0-9]{36,}\\b",
+      "\\bgithub_pat_[A-Za-z0-9_]{40,}\\b",
+      "\\bsk-ant-[A-Za-z0-9_-]{20,}",
+      "\\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}",
+      "\\bxox[abprs]-[A-Za-z0-9-]{10,}",
+      "\\bAIza[0-9A-Za-z_-]{35}\\b",
+      "\\beyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}",
+      "(?i)\\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)\\b\\s*[:=]\\s*['\"]?[^\\s'\"]{8,}"
+    ]
+  },
+
+  "memory": {
+    "files": ["MEMORY.md", "FRICTION.md", "HANDOFF-REPORT.md"],
+    "maxLines": { "MEMORY.md": 400, "FRICTION.md": 200, "HANDOFF-REPORT.md": 200 },
+    "maxCheckpoints": 12
+  },
+
+  "verify": {
+    "stages": [
+      { "name": "parse", "builtin": "powershell-parse", "quick": true },
+      { "name": "json", "builtin": "json-valid", "quick": true },
+      { "name": "secrets", "builtin": "secret-scan", "quick": true },
+      { "name": "scope", "builtin": "task-scope", "quick": true },
+      { "name": "memory", "builtin": "memory-lint", "quick": true },
+      { "name": "format", "command": null, "note": "No formatter configured for this repository." },
+      { "name": "lint", "command": null, "note": "No linter configured (PSScriptAnalyzer is not installed); the parse stage checks PowerShell syntax." },
+      { "name": "tests-ccx", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 15 },
+      { "name": "tests-ccx-ops", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx-ops.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 15 },
+      { "name": "tests-dispatch", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-codex-dispatch.ps1", "when": ["scripts/codex-dispatch.ps1", "scripts/test-codex-dispatch.ps1", "scripts/ccx-core.ps1", "ccx/policy.json"], "timeoutMinutes": 15 },
+      { "name": "tests-mirror", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-sync-mirror.ps1", "when": ["scripts/sync-mirror.ps1", "scripts/test-sync-mirror.ps1"], "timeoutMinutes": 15 }
+    ],
+    "logsMax": 20
+  },
+
+  "worktrees": {
+    "root": ".ccx-worktrees",
+    "branchPrefix": { "claude": "claude/", "codex": "codex/" },
+    "staleDays": 7
+  },
+
+  "mcp": {
+    "codexAllowedServers": ["node_repl"],
+    "projectAllowedServers": [],
+    "subagents": { "ccx-scout": [], "ccx-reviewer": [] },
+    "externalWriteLevel": "L4",
+    "note": "Inventory, scopes and approval rules: ccx/ARCHITECTURE.md, MCP section."
+  }
+}

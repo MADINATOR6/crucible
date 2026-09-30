@@ -8,3 +8,5 @@
 id_rsa*
 *.log
 .claude/settings.local.json
+# ccx task worktrees (scripts/ccx.ps1 worktree add)
+.ccx-worktrees/
