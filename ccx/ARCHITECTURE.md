@@ -409,7 +409,11 @@ The upgrade is a series of commits on `claude/architecture-audit-migration-64982
   5. Remove any `ccx-tick` scheduled task you added.
 
   Never reset or force-push `main`.
-- The rollback was rehearsed in a temporary worktree; see the upgrade report.
+- **Rehearsed 2026-10-01** in a temporary detached worktree:
+  1. `main` plus a `--no-ff` merge of the branch.
+  2. `git revert -m 1 HEAD`.
+  3. The resulting tree is identical to `c2f515b` (`git diff --stat c2f515b HEAD` is empty).
+  4. The pre-upgrade suites pass there: dispatch 23/23, mirror 21/21 + 1 skip, matching the baseline.
 
 ## 21. Known limits
 
