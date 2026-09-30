@@ -45,33 +45,14 @@ What actually happened in this upgrade:
 
 ## 4. OMNIROUTE
 
-**Routing order, cheapest reliable first:**
-1. a plain tool (no AI);
-2. an existing result;
-3. a script;
-4. a cheap model (Haiku scout, or Codex at low effort);
-5. a worker;
-6. a premium model;
-7. the Mythos tier.
-
-Two special routes: `defer` (Codex is at its limit) and `surface` (stop and ask you).
+**Routing order, cheapest reliable first:** a plain tool (no AI), an existing result, a script, a cheap model (Haiku scout or Codex at low effort), a worker, a premium model, the Mythos tier. Two special routes: `defer` (Codex is at its limit) and `surface` (stop and ask you).
 
 **Models:**
 - Codex dispatches use GPT-6 Astra. GPT-5.3-Codex is not in your Codex model list.
 - Claude uses Opus 5.5.
 - Claude's cheap subagent uses Haiku 4.5.
 
-**Effort by class:**
-
-| Class | Effort |
-|---|---|
-| routine | low |
-| normal | medium |
-| complex | high |
-| critical and exceptional | xhigh |
-
-- A failure or ambiguity raises effort one step, within the class cap.
-- Max needs two failed attempts.
+**Effort by class:** routine low, normal medium, complex high, critical and exceptional xhigh. A failure or ambiguity raises it one step within the class cap; max needs two failed attempts.
 
 **Seen working live:**
 - The CCX-5a trial was routed to Astra **low** and used about 56k effective tokens.
@@ -154,14 +135,7 @@ Codex's re-check (CCX-4b):
 
 ## 8. Cost and token controls
 
-- **Per-class budgets:**
-  - dispatches: 2 to 4;
-  - model escalations;
-  - review cycles;
-  - timeouts;
-  - token targets.
-
-  The launcher, router and `task review` enforce them.
+- **Per-class budgets** (dispatches 2 to 4, model escalations, review cycles, timeouts, token targets), enforced by the launcher, router and `task review`.
 - **Usage-limit runs** do not use up a retry.
 - **Measured quota:** about 35 minutes of Astra at high effort per usage window. Parallel Codex runs used it in 19 minutes. The docs now say: one Codex task at a time, and spend Codex first on verification.
 
