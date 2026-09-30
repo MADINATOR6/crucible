@@ -310,6 +310,7 @@ try {
   $messages = New-Object 'System.Collections.Generic.List[string]'
   [long]$inputTokens = 0; [long]$cachedTokens = 0; [long]$outputTokens = 0
   $hasUsage = $false
+  $lastMessage = $null
   foreach ($line in [IO.File]::ReadLines($base + '.events.jsonl', $utf8)) {
     try { $event = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($event.type -eq 'turn.completed' -and $event.usage) {
@@ -322,6 +323,7 @@ try {
     if ($event.type -eq 'error') { $message = $event.message }
     if ($event.type -eq 'turn.failed') { $message = $event.error.message }
     if ($message -and -not $messages.Contains($message)) { $messages.Add($message) }
+    if ($event.type -eq 'item.completed' -and $event.item -and $event.item.type -eq 'agent_message' -and $event.item.text) { $lastMessage = [string]$event.item.text }
   }
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
@@ -339,6 +341,8 @@ try {
   if ([IO.File]::Exists($base + '.report.md')) { $report = [IO.File]::ReadAllText($base + '.report.md', $utf8) }
   if ([string]::IsNullOrWhiteSpace($report)) {
     Write-Output 'NO REPORT: inspect the .events.jsonl and .stderr.log captures and the working-tree diff.'
+    # A usage-limit cutoff loses the report; Codex's last progress message is the best summary left.
+    if ($lastMessage) { Write-Output ('LAST MESSAGE: ' + $lastMessage.Substring(0, [Math]::Min(2000, $lastMessage.Length))) }
     if ($code -eq 0) { $code = 3 }
   } else {
     Write-Output '--- report ---'
@@ -383,6 +387,8 @@ try {
           }
           $state.agents.codex.unavailableUntil = Get-DispatchReset -Text $resetText -Policy $policy
           $state.agents.codex.reason = Protect-CcxText ($limitMessages -join '; ')
+          # A run cut off by the usage limit says nothing about the task: it does not use a retry.
+          if ($Role -eq 'implement') { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
         }
         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
         Write-CcxTelemetry -Record @{
@@ -392,7 +398,9 @@ try {
           scopeViolations=$scopeViolations.Count; postChecksPass=$(if ($postChecks) { $postChecks.pass } else { $null })
         }
         $eventKey = "dispatch:${TaskId}:$($dispatch.n)"
-        if ($Role -ne 'implement') { $eventKey = "dispatch:${TaskId}:${Role}:" + [DateTime]::Parse($dispatch.startedAt).ToUniversalTime().ToString('yyyyMMddHHmmss') }
+        $startedStamp = [DateTime]::Parse($dispatch.startedAt).ToUniversalTime().ToString('yyyyMMddHHmmss')
+        if ($Role -ne 'implement') { $eventKey = "dispatch:${TaskId}:${Role}:$startedStamp" }
+        elseif ($limitMessages.Count -gt 0) { $eventKey += ":limit:$startedStamp" }
         $null = Add-CcxEvent -State $state -Type dispatch-finished -TaskId $TaskId -Key $eventKey -Data @{exit=$code; status=$status; dispatch=$dispatch.n; role=$Role}
       }
     } catch {

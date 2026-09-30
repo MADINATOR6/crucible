@@ -38,7 +38,7 @@ Exit codes:
 - 9: the turn completed but post-checks failed, for example a file changed outside the task's owns.
 - 10: approval required (`ccx approve`).
 
-On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. If Codex stops with items open and no blocker named, re-run once with a `-TaskFile` naming only the open items; if items remain, review instead.
+On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. With no report, the launcher prints Codex's last progress message (`LAST MESSAGE:`). If Codex stops with items open and no blocker named, re-run once with a `-TaskFile` naming only the open items; if items remain, review instead.
 
 ### After return (Claude)
 Match the report's task and baseline to this run → inspect the diff for correctness and scope → resolve every non-PASS item → re-run the checks Codex marked PASS, then Claude-owned checks → deeper review if risky → commit only task-owned changes → mirror sync if used.

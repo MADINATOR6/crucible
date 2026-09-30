@@ -85,7 +85,8 @@ function Run-Launcher {
     $errTask = $process.StandardError.BaseStream.CopyToAsync($err)
     $readable = $false
     if ($probeCapture) {
-      $deadline = [DateTime]::UtcNow.AddSeconds(5)
+      # PowerShell alone can take ~5 s to start on slow hosts; the loop also ends when the launcher exits.
+      $deadline = [DateTime]::UtcNow.AddSeconds(30)
       while ([DateTime]::UtcNow -lt $deadline -and -not $readable -and -not $process.HasExited) {
         $files = @(Get-ChildItem -LiteralPath ($arguments[[array]::IndexOf($arguments, '-CaptureDir') + 1]) -File -ErrorAction SilentlyContinue)
         $events = @($files | Where-Object { $_.Name -like '*.events.jsonl' }) | Select-Object -Last 1
@@ -196,7 +197,8 @@ function Run-Ccx([string[]]$arguments) {
     $p.Dispose()
   }
 }
-function Ccx-Case([string]$name, [scriptblock]$body) {
+function Ccx-Case([string]$name, [scriptblock]$ccxBody) {
+  # Not $body: Case's own $body would shadow it and the wrapper would call itself.
   Case $name {
     $previous = @{}
     foreach ($key in @('CCX_STATE_DIR','CCX_POLICY','CODEX_HOME')) { $previous[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
@@ -208,7 +210,7 @@ function Ccx-Case([string]$name, [scriptblock]$body) {
     [IO.File]::Copy((Join-Path $root 'ccx/policy.json'), $env:CCX_POLICY)
     [void][IO.Directory]::CreateDirectory($env:CODEX_HOME)
     Write-Utf8File (Join-Path $env:CODEX_HOME 'models_cache.json') '{"models":[{"slug":"gpt-6-astra"}]}'
-    try { & $body } finally {
+    try { & $ccxBody } finally {
       foreach ($key in $previous.Keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }
     }
   }
@@ -250,6 +252,7 @@ else if (mode === 'nonzero') { process.exit(7); }
 else if (mode === 'noreport') { process.exit(0); }
 else if (mode === 'blank') { write(' \t\r\n'); }
 else if (mode === 'usage') {
+  event({type:'item.completed', item:{type:'agent_message', text:'progress note before the limit'}});
   event({type:'error', message:usage});
   event({type:'turn.failed', error:{message:usage}});
   process.stderr.write(usage + '\n');
@@ -312,6 +315,7 @@ else {
     $r = Run-Launcher $repo $common 'usage'; Check-Code $r 4
     Assert ($r.Stdout -match 'USAGE LIMIT:') 'usage line missing'
     Assert ($r.Stdout -match 'RESETS: 5:33 PM\r?\n') 'reset line missing or has trailing text'
+    Assert ($r.Stdout -match 'LAST MESSAGE: progress note before the limit') 'last progress message not surfaced'
   }
   Case 'distinct errors' {
     $r = Run-Launcher $repo $common 'error'; Check-Code $r 0
@@ -553,6 +557,7 @@ else {
     $until = [DateTime]::Parse((Read-CcxState).agents.codex.unavailableUntil).ToLocalTime()
     Assert ($until -gt [DateTime]::Now) 'recorded reset is not future'
     Assert ($until.Hour -eq 17 -and $until.Minute -eq 33) 'recorded reset time incorrect'
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'usage-limit run used a retry'
   }
   Ccx-Case 'full access requires and consumes chat approval' {
     Add-CcxTask
