@@ -370,6 +370,10 @@ try {
       $r = Cli-Json @('route','-Type','implement','-Class','routine','-Attempt','2')
       Assert ($r.provider -eq 'openai') 'retry did not return to OpenAI'
       Assert ((Cli-Json @('route','-Type','implement','-Class','normal')).provider -eq 'openai') 'local provider used beyond routine work'
+      # Installed but its local server does not answer (port 9 is closed): not ready.
+      $policy.providers.fakelocal.probeUrl = 'http://127.0.0.1:9/api/version'
+      Write-Json $env:CCX_POLICY $policy
+      Assert ((Cli-Json @('route','-Type','implement','-Class','routine')).provider -eq 'openai') 'unanswering local server still routed'
     } finally { $env:PATH = $oldPath; Remove-Item Env:CCX_TEST_CLOUD_KEY -ErrorAction SilentlyContinue }
   }
   Case 'Mythos fallback and available test policy' {

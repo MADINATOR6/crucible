@@ -647,12 +647,15 @@ function Invoke-CcxHealth {
         $codexConfig = if ([IO.File]::Exists($codexConfigPath)) { [IO.File]::ReadAllText($codexConfigPath, $script:CcxUtf8) } else { '' }
         foreach ($name in @($policy.providers.Keys)) {
             $provider = $policy.providers[$name]
-            # Presence only: never print a key value, never call the provider.
+            # Presence and a local probeUrl only: never print a key value, never call a model.
             $result = 'SKIP'; $detail = 'disabled'
             if (-not $provider.enabled) { }
             elseif ($provider.kind -eq 'local') {
-                if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; model $($provider.model)" }
-                else { $detail = "$($provider.command) not installed; route skips it" }
+                $answers = $true
+                if ($provider.probeUrl) { try { $null = Invoke-WebRequest -Uri $provider.probeUrl -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop } catch { $answers = $false } }
+                if (-not (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)) { $detail = "$($provider.command) not installed; route skips it" }
+                elseif (-not $answers) { $result = 'WARN'; $detail = "$($provider.command) installed but not running ($($provider.probeUrl)); route skips it" }
+                else { $result = 'PASS'; $detail = "$($provider.command) present; model $($provider.model)" }
             } elseif (-not (Get-CcxProviderKey $provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
             elseif ($provider.cli) {
                 if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; $($provider.envKey) set" }

@@ -108,6 +108,7 @@ function Get-CcxPolicy {
                     @($provider.codexFlags | Where-Object { $_ -isnot [string] -or $_ -notmatch '^[A-Za-z0-9=_.:-]{1,64}$' }).Count -or
                     ($provider.ContainsKey('reasoningEffort') -and $provider.reasoningEffort -notin @('none','minimal','low','medium','high','xhigh')) -or
                     ($provider.ContainsKey('cli') -and $provider.cli -notin @('gemini')) -or
+                    ($provider.ContainsKey('probeUrl') -and [string]$provider.probeUrl -notmatch '^http://(localhost|127\.0\.0\.1):\d{1,5}/[A-Za-z0-9/._-]*$') -or
                     (($provider.kind -eq 'local' -or $provider.ContainsKey('command')) -and [string]$provider.command -notmatch '^[A-Za-z0-9._-]{1,64}$') -or
                     ($provider.kind -eq 'cloud' -and [string]$provider.envKey -notmatch '^[A-Z][A-Z0-9_]{0,63}$')) { throw "Invalid provider $name" }
             }
@@ -583,6 +584,10 @@ function Get-CcxProvider {
         $hasCommand = -not $provider.command -or [bool](Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)
         $ready = if ($provider.kind -eq 'local') { $hasCommand }
                  else { $hasCommand -and [bool](Get-CcxProviderKey $provider.envKey) }
+        # Installed is not running: a local server that does not answer would waste an attempt.
+        if ($ready -and $provider.probeUrl) {
+            try { $null = Invoke-WebRequest -Uri $provider.probeUrl -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop } catch { $ready = $false }
+        }
         if ($ready) { return @{ name = $name; model = $provider.model; kind = $provider.kind } }
     }
     return $null
