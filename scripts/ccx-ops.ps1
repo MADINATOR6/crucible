@@ -440,8 +440,10 @@ function Invoke-CcxCmdWorktree($P) {
         $result = Invoke-CcxLocked {
             param($state)
             $current = Get-CcxTask -State $state -Id $task.id
-            # Keep the ownership check and registration in one lock. Core supplies task-start semantics.
-            Start-CcxTaskInState -State $state -Task $current
+            # Keep the ownership check and registration in one lock. Check only, before git: a task
+            # start here would record a baseline for the caller's worktree, where the task never works.
+            if ($current.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal tasks cannot create a worktree.' 2) }
+            Assert-CcxTaskOwnership $state $current
             $null = Invoke-CcxGit -Root $main -Arguments @('worktree','add','-b',$branch,$path,$baseRef)
             Start-CcxTaskInState -State $state -Task $current -Worktree $path -Branch $branch
             $current.worktreeCreatedBy = 'ccx'

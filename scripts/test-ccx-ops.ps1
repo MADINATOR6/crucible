@@ -290,6 +290,20 @@ try {
       Assert (-not (Task 'T1').worktree) 'prune did not clear task worktree'
     } finally { $null = Run-Git @('worktree','remove',$manual) }
   }
+  Case 'worktree add records no baseline for the caller worktree' {
+    # Regression (CCX-7): the ownership check ran a full task start in the caller's worktree, leaving a
+    # stale baseline there that a later move of the task into that worktree reused.
+    Add-Task 'T1' 'src/one.txt'
+    Write-Text (Join-Path $repo 'notes.txt') 'caller dirt'
+    try {
+      Check-Code (Run-Cli @('worktree','add','-TaskId','T1')) 0
+      $keys = @((Task 'T1').baselines.Keys)
+      Assert ($keys.Count -eq 1 -and $keys[0] -like '*codex-t1') "expected only the new worktree's baseline, got: $($keys -join ', ')"
+    } finally {
+      $created = (Task 'T1').worktree
+      if ($created -and (Test-Path -LiteralPath $created)) { try { $null = Run-Git @('worktree','remove','--force',$created) } catch { } }
+    }
+  }
   Case 'worktree add bases on the caller worktree HEAD' {
     # Regression: git worktree add runs in the main checkout, where HEAD means main, not the caller's branch.
     Add-Task 'T1' 'src/one.txt'
