@@ -6,7 +6,8 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 - Project: claude-codex-collab (Claude Code + Codex workflow template)
 - Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
 - Task: ccx upgrade (user's CLAUDE_CODEX_MASTER_UPGRADE_PROMPT, 2026-09-30) on branch claude/architecture-audit-migration-649829 from c2f515b. Queue below.
-- Status: ccx built, verified and dogfooded; waiting for Codex (limit until 11:12 local, 2026-10-01) to re-verify F1/F3/F5 (CCX-4c) and run CCX-5b. Nothing pushed; merge/push needs the user's approval. Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
+- Status: ccx upgrade COMPLETE (2026-10-01 ~15:00). All tasks CCX-2..7 done via ccx; final gate test-ccx 30/30, ops 16/16, dispatch 46/46, mirror 22/22; health exit 0. Nothing pushed; merge into main + push await the user's approval. Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.
+- Next: on approval, merge branch into main (no-ff), run suites on main, `ccx gate -Action push`, push, then sync-mirror if a copy exists.
 - Next (exact): 1) CCX-4c: fast-forward .ccx-worktrees/codex-CCX-4 to the tip, dispatch `-TaskId CCX-4 -Role verify -TaskFile tasks\CCX-4c.md -Sandbox workspace-write` (write the spec: re-check F1, F3 incl. residuals, F5, bold status). 2) Record reviews; `task done` CCX-3, CCX-4, CCX-6. 3) CCX-5b: `ccx worktree add -TaskId CCX-5b`, dispatch `-TaskId CCX-5b`, verify, review, done, commit, merge-check, merge. 4) Final suites, health, HANDOFF-REPORT.md, ask for push approval (`ccx gate -Action push`).
 - Open: measure Codex code size (ladder effect) on the next real Dispatch task; none existed on 2026-09-27.
 

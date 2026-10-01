@@ -4,11 +4,11 @@ Branch `claude/architecture-audit-migration-649829`, based on `c2f515b`. Nothing
 
 ## 1. Status
 
-**Nearly complete.** Everything is built, tested, independently verified by Codex, and committed. Two steps are waiting for Codex's next usage window (11:12 AM, 1 Oct):
-- CCX-4c: Codex re-checks three of the fixes.
-- CCX-5b: the second end-to-end task.
-
-Both are scheduled in this session; if it closed, say "continue".
+**Complete.** It is built, tested, independently verified and committed.
+- **Tasks:** all 7 ccx tasks are done through ccx's own gate.
+- **Codex's findings:** every finding from Codex's verification is fixed and confirmed by Codex (CCX-4b, 4c and 4d).
+- **CCX-7:** the last one-line fix was finished by Claude on your instruction, while Codex was at its limit. Your quoted chat approval (A-0001) is recorded in place of its cross-model review.
+- **Waiting on you:** merging into `main` and pushing.
 
 ## 2. What changed
 
@@ -106,10 +106,20 @@ What actually happened in this upgrade:
 | A status parse miss | CCX-4's own report | yes |
 | A health false warning | the real health run | yes |
 
-Codex's re-check (CCX-4b):
-- F2 and F4 passed.
-- F3 had two more laundering paths, now fixed as CCX-6.
-- F1 and F5 were not reached before the usage limit. Both pass their new regression tests; Codex re-checks them in CCX-4c.
+Codex's re-checks:
+- CCX-4b: F2 and F4 passed.
+- CCX-4c: F1, F5 and every current F3 path passed.
+- CCX-4d: the F3 legacy path and the status parse passed.
+
+The end-to-end trials also found, and fixed:
+- `worktree add` starting from the wrong commit, and a stale-baseline bug (CCX-7);
+- test-harness failures that only happen inside Codex's sandbox (`taskkill` denied, CLIXML-wrapped errors). Those cases now SKIP there instead of failing.
+
+Final gate:
+- test-ccx 30/30;
+- test-ccx-ops 16/16;
+- test-codex-dispatch 46/46;
+- test-sync-mirror 22/22.
 
 ## 7. Security and permissions
 
@@ -153,11 +163,9 @@ Codex's re-check (CCX-4b):
 
 ## 10. Remaining issues
 
-- **Waiting for Codex (11:12 AM):**
-  - CCX-4c: re-check F1, F3 and F5 plus the status parse.
-  - CCX-5b: blocked on purpose until CCX-3 is done, because both own the dispatch test.
-- **Your approval:** merging into `main` and pushing (L4). I will ask; nothing is pushed.
-- **After merging:** `ccx worktree prune -Apply` removes the finished task worktrees under `.ccx-worktrees`.
+- **Your approval:** merging into `main` and pushing (L4). Nothing is pushed.
+- **Codex desktop app agent sync:** it copied our Claude scout agent into `.codex/agents/` without its read-only restriction. The folder is excluded from git here. Consider turning the sync off in Codex settings.
+- **One unexplained flake:** process starts were briefly denied ("Access is denied") during one test run; a re-run passed. Cause UNKNOWN; likely security software.
 - **Slow tests:** about 4.3 s per PowerShell start on this machine, so the core suite takes about 15 minutes.
 - **Still open from 27 Sept:** the Mythos rule questions, deleting the old merged branch `claude/codex-mythos-upgrade-analysis-nv6hg1`, and recycling `claude-codex-template`.
 
