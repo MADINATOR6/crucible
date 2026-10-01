@@ -14,6 +14,7 @@ $git = (Get-Command git.exe -ErrorAction Stop).Source
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 $passed = 0
 $total = 0
+$skipped = 0
 $failures = New-Object 'System.Collections.Generic.List[string]'
 $clock = [Diagnostics.Stopwatch]::StartNew()
 
@@ -155,9 +156,25 @@ function Case([string]$name, [scriptblock]$body) {
     Write-Output "PASS $name"
   } catch {
     $message = ($_.Exception.Message -replace '\s+', ' ').Trim()
+    if ($message.StartsWith('SKIP:')) { $script:skipped++; Write-Output "SKIP ${name}: $($message.Substring(5).Trim())"; return }
     $script:failures.Add("FAIL ${name}: $message")
     Write-Output "FAIL ${name}: $message"
   }
+}
+function Test-TaskkillDenied {
+  # Codex's workspace-write sandbox denies taskkill; kill-path cases then SKIP instead of FAIL.
+  $sleeper = Start-Process -FilePath (Join-Path ([Environment]::SystemDirectory) 'ping.exe') -ArgumentList '-n 30 127.0.0.1' -WindowStyle Hidden -PassThru
+  try {
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = Join-Path ([Environment]::SystemDirectory) 'taskkill.exe'
+    $info.Arguments = "/T /F /PID $($sleeper.Id)"
+    $info.UseShellExecute = $false; $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
+    $kill = [Diagnostics.Process]::Start($info)
+    $text = $kill.StandardOutput.ReadToEnd() + $kill.StandardError.ReadToEnd()
+    $kill.WaitForExit()
+    return ($kill.ExitCode -ne 0 -and $text -match '(?i)access( is)? denied')
+  } finally { if (-not $sleeper.HasExited) { try { $sleeper.Kill() } catch { } } }
 }
 function New-Task([string]$path, [string]$text = "# Task`nDo this task.`n") {
   Write-Utf8File $path $text
@@ -295,6 +312,8 @@ else {
   Run-Git @('-C', $repo, 'commit', '-m', 'fixture')
   $captures = Join-Path $scratch 'captures'
   $common = @('-CaptureDir', $captures)
+  $taskkillDenied = Test-TaskkillDenied
+  if ($taskkillDenied) { Write-Output 'NOTE: taskkill is denied on this host; kill-path cases will SKIP' }
 
   Case 'success report and summed tokens' {
     $r = Run-Launcher $repo $common
@@ -328,6 +347,7 @@ else {
     Assert ($r.Stdout -match 'Codex error: second error') 'second error absent'
   }
   Case 'timeout removes fake process' {
+    if ($taskkillDenied) { throw 'SKIP: taskkill is denied here (Codex sandbox); run outside the sandbox' }
     $log = Join-Path $scratch 'timeout.json'
     $r = Run-Launcher $repo ($common + @('-TimeoutMinutes', '0.05')) 'sleep' 'fake' $false 30 $log
     Check-Code $r 5
@@ -400,7 +420,8 @@ else {
     $log = Join-Path $scratch 'badmodel.json'
     $r = Run-Launcher $repo ($common + @('-Model', 'gpt 6 & x')) 'success' 'fake' $false 25 $log
     # Hosts wrap long error lines; compare with whitespace collapsed.
-    Assert (($r.Stderr -replace '\s+', '') -match "Cannotvalidateargumentonparameter'Model'") 'model validation message absent'
+    # Hosts wrap long error lines, and CLIXML encodes each break as _x000D__x000A_; remove both.
+    Assert ((($r.Stderr -replace '_x000D__x000A_', '') -replace '\s+', '') -match "Cannotvalidateargumentonparameter'Model'") 'model validation message absent'
     Assert (-not (Test-Path -LiteralPath $log)) 'fake codex ran with an unsafe model'
   }
   Case 'research requires task file' {
@@ -645,6 +666,7 @@ else {
     Assert ($args[8] -ceq ('Read HANDOFF.md and follow its Implementer instruction for ' + (Join-Path $repo 'TASK.md') + '.')) 'legacy prompt changed'
   }
   Case 'capture streams readable during run' {
+    if ($taskkillDenied) { throw 'SKIP: taskkill is denied here (Codex sandbox); run outside the sandbox' }
     $liveCaptures = Join-Path $scratch 'live-captures'
     $log = Join-Path $scratch 'live.json'
     $r = Run-Launcher $repo @('-CaptureDir',$liveCaptures,'-TimeoutMinutes','0.05') 'sleep' 'fake' $false 25 $log $true
@@ -665,5 +687,5 @@ else {
   Remove-Scratch
 }
 $clock.Stop()
-Write-Output "$passed/$total passed in $([math]::Round($clock.Elapsed.TotalSeconds))s"
-if ($passed -ne $total) { exit 1 }
+Write-Output ("$passed/$total passed" + $(if ($skipped) { ", $skipped skipped" } else { '' }) + " in $([math]::Round($clock.Elapsed.TotalSeconds))s")
+if ($passed + $skipped -ne $total) { exit 1 }
