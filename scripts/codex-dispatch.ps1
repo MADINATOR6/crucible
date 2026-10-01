@@ -149,6 +149,7 @@ try {
   $base = Join-Path $CaptureDir ('codex-' + [guid]::NewGuid().ToString('N'))
   if (($base.Length + 13) -ge 260) { throw "Capture path too long ($($base.Length + 13) chars). Pass a shorter -CaptureDir." }
 
+  $providerArguments = @()
   if ($TaskId) {
     $corePath = Join-Path $PSScriptRoot 'ccx-core.ps1'
     if (-not [IO.File]::Exists($corePath)) { throw 'ccx-core.ps1 not found: -TaskId needs the ccx scripts' }
@@ -191,24 +192,31 @@ try {
       throw (New-CcxError "BUDGET: token target reached ($used/$($budget.tokenTarget)); raise it with ccx task budget" 8)
     }
     $state = Get-CcxState
-    if ($state.agents.codex.unavailableUntil -and [DateTime]::Parse($state.agents.codex.unavailableUntil).ToUniversalTime() -gt [DateTime]::UtcNow) {
-      $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
-      throw (New-CcxError "USAGE LIMIT (recorded): Codex resumes at $resume" 4)
-    }
+    $codexOut = $state.agents.codex.unavailableUntil -and [DateTime]::Parse($state.agents.codex.unavailableUntil).ToUniversalTime() -gt [DateTime]::UtcNow
     # Always route: retry caps, deferral and ownership refusals apply even with explicit -Effort/-Model.
     $routeArgs = @{ TaskId = $TaskId; Type = $task.type }
     if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
     $decision = Invoke-CcxRoute @routeArgs
+    $explicit = $PSBoundParameters.ContainsKey('Effort') -or $PSBoundParameters.ContainsKey('Model')
+    # A cloud fallback provider may run while OpenAI Codex is at its usage limit; nothing else may.
+    if ($codexOut -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
+      $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
+      throw (New-CcxError "USAGE LIMIT (recorded): Codex resumes at $resume" 4)
+    }
     if ($decision.agent -ne 'codex' -or $decision.route -notin @('worker','cheap','script')) {
       throw (New-CcxError ("Route: $($decision.route) - " + ($decision.reasons -join '; ')) 8)
     }
-    if (-not $PSBoundParameters.ContainsKey('Effort') -and -not $PSBoundParameters.ContainsKey('Model')) {
+    if (-not $explicit) {
       $Model = $decision.model; $Effort = $decision.effort
       if ($Model -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$' -or $Effort -notin @('low','medium','high','xhigh','max')) {
         throw 'Route returned an invalid model or effort.'
       }
+      # A routed non-OpenAI provider (local Ollama/LM Studio, or a cloud fallback) adds its Codex flags.
+      if ($decision.provider -and $decision.provider -ne 'openai' -and $policy.providers.ContainsKey($decision.provider)) {
+        $providerArguments = @($policy.providers[$decision.provider].codexFlags)
+      }
       $firstReason = @($decision.reasons | Select-Object -First 1)
-      Write-Output ("Route: $($decision.route) $Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
+      Write-Output ("Route: $($decision.route) $(if ($providerArguments) { $decision.provider + '/' })$Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
     } else { Write-Output 'Route: explicit' }
     if ($Sandbox -eq 'danger-full-access') {
       $gate = Invoke-CcxGate -Action codex-full-access -Target $TaskId -TaskId $TaskId
@@ -227,7 +235,7 @@ try {
       $task.status = 'active'; $task.updated = $now
       $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($task.dispatches) start $Role $Model $Effort"})
       $task.lastDispatch = @{
-        n=$task.dispatches; role=$Role; model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
+        n=$task.dispatches; role=$Role; provider=$(if ($providerArguments) { $decision.provider } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
         escalated=([array]::IndexOf($ladder,$Effort) -gt [array]::IndexOf($ladder,$policy.classes[$class].effort.codex.base))
       }
       $task.lastDispatch.Clone()
@@ -270,7 +278,7 @@ try {
   $modelName = if ($Model) { $Model } else { 'default' }
   Write-Output "Dispatching Codex: HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
   $modelArguments = if ($Model) { @('-m', $Model) } else { @() }
-  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$Effort") + $modelArguments + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
+  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$Effort") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
   # Quote every cmd argument and disable delayed expansion; no shell redirection touches paths.
   $commandLine = ($arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
   $info = New-Object Diagnostics.ProcessStartInfo
@@ -388,15 +396,18 @@ try {
           foreach ($message in $limitMessages) {
             if ($message -match '(?i)try again at\s+([^\r\n]+)') { $resetText = $Matches[1].Trim().TrimEnd('.'); break }
           }
-          $state.agents.codex.unavailableUntil = Get-DispatchReset -Text $resetText -Policy $policy
-          $state.agents.codex.reason = Protect-CcxText ($limitMessages -join '; ')
+          # Another provider's limit says nothing about OpenAI Codex quota.
+          if (-not $providerArguments) {
+            $state.agents.codex.unavailableUntil = Get-DispatchReset -Text $resetText -Policy $policy
+            $state.agents.codex.reason = Protect-CcxText ($limitMessages -join '; ')
+          }
           # A run cut off by the usage limit says nothing about the task: it does not use a retry.
           if ($Role -eq 'implement') { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
         }
         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
         Write-CcxTelemetry -Record @{
           at=$now; kind='dispatch'; taskId=$TaskId; type=$task.type; class=$task.class; risk=$task.risk
-          role=$Role; agent='codex'; model=$Model; effort=$Effort; attempt=$dispatch.n
+          role=$Role; agent='codex'; provider=$(if ($providerArguments) { $decision.provider } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
           exit=$code; status=$status; tokens=$tokens; durationSec=$duration
           scopeViolations=$scopeViolations.Count; postChecksPass=$(if ($postChecks) { $postChecks.pass } else { $null })
         }

@@ -632,6 +632,23 @@ function Invoke-CcxHealth {
     $checks += @{ name='claude'; result=$(if ($claude.Count) { 'PASS' } else { 'WARN' }); details=@($(if ($claude.Count) { 'CLI present' } else { 'CLI missing; desktop app may be in use' })) }
     $mythos = $policy.models.mythos
     $checks += @{ name='mythos'; result=$(if ($mythos.available -and -not $mythos.model) { 'FAIL' } else { 'PASS' }); details=@($(if (-not $mythos.available) { 'not configured; escalation falls back to ' + (($mythos.fallback | ForEach-Object { $_.model }) -join ', ') } elseif (-not $mythos.model) { 'available without model' } else { $mythos.model })) }
+    if ($policy.ContainsKey('providers')) {
+        $codexConfigPath = Join-Path $catalogHome 'config.toml'
+        $codexConfig = if ([IO.File]::Exists($codexConfigPath)) { [IO.File]::ReadAllText($codexConfigPath, $script:CcxUtf8) } else { '' }
+        foreach ($name in @($policy.providers.Keys)) {
+            $provider = $policy.providers[$name]
+            # Presence only: never print a key value, never call the provider.
+            $result = 'SKIP'; $detail = 'disabled'
+            if (-not $provider.enabled) { }
+            elseif ($provider.kind -eq 'local') {
+                if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; model $($provider.model)" }
+                else { $detail = "$($provider.command) not installed; route skips it" }
+            } elseif (-not [Environment]::GetEnvironmentVariable($provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
+            elseif ($codexConfig -notmatch ('(?m)^\s*\[model_providers\.' + [regex]::Escape($name) + '\]')) { $result = 'WARN'; $detail = "$($provider.envKey) set but [model_providers.$name] missing in Codex config.toml" }
+            else { $result = 'PASS'; $detail = "$($provider.envKey) set; model $($provider.model)" }
+            $checks += @{ name="provider-$name"; result=$result; details=@($detail) }
+        }
+    }
     foreach ($agentName in @($policy.models.claude.cheapSubagent, $policy.models.claude.reviewSubagent)) {
         try {
             $agentPath = Get-CcxSafeFile -Root $Root -Path ('.claude/agents/' + $agentName + '.md')

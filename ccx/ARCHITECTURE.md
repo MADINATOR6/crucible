@@ -140,6 +140,14 @@ Mythos-class is an escalation tier, not a worker.
   - independent review, deterministic tests and, for consequential actions, human approval must follow before anything executes.
 - ccx never probes providers, spoofs model identifiers or works around access controls.
 
+### 5.3 Other providers (Ollama, LM Studio, DeepSeek, Gemini)
+`policy.providers` lists models Codex can run besides OpenAI's. The router uses one only when it is ready, so nothing changes until the user sets it up:
+- **Local** (`ollama`, `lmstudio`): ready when its CLI (`ollama` / `lms`) is on PATH. It takes the **first attempt of routine work** only; a retry goes back to the OpenAI model. The launcher adds `--oss --local-provider <name>` and the policy's model. The user installs the app and pulls the model; ccx never downloads anything. Keep the model small on a 4 GB GPU (the default is a 3B coder model).
+- **Cloud** (`deepseek`, `gemini`): ready when the provider is enabled **and** its key env var is set. Setting the key is the opt-in to send task code to that company. It runs only as a **fallback while OpenAI Codex is at its usage limit**; without one, the route defers as before. Both ship **disabled**: Codex CLI now accepts only `wire_api = "responses"` provider blocks (chat was removed, verified 2026-10-01), and these endpoints serve chat completions. Enable one once it, or a local proxy, serves `/v1/responses` and `~/.codex/config.toml` has a matching `[model_providers.<name>]` block.
+- A provider's own usage limit is not recorded as an OpenAI Codex limit. Telemetry and `lastDispatch` record `provider`.
+- `ccx health` shows one `provider-<name>` line each: installed or not, key set or not (never the value), and a WARN when a key is set without the Codex config block.
+- Policy validation keeps provider names, flags, commands, env key names and models to plain characters, since they reach the Codex command line.
+
 ## 6. Claude ↔ Codex contract
 
 - **Default roles:** Claude plans, orchestrates and reviews. Codex implements. The other model reviews the author's work, and ccx enforces it: `task review -Kind review` refuses the task owner. Identical tasks never go to both.

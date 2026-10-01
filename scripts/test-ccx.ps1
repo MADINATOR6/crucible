@@ -116,6 +116,11 @@ function New-Fixture {
   $env:CODEX_HOME = Join-Path $fixture 'catalog'
   [void][IO.Directory]::CreateDirectory($env:CODEX_HOME)
   $script:policy = Read-Json $sourcePolicy
+  # Synthetic providers: a real Ollama install or API key on this machine never changes a route.
+  $script:policy.providers = @{
+    fakelocal = @{ kind='local'; enabled=$true; command='ccx-fake-local'; codexFlags=@('--oss','--local-provider','ollama'); model='fake-local'; use=@('routine') }
+    fakecloud = @{ kind='cloud'; enabled=$true; envKey='CCX_TEST_CLOUD_KEY'; codexFlags=@('-c','model_provider=fakecloud'); model='fake-cloud'; use=@('fallback') }
+  }
   Write-Json $env:CCX_POLICY $script:policy
   Write-Json (Join-Path $env:CODEX_HOME $script:policy.models.codex.catalogFile) @{ models = @(@{ slug = $script:policy.models.codex.default }) }
   Set-Location -LiteralPath $script:repo
@@ -281,7 +286,8 @@ try {
     Assert (@((Get-CcxState).notifications | Where-Object { $_.level -eq 'action' }).Count -gt 0) 'cap notification missing'
     Check-Code (Run-Cli @('task','budget','-Id','T1','-Add','maxReviewCycles=2,maxDispatches=1','-Reason','Synthetic extension')) 0
     $route = Cli-Json @('route','-TaskId','T1')
-    Assert ($route.budget.maxReviewCycles -eq 3 -and $route.budget.maxDispatches -eq 4) 'budget did not add to class limits'
+    $classBudget = $policy.classes.normal.budget
+    Assert ($route.budget.maxReviewCycles -eq $classBudget.maxReviewCycles + 2 -and $route.budget.maxDispatches -eq $classBudget.maxDispatches + 1) 'budget did not add to class limits'
   }
   Case 'done requires full current verification and review; terminal update refused' {
     Add-Task
@@ -341,6 +347,26 @@ try {
     $r = Cli-Json @('route','-Type','review','-AuthoredBy','codex')
     Assert ($r.agent -eq 'claude') 'cross-model review chose the author'
     Check-Code (Run-Cli @('route','-Type','made-up')) 2
+  }
+  Case 'providers: cloud fallback when Codex is out, local on first routine attempt only' {
+    $oldPath = $env:PATH
+    try {
+      Invoke-CcxLocked { param($state) $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ') } | Out-Null
+      $env:CCX_TEST_CLOUD_KEY = 'x'
+      $r = Cli-Json @('route','-Type','implement')
+      Assert ($r.route -ne 'defer' -and $r.provider -eq 'fakecloud' -and $r.model -eq 'fake-cloud') 'cloud fallback not used while Codex is out'
+      Remove-Item Env:CCX_TEST_CLOUD_KEY
+      Invoke-CcxLocked { param($state) $state.agents.codex.unavailableUntil = $null } | Out-Null
+      $bin = Join-Path $scratch 'fakebin'
+      [void][IO.Directory]::CreateDirectory($bin)
+      Write-Utf8File (Join-Path $bin 'ccx-fake-local.cmd') '@exit /b 0'
+      $env:PATH = $bin + ';' + $oldPath
+      $r = Cli-Json @('route','-Type','implement','-Class','routine')
+      Assert ($r.provider -eq 'fakelocal' -and $r.model -eq 'fake-local') 'local provider not used for first routine attempt'
+      $r = Cli-Json @('route','-Type','implement','-Class','routine','-Attempt','2')
+      Assert ($r.provider -eq 'openai') 'retry did not return to OpenAI'
+      Assert ((Cli-Json @('route','-Type','implement','-Class','normal')).provider -eq 'openai') 'local provider used beyond routine work'
+    } finally { $env:PATH = $oldPath; Remove-Item Env:CCX_TEST_CLOUD_KEY -ErrorAction SilentlyContinue }
   }
   Case 'Mythos fallback and available test policy' {
     $r = Cli-Json @('route','-Type','implement','-Class','exceptional','-RequestMythos')

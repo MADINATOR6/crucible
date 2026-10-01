@@ -39,33 +39,40 @@
     }
   },
 
-  "effortLadder": ["low", "medium", "high", "xhigh", "max"],
+  "providers": {
+    "ollama": { "kind": "local", "enabled": true, "command": "ollama", "codexFlags": ["--oss", "--local-provider", "ollama"], "model": "qwen2.5-coder:3b", "use": ["routine"] },
+    "lmstudio": { "kind": "local", "enabled": true, "command": "lms", "codexFlags": ["--oss", "--local-provider", "lmstudio"], "model": "qwen2.5-coder-3b-instruct", "use": ["routine"] },
+    "deepseek": { "kind": "cloud", "enabled": false, "note": "Codex CLI accepts only wire_api=responses (chat was removed); enable once the endpoint or a local proxy serves /v1/responses and ~/.codex/config.toml has [model_providers.deepseek]", "envKey": "DEEPSEEK_API_KEY", "codexFlags": ["-c", "model_provider=deepseek"], "model": "deepseek-chat", "use": ["fallback"] },
+    "gemini": { "kind": "cloud", "enabled": false, "note": "same limit as deepseek", "envKey": "GEMINI_API_KEY", "codexFlags": ["-c", "model_provider=gemini"], "model": "gemini-2.5-flash", "use": ["fallback"] }
+  },
+
+  "effortLadder":["low", "medium", "high", "xhigh", "max"],
 
   "classes": {
     "routine": {
       "effort": { "codex": { "base": "low", "max": "medium" }, "claude": { "base": "medium", "max": "medium" }, "min": "low" },
       "verification": ["deterministic"],
-      "budget": { "maxDispatches": 2, "maxModelEscalations": 0, "maxReviewCycles": 1, "maxAgents": 1, "maxParallel": 1, "timeoutMinutes": 30, "tokenTarget": 150000 }
+      "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 1, "maxParallel": 1, "timeoutMinutes": 30, "tokenTarget": 150000 }
     },
     "normal": {
       "effort": { "codex": { "base": "medium", "max": "high" }, "claude": { "base": "medium", "max": "high" }, "min": "low" },
       "verification": ["deterministic", "cross-model-review"],
-      "budget": { "maxDispatches": 3, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 2, "maxParallel": 1, "timeoutMinutes": 60, "tokenTarget": 400000 }
+      "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 2, "maxParallel": 1, "timeoutMinutes": 60, "tokenTarget": 400000 }
     },
     "complex": {
       "effort": { "codex": { "base": "high", "max": "xhigh" }, "claude": { "base": "high", "max": "xhigh" }, "min": "medium" },
       "verification": ["deterministic", "cross-model-review", "independent-verifier"],
-      "budget": { "maxDispatches": 4, "maxModelEscalations": 1, "maxReviewCycles": 2, "maxAgents": 4, "maxParallel": 3, "timeoutMinutes": 120, "tokenTarget": 1500000 }
+      "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 2, "maxAgents": 4, "maxParallel": 3, "timeoutMinutes": 120, "tokenTarget": 1500000 }
     },
     "critical": {
       "effort": { "codex": { "base": "xhigh", "max": "xhigh" }, "claude": { "base": "xhigh", "max": "max" }, "min": "high" },
       "verification": ["deterministic", "cross-model-review", "independent-verifier", "human-approval"],
-      "budget": { "maxDispatches": 4, "maxModelEscalations": 2, "maxReviewCycles": 2, "maxAgents": 4, "maxParallel": 3, "timeoutMinutes": 180, "tokenTarget": 3000000 }
+      "budget": { "maxDispatches": 2, "maxModelEscalations": 2, "maxReviewCycles": 2, "maxAgents": 4, "maxParallel": 3, "timeoutMinutes": 180, "tokenTarget": 3000000 }
     },
     "exceptional": {
       "effort": { "codex": { "base": "xhigh", "max": "max" }, "claude": { "base": "max", "max": "max" }, "min": "high" },
       "verification": ["deterministic", "cross-model-review", "independent-verifier", "human-approval"],
-      "budget": { "maxDispatches": 4, "maxModelEscalations": 2, "maxReviewCycles": 2, "maxAgents": 5, "maxParallel": 3, "timeoutMinutes": 240, "tokenTarget": 5000000 }
+      "budget": { "maxDispatches": 2, "maxModelEscalations": 2, "maxReviewCycles": 2, "maxAgents": 5, "maxParallel": 3, "timeoutMinutes": 240, "tokenTarget": 5000000 }
     }
   },
 

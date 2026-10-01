@@ -73,6 +73,8 @@ function Run-Launcher {
   $info.EnvironmentVariables['PATH'] = $systemPath
   $info.EnvironmentVariables['FAKE_MODE'] = $mode
   $info.EnvironmentVariables['FAKE_LOG'] = $fakeLog
+  # A real provider key on this machine must not reroute a test.
+  foreach ($key in @('DEEPSEEK_API_KEY','GEMINI_API_KEY')) { [void]$info.EnvironmentVariables.Remove($key) }
   $process = New-Object System.Diagnostics.Process
   $process.StartInfo = $info
   $started = $false
@@ -581,6 +583,34 @@ else {
     Assert ($args -contains 'model_reasoning_effort=low') 'explicit effort lost'
     Assert (-not ($args -contains '-m')) 'unbound model was passed'
   }
+  Ccx-Case 'routine first attempt uses local provider flags' {
+    Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Synthetic task','-Type','implement','-Class','routine','-Risk','low','-Owner','codex','-Owns','owned.txt','-TaskFile','TASK.md')) 0
+    $fakeOllama = Join-Path $fakeDir 'ollama.cmd'
+    Write-Utf8File $fakeOllama '@exit /b 0'
+    try {
+      $log = Join-Path $scratch 'local-provider.json'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+      Check-Code $r 0
+      Assert ($r.Stdout -match 'Route: \w+ ollama/') 'local provider route absent'
+      $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+      Assert (($args -join '|') -match '\|--oss\|--local-provider\|ollama\|') 'local provider flags absent'
+      Assert ((Read-CcxState).tasks.T1.lastDispatch.provider -eq 'ollama') 'provider not recorded'
+    } finally { Remove-Item -LiteralPath $fakeOllama -Force }
+  }
+  Ccx-Case 'cloud fallback runs while Codex is at its limit' {
+    # FAKE_MODE is always set in the launcher child: it stands in for a real API key.
+    $text = [IO.File]::ReadAllText($env:CCX_POLICY) -replace '"deepseek": \{ "kind": "cloud", "enabled": false,', '"deepseek": { "kind": "cloud", "enabled": true,' -replace '"envKey": "DEEPSEEK_API_KEY"', '"envKey": "FAKE_MODE"'
+    Write-Utf8File $env:CCX_POLICY $text
+    Add-CcxTask
+    $state = Read-CcxState
+    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    Write-CcxState $state
+    $log = Join-Path $scratch 'cloud-provider.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
+    Assert ($args -contains 'model_provider=deepseek' -and $args -contains 'deepseek-chat') 'cloud fallback flags absent'
+  }
   Ccx-Case 'usage reset recorded' {
     Add-CcxTask
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'usage'
@@ -627,6 +657,8 @@ else {
   }
   Ccx-Case 'markdown-emphasised report status is parsed' {
     Add-CcxTask
+    # Three dispatches on one task: raise the retry cap the supported way.
+    Check-Code (Run-Ccx @('task','budget','-Id','T1','-Add','maxDispatches=1','-Reason','three status formats on one task')) 0
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'bold'
     Check-Code $r 0
     Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'bold status not parsed'

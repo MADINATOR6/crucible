@@ -5,6 +5,7 @@ Real friction only, never hypothetical. Count 1: log it, take no action. Count 2
 | Last seen | Symptom | Cost | Fix proposal / status | Count |
 |---|---|---|---|---:|
 | 2026-09-25 | Paths over 260 chars (long paths disabled): dispatch capture dir captured nothing; later a Claude workflow journal was unreadable with PS 5.1 `Get-Item`. | One empty dispatch; one blocked read | Launcher refuses long capture paths. Read long paths via the `\\?\` prefix. | 2 |
+| 2026-10-01 | test-sync-mirror failed 4 staging cases when run in parallel with the other suites; passed 22/22 alone. | One re-run (~2 min) | Run test-sync-mirror on its own. | 1 |
 | 2026-09-25 | PowerShell `Get-Content`/`Set-Content` edit garbled `→`/`–` in UTF-8 files. | not recorded | Rule in AGENTS.md Windows. | 1 |
 | 2026-09-25 | Unverified test command (`node --test test/` fails on a directory) nearly reached TASK.md; caught by a dry run. | not recorded | Existing "only verified commands" rule worked. | 1 |
 | 2026-09-25 | Multi-line prompt to `codex.cmd exec` failed with `unexpected argument`. | not recorded | Launcher passes a one-line prompt naming a file. | 1 |

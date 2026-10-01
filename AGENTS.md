@@ -140,6 +140,11 @@ Log real friction in FRICTION.md: date, symptom, cost, fix proposal, count. Coun
 - MEMORY.md holds a long session's state: task queue, decisions, findings, failure modes, checkpoints. Claude reads it first and updates it at every task boundary and at least every 30 minutes. Its `Last task commit` is the newest commit that finished a task; plan and state commits may follow it.
 - Chain queued tasks, one at a time. Launcher exit 4 (Codex usage limit): note the reset time if given, otherwise UNKNOWN, and do non-Codex work meanwhile.
 - When stopping, Claude writes HANDOFF-REPORT.md: state, anything MEMORY.md lacks, exact next steps.
+- Stop an unattended session after 4 hours of work, or earlier when the queue is done or only blocked items remain. Waiting for a Codex usage reset does not count toward the 4 hours.
+- Progress notes: MEMORY.md is required for unattended sessions and any session expected to run over about an hour. Short attended sessions rely on `ccx status` and git.
+- User decisions (2026-10-01):
+  - A Codex verifier runs only on risky work (see Routing).
+  - When Codex fails a task twice, Claude finishes it (policy `maxDispatches` 2, then `task escalate`). Usage-limit exits never count as failures.
 
 # Definition of Done
 

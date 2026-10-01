@@ -98,6 +98,17 @@ function Get-CcxPolicy {
                 if ($null -eq $number -or $number -is [string] -or $number -is [bool] -or $number -isnot [ValueType] -or [double]$number -lt 0) { throw "Invalid budget $className.$field" }
             }
         }
+        if ($policy.ContainsKey('providers')) {
+            foreach ($name in @($policy.providers.Keys)) {
+                $provider = $policy.providers[$name]
+                # Provider fields reach the Codex command line: keep them to plain names and flags.
+                if ($name -notmatch '^[a-z][a-z0-9-]{0,31}$' -or $name -eq 'openai' -or $provider.kind -notin @('local','cloud') -or
+                    [string]$provider.model -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$' -or
+                    @($provider.codexFlags | Where-Object { $_ -isnot [string] -or $_ -notmatch '^[A-Za-z0-9=_.:-]{1,64}$' }).Count -or
+                    ($provider.kind -eq 'local' -and [string]$provider.command -notmatch '^[A-Za-z0-9._-]{1,64}$') -or
+                    ($provider.kind -eq 'cloud' -and [string]$provider.envKey -notmatch '^[A-Z][A-Z0-9_]{0,63}$')) { throw "Invalid provider $name" }
+            }
+        }
         foreach ($fallback in $policy.models.mythos.fallback) {
             if ($fallback.effort -notin $ladder) { throw 'Unknown fallback effort' }
         }
@@ -548,6 +559,20 @@ function Complete-CcxRoute {
     } catch { [Console]::Error.WriteLine('WARNING: routing log was not written; routing decision remains available.') }
     return $Decision
 }
+function Get-CcxProvider {
+    # First enabled provider (policy order) serving this purpose whose prerequisite exists:
+    # a local CLI on PATH, or a cloud API key in the environment (setting the key is the opt-in).
+    param($Policy, [string]$Purpose)
+    if (-not $Policy.ContainsKey('providers')) { return $null }
+    foreach ($name in @($Policy.providers.Keys)) {
+        $provider = $Policy.providers[$name]
+        if (-not $provider.enabled -or $Purpose -notin @($provider.use)) { continue }
+        $ready = if ($provider.kind -eq 'local') { [bool](Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) }
+                 else { [bool][Environment]::GetEnvironmentVariable($provider.envKey) }
+        if ($ready) { return @{ name = $name; model = $provider.model; kind = $provider.kind } }
+    }
+    return $null
+}
 function Invoke-CcxRoute {
     param([string]$TaskId, [string]$Type, [string]$Class, [string]$Risk, [int]$Attempt = 0,
           [switch]$Ambiguous, [string]$AuthoredBy, [switch]$RequestMythos)
@@ -568,7 +593,7 @@ function Invoke-CcxRoute {
     $typePolicy = $policy.taskTypes[$Type]
     $decision = [ordered]@{
         route=$typePolicy.route; llmRequired=$true; agent=$null; subagent=$null; codexRole=$typePolicy.codexRole
-        model=$null; effort=$null; command=$typePolicy.command; verifyStage=$typePolicy.verifyStage
+        model=$null; provider=$null; effort=$null; command=$typePolicy.command; verifyStage=$typePolicy.verifyStage
         class=$Class; risk=$Risk; attempt=$Attempt; verification=@(); budget=@()
         permissionLevel=$typePolicy.level; escalation=$null; fallbacks=@(); reasons=@()
     }
@@ -610,10 +635,16 @@ function Invoke-CcxRoute {
         }
         return (Complete-CcxRoute $decision $Type $TaskId)
     }
+    $altProvider = $null
     if ($decision.agent -eq 'codex' -and $state.agents.codex.unavailableUntil -and [DateTime]::Parse($state.agents.codex.unavailableUntil).ToUniversalTime() -gt [DateTime]::UtcNow) {
-        $decision.route = 'defer'
-        $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil
-        return (Complete-CcxRoute $decision $Type $TaskId)
+        # Codex quota is out: a ready fallback provider takes the work, else wait.
+        $altProvider = Get-CcxProvider $policy 'fallback'
+        if (-not $altProvider) {
+            $decision.route = 'defer'
+            $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil
+            return (Complete-CcxRoute $decision $Type $TaskId)
+        }
+        $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil + ': fallback provider ' + $altProvider.name
     }
     $mythosFallback = $false
     if ($RequestMythos) {
@@ -635,6 +666,13 @@ function Invoke-CcxRoute {
     if (-not $mythosFallback) {
         switch ($decision.agent) {
             'codex' {
+                # Local models take only first attempts of their classes; a retry goes back to GPT.
+                if (-not $altProvider -and $Attempt -eq 1) {
+                    $altProvider = Get-CcxProvider $policy $Class
+                    if ($altProvider) { $decision.reasons += 'local provider ' + $altProvider.name + ' for ' + $Class + ' work' }
+                }
+                if ($altProvider) { $decision.provider = $altProvider.name; $decision.model = $altProvider.model; break }
+                $decision.provider = 'openai'
                 $decision.model = $policy.models.codex.default
                 $catalogHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
                 try {
@@ -907,7 +945,7 @@ function Invoke-CcxCmdTask {
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
                 owner=$Parameters.Owner; parent=$Parameters.Parent; dependsOn=@(Split-CcxList $Parameters.DependsOn)
-                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=@()
+                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=@(); baselines=@{}
                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
             }
