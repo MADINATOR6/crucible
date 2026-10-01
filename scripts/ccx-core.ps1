@@ -985,7 +985,9 @@ function Invoke-CcxCmdTask {
                 foreach ($requirement in @(Get-CcxVerification $policy $effectiveClass $task.risk $task.type)) {
                     switch ($requirement) {
                         'cross-model-review' {
-                            if (-not @($task.reviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }
+                            # A human task-accept approval may stand in when the other model is unavailable (logged, quoted).
+                            $humanAccept = @($state.approvals.Values | Where-Object { $_.action -eq 'task-accept' -and $_.target -ceq $task.id -and $_.status -in @('approved','used') }).Count
+                            if (-not $humanAccept -and -not @($task.reviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }
                         }
                         'independent-verifier' {
                             if (-not @($task.reviews | Where-Object { $_.kind -eq 'verifier' -and $_.result -eq 'pass' }).Count) { $missing += $requirement }

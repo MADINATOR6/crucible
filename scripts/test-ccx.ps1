@@ -598,6 +598,14 @@ try {
     Check-Code $r 8
     Assert ($r.Stdout -match 'ESCALATION CAP REACHED') 'escalation cap message missing'
   }
+  Case 'human task-accept stands in for an unavailable cross-model review' {
+    Add-Task
+    Set-Verification
+    Check-Code (Run-Cli @('task','done','-Id','T1')) 8
+    $id = Pending-Id 'task-accept' 'T1'
+    Check-Code (Run-Cli @('approve','-Id',$id,'-Chat','-Quote','Let Claude finish it as codex hit its limits')) 0
+    Check-Code (Run-Cli @('task','done','-Id','T1')) 0
+  }
   Case 'source files parse and use UTF-8 without BOM' {
     foreach ($path in @($cli,$core,$PSCommandPath)) {
       $tokens = $null; $errors = $null
