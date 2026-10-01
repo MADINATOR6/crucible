@@ -258,6 +258,10 @@ try {
     Check-Code (Run-Cli @('task','update','-Id','T1','-Status','planned')) 0
     Check-Code (Run-Cli @('task','start','-Id','T1')) 0
     Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'later.txt') 'reset to planned laundered a stray change'
+    # CCX-4c: a legacy task (no per-worktree baselines) reset to planned keeps its old baseline too.
+    Invoke-CcxLocked { param($state) $state.tasks.T1.Remove('baselines') | Out-Null; $state.tasks.T1.status = 'planned' } | Out-Null
+    Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'later.txt') 'legacy task reset to planned re-baselined'
     $verifyRoute = Cli-Json @('route','-Type','verify','-Class','complex','-Risk','high')
     Assert (@($verifyRoute.verification) -notcontains 'independent-verifier') 'verify tasks must not need a verifier of their own'
     Assert (Test-CcxPathOverlap -A 'Src/' -B 'src/one.txt') 'directory overlap is not case insensitive'

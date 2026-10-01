@@ -850,8 +850,11 @@ function Start-CcxTaskInState {
     $previousRoot = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
     if ($Task.baselines -isnot [Collections.IDictionary]) {
         # Tasks started before per-worktree baselines keep their existing baseline for their current root.
+        # Only a pristine task (planned, untouched since task add) takes a fresh baseline; any other
+        # legacy task keeps its old one, so a reset to planned cannot re-baseline (CCX-4c). Fails closed.
         $Task.baselines = @{}
-        if ($Task.status -ne 'planned') { $Task.baselines[[IO.Path]::GetFullPath($previousRoot).TrimEnd('\','/').ToLowerInvariant()] = @($Task.baselineDirty) }
+        $pristine = $Task.status -eq 'planned' -and [string]$Task.updated -eq [string]$Task.created
+        if (-not $pristine) { $Task.baselines[[IO.Path]::GetFullPath($previousRoot).TrimEnd('\','/').ToLowerInvariant()] = @($Task.baselineDirty) }
     }
     if ($Worktree) { Assert-CcxExactField $Worktree 'Worktree'; $Task.worktree = $Worktree }
     if ($Branch) { Assert-CcxExactField $Branch 'Branch'; $Task.branch = $Branch }
