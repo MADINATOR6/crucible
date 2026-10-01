@@ -307,10 +307,12 @@ try {
       $script:repo = $mainRepo
       Assert ((Run-Git @('rev-parse','HEAD') (Task 'T1').worktree).Trim() -eq $sideHead) 'worktree add used the main checkout HEAD, not the caller HEAD'
     } finally {
+      # Best-effort teardown of disposable fixtures inside this run's scratch (deleted afterwards anyway).
       $script:repo = $mainRepo
       $created = (Task 'T1').worktree
-      if ($created -and (Test-Path -LiteralPath $created)) { $null = Run-Git @('worktree','remove',$created) }
-      $null = Run-Git @('worktree','remove',$side)
+      foreach ($fixture in @($created, $side)) {
+        if ($fixture -and (Test-Path -LiteralPath $fixture)) { try { $null = Run-Git @('worktree','remove','--force',$fixture) } catch { } }
+      }
     }
   }
   Case 'merge check clean, conflict and scope' {
