@@ -378,6 +378,12 @@ Inventoried 2026-09-30 from this machine.
   - Codex dispatches carry only the servers in `mcp.codexAllowedServers`. Health warns about any other server.
   - The user's `~/.claude/settings.json` denies `mcp__Figma__*`.
 - **Project scope:** there is no project-level `.mcp.json`. Adding one needs an entry in `mcp.projectAllowedServers`.
+- **Codex app agent sync (seen 2026-10-01):** with "external agent import sync" on, the Codex desktop app turned `.claude/agents/ccx-scout.md` into `.codex/agents/ccx-scout.toml` inside a worktree. The conversion is lossy:
+  - it drops the tool allowlist and the model;
+  - it adds no `sandbox_mode = "read-only"`, so the copied "read-only" scout is not read-only in Codex;
+  - it rewrites text blindly ("Claude Code + Codex" became "Codex + Codex").
+
+  Here `.codex/agents/` is in `.git/info/exclude`, so the copies are never committed. For a Codex-side scout, define it deliberately with `sandbox_mode = "read-only"`, or turn the sync off.
 
 ## 18. Health check
 

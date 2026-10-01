@@ -80,6 +80,8 @@ Derived 2026-09-25 from the repo's open items and the gaps between this template
 - 2026-10-01 | Codex quota on this account: ~35 min of Astra-high per window; hit 4 times (12:32, 01:25 x2, 07:05). Spend it on independent verification first; one Codex task at a time | Measured | all
 - 2026-10-01 | CCX-4 independent verifier (Codex, 149k effective tokens) found 5 real defects none of our tests caught (PEM body leak, committed-code verify gap, baseline laundering, rename scope, explicit-effort cap bypass); all fixed with regression tests | Cross-model verification pays | CCX-4
 - 2026-10-01 | Verify-type tasks need deterministic + cross-model review, no verifier of their own | Master prompt: no reviewer-of-reviewer | CCX-4
+- 2026-10-01 | All CCX-4 findings confirmed fixed by Codex (4b: F2, F4; 4c: F1, F3 paths, F5; 4d: F3 legacy, status parse); CCX-3 closed at the 2-cycle cap | Cross-model loop closed with evidence | CCX-3, CCX-6
+- 2026-10-01 | `.codex/agents/` excluded locally (.git/info/exclude): the Codex app's external-agent sync writes lossy converted copies of .claude/agents into worktrees (no read-only sandbox, text mangled) | Scope check flagged it; machine-local artifact, reported to user | -
 
 ## Open questions
 - Delete merged remote branch `origin/claude/codex-mythos-upgrade-analysis-nv6hg1` (PR #2, merged)? (`laptop-efficiency-tasks-6598uz` is already gone) | User decision (remote deletion) | no
