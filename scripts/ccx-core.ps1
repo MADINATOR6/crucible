@@ -105,6 +105,7 @@ function Get-CcxPolicy {
                 if ($name -notmatch '^[a-z][a-z0-9-]{0,31}$' -or $name -eq 'openai' -or $provider.kind -notin @('local','cloud') -or
                     [string]$provider.model -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$' -or
                     @($provider.codexFlags | Where-Object { $_ -isnot [string] -or $_ -notmatch '^[A-Za-z0-9=_.:-]{1,64}$' }).Count -or
+                    ($provider.ContainsKey('reasoningEffort') -and $provider.reasoningEffort -notin @('none','minimal','low','medium','high','xhigh')) -or
                     ($provider.kind -eq 'local' -and [string]$provider.command -notmatch '^[A-Za-z0-9._-]{1,64}$') -or
                     ($provider.kind -eq 'cloud' -and [string]$provider.envKey -notmatch '^[A-Z][A-Z0-9_]{0,63}$')) { throw "Invalid provider $name" }
             }

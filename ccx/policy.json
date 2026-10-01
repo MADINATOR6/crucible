@@ -40,8 +40,8 @@
   },
 
   "providers": {
-    "ollama": { "kind": "local", "enabled": true, "command": "ollama", "codexFlags": ["--oss", "--local-provider", "ollama"], "model": "qwen2.5-coder:3b", "use": ["routine"] },
-    "lmstudio": { "kind": "local", "enabled": true, "command": "lms", "codexFlags": ["--oss", "--local-provider", "lmstudio"], "model": "qwen2.5-coder-3b-instruct", "use": ["routine"] },
+    "ollama": { "kind": "local", "enabled": false, "note": "Installed 2026-10-01 (Ollama 0.35.0). Smoke test on this 4 GB GPU: qwen2.5-coder:3b printed a fake tool call, qwen3:4b saw no file tool; neither edited a file, so routing them would waste one of the two attempts. Enable with a model that passes a real codex exec edit.", "command": "ollama", "codexFlags": ["--oss", "--local-provider", "ollama"], "reasoningEffort": "none", "model": "qwen2.5-coder:3b", "use": ["routine"] },
+    "lmstudio": { "kind": "local", "enabled": false, "note": "not installed; same small-model limit as ollama", "command": "lms", "codexFlags": ["--oss", "--local-provider", "lmstudio"], "reasoningEffort": "none", "model": "qwen2.5-coder-3b-instruct", "use": ["routine"] },
     "deepseek": { "kind": "cloud", "enabled": false, "note": "Codex CLI accepts only wire_api=responses (chat was removed); enable once the endpoint or a local proxy serves /v1/responses and ~/.codex/config.toml has [model_providers.deepseek]", "envKey": "DEEPSEEK_API_KEY", "codexFlags": ["-c", "model_provider=deepseek"], "model": "deepseek-chat", "use": ["fallback"] },
     "gemini": { "kind": "cloud", "enabled": false, "note": "same limit as deepseek", "envKey": "GEMINI_API_KEY", "codexFlags": ["-c", "model_provider=gemini"], "model": "gemini-2.5-flash", "use": ["fallback"] }
   },

@@ -584,6 +584,8 @@ else {
     Assert (-not ($args -contains '-m')) 'unbound model was passed'
   }
   Ccx-Case 'routine first attempt uses local provider flags' {
+    $text = [IO.File]::ReadAllText($env:CCX_POLICY) -replace '"ollama": \{ "kind": "local", "enabled": false,', '"ollama": { "kind": "local", "enabled": true,'
+    Write-Utf8File $env:CCX_POLICY $text
     Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Synthetic task','-Type','implement','-Class','routine','-Risk','low','-Owner','codex','-Owns','owned.txt','-TaskFile','TASK.md')) 0
     $fakeOllama = Join-Path $fakeDir 'ollama.cmd'
     Write-Utf8File $fakeOllama '@exit /b 0'
@@ -594,6 +596,7 @@ else {
       Assert ($r.Stdout -match 'Route: \w+ ollama/') 'local provider route absent'
       $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
       Assert (($args -join '|') -match '\|--oss\|--local-provider\|ollama\|') 'local provider flags absent'
+      Assert ($args -contains 'model_reasoning_effort=none') 'local provider reasoning effort absent'
       Assert ((Read-CcxState).tasks.T1.lastDispatch.provider -eq 'ollama') 'provider not recorded'
     } finally { Remove-Item -LiteralPath $fakeOllama -Force }
   }

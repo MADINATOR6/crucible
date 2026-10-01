@@ -149,7 +149,7 @@ try {
   $base = Join-Path $CaptureDir ('codex-' + [guid]::NewGuid().ToString('N'))
   if (($base.Length + 13) -ge 260) { throw "Capture path too long ($($base.Length + 13) chars). Pass a shorter -CaptureDir." }
 
-  $providerArguments = @()
+  $providerArguments = @(); $codexEffort = $null
   if ($TaskId) {
     $corePath = Join-Path $PSScriptRoot 'ccx-core.ps1'
     if (-not [IO.File]::Exists($corePath)) { throw 'ccx-core.ps1 not found: -TaskId needs the ccx scripts' }
@@ -214,6 +214,8 @@ try {
       # A routed non-OpenAI provider (local Ollama/LM Studio, or a cloud fallback) adds its Codex flags.
       if ($decision.provider -and $decision.provider -ne 'openai' -and $policy.providers.ContainsKey($decision.provider)) {
         $providerArguments = @($policy.providers[$decision.provider].codexFlags)
+        # Small local models reject Codex's thinking request; the provider sets the effort Codex sends.
+        if ($policy.providers[$decision.provider].reasoningEffort) { $codexEffort = $policy.providers[$decision.provider].reasoningEffort }
       }
       $firstReason = @($decision.reasons | Select-Object -First 1)
       Write-Output ("Route: $($decision.route) $(if ($providerArguments) { $decision.provider + '/' })$Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
@@ -278,7 +280,7 @@ try {
   $modelName = if ($Model) { $Model } else { 'default' }
   Write-Output "Dispatching Codex: HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
   $modelArguments = if ($Model) { @('-m', $Model) } else { @() }
-  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$Effort") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
+  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
   # Quote every cmd argument and disable delayed expansion; no shell redirection touches paths.
   $commandLine = ($arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
   $info = New-Object Diagnostics.ProcessStartInfo
