@@ -264,9 +264,9 @@ else if (mode === 'ready' || mode === 'stray') {
   event({type:'turn.completed', usage:{input_tokens:200,cached_input_tokens:20,output_tokens:7}});
   write('Status: READY_FOR_CLAUDE_REVIEW\n');
 }
-else if (mode === 'bold') {
+else if (mode === 'bold' || mode === 'bold2' || mode === 'concat') {
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
-  write('**Status:** **READY_FOR_CLAUDE_REVIEW**\n');
+  write({bold:'**Status:** **READY_FOR_CLAUDE_REVIEW**\n', bold2:'**Status**: **READY_FOR_CLAUDE_REVIEW**\n', concat:'StatusREADY_FOR_CLAUDE_REVIEW\n'}[mode]);
 }
 else if (mode === 'error') {
   event({type:'error', message:'first error'});
@@ -608,6 +608,11 @@ else {
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'bold'
     Check-Code $r 0
     Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'bold status not parsed'
+    # CCX-4c inputs: colon outside the bold label must parse; a missing colon must not.
+    Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1')) 'bold2') 0
+    Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'bold label with outside colon not parsed'
+    Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1')) 'concat') 0
+    Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'NONE') 'malformed status accepted'
   }
   Ccx-Case 'baseline dirty permits pre-existing path' {
     Add-CcxTask
