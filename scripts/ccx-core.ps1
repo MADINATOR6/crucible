@@ -107,7 +107,8 @@ function Get-CcxPolicy {
                     [string]$provider.model -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$' -or
                     @($provider.codexFlags | Where-Object { $_ -isnot [string] -or $_ -notmatch '^[A-Za-z0-9=_.:-]{1,64}$' }).Count -or
                     ($provider.ContainsKey('reasoningEffort') -and $provider.reasoningEffort -notin @('none','minimal','low','medium','high','xhigh')) -or
-                    ($provider.kind -eq 'local' -and [string]$provider.command -notmatch '^[A-Za-z0-9._-]{1,64}$') -or
+                    ($provider.ContainsKey('cli') -and $provider.cli -notin @('gemini')) -or
+                    (($provider.kind -eq 'local' -or $provider.ContainsKey('command')) -and [string]$provider.command -notmatch '^[A-Za-z0-9._-]{1,64}$') -or
                     ($provider.kind -eq 'cloud' -and [string]$provider.envKey -notmatch '^[A-Z][A-Z0-9_]{0,63}$')) { throw "Invalid provider $name" }
             }
         }
@@ -561,16 +562,27 @@ function Complete-CcxRoute {
     } catch { [Console]::Error.WriteLine('WARNING: routing log was not written; routing decision remains available.') }
     return $Decision
 }
+function Get-CcxProviderKey([string]$Name) {
+    # Returns the key's value for passing to a child process only; never print or log it.
+    $value = [Environment]::GetEnvironmentVariable($Name)
+    if (-not $value) { $value = [Environment]::GetEnvironmentVariable($Name, 'User') }
+    return $value
+}
+
 function Get-CcxProvider {
     # First enabled provider (policy order) serving this purpose whose prerequisite exists:
     # a local CLI on PATH, or a cloud API key in the environment (setting the key is the opt-in).
-    param($Policy, [string]$Purpose)
+    # A provider at its own usage limit (state.providerLimits, set by the launcher) is skipped until it resets.
+    param($Policy, [string]$Purpose, $State)
     if (-not $Policy.ContainsKey('providers')) { return $null }
     foreach ($name in @($Policy.providers.Keys)) {
         $provider = $Policy.providers[$name]
         if (-not $provider.enabled -or $Purpose -notin @($provider.use)) { continue }
-        $ready = if ($provider.kind -eq 'local') { [bool](Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) }
-                 else { [bool][Environment]::GetEnvironmentVariable($provider.envKey) }
+        if ($State -and $State.ContainsKey('providerLimits') -and $State.providerLimits.ContainsKey($name) -and
+            [DateTime]::Parse($State.providerLimits[$name]).ToUniversalTime() -gt [DateTime]::UtcNow) { continue }
+        $hasCommand = -not $provider.command -or [bool](Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)
+        $ready = if ($provider.kind -eq 'local') { $hasCommand }
+                 else { $hasCommand -and [bool](Get-CcxProviderKey $provider.envKey) }
         if ($ready) { return @{ name = $name; model = $provider.model; kind = $provider.kind } }
     }
     return $null
@@ -640,7 +652,7 @@ function Invoke-CcxRoute {
     $altProvider = $null
     if ($decision.agent -eq 'codex' -and $state.agents.codex.unavailableUntil -and [DateTime]::Parse($state.agents.codex.unavailableUntil).ToUniversalTime() -gt [DateTime]::UtcNow) {
         # Codex quota is out: a ready fallback provider takes the work, else wait.
-        $altProvider = Get-CcxProvider $policy 'fallback'
+        $altProvider = Get-CcxProvider $policy 'fallback' $state
         if (-not $altProvider) {
             $decision.route = 'defer'
             $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil
@@ -670,7 +682,7 @@ function Invoke-CcxRoute {
             'codex' {
                 # Local models take only first attempts of their classes; a retry goes back to GPT.
                 if (-not $altProvider -and $Attempt -eq 1) {
-                    $altProvider = Get-CcxProvider $policy $Class
+                    $altProvider = Get-CcxProvider $policy $Class $state
                     if ($altProvider) { $decision.reasons += 'local provider ' + $altProvider.name + ' for ' + $Class + ' work' }
                 }
                 if ($altProvider) { $decision.provider = $altProvider.name; $decision.model = $altProvider.model; break }

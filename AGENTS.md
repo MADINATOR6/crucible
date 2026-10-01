@@ -82,7 +82,7 @@ Optional: plain Dispatch without `-TaskId` works as before. The details are in `
   - Max only for exceptional one-off work, such as a system migration.
   - Change effort mid-session rather than starting a new session.
 - Codex dispatches:
-  - Model: gpt-6.1-sol for routine and normal work, gpt-6-astra for complex and higher (policy `codexModel`; `-Model` overrides). While Codex is at its usage limit, the router falls back to Ollama's free cloud model (policy `providers`).
+  - Model: gpt-6.1-sol for routine and normal work, gpt-6-astra for complex and higher (policy `codexModel`; `-Model` overrides). While Codex is at its usage limit, the router falls back to Gemini CLI, then Ollama's free cloud model (policy `providers`), skipping any provider at its own limit.
   - Effort by class: routine low, normal medium, complex high, critical and exceptional xhigh.
   - A failed attempt or declared ambiguity raises effort one step, within the class cap. Max needs two failed attempts on exceptional work.
 - Everyday Codex keeps the user's own default. `.codex/config.toml` sets medium for manual runs once the folder is trusted; otherwise pass `-c model_reasoning_effort=medium`.

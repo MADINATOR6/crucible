@@ -355,6 +355,10 @@ try {
       $env:CCX_TEST_CLOUD_KEY = 'x'
       $r = Cli-Json @('route','-Type','implement')
       Assert ($r.route -ne 'defer' -and $r.provider -eq 'fakecloud' -and $r.model -eq 'fake-cloud') 'cloud fallback not used while Codex is out'
+      Invoke-CcxLocked { param($state) $state.providerLimits = @{ fakecloud = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ') } } | Out-Null
+      Assert ((Cli-Json @('route','-Type','implement')).route -eq 'defer') 'provider at its own limit was not skipped'
+      Invoke-CcxLocked { param($state) $state.providerLimits = @{ fakecloud = [DateTime]::UtcNow.AddHours(-1).ToString('yyyy-MM-ddTHH:mm:ssZ') } } | Out-Null
+      Assert ((Cli-Json @('route','-Type','implement')).provider -eq 'fakecloud') 'expired provider limit still skipped'
       Remove-Item Env:CCX_TEST_CLOUD_KEY
       Invoke-CcxLocked { param($state) $state.agents.codex.unavailableUntil = $null } | Out-Null
       $bin = Join-Path $scratch 'fakebin'

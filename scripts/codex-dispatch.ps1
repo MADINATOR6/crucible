@@ -149,7 +149,7 @@ try {
   $base = Join-Path $CaptureDir ('codex-' + [guid]::NewGuid().ToString('N'))
   if (($base.Length + 13) -ge 260) { throw "Capture path too long ($($base.Length + 13) chars). Pass a shorter -CaptureDir." }
 
-  $providerArguments = @(); $codexEffort = $null
+  $providerArguments = @(); $codexEffort = $null; $providerName = $null; $providerPolicy = $null
   if ($TaskId) {
     $corePath = Join-Path $PSScriptRoot 'ccx-core.ps1'
     if (-not [IO.File]::Exists($corePath)) { throw 'ccx-core.ps1 not found: -TaskId needs the ccx scripts' }
@@ -213,12 +213,14 @@ try {
       }
       # A routed non-OpenAI provider (local Ollama/LM Studio, or a cloud fallback) adds its Codex flags.
       if ($decision.provider -and $decision.provider -ne 'openai' -and $policy.providers.ContainsKey($decision.provider)) {
-        $providerArguments = @($policy.providers[$decision.provider].codexFlags)
+        $providerName = $decision.provider
+        $providerPolicy = $policy.providers[$providerName]
+        $providerArguments = @($providerPolicy.codexFlags)
         # Small local models reject Codex's thinking request; the provider sets the effort Codex sends.
-        if ($policy.providers[$decision.provider].reasoningEffort) { $codexEffort = $policy.providers[$decision.provider].reasoningEffort }
+        if ($providerPolicy.reasoningEffort) { $codexEffort = $providerPolicy.reasoningEffort }
       }
       $firstReason = @($decision.reasons | Select-Object -First 1)
-      Write-Output ("Route: $($decision.route) $(if ($providerArguments) { $decision.provider + '/' })$Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
+      Write-Output ("Route: $($decision.route) $(if ($providerName) { $providerName + '/' })$Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
     } else { Write-Output 'Route: explicit' }
     if ($Sandbox -eq 'danger-full-access') {
       $gate = Invoke-CcxGate -Action codex-full-access -Target $TaskId -TaskId $TaskId
@@ -237,7 +239,7 @@ try {
       $task.status = 'active'; $task.updated = $now
       $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($task.dispatches) start $Role $Model $Effort"})
       $task.lastDispatch = @{
-        n=$task.dispatches; role=$Role; provider=$(if ($providerArguments) { $decision.provider } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
+        n=$task.dispatches; role=$Role; provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
         escalated=([array]::IndexOf($ladder,$Effort) -gt [array]::IndexOf($ladder,$policy.classes[$class].effort.codex.base))
       }
       $task.lastDispatch.Clone()
@@ -278,9 +280,20 @@ try {
   $prompt = "Read HANDOFF.md and follow its $instruction instruction for $taskPath."
   $head = Invoke-Git 'rev-parse --short HEAD'
   $modelName = if ($Model) { $Model } else { 'default' }
-  Write-Output "Dispatching Codex: HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
+  Write-Output "Dispatching $(if ($providerName) { $providerName } else { 'Codex' }): HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
   $modelArguments = if ($Model) { @('-m', $Model) } else { @() }
-  $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
+  $isGemini = $providerPolicy -and $providerPolicy.cli -eq 'gemini'
+  if ($isGemini) {
+    $gemini = Get-Command $providerPolicy.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $gemini) { throw "$($providerPolicy.command) not found on PATH" }
+    if ($gemini.Source -match '[%"]') { throw 'Gemini CLI path must not contain % or double quotes.' }
+    # No sandbox on Windows: never yolo. Implement may edit files (no shell); other roles are read-only.
+    $approval = if ($Sandbox -eq 'read-only') { 'plan' } else { 'auto_edit' }
+    $geminiModel = if ($Model -and $Model -ne 'auto') { @('-m', $Model) } else { @() }
+    $arguments = @($gemini.Source, '--skip-trust', '--approval-mode', $approval, '-o', 'json') + $geminiModel + @('-p', $prompt)
+  } else {
+    $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
+  }
   # Quote every cmd argument and disable delayed expansion; no shell redirection touches paths.
   $commandLine = ($arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
   $info = New-Object Diagnostics.ProcessStartInfo
@@ -290,6 +303,10 @@ try {
   $info.UseShellExecute = $false
   $info.CreateNoWindow = $true
   Clear-GitOverrides $info
+  if ($providerPolicy -and $providerPolicy.envKey -and -not $info.EnvironmentVariables[$providerPolicy.envKey]) {
+    # A key saved for the Windows user after this shell started; passed to the child only, never logged.
+    $info.EnvironmentVariables[$providerPolicy.envKey] = Get-CcxProviderKey $providerPolicy.envKey
+  }
   $info.RedirectStandardInput = $true
   $info.RedirectStandardOutput = $true
   $info.RedirectStandardError = $true
@@ -323,7 +340,21 @@ try {
   [long]$inputTokens = 0; [long]$cachedTokens = 0; [long]$outputTokens = 0
   $hasUsage = $false
   $lastMessage = $null
-  foreach ($line in [IO.File]::ReadLines($base + '.events.jsonl', $utf8)) {
+  if ($isGemini) {
+    # Gemini CLI -o json prints one object: response, stats.models.<name>.tokens, optional error.
+    try {
+      $result = [IO.File]::ReadAllText($base + '.events.jsonl', $utf8) | ConvertFrom-Json -ErrorAction Stop
+      if ($result.response) { [IO.File]::WriteAllText($base + '.report.md', [string]$result.response, $utf8) }
+      if ($result.error -and $result.error.message) { $messages.Add([string]$result.error.message) }
+      foreach ($entry in @($result.stats.models.PSObject.Properties)) {
+        $hasUsage = $true
+        $inputTokens += [long]$entry.Value.tokens.prompt
+        $cachedTokens += [long]$entry.Value.tokens.cached
+        $outputTokens += [long]$entry.Value.tokens.candidates + [long]$entry.Value.tokens.thoughts
+      }
+    } catch { }
+  }
+  foreach ($line in $(if ($isGemini) { @() } else { [IO.File]::ReadLines($base + '.events.jsonl', $utf8) })) {
     try { $event = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($event.type -eq 'turn.completed' -and $event.usage) {
       $hasUsage = $true
@@ -399,7 +430,11 @@ try {
             if ($message -match '(?i)try again at\s+([^\r\n]+)') { $resetText = $Matches[1].Trim().TrimEnd('.'); break }
           }
           # Another provider's limit says nothing about OpenAI Codex quota.
-          if (-not $providerArguments) {
+          if ($providerName) {
+            # The provider's own limit: the router skips it until then and tries the next fallback.
+            if (-not $state.ContainsKey('providerLimits') -or $state.providerLimits -isnot [Collections.IDictionary]) { $state.providerLimits = @{} }
+            $state.providerLimits[$providerName] = Get-DispatchReset -Text $resetText -Policy $policy
+          } else {
             $state.agents.codex.unavailableUntil = Get-DispatchReset -Text $resetText -Policy $policy
             $state.agents.codex.reason = Protect-CcxText ($limitMessages -join '; ')
           }
@@ -409,7 +444,7 @@ try {
         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
         Write-CcxTelemetry -Record @{
           at=$now; kind='dispatch'; taskId=$TaskId; type=$task.type; class=$task.class; risk=$task.risk
-          role=$Role; agent='codex'; provider=$(if ($providerArguments) { $decision.provider } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
+          role=$Role; agent=$(if ($providerPolicy -and $providerPolicy.cli) { $providerPolicy.cli } else { 'codex' }); provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
           exit=$code; status=$status; tokens=$tokens; durationSec=$duration
           scopeViolations=$scopeViolations.Count; postChecksPass=$(if ($postChecks) { $postChecks.pass } else { $null })
         }

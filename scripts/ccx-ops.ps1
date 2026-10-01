@@ -653,7 +653,11 @@ function Invoke-CcxHealth {
             elseif ($provider.kind -eq 'local') {
                 if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; model $($provider.model)" }
                 else { $detail = "$($provider.command) not installed; route skips it" }
-            } elseif (-not [Environment]::GetEnvironmentVariable($provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
+            } elseif (-not (Get-CcxProviderKey $provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
+            elseif ($provider.cli) {
+                if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; $($provider.envKey) set" }
+                else { $detail = "$($provider.command) not installed; route skips it" }
+            }
             elseif ($codexConfig -notmatch ('(?m)^\s*\[model_providers\.' + [regex]::Escape($name) + '\]')) { $result = 'WARN'; $detail = "$($provider.envKey) set but [model_providers.$name] missing in Codex config.toml" }
             else { $result = 'PASS'; $detail = "$($provider.envKey) set; model $($provider.model)" }
             $checks += @{ name="provider-$name"; result=$result; details=@($detail) }
