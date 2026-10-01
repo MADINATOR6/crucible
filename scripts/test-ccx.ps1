@@ -380,12 +380,17 @@ try {
   }
   Case 'catalog fallback, missing catalog and unreadable catalog' {
     $catalog = Join-Path $env:CODEX_HOME $policy.models.codex.catalogFile
-    Write-Json $catalog @{ models = @(@{slug=$policy.models.codex.fallbacks[0]}) }
-    Assert ((Cli-Json @('route','-Type','implement')).model -eq $policy.models.codex.fallbacks[0]) 'catalog fallback ignored'
+    $classModel = $policy.classes.normal.codexModel
+    Write-Json $catalog @{ models = @(@{slug=$classModel}, @{slug=$policy.models.codex.default}) }
+    Assert ((Cli-Json @('route','-Type','implement')).model -eq $classModel) 'class model ignored'
+    Assert ((Cli-Json @('route','-Type','implement','-Class','complex')).model -eq $policy.models.codex.default) 'complex work did not use the default model'
+    $last = @($policy.models.codex.fallbacks)[-1]
+    Write-Json $catalog @{ models = @(@{slug=$last}) }
+    Assert ((Cli-Json @('route','-Type','implement')).model -eq $last) 'catalog fallback ignored'
     Remove-Item -LiteralPath $catalog
-    Assert ((Cli-Json @('route','-Type','implement')).model -eq $policy.models.codex.default) 'missing catalog did not retain default'
+    Assert ((Cli-Json @('route','-Type','implement')).model -eq $classModel) 'missing catalog did not retain the preferred model'
     Write-Utf8File $catalog '{bad json'
-    Assert ((Cli-Json @('route','-Type','implement')).model -eq $policy.models.codex.default) 'invalid catalog did not retain default'
+    Assert ((Cli-Json @('route','-Type','implement')).model -eq $classModel) 'invalid catalog did not retain the preferred model'
   }
   Case 'adaptive downgrade follows successful done samples' {
     foreach ($i in 1..$policy.adaptive.minSamples) {

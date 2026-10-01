@@ -19,7 +19,8 @@
     },
     "codex": {
       "default": "gpt-6-astra",
-      "fallbacks": ["gpt-6-sol", "gpt-5.6-sol"],
+      "fallbacks": ["gpt-6.1-sol", "gpt-6-sol"],
+      "note": "default serves complex and higher classes; a class's codexModel overrides it. A model missing from the catalog falls back to default, then fallbacks.",
       "catalogFile": "models_cache.json",
       "unavailableBackoffMinutes": 60,
       "onUnavailable": "defer"
@@ -43,18 +44,21 @@
     "ollama": { "kind": "local", "enabled": false, "note": "Installed 2026-10-01 (Ollama 0.35.0). Smoke test on this 4 GB GPU: qwen2.5-coder:3b printed a fake tool call, qwen3:4b saw no file tool; neither edited a file, so routing them would waste one of the two attempts. Enable with a model that passes a real codex exec edit.", "command": "ollama", "codexFlags": ["--oss", "--local-provider", "ollama"], "reasoningEffort": "none", "model": "qwen2.5-coder:3b", "use": ["routine"] },
     "lmstudio": { "kind": "local", "enabled": false, "note": "not installed; same small-model limit as ollama", "command": "lms", "codexFlags": ["--oss", "--local-provider", "lmstudio"], "reasoningEffort": "none", "model": "qwen2.5-coder-3b-instruct", "use": ["routine"] },
     "deepseek": { "kind": "cloud", "enabled": false, "note": "Codex CLI accepts only wire_api=responses (chat was removed); enable once the endpoint or a local proxy serves /v1/responses and ~/.codex/config.toml has [model_providers.deepseek]", "envKey": "DEEPSEEK_API_KEY", "codexFlags": ["-c", "model_provider=deepseek"], "model": "deepseek-chat", "use": ["fallback"] },
-    "gemini": { "kind": "cloud", "enabled": false, "note": "same limit as deepseek", "envKey": "GEMINI_API_KEY", "codexFlags": ["-c", "model_provider=gemini"], "model": "gemini-2.5-flash", "use": ["fallback"] }
+    "gemini": { "kind": "cloud", "enabled": false, "note": "same limit as deepseek", "envKey": "GEMINI_API_KEY", "codexFlags": ["-c", "model_provider=gemini"], "model": "gemini-2.5-flash", "use": ["fallback"] },
+    "ollama-cloud": { "kind": "local", "enabled": true, "note": "Ollama free-plan cloud model, reached through the local Ollama app (signed in). Passed a one-file codex exec edit 2026-10-01 (137 s, ~281k tokens; its summary misnamed the file). Free-plan DeepSeek, GLM, Kimi and MiniMax cloud models return 402.", "command": "ollama", "codexFlags": ["--oss", "--local-provider", "ollama"], "reasoningEffort": "medium", "model": "nemotron-3-super:cloud", "use": ["fallback"] }
   },
 
   "effortLadder":["low", "medium", "high", "xhigh", "max"],
 
   "classes": {
     "routine": {
+      "codexModel": "gpt-6.1-sol",
       "effort": { "codex": { "base": "low", "max": "medium" }, "claude": { "base": "medium", "max": "medium" }, "min": "low" },
       "verification": ["deterministic"],
       "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 1, "maxParallel": 1, "timeoutMinutes": 30, "tokenTarget": 150000 }
     },
     "normal": {
+      "codexModel": "gpt-6.1-sol",
       "effort": { "codex": { "base": "medium", "max": "high" }, "claude": { "base": "medium", "max": "high" }, "min": "low" },
       "verification": ["deterministic", "cross-model-review"],
       "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 2, "maxParallel": 1, "timeoutMinutes": 60, "tokenTarget": 400000 }

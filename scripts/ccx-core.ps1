@@ -93,6 +93,7 @@ function Get-CcxPolicy {
                 if ([array]::IndexOf($ladder, $classPolicy.effort[$agentName].base) -gt [array]::IndexOf($ladder, $classPolicy.effort[$agentName].max)) { throw "Inverted effort range in $className" }
             }
             if ($classPolicy.effort.min -notin $ladder) { throw "Unknown minimum effort in $className" }
+            if ($classPolicy.ContainsKey('codexModel') -and [string]$classPolicy.codexModel -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$') { throw "Invalid codexModel in $className" }
             foreach ($field in @('maxDispatches','maxModelEscalations','maxReviewCycles','maxAgents','maxParallel','timeoutMinutes','tokenTarget')) {
                 $number = $classPolicy.budget[$field]
                 if ($null -eq $number -or $number -is [string] -or $number -is [bool] -or $number -isnot [ValueType] -or [double]$number -lt 0) { throw "Invalid budget $className.$field" }
@@ -674,15 +675,17 @@ function Invoke-CcxRoute {
                 }
                 if ($altProvider) { $decision.provider = $altProvider.name; $decision.model = $altProvider.model; break }
                 $decision.provider = 'openai'
-                $decision.model = $policy.models.codex.default
+                # The class's model (cheaper workhorse for routine/normal work), else the default.
+                $preferred = @(@($policy.classes[$Class].codexModel, $policy.models.codex.default) | Where-Object { $_ })
+                $decision.model = $preferred[0]
                 $catalogHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
                 try {
                     $catalog = $script:CcxJson.DeserializeObject([IO.File]::ReadAllText((Join-Path $catalogHome $policy.models.codex.catalogFile), $script:CcxUtf8))
                     if (-not $catalog.ContainsKey('models')) { throw 'Invalid catalog' }
                     $slugs = @($catalog.models | ForEach-Object { $_.slug })
                     if ($decision.model -notin $slugs) {
-                        $found = @($policy.models.codex.fallbacks | Where-Object { $_ -in $slugs } | Select-Object -First 1)
-                        if ($found.Count) { $decision.model = $found[0]; $decision.reasons += 'default model absent from catalog: using configured fallback' }
+                        $found = @(@($preferred) + @($policy.models.codex.fallbacks) | Where-Object { $_ -in $slugs } | Select-Object -First 1)
+                        if ($found.Count) { $decision.model = $found[0]; $decision.reasons += 'model ' + $preferred[0] + ' absent from catalog: using configured fallback ' + $found[0] }
                         else { $decision.route = 'surface'; $decision.reasons += 'catalog has no configured model'; return (Complete-CcxRoute $decision $Type $TaskId) }
                     }
                 } catch { $decision.reasons += 'Codex catalog missing or unreadable: retaining default model' }

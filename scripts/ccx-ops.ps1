@@ -626,6 +626,16 @@ function Invoke-CcxHealth {
         $available = $policy.models.codex.default -in $slugs
         $fallback = @($policy.models.codex.fallbacks | Where-Object { $_ -in $slugs } | Select-Object -First 1)
         $checks += @{ name='codex-model'; result=$(if ($available) { 'PASS' } else { 'WARN' }); details=@($(if ($available) { $policy.models.codex.default } elseif ($fallback.Count) { 'default absent; fallback ' + $fallback[0] } else { 'no configured model in catalog' })) }
+        # Keep up with model updates: a catalog model ranked above every policy model, or a policy model retiring.
+        $known = @(@($policy.models.codex.default) + @($policy.models.codex.fallbacks) + @($policy.classes.Values | ForEach-Object { $_.codexModel }) | Where-Object { $_ })
+        $knownRanks = @($catalog.models | Where-Object { $_.slug -in $known -and $null -ne $_.priority } | ForEach-Object { [int]$_.priority })
+        $notes = @()
+        if ($knownRanks.Count) {
+            $best = ($knownRanks | Measure-Object -Minimum).Minimum
+            $notes += @($catalog.models | Where-Object { $_.slug -notin $known -and $null -ne $_.priority -and [int]$_.priority -lt $best } | ForEach-Object { 'new top model ' + $_.slug + ': consider it in ccx/policy.json' })
+        }
+        $notes += @($catalog.models | Where-Object { $_.slug -in $known -and $_.upgrade } | ForEach-Object { $_.slug + ' retiring; catalog suggests ' + $_.upgrade.model })
+        $checks += @{ name='codex-updates'; result=$(if ($notes.Count) { 'WARN' } else { 'PASS' }); details=@($(if ($notes.Count) { $notes } else { 'policy models are current' })) }
     } catch { $checks += @{ name='codex-model'; result='WARN'; details=@('catalog missing or unreadable') } }
     $claude = @(Get-Command claude.exe,claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)
     # Presence only: health never invokes Claude.
