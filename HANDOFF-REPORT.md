@@ -1,6 +1,6 @@
 # Report for Madison: ccx upgrade (30 Sep - 1 Oct 2026)
 
-Branch `claude/architecture-audit-migration-649829`, based on `c2f515b`. Nothing is pushed or merged into `main`; that needs your approval (see the end).
+Branch `claude/architecture-audit-migration-649829`, based on `c2f515b`. Update 1 Oct 2026: the upgrade is already in `origin/main` (checked against the remote). This branch is no longer on the remote; how it reached `main` is UNKNOWN.
 
 ## 1. Status
 
@@ -8,7 +8,7 @@ Branch `claude/architecture-audit-migration-649829`, based on `c2f515b`. Nothing
 - **Tasks:** all 7 ccx tasks are done through ccx's own gate.
 - **Codex's findings:** every finding from Codex's verification is fixed and confirmed by Codex (CCX-4b, 4c and 4d).
 - **CCX-7:** the last one-line fix was finished by Claude on your instruction, while Codex was at its limit. Your quoted chat approval (A-0001) is recorded in place of its cross-model review.
-- **Waiting on you:** merging into `main` and pushing.
+- **Waiting on you:** nothing for this upgrade. It is already merged and pushed.
 
 ## 2. What changed
 
@@ -163,7 +163,7 @@ Final gate:
 
 ## 10. Remaining issues
 
-- **Your approval:** merging into `main` and pushing (L4). Nothing is pushed.
+- **Your approval:** none needed for the upgrade; it is already in `origin/main`.
 - **Codex desktop app agent sync:** it copied our Claude scout agent into `.codex/agents/` without its read-only restriction. The folder is excluded from git here. Consider turning the sync off in Codex settings.
 - **One unexplained flake:** process starts were briefly denied ("Access is denied") during one test run; a re-run passed. Cause UNKNOWN; likely security software.
 - **Slow tests:** about 4.3 s per PowerShell start on this machine, so the core suite takes about 15 minutes.
