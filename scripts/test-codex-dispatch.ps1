@@ -6,7 +6,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $launcher = Join-Path $PSScriptRoot 'codex-dispatch.ps1'
 $ccx = Join-Path $PSScriptRoot 'ccx.ps1'
-$scratch = Join-Path $env:TEMP 'ccx-t2'
+$scratchName = 'ccx-t2-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+$scratch = Join-Path $env:TEMP $scratchName
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $powershell = Join-Path $PSHOME 'powershell.exe'
 $git = (Get-Command git.exe -ErrorAction Stop).Source
@@ -142,7 +143,7 @@ function Run-Launcher {
 }
 function Remove-Scratch {
   $actual = [IO.Path]::GetFullPath($scratch).TrimEnd('\')
-  $expected = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'ccx-t2')).TrimEnd('\')
+  $expected = [IO.Path]::GetFullPath((Join-Path $env:TEMP $scratchName)).TrimEnd('\')
   Assert ($actual -ieq $expected) 'scratch path escaped approved temp directory'
   if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
 }
