@@ -70,9 +70,11 @@ ccx verify -TaskId T7                             # full pipeline; records the f
 ccx task review -Id T7 -Result pass -By claude    # cross-model review (the author cannot review)
 ccx task done -Id T7                              # refused unless verification and reviews are satisfied
 ccx merge-check -Branch codex/t7                  # conflicts and scope before merging
-ccx gate -Action push -Target origin/main         # L4: approval required before pushing
+ccx gate -Action push -Target "origin/main <sha>" # L4: approval required before pushing
 ccx status                                        # Master Computer view
 ```
+
+Push procedure: put the commit in the target (`origin/main 166146b`), so an approval covers only that commit. Run the gate, approve, then run the gate **again**: only that second gate's `APPROVED` (exit 0) uses the approval and allows the push. Never push when the gate or approve step fails, and never record an approval after the fact.
 
 ## 4. OMNIROUTE routing
 
