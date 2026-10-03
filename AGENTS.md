@@ -14,6 +14,13 @@ Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `tas
 
 Not set. Add a dev, test, lint, typecheck or build command only after it has run successfully in this repo. Never invent one.
 
+# Video Analysis
+
+- Claude-only, user-level: the `claude-video-vision` plugin (MCP tools `video_watch`, `video_analyze`, `video_detail`, `video_info`; slash command `/watch-video <path|YouTube URL> [question]`). It lives in `~/.claude`, not in this repo. Codex cannot use it; hand Codex text findings, never video.
+- Needs `ffmpeg` and `yt-dlp` on PATH and `GEMINI_API_KEY` set. Backend `gemini-api`, in `~/.claude-video-vision/config.json`. Verified working on Windows (frames and audio).
+- Audio goes to Google's Gemini API. Never analyze confidential recordings.
+- New machine: `claude plugin marketplace add https://github.com/jordanrendric/claude-video-vision`, then `claude plugin install claude-video-vision`, then `winget install --id Gyan.FFmpeg -e` and `winget install --id yt-dlp.yt-dlp -e` (ffmpeg in the user's own terminal; the agent sandbox blocked it), then the `video_setup` tool with backend `gemini-api`.
+
 # Windows
 
 In PowerShell, always call `codex.cmd`, `npm.cmd` and `npx.cmd`, never plain `codex`, `npm` or `npx`. The execution policy and Codex's sandbox block the `.ps1` launchers that plain names resolve to. Keep sandbox protections intact.
