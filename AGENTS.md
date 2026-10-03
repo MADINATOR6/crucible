@@ -21,6 +21,12 @@ Not set. Add a dev, test, lint, typecheck or build command only after it has run
 - Audio goes to Google's Gemini API. Never analyze confidential recordings.
 - New machine: `claude plugin marketplace add https://github.com/jordanrendric/claude-video-vision`, then `claude plugin install claude-video-vision`, then `winget install --id Gyan.FFmpeg -e` and `winget install --id yt-dlp.yt-dlp -e` (ffmpeg in the user's own terminal; the agent sandbox blocked it), then the `video_setup` tool with backend `gemini-api`.
 
+# External Agent Tools (reference only, none installed here)
+
+- **gajae-code (`gjc`)** — third-party coding-agent CLI (github.com/Yeachan-Heo/gajae-code), logs in with a coding-plan subscription instead of a separate API key. Not installed in this repo. To try it: install per its own `docs/install.md`, then run `gjc --tmux --worktree <task>` from the repo root — it makes its own worktree, independent of `scripts/ccx.ps1`. Beta-quality; verify its output like any other agent's. Never let it touch `ccx/`, `TASK.md`, or the base branch — those stay owned by Claude/Codex per Modes above.
+- **lazycodex** (github.com/code-yeongyu/lazycodex) — a Codex plugin bundle that installs into `~/.codex/`, which would collide with this repo's own Codex routing in `ccx/policy.json`. Not installed; reference only for conventions worth borrowing by hand — `SKILL.md` files under a skills directory, hierarchical per-folder `AGENTS.md`. Write any such addition to fit this repo's existing structure; don't run its installer.
+- **Claude-Red** (github.com/SnailSploit/Claude-Red) — a library of offensive-security `SKILL.md` files (SQLi, shellcode, EDR evasion, exploit dev). Pull a skill from it only for work this repo is authorized to do (a written-authorization engagement, a CTF, or your own lab) — never against an unauthorized target. To add one: copy that single `SKILL.md` into `.claude/skills/<name>/` (the directory doesn't exist yet — create it) and name the skill and the authorization in the task spec. Don't bulk-import the library.
+
 # Windows
 
 In PowerShell, always call `codex.cmd`, `npm.cmd` and `npx.cmd`, never plain `codex`, `npm` or `npx`. The execution policy and Codex's sandbox block the `.ps1` launchers that plain names resolve to. Keep sandbox protections intact.
