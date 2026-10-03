@@ -36,7 +36,7 @@ Installing or running any external harness; changing scripts, policy, permission
 - [x] (Codex) HANDOFF.md applies proportional plan critique and durable evidence-backed checklists; external trials preserve the complete control-plane boundary and existing review/approval ownership. Evidence: manual comparison against existing AGENTS.md Roles, Modes and Control Plane sections; no script or policy changes.
 - [x] (Codex) Scope and quick ccx verification pass; the diff against `9e3a764` preserves Claude's additions while correcting and extending them. Evidence: `git diff --check` exited 0; ccx json, secrets, scope and memory stages PASS (parse N/A); only the three allowed files changed.
 - [x] (Claude) Reviewed the final diff and checks independently: PASS, no edits required. Reconciled local main with remote main: fast-forwarded `8d0dd64` -> `9e3a764` via a named stash of only the three task files (`git stash push -- AGENTS.md HANDOFF.md TASK.md`, `git merge --ff-only origin/main`, `git stash pop`); resolved the resulting AGENTS.md conflict in favor of the reviewed expanded section, matching the diff already reviewed against `9e3a764`. Stash retained until the commit is verified.
-- [ ] (Claude) Commit, and use the existing gates for any push/merge; sync the mirror from the committed base branch. Push and mirror sync remain outstanding pending the commit-bound push gate.
+- [x] (Claude) Committed as `de368af`, pushed to origin/main with human approval A-0013 via the commit-bound push gate, and synced the OneDrive mirror from the committed base branch (sync-mirror.ps1 exit 0, MIRROR OK). Task closed with `ccx task done`.
 
 ## Verify
 <!-- Commands/checks proving the task works. -->
