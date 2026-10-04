@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pctOfE1rm, loadFor, e1rmFrom } from '../../src/core/rpe-chart.js';
+import { pctOfE1rm, pctSmooth, loadFor, e1rmFrom } from '../../src/core/rpe-chart.js';
 
 // Spot values read straight off the chart image in the coaching workbook.
 const CHART = {
@@ -40,4 +40,14 @@ test('load and e1RM are inverses, with hand-checked values', () => {
   assert.ok(Math.abs(e1rmFrom(167.4, 4, 8) - 200) < 1e-9);
   assert.ok(Math.abs(loadFor(140, 1, 9.5) - 136.92) < 1e-9);
   assert.equal(loadFor(0, 5, 8), null); assert.equal(loadFor(100, 20, 8), null); assert.equal(e1rmFrom(-1, 5, 8), null);
+});
+
+test('pctSmooth equals the chart at half steps and interpolates between them', () => {
+  // The printed chart rounds midpoints to 0.1%, so allow half of that.
+  for (const rpe of [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]) assert.ok(Math.abs(pctSmooth(5, rpe) - pctOfE1rm(5, rpe)) <= 5.1e-4, String(rpe));
+  // 3 reps at RPE 7.25 is halfway between RPE 7.5 (85.0%) and RPE 7 (83.7%): 84.35%
+  assert.ok(Math.abs(pctSmooth(3, 7.25) - 0.8435) < 1e-9);
+  // 3 reps at RPE 7.75 is halfway between RPE 8 (86.3%) and RPE 7.5 (85.0%): 85.65%
+  assert.ok(Math.abs(pctSmooth(3, 7.75) - 0.8565) < 1e-9);
+  assert.equal(pctSmooth(3, 5.9), null); assert.equal(pctSmooth(13, 8), null);
 });

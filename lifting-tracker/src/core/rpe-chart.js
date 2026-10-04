@@ -24,6 +24,21 @@ export function pctOfE1rm(reps, rpe) {
   return Math.round(pct * 10) / 1000; // chart values are printed to 0.1%
 }
 
+/**
+ * Like pctOfE1rm but for any RPE between 6 and 10 (not only half steps), by straight-line interpolation along
+ * the chart's reps-to-failure scale. It equals the printed chart at every half step. Used when an athlete's
+ * reporting bias shifts the effective RPE by a fraction.
+ */
+export function pctSmooth(reps, rpe) {
+  if (!Number.isInteger(reps) || reps < 1 || reps > REPS_MAX) return null;
+  if (!Number.isFinite(rpe) || rpe < RPE_MIN || rpe > RPE_MAX) return null;
+  const n = reps + (10 - rpe);
+  const lo = Math.floor(n), hi = Math.ceil(n);
+  if (hi >= BASE.length) return null;
+  const t = n - lo;
+  return (BASE[lo] * (1 - t) + BASE[hi] * t) / 100;
+}
+
 /** Load (kg, unrounded) a lifter with this 1RM should use for `reps` at `rpe`; null outside the chart. */
 export function loadFor(e1rmKg, reps, rpe) {
   const p = pctOfE1rm(reps, rpe);
