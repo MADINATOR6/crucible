@@ -53,6 +53,21 @@ export function musclesView(app, ui) {
   }
   const res = weeklyHardSets(events, app.catalogue, weekStart);
   const data = Object.fromEntries(Object.entries(res.muscles).map(([k, v]) => [k, v.sets]));
+  // The previous week, so each muscle can show whether it went up or down.
+  let prev = null;
+  try {
+    let pres = null;
+    if (m.mode === 'programme' && block) {
+      const sortedBlocks = blocks;
+      const wi = block.weeks.findIndex((w) => w.number === m.week);
+      let target = wi > 0 ? { b: block.number, w: block.weeks[wi - 1].number } : null;
+      if (!target) { const bi = sortedBlocks.findIndex((b) => b.number === block.number); const pb = bi > 0 ? sortedBlocks[bi - 1] : null; if (pb?.weeks.length) target = { b: pb.number, w: pb.weeks.at(-1).number }; }
+      if (target) { const pe = programmeWeekEvents(app, target.b, target.w, m.what); pres = weeklyHardSets(pe.events, app.catalogue, pe.weekStart); }
+    } else if (m.mode !== 'programme') {
+      pres = weeklyHardSets(events, app.catalogue, addDays(weekStart, -7));
+    }
+    if (pres) prev = Object.fromEntries(Object.entries(pres.muscles).map(([k, v]) => [k, v.sets]));
+  } catch { prev = null; }
   const sel = m.selected && res.muscles[m.selected] ? m.selected : null;
   const wkEnd = addDays(weekStart, 6);
   const total = events.filter((e) => e.date >= weekStart && e.date <= wkEnd && e.isWarmup === false).length;
@@ -75,14 +90,14 @@ export function musclesView(app, ui) {
       <div class="chips" role="group" aria-label="Week">${(block?.weeks || []).map((w) => `<button class="chip" data-week="${w.number}" aria-pressed="${w.number === m.week}">Week ${w.number}</button>`).join('')}</div>`
       : `<div class="row" style="margin-bottom:10px"><button class="btn small" data-cal="-7" aria-label="Previous week">‹</button><b>${esc(label)}</b><button class="btn small" data-cal="7" aria-label="Next week">›</button></div>`}
     <div class="card">
-      <div class="card-h"><h2>${esc(label)}</h2><span class="muted small">${fmtSets(total)} weighted sets${m.mode === 'programme' && !estimated ? ' · dates unknown' : ''}</span></div>
+      <div class="card-h"><h2>${esc(label)}</h2><span class="muted small">${total} working sets${m.mode === 'programme' && !estimated ? ' · dates unknown' : ''}</span></div>
       <div class="seg hm-view-toggle" role="group" aria-label="Body view" style="margin-bottom:8px"><button data-view="front" aria-pressed="${m.view === 'front'}">Front</button><button data-view="back" aria-pressed="${m.view === 'back'}">Back</button></div>
-      ${renderHeatmap(data, { selected: sel, view: m.view })}
-      ${renderLegend()}
+      ${renderHeatmap(data, { selected: sel, view: m.view, prev })}
+      ${renderLegend()}<p class="small muted" style="margin-top:8px">In the list below, the green zone marks 10 to 20 hard sets a week, a common range for building muscle. ▲ ▼ show the change on the previous week.</p>
       ${res.unknownExerciseIds?.length ? `<p class="small" style="color:var(--warn);margin-top:10px">Not counted (not in the exercise catalogue): ${res.unknownExerciseIds.map((x) => esc(String(x).replace('custom:', ''))).join(', ')}</p>` : ''}
     </div>
     ${detail}
-    <div class="card" style="margin-top:14px"><div class="card-h"><h2>All muscles</h2></div>${renderMuscleList(data, sel)}</div>`;
+    <div class="card" style="margin-top:14px"><div class="card-h"><h2>All muscles</h2></div>${renderMuscleList(data, sel, prev)}</div>`;
 
   function bind(root, rerender) {
     const set = (patch) => { Object.assign(m, patch); rerender(); };
