@@ -125,8 +125,13 @@ export function parseAthleteComment(text) {
 }
 
 // Redact report evidence too, so a warning cannot reintroduce a removed phone number.
-// Phone shapes: +61 4xx..., + 61 (4xx)..., 0412 345 678 style groups, and any run of 7+ digits.
-const redact = (raw) => String(raw ?? '').replace(/\+\s*\(?\d[\d ()\-.]*\d|\b0\d{2,3}[ -]\d{3}[ -]\d{3,4}\b|\d{7,}/g, '[redacted]');
+// Phone shapes: a run that starts with `+`, `(` or `0`, uses only digits, spaces, newlines, dots, dashes and
+// brackets, and holds 9+ digits (so +61 499 888 777, (03) 9999 1234, 04 1234 5678 and newline-split numbers go);
+// plus any unbroken run of 7+ digits. A plain list of loads such as "100 120 140" is left alone.
+const PHONE_RUN = /(?:\+\s*\(?\d|\(\s*\d|\b0\d)[\d \t\r\n().-]{6,}\d/g;
+const redact = (raw) => String(raw ?? '')
+  .replace(PHONE_RUN, (run) => (run.replace(/\D/g, '').length >= 9 ? '[redacted]' : run))
+  .replace(/\d{7,}/g, '[redacted]');
 const evidence = (raw) => { const text = redact(raw); return text.length > 200 ? text.slice(0, 199) + '…' : text; };
 
 export async function importProgramme(bytes, options = {}) {
@@ -292,7 +297,8 @@ export async function parseProgramme(workbook, { catalogue = {}, fileName = '', 
         }
         const foundHeaders = headers.map((header) => rowCells.find((cell) => normalise(textOf(cell)) === header));
         // A header row names at least two columns, or is made only of header texts (a partial, shifted header).
-        const headerOnly = foundHeaders.some(Boolean) && rowCells.every((cell) => headers.includes(normalise(textOf(cell))));
+        const ignorable = (cell) => placeholder(cell) || (cell.c === start && ['exercise', 'exercises', 'movement', 'lift'].includes(normalise(textOf(cell))));
+        const headerOnly = foundHeaders.some(Boolean) && rowCells.every((cell) => ignorable(cell) || headers.includes(normalise(textOf(cell))));
         if (dayMatch || foundHeaders.filter(Boolean).length >= 2 || headerOnly) {
           // Undiscovered headers keep their default offset, shifted by the same amount as the first discovered one.
           const first = foundHeaders.findIndex(Boolean);
