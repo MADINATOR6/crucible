@@ -97,14 +97,46 @@ test('stale or foreign revisions are refused; only generated blocks can be repla
   const athlete = athleteOf(app);
   const mk = (seed) => generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 4, seed, now: () => new Date('2026-10-05T00:00:00Z') });
   await app.addBlock(mk('a').block);
-  const oldAt = app.programme.blocks.find((b) => b.number === 2).generated.at;
+  const oldAt = app.blockToken(2);
   await assert.rejects(() => app.replaceBlock({ number: 1, name: 'x', weeks: [] }), /Only generated blocks can be replaced/);
   await assert.rejects(() => app.replaceBlock({ ...mk('a').block, generated: undefined }), /not a generated block/);
   // remove, add a different block 2, then try to apply the old revision against it
   await app.removeBlock(2);
   const second = mk('b').block; second.generated = { ...second.generated, at: '2026-10-06T00:00:00.000Z' };
   await app.addBlock(second);
-  await assert.rejects(() => app.replaceBlock(mk('a').block, { expectedAt: oldAt }), /has changed since/);
+  await assert.rejects(() => app.replaceBlock(mk('a').block, { expectedToken: oldAt }), /has changed since/);
+});
+
+test('two revisions made from the same block: the second one applied is refused, the first stays', async () => {
+  const app = await readyApp();
+  const athlete = athleteOf(app);
+  await app.addBlock(generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 5, seed: 'a', now: () => new Date('2026-10-05T00:00:00Z') }).block);
+  const block = app.programme.blocks.find((b) => b.number === 2);
+  const token = app.blockToken(2);
+  const revise = (factor) => reviseBlock({ block, catalogue: app.catalogue, fromWeek: 2,
+    athlete: { ...athlete, lifts: Object.fromEntries(Object.entries(athlete.lifts).map(([k, v]) => [k, { ...v, e1rmKg: v.e1rmKg ? Math.round(v.e1rmKg * factor * 10) / 10 : v.e1rmKg }])) } }).block;
+  const stronger = revise(1.1), weaker = revise(0.9);
+  await app.replaceBlock(stronger, { expectedToken: token });
+  const loadNow = () => app.programme.blocks.find((b) => b.number === 2).weeks[2].days[0].entries[0].sets[0].load.value;
+  const applied = loadNow();
+  assert.notEqual(app.blockToken(2), token, 'a replacement moves the token');
+  await assert.rejects(() => app.replaceBlock(weaker, { expectedToken: token }), /has changed since/);
+  assert.equal(loadNow(), applied, 'the stale revision did not overwrite the newer one');
+  await app.reload();
+  assert.equal(app.blockToken(2), app.blockToken(2));
+  assert.equal(app.programme.blocks.find((b) => b.number === 2).generated.rev, 1, 'the revision counter survives a reload');
+});
+
+test('saving keeps rep ranges in the generator metadata (accessories and ranged main lifts), so later revisions still work', async () => {
+  const app = await readyApp();
+  const athlete = athleteOf(app);
+  const res = generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 4, seed: 'a', now: () => new Date('2026-10-05T00:00:00Z') });
+  const ranged = res.block.weeks[0].days.flatMap((d) => d.entries.flatMap((e) => e.sets)).filter((s) => Array.isArray(s.gen.reps));
+  assert.ok(ranged.length > 0, 'the example template has accessories with a rep range');
+  await app.addBlock(res.block);
+  await app.reload();
+  const saved = app.programme.blocks.find((b) => b.number === 2).weeks[0].days.flatMap((d) => d.entries.flatMap((e) => e.sets)).filter((s) => s.gen.kind === 'accessory');
+  assert.ok(saved.length > 0 && saved.every((s) => Array.isArray(s.gen.reps) && s.gen.reps.length === 2 && s.gen.reps[0] <= s.gen.reps[1]));
 });
 
 test('removing a generated block detaches what was logged against it, so a later block with that number starts clean', async () => {

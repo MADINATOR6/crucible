@@ -44,9 +44,14 @@ function cleanSet(s, index) {
 }
 
 // Metadata the block generator attaches to each planned set so unfinished weeks can be re-loaded later.
+// reps is a number, or [min, max] for a rep range (accessories, and main lifts the coach wrote as a range).
+function genReps(v) {
+  if (Array.isArray(v)) { const lo = int(v[0]), hi = int(v[1]); return v.length === 2 && lo !== null && hi !== null && lo >= 1 && hi >= lo && hi <= 100 ? [lo, hi] : null; }
+  return int(v);
+}
 function cleanGen(g) {
   return { slotId: text(g.slotId, 20), kind: text(g.kind, 20), family: ['squat', 'bench', 'deadlift'].includes(g.family) ? g.family : null,
-    reps: int(g.reps), rpe: num(g.rpe), e1rmRef: num(g.e1rmRef), k: num(g.k), week: int(g.week),
+    reps: genReps(g.reps), rpe: num(g.rpe), e1rmRef: num(g.e1rmRef), k: num(g.k), week: int(g.week),
     exposure: g.exposure === 'primary' || g.exposure === 'secondary' ? g.exposure : null };
 }
 
@@ -55,7 +60,7 @@ const famNums = (o) => Object.fromEntries(FAMILIES.map((f) => [f, isObj(o) ? num
 const famText = (o) => Object.fromEntries(FAMILIES.map((f) => [f, isObj(o) ? str(o[f], 12) : null]));
 function cleanGenerated(g) {
   return {
-    at: text(g.at, 40), focus: text(g.focus, 20), weeks: int(g.weeks) ?? 0, daysPerWeek: int(g.daysPerWeek) ?? 0, progression: text(g.progression, 20),
+    at: text(g.at, 40), rev: int(g.rev) ?? 0, focus: text(g.focus, 20), weeks: int(g.weeks) ?? 0, daysPerWeek: int(g.daysPerWeek) ?? 0, progression: text(g.progression, 20),
     rotate: num(g.rotate) ?? 0, seed: text(g.seed, 60), deloadWeek: text(g.deloadWeek, 10), fromBlock: int(g.fromBlock), athleteAsOf: isStrictDate(g.athleteAsOf) ? g.athleteAsOf : null,
     e1rmStart: famNums(g.e1rmStart), confidence: famText(g.confidence),
     emphasis: FAMILIES.includes(g.emphasis) ? g.emphasis : null, layoffWeeks: int(g.layoffWeeks), checkIn: typeof g.checkIn === 'boolean' ? g.checkIn : null,

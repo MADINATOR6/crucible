@@ -8,13 +8,13 @@ Status: built, tested (see the test count in `lifting-tracker/README.md`'s comma
 - **Heat map** redesign (anatomical silhouette, shaded regions, hover focus, target-zone bars, change on previous week), **plate simulator** redesign (side view with knurled bar and shaded plates, stylised end view, slide-in animation), **calibrated plates** (IPF disc tolerance band per loaded bar, Gym-plates mode, weighed-plate totals).
 
 ## How it was built and checked
-- Codex hit its usage limit mid-task. As you asked, Claude agents implemented LT-9a (athlete model, template), LT-9b (generator), LT-9c (request parser) in worktrees; Claude reviewed and merged them. A Gemini fallback verifier ran once on the generator (partial quota); a fresh-context `ccx-reviewer` reviewed the whole feature and found 17 problems (two high: saved blocks lost `gen.exposure` and a revised "return" block jumped to full loads). All fixed with regression tests. A Codex verifier (LT-9d) on current `main` was dispatched after the reset; its result is in MEMORY.md.
+- Codex hit its usage limit mid-task. As you asked, Claude agents implemented LT-9a (athlete model, template), LT-9b (generator), LT-9c (request parser) in worktrees; Claude reviewed and merged them. A Gemini fallback verifier ran once on the generator (partial quota); a fresh-context `ccx-reviewer` reviewed the whole feature and found 17 problems (two high: saved blocks lost `gen.exposure` and a revised "return" block jumped to full loads). All fixed with regression tests. A Codex verifier (LT-9d) then ran on `main` after the reset (2,100 random blocks, 100 request phrasings, 30 coach histories) and found 6 more issues, all fixed with regression tests: loads above your current e1RM (now capped, including after rounding), a "deload" request that could produce normal training, an old revision overwriting a newer one, negated requests ("no peak, maintenance") picking the negated goal, the coach telling a 1-3 day plan to "drop to three days", and saving losing rep-range metadata (which made revising ranged lifts do nothing). 250 tests pass.
 - Real-data run (local only, wiped): generated maintenance, strength and return blocks from your history; loads, wave, rotation and warnings looked sensible. Check them yourself before training on them.
 
 ## Things to know
 - The generator needs your imported programme; it refuses to save into the example data.
 - Block numbers are never reused for logs: removing a generated block turns its logged sets into free-standing history.
-- Loads are capped at an all-out set for the reps; everything is editable when logging.
+- Loads are capped at an all-out set for the reps at your current e1RM; everything is editable when logging.
 - Not done: Wilks/DOTS/IPF GL scores; Codex-written code (the generator modules were written by Claude while Codex was out, so the independent check matters).
 
 ---

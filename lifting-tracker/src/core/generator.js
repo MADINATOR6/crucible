@@ -72,14 +72,25 @@ function biasOf(athlete, family) {
   return Number.isFinite(b) ? clamp(b, -0.5, 0.5) : 0;
 }
 
+// The load of an all-out (RPE 10) set for these reps at the athlete's current e1RM: no planned set goes above it.
+function ceilingKg(current, reps) {
+  const pct = pctSmooth(chartReps(reps), 10);
+  return current == null || pct == null ? Infinity : current * pct;
+}
+
+// Round to the plate step, but never above the ceiling (rounding to nearest could push a capped load over it).
+function settle(value, ceiling) {
+  const v = roundToStep(value);
+  return v > ceiling ? roundToStep(Math.floor(ceiling / 2.5 + 1e-9) * 2.5) : v;
+}
+
 // E * pctSmooth(reps, rpePlan - bias) * k, before back-off and rounding; null when anything is missing.
-function unrounded(e, reps, rpe, bias, k) {
+// `current` is the athlete's e1RM now: projected weeks and a template k above 1 never plan beyond an all-out set at it.
+function unrounded(e, reps, rpe, bias, k, current = e) {
   if (e == null || !Number.isFinite(k) || !Number.isFinite(rpe)) return null;
   const pct = pctSmooth(chartReps(reps), clamp(rpe - bias, 6, 10));
   if (pct == null) return null;
-  // Safety cap: never above the load of an all-out set (RPE 10) for those reps, whatever k or the wave says.
-  const ceiling = e * (pctSmooth(chartReps(reps), 10) ?? pct);
-  return Math.min(e * pct * k, ceiling);
+  return Math.min(e * pct * k, ceilingKg(current, reps));
 }
 
 function resolve(opts) {
@@ -107,6 +118,7 @@ function resolve(opts) {
   const deloadWeek = opts.deloadWeek
     ?? (focus === 'deload' ? 'all' : focus === 'maintenance' || focus === 'return' ? 'none' : weeks >= 6 ? 'last' : 'none');
   if (!DELOAD_WEEKS.includes(deloadWeek)) fail(`deloadWeek must be one of: ${DELOAD_WEEKS.join(', ')}`);
+  if (focus === 'deload' && deloadWeek !== 'all') fail('a deload block is a deload every week: leave deloadWeek unset or use "all"');
   const deadliftStance = opts.deadliftStance === undefined ? athlete.lifts.deadlift?.stance ?? null : opts.deadliftStance;
   if (deadliftStance !== null && !hasOwn(STANCE_SWAPS, deadliftStance)) fail('deadliftStance must be sumo, conventional or null');
   if (typeof now !== 'function') fail('now must be a function returning a Date');
@@ -291,15 +303,16 @@ function liftSets(s, w, c) {
   const e = exposure === 'secondary' ? c.E(f, 1) : c.E(f, deload ? Math.max(1, w - 1) : w);
   const k = Number.isFinite(s.k) ? s.k : s.role === 'main' ? 1 : null;
   const bias = biasOf(c.athlete, f);
-  const base = unrounded(e, s.reps, rpe, bias, k);
+  const current = c.e1rmStart[f];
+  const base = unrounded(e, s.reps, rpe, bias, k, current);
   const checkIn = c.focus === 'maintenance' && c.checkIn && n >= 3 && w === n && !deload && s.role === 'main' && s.primary;
   const out = [];
   for (let i = 0; i < sets; i++) {
     let kind = s.scheme === 'top-backoff' ? (i === 0 ? 'top' : 'backoff') : s.scheme === 'singles' ? 'single' : 'straight';
     let reps = s.reps, setRpe = rpe;
     let value = base == null ? null : base * (kind === 'backoff' ? 1 - 0.03 * i : 1);
-    if (checkIn && i === 0) { kind = 'top'; reps = 1; setRpe = 8; value = unrounded(e, 1, 8, bias, k); }
-    if (value != null) { value = roundToStep(value); c.loaded.add(f); }
+    if (checkIn && i === 0) { kind = 'top'; reps = 1; setRpe = 8; value = unrounded(e, 1, 8, bias, k, current); }
+    if (value != null) { value = settle(value, ceilingKg(current, reps)); c.loaded.add(f); }
     out.push(plannedSet(i + 1, reps, setRpe, value,
       { slotId: s.slotId, kind, family: f, reps: copyReps(reps), rpe: setRpe, e1rmRef: e == null ? null : round1(e), k, week: w, exposure }));
   }
@@ -481,10 +494,10 @@ export function reviseBlock({ block, athlete, fromWeek } = {}) { // `catalogue` 
     if (e1 == null) continue;
     const deload = deloadWeek === 'all' || (deloadWeek === 'last' && gen.week === n);
     const e = gen.exposure === 'secondary' ? (focus === 'return' ? proj(e1, 1) : e1) : proj(e1, deload ? Math.max(focus === 'return' ? 1 : fromWeek, gen.week - 1) : gen.week);
-    const base = unrounded(e, gen.reps, gen.rpe, biasOf(athlete, gen.family), gen.k);
+    const base = unrounded(e, gen.reps, gen.rpe, biasOf(athlete, gen.family), gen.k, e1);
     if (base == null) continue;
     gen.e1rmRef = round1(e);
-    const to = roundToStep(base * (gen.kind === 'backoff' ? 1 - 0.03 * (set.index - 1) : 1));
+    const to = settle(base * (gen.kind === 'backoff' ? 1 - 0.03 * (set.index - 1) : 1), ceilingKg(e1, gen.reps));
     const from = set.load ? toKg(set.load) : null;
     if (from !== null && Math.abs(to - from) < 2.5) continue;
     set.load = { value: to, unit: 'kg', raw: String(to) };

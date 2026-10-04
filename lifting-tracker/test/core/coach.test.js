@@ -55,11 +55,11 @@ test('lift balance uses the weekly-best numbers and quotes them', () => {
   assert.match(f.because[0], /Bench is 5\d% of squat/);
 });
 
-function programmeWith(setsPerWeek, { blocks = 1, weeks = 6, completedFraction = 1, actualMinusTarget = 0, comment = null } = {}) {
-  const mk = (n) => ({ number: n, name: `B${n}`, weeks: Array.from({ length: weeks }, (_, w) => ({ number: w + 1, label: `Week ${w + 1}`, days: [
-    { number: 1, entries: [{ exerciseId: 'low_bar_squat', name: 'Low Bar Squat', sets: Array.from({ length: setsPerWeek }, (_, i) => ({ index: i + 1, repsMin: 5, repsMax: 5, targetRpe: 7, actualRpe: i / setsPerWeek < completedFraction ? 7 + actualMinusTarget : null, completed: i / setsPerWeek < completedFraction, coachComment: comment })) }] },
-    { number: 2, entries: [{ exerciseId: 'comp_bench', name: 'Bench', sets: Array.from({ length: setsPerWeek }, (_, i) => ({ index: i + 1, repsMin: 5, repsMax: 5, targetRpe: 7, actualRpe: i / setsPerWeek < completedFraction ? 7 + actualMinusTarget : null, completed: i / setsPerWeek < completedFraction, coachComment: null })) }] },
-  ] })) });
+const DAY_LIFTS = [['low_bar_squat', 'Low Bar Squat'], ['comp_bench', 'Bench'], ['conventional_deadlift', 'Deadlift'], ['comp_bench', 'Bench']];
+function programmeWith(setsPerWeek, { blocks = 1, weeks = 6, completedFraction = 1, actualMinusTarget = 0, comment = null, days = 2 } = {}) {
+  const mk = (n) => ({ number: n, name: `B${n}`, weeks: Array.from({ length: weeks }, (_, w) => ({ number: w + 1, label: `Week ${w + 1}`,
+    days: DAY_LIFTS.slice(0, days).map(([exerciseId, name], d) => ({ number: d + 1, entries: [{ exerciseId, name,
+      sets: Array.from({ length: setsPerWeek }, (_, i) => ({ index: i + 1, repsMin: 5, repsMax: 5, targetRpe: 7, actualRpe: i / setsPerWeek < completedFraction ? 7 + actualMinusTarget : null, completed: i / setsPerWeek < completedFraction, coachComment: d === 0 ? comment : null })) }] })) })) });
   return { blocks: Array.from({ length: blocks }, (_, b) => mk(b + 1)) };
 }
 
@@ -73,12 +73,24 @@ test('effort: finishing sets harder than planned is flagged per lift', () => {
   assert.ok(ids(easy).includes('effort-low-squat'));
 });
 
-test('adherence: 60% of planned sets done is a high-severity finding with a 3-day action; full completion is a strength', () => {
-  const low = coachReview({ events: history(), programme: programmeWith(5, { completedFraction: 0.6 }), catalogue });
+test('adherence: 60% of planned sets done on a four-day plan is a high-severity finding with a 3-day action; full completion is a strength', () => {
+  const low = coachReview({ events: history(), programme: programmeWith(5, { completedFraction: 0.6, days: 4 }), catalogue });
   const f = low.findings.find((x) => x.id === 'adherence-low');
   assert.ok(f); assert.equal(f.severity, 'high'); assert.deepEqual(f.action, { type: 'days', value: 3, label: 'Plan 3 days a week' });
+  assert.match(f.suggestion, /Drop to three days/);
   const good = coachReview({ events: history(), programme: programmeWith(5, { completedFraction: 1 }), catalogue });
   assert.ok(ids(good).includes('adherence-good'));
+});
+
+test('adherence: a plan that is already three days or fewer is never told to "drop to three days"', () => {
+  for (const days of [1, 2, 3]) {
+    const r = coachReview({ events: history(), programme: programmeWith(3, { completedFraction: 0.34, days }), catalogue });
+    const f = r.findings.find((x) => x.id === 'adherence-low');
+    assert.ok(f, `${days} days`);
+    assert.equal(f.action ?? null, null, `${days} days: no days action`);
+    assert.ok(!/Drop to three days/.test(f.suggestion), f.suggestion);
+    assert.match(f.suggestion, days === 1 ? /already one day a week/ : new RegExp(`already ${days} days a week`));
+  }
 });
 
 test('recurring technique cues are surfaced only when they appear in 3 or more blocks', () => {

@@ -84,14 +84,18 @@ export async function createApp() {
     return writeBlocks([...app.programme.blocks, block]);
   });
   // Only a generated block can be replaced, and only by a generated block with the same number (a revised copy).
-  // `expectedAt` guards against applying an old revision to a block that has since been replaced.
-  app.replaceBlock = (block, { expectedAt = null } = {}) => enqueue(async () => {
+  // A block's token changes on every replacement, so `expectedToken` (from app.blockToken, taken when the revision
+  // was made) rejects an old revision applied to a block that has since been replaced or revised again.
+  const tokenOf = (b) => (b?.generated ? `${b.generated.at}#${b.generated.rev ?? 0}` : null);
+  app.blockToken = (number) => tokenOf(app.programme?.blocks.find((b) => b.number === number));
+  app.replaceBlock = (block, { expectedToken = null } = {}) => enqueue(async () => {
     if (app.usingExample) throw new RangeError('Import your workbook first.');
     const current = app.programme.blocks.find((b) => b.number === block?.number);
     if (!current?.generated) throw new RangeError('Only generated blocks can be replaced.');
     if (!block.generated) throw new RangeError('The replacement is not a generated block.');
-    if (expectedAt && current.generated.at !== expectedAt) throw new RangeError('That block has changed since the revision was made. Re-load it again.');
-    return writeBlocks(app.programme.blocks.map((b) => (b.number === block.number ? block : b)));
+    if (expectedToken && tokenOf(current) !== expectedToken) throw new RangeError('That block has changed since the revision was made. Re-load it again.');
+    const next = { ...block, generated: { ...block.generated, at: current.generated.at, rev: (current.generated.rev ?? 0) + 1 } };
+    return writeBlocks(app.programme.blocks.map((b) => (b.number === block.number ? next : b)));
   });
   // Removing a generated block keeps what was logged against it, as free-standing sets in your history (they must
   // not attach themselves to whichever block later takes the same number).

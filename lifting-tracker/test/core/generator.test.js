@@ -578,3 +578,36 @@ test('safety cap: a load never exceeds an all-out (RPE 10) set for its reps, wha
   const r = generateBlock({ catalogue, template: tpl, athlete: ath, blockNumber: 2, weeks: 3, focus: 'peak', seed: 's', now: () => new Date('2026-01-01') });
   for (const w of r.block.weeks) for (const d of w.days) for (const e of d.entries) for (const s of e.sets) if (s.load) assert.ok(s.load.value <= 100 + 1e-9, `load ${s.load.value} above e1RM`);
 });
+
+test('safety cap: aggressive projection and rounding never plan a load above the current e1RM all-out set', () => {
+  // A template that asks for 110% of the reference (k 1.125 at RPE 9) with 0.6% a week projected gain over 8 weeks:
+  // the projected e1RM reaches 208.6 kg, but nothing may be planned above the 200 kg the athlete can do now.
+  const sq = { slotId: 'd1s1', exerciseId: 'low_bar_squat', name: 'Low Bar Squat', supersetGroup: null, tempo: null, cues: [], role: 'main', family: 'squat', scheme: 'singles', sets: 1, reps: 1, rpe: 9, loadKg: null, k: 1.125 };
+  const tpl = { fromBlock: 1, blockName: 'T', weeksInBlock: 8, daysPerWeek: 1, days: [{ number: 1, slots: [sq] }] };
+  const ath = { asOf: '2026-01-01', lifts: { squat: { e1rmKg: 200, confidence: 'high' }, bench: { e1rmKg: null, confidence: 'none' }, deadlift: { e1rmKg: null, confidence: 'none' } }, rpeBias: { squat: 0, bench: 0, deadlift: 0 }, exercises: {} };
+  const r = generateBlock({ catalogue, template: tpl, athlete: ath, blockNumber: 2, weeks: 8, focus: 'strength', progression: 'aggressive', deloadWeek: 'none', rotate: 0, seed: 's', now: () => new Date('2026-01-01') });
+  const all = r.block.weeks.flatMap((w) => w.days.flatMap((d) => d.entries.flatMap((e) => e.sets))).filter((s) => s.load);
+  assert.ok(all.length >= 8);
+  for (const s of all) assert.ok(s.load.value <= 200, `load ${s.load.value} above the current e1RM`);
+  assert.equal(Math.max(...all.map((s) => s.load.value)), 200);
+  // Rounding to the plate step stays below the ceiling too: a 201.5 kg ceiling must give 200, not the nearest step 202.5.
+  const ath2 = { ...ath, lifts: { ...ath.lifts, squat: { e1rmKg: 201.5, confidence: 'high' } } };
+  const r2 = generateBlock({ catalogue, template: tpl, athlete: ath2, blockNumber: 2, weeks: 3, focus: 'strength', deloadWeek: 'none', rotate: 0, seed: 's', now: () => new Date('2026-01-01') });
+  for (const w of r2.block.weeks) for (const s of w.days[0].entries[0].sets) assert.ok(s.load.value <= 201.5, `load ${s.load.value}`);
+  assert.equal(Math.max(...r2.block.weeks.map((w) => w.days[0].entries[0].sets[0].load.value)), 200);
+  // Revision applies the same cap to the new athlete model.
+  const lower = { ...ath, lifts: { ...ath.lifts, squat: { e1rmKg: 190, confidence: 'high' } } };
+  const rev = reviseBlock({ block: r.block, athlete: lower, catalogue, fromWeek: 1 });
+  for (const w of rev.block.weeks) for (const s of w.days[0].entries[0].sets) assert.ok(s.load.value <= 190, `revised load ${s.load.value}`);
+});
+
+test('a deload block is a deload every week: any other deloadWeek is rejected', () => {
+  for (const bad of ['none', 'last']) {
+    assert.throws(() => run({ ...A_OPTS, focus: 'deload', deloadWeek: bad }), (e) => e instanceof RangeError && /deload every week/.test(e.message), bad);
+  }
+  const ok = run({ ...A_OPTS, focus: 'deload', deloadWeek: 'all' });
+  const dflt = run({ ...A_OPTS, focus: 'deload', deloadWeek: undefined });
+  assert.deepEqual(dflt.block.generated.deloadWeek, 'all');
+  assert.ok(ok.block.weeks.every((w) => /Deload/.test(w.label)));
+  assert.ok(entry(ok, 1).sets.length < 3, 'fewer sets than the 3-set template');
+});

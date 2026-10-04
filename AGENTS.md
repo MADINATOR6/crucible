@@ -14,7 +14,7 @@ This repository is the Claude + Codex workflow template. It also hosts one produ
 
 Add a dev, test, lint, typecheck or build command only after it has run successfully in this repo. Never invent one.
 
-- Lifting tracker tests (verified 2026-10-04, 111 tests, 1 opt-in skip): `cd lifting-tracker && node --test`. Do not pass a directory (`node --test <dir>` fails with MODULE_NOT_FOUND on Node 24); a single file or a quoted glob works.
+- Lifting tracker tests (verified 2026-10-05, 250 passing, 1 opt-in skip): `cd lifting-tracker && node --test`. Do not pass a directory (`node --test <dir>` fails with MODULE_NOT_FOUND on Node 24); a single file or a quoted glob works.
 - Lifting tracker dev server (verified): `node lifting-tracker/dev-server.mjs` then open http://127.0.0.1:5173/ (also `.claude/launch.json`).
 - Opt-in real-workbook smoke test, structure only, prints counts and no cell text: set `LT_REAL_WORKBOOK` to the .xlsx path, then run `cd lifting-tracker && node --test test/import/real-workbook.smoke.test.js`. Never run it through Codex.
 - No linter or formatter is configured for the JavaScript.

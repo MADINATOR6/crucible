@@ -174,8 +174,13 @@ export function coachReview({ events, programme = null, catalogue, athlete = nul
       for (const x of take) for (const d of x.week.days) { const all = d.entries.flatMap((e) => e.sets); if (!all.length) continue; (dayRates.get(d.number) || dayRates.set(d.number, []).get(d.number)).push(all.filter((s) => s.completed).length / all.length); }
       const worst = [...dayRates].map(([n, r]) => ({ n, r: mean(r) })).sort((a, b) => a.r - b.r)[0];
       const ev = `You completed ${(rate * 100).toFixed(0)}% of planned sets over the last ${take.length} full weeks.`;
+      const plannedDays = Math.max(...take.map((x) => x.week.days.filter((d) => d.entries.some((e) => e.sets.length)).length));
+      const dropDays = plannedDays >= 4; // only a four-day-plus week can drop to three; a smaller week is trimmed within the sessions
       if (rate < T.adherenceLow) add({ id: 'adherence-low', area: 'consistency', severity: rate < 0.7 ? 'high' : 'medium', title: 'Sessions are being missed', because: [ev, worst ? `Day ${worst.n} is skipped most (${(worst.r * 100).toFixed(0)}% done).` : ''].filter(Boolean),
-        suggestion: 'A smaller plan you finish beats a bigger one you do not. Drop to three days and keep the heavy work; accessories are the first thing to trim.', action: { type: 'days', value: 3, label: 'Plan 3 days a week' }, confidence: 'high' });
+        suggestion: dropDays
+          ? 'A smaller plan you finish beats a bigger one you do not. Drop to three days and keep the heavy work; accessories are the first thing to trim.'
+          : `A smaller plan you finish beats a bigger one you do not. Your plan is already ${plannedDays === 1 ? 'one day' : plannedDays + ' days'} a week, so keep the heavy work and trim accessories to shorten each session.`,
+        ...(dropDays ? { action: { type: 'days', value: 3, label: 'Plan 3 days a week' } } : {}), confidence: 'high' });
       else if (rate >= T.adherenceGood) add({ id: 'adherence-good', area: 'consistency', severity: 'good', title: 'Very consistent training', because: [ev], suggestion: 'Consistency is your biggest asset. Protect it.', confidence: 'high' });
     }
   }

@@ -137,10 +137,15 @@ const PROGRESSION = [
   def(/\b(?:aggressive(?:ly)?|fast|faster|ambitious)\b/g, { value: 'aggressive', guard: (s, a) => !negatedBefore(s, a) }),
 ];
 
-const STANCE = [
+// "no peak", "not maintenance", "dont want a deload", "instead of sumo": a goal or stance said with a negation just before is not asked for.
+const NEGATED_BEFORE = new RegExp(`\\b(?:no|not|dont|never|without|skip|skipping|isnt|wont|nor|avoid|avoiding|except|forget|instead of|rather than)(?: (?:want|need|wanna|plan|planning|like|feel|think|do|doing|have|having|be|being|really|just|too|very|much|longer|quite|only|a|an|the|my|any|more|to)){0,4} $`);
+const notNegated = (s, start) => !NEGATED_BEFORE.test(tail(s, start, 60));
+const withNegationGuard = (defs) => defs.map((d) => ({ ...d, guard: d.guard ? (s, a, b) => notNegated(s, a) && d.guard(s, a, b) : (s, a) => notNegated(s, a) }));
+
+const STANCE = withNegationGuard([
   def(/\bsumo\b/g, { value: 'sumo' }),
   def(/\b(?:conventional|conv)\b/g, { value: 'conventional' }),
-];
+]);
 
 // ---------------------------------------------------------------------------------------------------------------
 // Goals (focus)
@@ -233,6 +238,8 @@ const FOCUS_DEFS = {
     def(/\bprogress(?:ing)?\b/g),
   ],
 };
+
+for (const f of Object.keys(FOCUS_DEFS)) FOCUS_DEFS[f] = withNegationGuard(FOCUS_DEFS[f]);
 
 // ---------------------------------------------------------------------------------------------------------------
 // Numbers of weeks, layoffs and days (read from the words)
@@ -481,6 +488,11 @@ function interpret(text) {
   }
   const focus = FOCUS_ORDER.find((f) => matches[f]) || null;
   if (focus) found.set('focus', { value: focus, because: quote(matches[focus].text) });
+  // A deload block is a deload every week: "no deload" or "deload at the end" cannot apply to it.
+  if (focus === 'deload' && found.has('deloadWeek')) {
+    unclear.push(`A deload block is a deload every week; ignoring "${found.get('deloadWeek').because.replace(/^you said "|"$/g, '')}"`);
+    found.delete('deloadWeek');
+  }
 
   // 5. Layoff (only with the return focus) and block length (every other time phrase).
   let layoff = null;

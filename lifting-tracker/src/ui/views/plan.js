@@ -84,7 +84,7 @@ function optionsFrom(p) {
   if (p.progression && p.progression !== 'standard') o.progression = p.progression;
   if (p.rotate != null) o.rotate = p.rotate;
   if (p.stance && p.stance !== 'auto') o.deadliftStance = p.stance;
-  if (p.deloadWeek && p.deloadWeek !== 'auto') o.deloadWeek = p.deloadWeek;
+  if (p.deloadWeek && p.deloadWeek !== 'auto' && p.focus !== 'deload') o.deloadWeek = p.deloadWeek; // a deload block is a deload every week
   if (p.focus === 'specialise') o.emphasis = p.emphasis || 'bench';
   if (p.focus === 'return') o.layoffWeeks = p.layoffWeeks || 4;
   if (p.focus === 'maintenance') o.checkIn = p.checkIn !== false;
@@ -112,7 +112,7 @@ export function planView(app, ui) {
   const p = ui.plan;
   if (p.revise) { // an old revision must never be applied to a block that has since been removed or replaced
     const cur = app.programme.blocks.find((b) => b.number === p.revise.number);
-    if (!cur?.generated || cur.generated.at !== p.revise.baseAt) p.revise = null;
+    if (!cur?.generated || app.blockToken(p.revise.number) !== p.revise.baseToken) p.revise = null;
   }
   if (app.usingExample) {
     return { html: `<div class="topbar"><div><h1>Plan</h1></div><span class="pill example">Example data</span></div>
@@ -286,11 +286,11 @@ export function planView(app, ui) {
           const o = original.weeks[wi]?.days[di]?.entries[ei]?.sets[si];
           if (o) { s.completed = o.completed; s.actualRpe = o.actualRpe; s.actualReps = o.actualReps; s.actualLoad = o.actualLoad; }
         }))));
-        set({ revise: { number, fromWeek: firstOpen.number, block: keep, changes: r.changes, baseAt: original.generated?.at ?? null } });
+        set({ revise: { number, fromWeek: firstOpen.number, block: keep, changes: r.changes, baseToken: app.blockToken(number) } });
       } catch (err) { toast(err.message || String(err), 4200); }
     }));
     root.querySelector('#apply-revise')?.addEventListener('click', async () => {
-      try { await app.replaceBlock({ ...p.revise.block }, { expectedAt: p.revise.baseAt }); toast('Remaining weeks updated'); p.revise = null; rerender(); } catch (err) { toast(err.message || String(err), 4200); p.revise = null; rerender(); }
+      try { await app.replaceBlock({ ...p.revise.block }, { expectedToken: p.revise.baseToken }); toast('Remaining weeks updated'); p.revise = null; rerender(); } catch (err) { toast(err.message || String(err), 4200); p.revise = null; rerender(); }
     });
     root.querySelector('#cancel-revise')?.addEventListener('click', () => set({ revise: null }));
     root.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', async () => {

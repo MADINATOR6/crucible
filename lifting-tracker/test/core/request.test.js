@@ -391,3 +391,25 @@ test('false friends are not read as goals', () => {
   assert.deepEqual(opts("I'll do it"), {}); // "i'll" must not become "ill"
   assert.equal(opts('build me a 4 week plan').focus, undefined);
 });
+
+test('a goal or stance said with a negation is not selected; the affirmative one is', () => {
+  assert.equal(opts('no peak, maintenance').focus, 'maintenance');
+  assert.equal(opts('not maintenance, build strength').focus, 'strength');
+  assert.equal(opts("dont want a deload, I want to build strength").focus, 'strength');
+  assert.equal(opts('maintenance, not a peak').focus, 'maintenance');
+  assert.equal(opts('instead of volume, strength').focus, 'strength');
+  assert.equal(opts('not sumo, conventional').deadliftStance, 'conventional');
+  assert.equal(opts('conventional, not sumo').deadliftStance, 'conventional');
+  assert.equal(opts('sumo deadlift').deadliftStance, 'sumo');
+  assert.equal(opts('peak for my meet').focus, 'peak');
+  assert.equal(opts('I have no time, keep me ticking over').focus, 'maintenance'); // "no time" is itself the maintenance cue
+  assert.equal(opts('not peaking').focus, undefined);
+});
+
+test('a deload block cannot also carry a deload-week option (it is a deload every week)', () => {
+  const r = interpretRequest('deload block, no deload');
+  assert.equal(r.options.focus, 'deload');
+  assert.equal(r.options.deloadWeek, undefined);
+  assert.ok(r.unclear.some((u) => /deload every week/.test(u)), r.unclear.join('|'));
+  assert.equal(interpretRequest('strength block, no deload').options.deloadWeek, 'none');
+});
