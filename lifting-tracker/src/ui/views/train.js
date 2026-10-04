@@ -42,7 +42,7 @@ export function trainView(app, ui) {
 
   const weekStats = (w) => {
     let done = 0, total = 0;
-    for (const d of w.days) for (const e of d.entries) for (const s of e.sets) { total++; if (s.completed || app.loggedFor({ blockNumber: block.number, weekNumber: w.number, dayNumber: d.number, entryIndex: d.entries.indexOf(e), setIndex: s.index })) done++; }
+    for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => { total++; if (s.completed || app.loggedFor({ blockNumber: block.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si })) done++; }));
     return { done, total };
   };
 
@@ -80,11 +80,11 @@ export function trainView(app, ui) {
           const actual = logged
             ? `<span class="actual">${formatWeight(logged.weight, unit)} × ${logged.reps}${logged.rpe != null ? ` @ ${logged.rpe}` : ''}</span><span class="sub">logged</span>`
             : s.completed ? `<span class="actual">${s.actualReps != null ? s.actualReps + ' reps ' : ''}${s.actualRpe != null ? '@ ' + s.actualRpe : 'done'}</span><span class="sub">from workbook</span>` : '<span class="muted">–</span>';
-          return `<tr class="${done ? 'done' : ''}"><td>${s.index + 1}</td>
+          return `<tr class="${done ? 'done' : ''}"><td>${si + 1}</td>
             <td><button class="set-btn" data-set="${ei}:${si}"><span class="planned">${planned}</span></button></td>
             <td class="num">${s.load ? fmtLoad(s.load) : s.loadRange ? esc(`${s.loadRange.min}–${s.loadRange.max} ${s.loadRange.unit}`) : '–'}</td>
             <td>${actual}</td>
-            <td><button class="btn small ${done ? 'ghost' : ''}" data-set="${ei}:${si}" aria-label="${done ? 'Edit' : 'Log'} set ${s.index + 1} of ${esc(ex?.name || e.name)}">${done ? 'Edit' : 'Log'}</button></td></tr>`;
+            <td><button class="btn small ${done ? 'ghost' : ''}" data-set="${ei}:${si}" aria-label="${done ? 'Edit' : 'Log'} set ${si + 1} of ${esc(ex?.name || e.name)}">${done ? 'Edit' : 'Log'}</button></td></tr>`;
         }).join('')}
         </tbody></table></section>`;
     }).join('') || '<p class="muted">No exercises on this day.</p>'}</div>`;

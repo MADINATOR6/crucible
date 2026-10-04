@@ -17,6 +17,10 @@ const WARNING_HELP = {
   empty_week_group: 'A week column group had no sets and was skipped.',
   orphan_set: 'A set row had no exercise name; attached to the previous exercise.',
   sheet_ignored: 'A sheet that is not a Block or the overview was skipped.',
+  load_assumed_kg: 'A load with no unit was read as kg (the workbook gives totals in kg). Loads written like "235 pounds" keep their unit.',
+  numeric_comment_as_reps: 'A bare number in Athlete Comments on a rep-range set was read as the reps you actually did (an assumption; check a few sets).',
+  rpe_not_half_step: 'RPE that is not a multiple of 0.5. Kept as written.',
+  load_invalid: 'A load that is zero, negative or a date. Ignored.',
   redacted_number: 'A long digit run in free text was removed (could be a phone number).',
 };
 

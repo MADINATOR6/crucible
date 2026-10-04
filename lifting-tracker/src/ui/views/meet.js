@@ -10,7 +10,7 @@ const LIFTS = ['squat', 'bench', 'deadlift'];
 export function meetCard(app, ui, cfg) {
   const unit = app.settings.unit;
   const m = (ui.meet ||= { lift: 'squat', projected: '', pcts: { ...DEFAULT_PCTS } });
-  const best = runningBests(app.events(), app.catalogue, { basis: 'e1rm' }).at(-1)?.[m.lift];
+  const best = runningBests(app.events().filter((e) => e.reps <= (ui.progress?.maxReps ?? 12)), app.catalogue, { basis: 'e1rm' }).at(-1)?.[m.lift];
   const suggested = best != null ? round1(convert(best, 'kg', unit)) : '';
   const proj = m.projected !== '' ? parseFloat(m.projected) : suggested;
   const projKg = Number.isFinite(Number(proj)) && proj !== '' ? convert(Number(proj), unit, 'kg') : NaN;

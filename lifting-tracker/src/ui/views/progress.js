@@ -10,9 +10,9 @@ import { prLabel } from './train.js';
 
 const LIFTS = ['squat', 'bench', 'deadlift'];
 
-function bestE1rmByDate(app) {
+function bestE1rmByDate(app, events) {
   const byLift = { squat: new Map(), bench: new Map(), deadlift: new Map() };
-  for (const e of workingSets(app.events())) {
+  for (const e of workingSets(events)) {
     const ex = app.exercise(e.exerciseId);
     if (!ex?.competition || !ex.lift) continue;
     const v = estimate1RM(e.weightKg, e.reps);
@@ -26,9 +26,11 @@ function bestE1rmByDate(app) {
 export function progressView(app, ui) {
   const unit = app.settings.unit;
   const toU = (kg) => round1(convert(kg, 'kg', unit));
-  const byLift = bestE1rmByDate(app);
+  const pg = (ui.progress ||= { maxReps: 12 });
+  const events = app.events().filter((e) => e.reps <= pg.maxReps); // higher-rep sets make the estimate less reliable
+  const byLift = bestE1rmByDate(app, events);
   const series = LIFTS.map((l) => ({ id: l, label: l[0].toUpperCase() + l.slice(1), points: [...byLift[l]].map(([x, y]) => ({ x, y: toU(y) })) })).filter((s) => s.points.length);
-  const bests = runningBests(app.events(), app.catalogue, { basis: 'e1rm' });
+  const bests = runningBests(events, app.catalogue, { basis: 'e1rm' });
   const last = bests.at(-1);
   const totalSeries = [{ id: 'total', label: 'Total (e1RM)', area: true, points: bests.filter((r) => r.total != null).map((r) => ({ x: r.date, y: toU(r.total) })) }];
   const prs = app.prs().slice().reverse().slice(0, 12);
@@ -47,6 +49,8 @@ export function progressView(app, ui) {
 
   const html = `
     <div class="topbar"><div><h1>Progress</h1><p class="muted small">Estimated 1RM uses Epley and is an approximation. ${esc(datesEst)}</p></div>${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>
+    <div class="row spread" style="margin-bottom:12px"><span class="small muted">Estimate 1RM from sets of up to</span>
+      <div class="seg" role="group" aria-label="Maximum reps for the estimate">${[5, 8, 12].map((n) => `<button data-maxreps="${n}" aria-pressed="${pg.maxReps === n}">${n} reps</button>`).join(``)}</div></div>
     <div class="stats3">${LIFTS.map(tile).join('')}</div>
     <div class="card"><div class="card-h"><h2>Estimated 1RM by session</h2></div>${series.length ? lineChart({ series, unit, title: 'Estimated one-rep max over time for squat, bench press and deadlift' }) : '<p class="muted">Log or import competition lifts to see a trend.</p>'}</div>
     <div class="card"><div class="card-h"><h2>Total over time</h2><span class="muted small">${last?.total != null ? 'now ' + formatWeight({ value: last.total, unit: 'kg' }, unit) : ''}</span></div>${totalSeries[0].points.length ? lineChart({ series: totalSeries, unit, title: 'Estimated squat plus bench plus deadlift total over time' }) : '<p class="muted">The total appears once squat, bench and deadlift all have data.</p>'}</div>
@@ -62,7 +66,8 @@ export function progressView(app, ui) {
         <label class="field" style="flex:1;min-width:140px"><span>Date</span><input name="d" type="date" value="${todayIso()}" required></label><button class="btn primary" type="submit">Add</button></form>
       ${datesEst && bw.some((p) => p.estimated) ? '<p class="small muted" style="margin-top:8px">Points from the workbook use estimated dates.</p>' : ''}</div>`;
 
-  function bind(root) {
+  function bind(root, rerender) {
+    root.querySelectorAll(`[data-maxreps]`).forEach((b) => b.addEventListener(`click`, () => { pg.maxReps = Number(b.dataset.maxreps); rerender(); }));
     root.querySelector('#bwform')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = new FormData(e.target); const w = parseFloat(f.get('w'));
