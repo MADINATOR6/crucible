@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "note": "Editable by the athlete. Muscle weights are the athlete's estimates, not research: primary counts 1 hard set per set, secondary counts 0.5. 'lift' groups exercises under squat/bench/deadlift; 'competition' marks the exact competition movement (used for main-lift trends). Names follow the coach's spelling in aliases; display names are normalised.",
+  "muscles": ["chest","front_delts","side_delts","rear_delts","traps","lats","upper_back","lower_back","biceps","triceps","forearms","abs","glutes","quads","hamstrings","adductors","calves"],
+  "weights": { "primary": 1, "secondary": 0.5 },
+  "cues": ["CHEST UP", "SUPERSET", "DELOAD", "NO MORE OVERSHOOTING", "MORE VIDEOS PLS"],
+  "cuePatterns": [
+    "^[0-9X]{3,4}$",
+    "^\\d+\\s*(seconds?|secs?|s)\\b",
+    "\\bthen\\b.*\\brest\\b",
+    "\\b(record|track)\\b.*\\b(bodyweight|calories|videos?)\\b",
+    "^(average|avg)\\b"
+  ],
+  "exercises": [
+    { "id": "low_bar_squat", "name": "Low Bar Squat", "lift": "squat", "competition": true, "aliases": ["Low Bar Squat", "Squat"], "primary": ["quads","glutes"], "secondary": ["adductors","hamstrings","lower_back","abs"] },
+    { "id": "high_bar_squat", "name": "High Bar Squat", "lift": "squat", "variantOf": "low_bar_squat", "aliases": ["High Bar Squat"], "primary": ["quads","glutes"], "secondary": ["adductors","lower_back","abs"] },
+    { "id": "tempo_high_bar_squat", "name": "Tempo High Bar Squat", "lift": "squat", "variantOf": "high_bar_squat", "aliases": ["Tempo High Bar Squat"], "primary": ["quads","glutes"], "secondary": ["adductors","lower_back","abs"] },
+    { "id": "hack_squat", "name": "Hack Squat", "primary": ["quads"], "secondary": ["glutes","adductors"], "aliases": ["Hack Squat"] },
+    { "id": "bulgarian_split_squat", "name": "Bulgarian Split Squat", "primary": ["quads","glutes"], "secondary": ["adductors","hamstrings"], "aliases": ["Bulgarian Split Squat"] },
+    { "id": "seated_leg_extension", "name": "Seated Leg Extension", "primary": ["quads"], "secondary": [], "aliases": ["Seated Leg Extension", "Leg Extension"] },
+    { "id": "seated_hamstring_curl", "name": "Seated Hamstring Curl", "primary": ["hamstrings"], "secondary": ["calves"], "aliases": ["Seated Hamstring Curl", "Hamstring Curl"] },
+
+    { "id": "comp_bench", "name": "Competition Bench Press", "lift": "bench", "competition": true, "aliases": ["Competition Bench Press", "Comp Bench Press", "Bench Press", "Bench"], "primary": ["chest","triceps"], "secondary": ["front_delts"] },
+    { "id": "paused_bench", "name": "Paused Bench Press", "lift": "bench", "variantOf": "comp_bench", "aliases": ["Paused on Chest", "Paused Bench Press", "Pause Bench Press"], "primary": ["chest","triceps"], "secondary": ["front_delts"] },
+    { "id": "long_pause_bench", "name": "Long Pause Bench Press", "lift": "bench", "variantOf": "comp_bench", "aliases": ["Long Pause Bench Press"], "primary": ["chest","triceps"], "secondary": ["front_delts"] },
+    { "id": "tempo_bench", "name": "Tempo Bench Press", "lift": "bench", "variantOf": "comp_bench", "aliases": ["Tempo Bench Press"], "primary": ["chest","triceps"], "secondary": ["front_delts"] },
+    { "id": "incline_db_press", "name": "Incline Dumbbell Press", "primary": ["chest","front_delts"], "secondary": ["triceps"], "aliases": ["Incline Dumbell Press", "Incline Dumbbell Press"] },
+    { "id": "seated_db_shoulder_press", "name": "Seated Dumbbell Shoulder Press", "primary": ["front_delts","side_delts"], "secondary": ["triceps","traps"], "aliases": ["Seated Dumbell Shoulder Press", "Seated Dumbbell Shoulder Press"] },
+    { "id": "machine_pec_fly", "name": "Machine Pec Fly", "primary": ["chest"], "secondary": ["front_delts"], "aliases": ["Machine Pec Fly", "Pec Deck"] },
+    { "id": "cable_tricep_pushdown", "name": "Cable Tricep Pushdown", "primary": ["triceps"], "secondary": [], "aliases": ["Cable Tricep Pushdown", "Tricep Pushdown"] },
+    { "id": "overhead_cable_tricep_extension", "name": "Overhead Cable Tricep Extension", "primary": ["triceps"], "secondary": [], "aliases": ["Overhead Cable Tricep Extension"] },
+    { "id": "db_bicep_curl", "name": "Dumbbell Bicep Curl", "primary": ["biceps"], "secondary": ["forearms"], "aliases": ["Dumbell Bicep Curl", "Dumbbell Bicep Curl"] },
+    { "id": "cable_bicep_curl", "name": "Cable Bicep Curl", "primary": ["biceps"], "secondary": ["forearms"], "aliases": ["Cable Bicep Curl"] },
+    { "id": "bicep_movement_of_choice", "name": "Bicep Movement of Choice", "primary": ["biceps"], "secondary": ["forearms"], "aliases": ["Bicep Movement of Choice"] },
+
+    { "id": "chest_supported_row", "name": "Chest Supported Row", "primary": ["upper_back","lats"], "secondary": ["rear_delts","biceps","traps"], "aliases": ["Chest Supported Row"] },
+    { "id": "lat_pulldown", "name": "Lat Pulldown", "primary": ["lats"], "secondary": ["biceps","upper_back"], "aliases": ["Lat Pulldown"] },
+
+    { "id": "conventional_deadlift", "name": "Conventional Deadlift", "lift": "deadlift", "competition": true, "aliases": ["Conventional Deadlift"], "primary": ["glutes","hamstrings","lower_back"], "secondary": ["quads","traps","lats","upper_back","forearms"] },
+    { "id": "deadlift", "name": "Deadlift", "lift": "deadlift", "competition": true, "stanceUnknown": true, "aliases": ["Deadlift"], "primary": ["glutes","hamstrings","lower_back"], "secondary": ["quads","traps","lats","upper_back","forearms"] },
+    { "id": "sumo_deadlift", "name": "Sumo Deadlift", "lift": "deadlift", "competition": true, "aliases": ["Sumo Deadlift"], "primary": ["glutes","adductors","hamstrings"], "secondary": ["quads","lower_back","traps","upper_back","forearms"] },
+    { "id": "tempo_to_knee_deadlift", "name": "Tempo to Knee Deadlift", "lift": "deadlift", "variantOf": "conventional_deadlift", "aliases": ["Tempo to Knee Deadlift"], "primary": ["glutes","hamstrings","lower_back"], "secondary": ["quads","traps","lats","upper_back","forearms"] },
+    { "id": "tempo_to_knee_sumo_deadlift", "name": "Tempo to Knee Sumo Deadlift", "lift": "deadlift", "variantOf": "sumo_deadlift", "aliases": ["Tempo to Knee Sumo Deadlift"], "primary": ["glutes","adductors","hamstrings"], "secondary": ["quads","lower_back","traps","upper_back","forearms"] },
+    { "id": "cluster_sumo_deadlift", "name": "Cluster Sumo Deadlift", "lift": "deadlift", "variantOf": "sumo_deadlift", "aliases": ["Cluster Sumo Deadlift"], "primary": ["glutes","adductors","hamstrings"], "secondary": ["quads","lower_back","traps","upper_back","forearms"] },
+    { "id": "romanian_deadlift", "name": "Romanian Deadlift", "primary": ["hamstrings","glutes"], "secondary": ["lower_back"], "aliases": ["Romanian Deadlift", "RDL"] },
+    { "id": "toe_elevated_rdl", "name": "Toe Elevated RDL", "primary": ["hamstrings","glutes"], "secondary": ["lower_back"], "aliases": ["Toe Elevated RDL"] },
+    { "id": "back_extension_45", "name": "45 Degree Back Extension", "primary": ["lower_back","glutes"], "secondary": ["hamstrings"], "aliases": ["45 Degree Back Extension", "Back Extension"] }
+  ]
+}

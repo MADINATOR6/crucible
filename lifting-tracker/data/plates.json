@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "note": "Editable by the athlete. 'colourStatus': 'ipf-rule' = fixed by the IPF Technical Rulebook (2026, 25 kg red, 20 kg blue, 15 kg yellow; discs of 10 kg and under may be any colour); 'convention' = common practice, not mandated; 'neutral' = placeholder for lb plates (no federation colour code). 'drawHeightMm' is illustrative only, for drawing to scale; it is not a measured plate diameter.",
+  "kg": {
+    "bars": [
+      { "id": "kg20", "label": "20 kg bar", "weight": { "value": 20, "unit": "kg" } },
+      { "id": "kg15", "label": "15 kg bar", "weight": { "value": 15, "unit": "kg" } }
+    ],
+    "collar": { "label": "Competition collar", "weight": { "value": 2.5, "unit": "kg" }, "perSide": 1, "source": "IPF 2026 rulebook: bar and collars total 25 kg for the 20 kg bar, so 2 collars = 5 kg (2.5 kg each)." },
+    "plates": [
+      { "value": 25, "unit": "kg", "count": 8, "colour": "#d62828", "colourStatus": "ipf-rule", "drawHeightMm": 450 },
+      { "value": 20, "unit": "kg", "count": 8, "colour": "#1d4ed8", "colourStatus": "ipf-rule", "drawHeightMm": 450 },
+      { "value": 15, "unit": "kg", "count": 4, "colour": "#facc15", "colourStatus": "ipf-rule", "drawHeightMm": 450 },
+      { "value": 10, "unit": "kg", "count": 4, "colour": "#16a34a", "colourStatus": "convention", "drawHeightMm": 450 },
+      { "value": 5, "unit": "kg", "count": 4, "colour": "#f1f5f9", "colourStatus": "convention", "drawHeightMm": 230 },
+      { "value": 2.5, "unit": "kg", "count": 4, "colour": "#111827", "colourStatus": "convention", "drawHeightMm": 190 },
+      { "value": 1.25, "unit": "kg", "count": 4, "colour": "#94a3b8", "colourStatus": "convention", "drawHeightMm": 160 },
+      { "value": 0.5, "unit": "kg", "count": 2, "colour": "#cbd5e1", "colourStatus": "convention", "drawHeightMm": 130 },
+      { "value": 0.25, "unit": "kg", "count": 2, "colour": "#e2e8f0", "colourStatus": "convention", "drawHeightMm": 110 }
+    ]
+  },
+  "lb": {
+    "bars": [
+      { "id": "lb45", "label": "45 lb bar", "weight": { "value": 45, "unit": "lb" } },
+      { "id": "lb35", "label": "35 lb bar", "weight": { "value": 35, "unit": "lb" } }
+    ],
+    "collar": { "label": "Spring collar", "weight": { "value": 0, "unit": "lb" }, "perSide": 1, "source": "UNKNOWN: ignored by default for lb training; edit if your collars weigh something you want counted." },
+    "plates": [
+      { "value": 45, "unit": "lb", "count": 8, "colour": "#1f2937", "colourStatus": "neutral", "drawHeightMm": 450 },
+      { "value": 35, "unit": "lb", "count": 2, "colour": "#374151", "colourStatus": "neutral", "drawHeightMm": 400 },
+      { "value": 25, "unit": "lb", "count": 4, "colour": "#4b5563", "colourStatus": "neutral", "drawHeightMm": 340 },
+      { "value": 10, "unit": "lb", "count": 4, "colour": "#6b7280", "colourStatus": "neutral", "drawHeightMm": 260 },
+      { "value": 5, "unit": "lb", "count": 4, "colour": "#9ca3af", "colourStatus": "neutral", "drawHeightMm": 200 },
+      { "value": 2.5, "unit": "lb", "count": 4, "colour": "#d1d5db", "colourStatus": "neutral", "drawHeightMm": 160 }
+    ]
+  }
+}
