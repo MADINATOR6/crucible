@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Defence in depth: no inline scripts or handlers, nothing from other sites, no plugins, no form posts. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0c0d0f" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f1ede3" media="(prefers-color-scheme: light)">

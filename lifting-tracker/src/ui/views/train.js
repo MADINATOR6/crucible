@@ -5,6 +5,7 @@ import { esc, openSheet, toast, todayIso } from '../dom.js';
 import { renderBarbell } from '../barbell.js';
 import { describeLoad, plateConfig } from './plates.js';
 import { warmupLadder } from '../../plates/loading.js';
+import { startRest, suggestedRest } from '../rest-timer.js';
 
 const repsText = (s) => (s.repsMin == null ? (s.repsRaw ? esc(s.repsRaw) : '–') : s.repsMin === s.repsMax ? String(s.repsMin) : `${s.repsMin}–${s.repsMax}`);
 const rpeText = (v) => (v == null ? '–' : String(v));
@@ -127,7 +128,7 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
     <p class="muted small">Plan: ${repsText(set)} reps${set.targetRpe != null ? ` @ RPE ${set.targetRpe}` : ''}${set.load ? ` · ${formatWeight(set.load, unit)}` : ''}</p>
     <div id="bb" class="bb-stage" style="margin:10px 0"></div><p id="bb-text" class="loading-text" style="font-size:18px"></p>
     <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
-      <label class="field"><span>Weight (${unit})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"></label>
+      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"></label>
       <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="0" inputmode="numeric" value="${esc(defReps)}"></label>
       <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(defRpe)}"></label>
     </div>
@@ -154,18 +155,27 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
   ['#w', '#r'].forEach((s) => q(s).addEventListener('input', refresh)); refresh();
   q('#cancel').addEventListener('click', sheet.close);
   q('#onbar').addEventListener('click', () => { const w = parseFloat(q('#w').value); if (!(w > 0)) { toast('Enter a weight first'); return; } ui.plates = { side: [], target: String(w), top: '', autoload: true }; sheet.close(); location.hash = '#plates'; });
-  q('#del')?.addEventListener('click', async () => { await app.deleteSet(logged.id); sheet.close(); toast('Logged set removed'); });
-  q('#save').addEventListener('click', async () => {
+  q('#del')?.addEventListener('click', () => guarded(q('#del'), async () => { await app.deleteSet(logged.id); sheet.close(); toast('Logged set removed'); }));
+  q('#save').addEventListener('click', () => guarded(q('#save'), async () => {
     const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10), rpe = q('#e').value === '' ? null : parseFloat(q('#e').value), d = q('#d').value;
-    if (!(w >= 0) || !Number.isInteger(r) || r < 0 || !d) { toast('Enter a weight, reps and date'); return; }
+    if (!(Number.isFinite(w) && w >= 0 && w < 1e5) || !Number.isInteger(r) || r < 0 || !d) { toast('Enter a weight, reps and date'); return; }
     if (rpe != null && !(rpe >= 1 && rpe <= 11)) { toast('RPE must be between 1 and 11'); return; }
     const weight = { value: w, unit };
     const before = new Set(app.prs().map(prKey));
-    await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId: entry.exerciseId || ('custom:' + entry.name), weight, reps: r, rpe, note: '' });
+    const exerciseId = entry.exerciseId || ('custom:' + entry.name);
+    await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId, weight, reps: r, rpe, note: '' });
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     sheet.close();
     toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
-  });
+    startRest(suggestedRest(app.exercise(entry.exerciseId)));
+  }));
+}
+
+/** Run an action with its button disabled, so a double tap cannot run it twice; report failures instead of hanging. */
+async function guarded(button, fn) {
+  if (button.disabled) return;
+  button.disabled = true;
+  try { await fn(); } catch (err) { toast(err instanceof RangeError ? err.message : `Could not save: ${err?.message || err}`, 4200); } finally { button.disabled = false; }
 }
 
 /** Log a set that is not part of the coach's programme (any catalogue exercise). */
@@ -176,7 +186,7 @@ function openQuickLog(app) {
     <div class="card-h"><h2>Quick log</h2><span class="pill">outside the programme</span></div>
     <label class="field"><span>Exercise</span><select id="ex">${options.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</select></label>
     <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
-      <label class="field"><span>Weight (${unit})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal"></label>
+      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal"></label>
       <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="1" inputmode="numeric"></label>
       <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal"></label>
     </div>
@@ -185,16 +195,17 @@ function openQuickLog(app) {
     <div class="row spread" style="margin-top:16px"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>`);
   const q = (s) => sheet.el.querySelector(s);
   q('#cancel').addEventListener('click', sheet.close);
-  q('#save').addEventListener('click', async () => {
+  q('#save').addEventListener('click', () => guarded(q('#save'), async () => {
     const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10), rpe = q('#e').value === '' ? null : parseFloat(q('#e').value);
-    if (!(w >= 0) || !Number.isInteger(r) || r < 1 || !q('#d').value) { toast('Enter a weight, reps and date'); return; }
+    if (!(Number.isFinite(w) && w >= 0 && w < 1e5) || !Number.isInteger(r) || r < 1 || !q('#d').value) { toast('Enter a weight, reps and date'); return; }
     if (rpe != null && !(rpe >= 1 && rpe <= 11)) { toast('RPE must be between 1 and 11'); return; }
     const before = new Set(app.prs().map(prKey));
     await app.logSet({ date: q('#d').value, programmeRef: null, plannedRef: null, exerciseId: q('#ex').value, weight: { value: w, unit }, reps: r, rpe, isWarmup: q('#wu').checked });
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     sheet.close();
     toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
-  });
+    if (!q('#wu')?.checked) startRest(suggestedRest(app.exercise(q('#ex')?.value)));
+  }));
 }
 
 const prKey = (x) => `${x.exerciseId}|${x.type}|${x.date}|${x.order}|${x.value}`;
@@ -212,6 +223,6 @@ function openWarmups(app, entry, week) {
   let ladder = [];
   try { ladder = warmupLadder({ top: topW, bar: bar.weight, collar, plates }); } catch { /* ignore */ }
   openSheet(`<div class="card-h"><h2>Warm-up</h2><span class="pill">${esc(app.exerciseName(entry.exerciseId, entry.name))}</span></div>
-    <p class="muted small">Toward ${round1(topW.value)} ${unit}. Jumps are rounded to plates you own.</p>
-    <ol class="feed">${ladder.map((s, i) => `<li><span class="medal" style="background:var(--surface-3);color:var(--text)">${i + 1}</span><span><b>${round1(s.weight.value)} ${unit}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><span></span></li>`).join('') || '<li class="muted">Nothing to show.</li>'}</ol>`);
+    <p class="muted small">Toward ${round1(topW.value)} ${esc(unit)}. Jumps are rounded to plates you own.</p>
+    <ol class="feed">${ladder.map((s, i) => `<li><span class="medal" style="background:var(--surface-3);color:var(--text)">${i + 1}</span><span><b>${round1(s.weight.value)} ${esc(unit)}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><span></span></li>`).join('') || '<li class="muted">Nothing to show.</li>'}</ol>`);
 }

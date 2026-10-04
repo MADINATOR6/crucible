@@ -110,11 +110,13 @@ export function dataView(app, ui) {
     });
     root.querySelector('#import-json').addEventListener('change', async (e) => {
       const file = e.target.files?.[0]; if (!file) return;
+      if (file.size > 100 * 1024 * 1024) { toast('That file is too large to be a backup'); e.target.value = ''; return; }
       const text = await file.text(); e.target.value = '';
       const sheet = openSheet(`<h2>Restore backup?</h2><p class="muted small">This replaces everything on this device with the contents of <b>${esc(file.name)}</b>.</p><div id="msg"></div><div class="row spread" style="margin-top:14px"><button class="btn ghost" id="no">Cancel</button><button class="btn primary" id="yes">Replace my data</button></div>`);
       sheet.el.querySelector('#no').addEventListener('click', sheet.close);
       sheet.el.querySelector('#yes').addEventListener('click', async () => {
-        const r = await app.importBackup(text);
+        let r;
+        try { r = await app.importBackup(text); } catch (err) { r = { ok: false, errors: [`Could not write to storage: ${err?.message || err}`] }; }
         if (!r.ok) { sheet.el.querySelector('#msg').innerHTML = `<ul>${r.errors.map((x) => `<li style="color:var(--bad)">${esc(x)}</li>`).join('')}</ul><p class="small muted">Nothing was changed.</p>`; return; }
         sheet.close(); toast(`Restored ${r.counts.sets} sets`); ui.train = null; ui.muscles = null;
       });

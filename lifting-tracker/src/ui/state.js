@@ -1,16 +1,13 @@
 // Application state: loads storage, owns settings/programme/logs, and derives set events, PRs and dates.
 import { openStore, requestPersistence, uuid } from '../store/db.js';
 import { buildBackup, validateBackup } from '../store/backup.js';
-import { toKg } from '../core/units.js';
+import { isStrictDate, sanitizeProgramme, sanitizeSettings } from '../store/programme-schema.js';
+import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
 import { mondayOf, addDays } from '../core/weeks.js';
 import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
-
-export const DEFAULT_SETTINGS = Object.freeze({
-  unit: 'kg', theme: 'system', barId: 'kg20', collar: true, plateCounts: null, programmeStart: null, blockStarts: {}, dayWeekdays: { 1: 1, 2: 2, 3: 4, 4: 5 },
-});
 
 async function fetchJson(path) {
   const r = await fetch(path);
@@ -18,13 +15,16 @@ async function fetchJson(path) {
   return r.json();
 }
 
+const sameRef = (a, b) => (a == null || b == null ? a == null && b == null
+  : a.blockNumber === b.blockNumber && a.weekNumber === b.weekNumber && a.dayNumber === b.dayNumber);
+
 export async function createApp() {
   const store = await openStore();
   const [catalogue, platesData] = await Promise.all([fetchJson('data/exercises.json'), fetchJson('data/plates.json')]);
   const persisted = await requestPersistence();
   const app = {
     store, catalogue, platesData, persisted,
-    settings: { ...DEFAULT_SETTINGS }, programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [],
+    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [],
     listeners: new Set(), cache: new Map(),
   };
   const byId = new Map(catalogue.exercises.map((e) => [e.id, e]));
@@ -35,28 +35,38 @@ export async function createApp() {
   app.subscribe = (fn) => { app.listeners.add(fn); return () => app.listeners.delete(fn); };
   const memo = (key, fn) => { if (!app.cache.has(key)) app.cache.set(key, fn()); return app.cache.get(key); };
 
+  // Writes run one at a time, so a double tap can never interleave two read-modify-write sequences.
+  let queue = Promise.resolve();
+  const enqueue = (fn) => { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; };
+
   async function load() {
     const [settings, programme, sessions, sets, bodyweights] = await Promise.all([
       store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'),
     ]);
-    app.settings = { ...DEFAULT_SETTINGS, ...(settings?.value || {}) };
+    app.settings = sanitizeSettings(settings?.value);
     app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights;
-    if (programme?.value) { app.programme = programme.value; app.usingExample = !!programme.value.isExample; }
+    const clean = sanitizeProgramme(programme?.value);
+    if (clean) { app.programme = clean; app.usingExample = !!clean.isExample; }
     else { app.programme = buildExampleProgramme(); app.usingExample = true; }
     app.changed();
   }
 
-  app.saveSettings = async (patch) => {
-    app.settings = { ...app.settings, ...patch };
-    await store.put('meta', { key: 'settings', value: app.settings });
-    app.changed();
-  };
+  app.reload = () => enqueue(load);
 
-  app.setProgramme = async (programme) => {
-    app.programme = programme; app.usingExample = !!programme.isExample;
-    if (!programme.isExample) await store.put('meta', { key: 'programme', value: programme });
+  app.saveSettings = (patch) => enqueue(async () => {
+    const next = sanitizeSettings({ ...app.settings, ...patch });
+    await store.put('meta', { key: 'settings', value: next });
+    app.settings = next;
     app.changed();
-  };
+  });
+
+  app.setProgramme = (programme) => enqueue(async () => {
+    const clean = sanitizeProgramme(programme);
+    if (!clean) throw new Error('That is not a programme.');
+    if (!clean.isExample) await store.put('meta', { key: 'programme', value: clean });
+    app.programme = clean; app.usingExample = !!clean.isExample;
+    app.changed();
+  });
 
   /** Estimated date for a programme day. Dates are estimates: the workbook has none. */
   app.blockStarts = () => memo('blockStarts', () => {
@@ -112,8 +122,14 @@ export async function createApp() {
   });
 
   app.events = () => memo('events', () => {
-    const progEvents = app.programme ? fromProgrammeSets(app.programmeForEvents(), app.dateFor) : [];
-    const logged = app.sets.map((s) => { const sess = sessionById().get(s.sessionId); return sess ? fromLoggedSet(s, sess) : null; }).filter(Boolean);
+    let progEvents = [];
+    try { progEvents = app.programme ? fromProgrammeSets(app.programmeForEvents(), app.dateFor) : []; } catch (err) { console.warn('Programme sets skipped:', err); }
+    const logged = [];
+    for (const s of app.sets) {
+      const sess = sessionById().get(s.sessionId);
+      if (!sess) continue;
+      try { const ev = fromLoggedSet(s, sess); if (ev) logged.push(ev); } catch { /* skip a malformed record instead of breaking every view */ }
+    }
     return sortEvents([...progEvents, ...logged]);
   });
   app.prs = () => memo('prs', () => detectPRs(app.events()));
@@ -121,57 +137,73 @@ export async function createApp() {
   /** Bodyweight points in kg: programme "Monday: 84.1 KG" lines (estimated dates) plus entries logged here. */
   app.bodyweightPoints = () => memo('bw', () => {
     const pts = [];
+    const idx = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
     for (const b of app.programme?.blocks || []) for (const w of b.weeks) {
       const start = app.dateFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: 1 });
       if (!start) continue;
       const weekStart = mondayOf(start);
-      const idx = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
       for (const e of w.bodyLog || []) if (e.bodyweightKg) pts.push({ x: addDays(weekStart, idx[e.weekday] ?? 0), y: e.bodyweightKg, estimated: true });
     }
-    for (const r of app.bodyweights) pts.push({ x: r.date, y: toKg(r.weight), estimated: false });
+    for (const r of app.bodyweights) { try { pts.push({ x: r.date, y: toKg(r.weight), estimated: false }); } catch { /* skip */ } }
     return pts.sort((a, c) => (a.x < c.x ? -1 : 1));
   });
 
   // ---- logging ----
-  app.logSet = async ({ date, programmeRef, plannedRef, exerciseId, weight, reps, rpe, isWarmup = false, note = '' }) => {
+  app.logSet = (input) => enqueue(async () => {
+    const { date, programmeRef = null, plannedRef = null, exerciseId, weight, reps, rpe = null, isWarmup = false, note = '' } = input;
+    if (!isStrictDate(date)) throw new RangeError('Choose a valid date.');
+    if (!weight || !Number.isFinite(weight.value) || weight.value < 0 || weight.value >= 1e5 || !isUnit(weight.unit)) throw new RangeError('Enter a realistic weight.');
+    if (!Number.isInteger(reps) || reps < 0 || reps > 1000) throw new RangeError('Enter whole reps.');
+    if (rpe != null && !(Number.isFinite(rpe) && rpe >= 1 && rpe <= 11)) throw new RangeError('RPE must be between 1 and 11.');
+    if (typeof exerciseId !== 'string' || !exerciseId) throw new RangeError('Choose an exercise.');
     const now = new Date().toISOString();
-    let session = app.sessions.find((s) => s.date === date && JSON.stringify(s.programmeRef) === JSON.stringify(programmeRef ?? null));
-    if (!session) {
-      session = { id: uuid(), date, programmeRef: programmeRef ?? null, note: '', createdAt: now, updatedAt: now };
-      await store.put('sessions', session); app.sessions.push(session);
-    }
+    let session = app.sessions.find((s) => s.date === date && sameRef(s.programmeRef, programmeRef));
+    const isNewSession = !session;
+    if (!session) session = { id: uuid(), date, programmeRef: programmeRef ?? null, note: '', createdAt: now, updatedAt: now };
     const existing = plannedRef && programmeRef ? app.loggedFor({ ...programmeRef, ...plannedRef }) : null;
+    const inSession = app.sets.filter((s) => s.sessionId === session.id && s.id !== existing?.id).length;
     const rec = existing
-      ? { ...existing, sessionId: session.id, weight, reps, rpe, isWarmup, note, updatedAt: now }
-      : { id: uuid(), sessionId: session.id, exerciseId, order: app.sets.filter((s) => s.sessionId === session.id).length, weight, reps, rpe, isWarmup, plannedRef: plannedRef ?? null, note, createdAt: now, updatedAt: now };
-    await store.put('sets', rec);
+      ? { ...existing, sessionId: session.id, weight, reps, rpe, isWarmup, order: existing.sessionId === session.id ? existing.order : inSession, note, updatedAt: now }
+      : { id: uuid(), sessionId: session.id, exerciseId, order: inSession, weight, reps, rpe, isWarmup, plannedRef: plannedRef ?? null, note, createdAt: now, updatedAt: now };
+    const oldSessionId = existing && existing.sessionId !== session.id ? existing.sessionId : null;
+    const orphaned = oldSessionId && !app.sets.some((s) => s.id !== rec.id && s.sessionId === oldSessionId) ? oldSessionId : null;
+    await store.deleteAndPut(orphaned ? { sessions: [orphaned] } : {}, { sessions: [session], sets: [rec] }); // one transaction
+    if (isNewSession) app.sessions.push(session);
+    if (orphaned) app.sessions = app.sessions.filter((s) => s.id !== orphaned);
     const i = app.sets.findIndex((s) => s.id === rec.id);
     if (i >= 0) app.sets[i] = rec; else app.sets.push(rec);
     app.changed();
     return rec;
-  };
-  app.deleteSet = async (id) => {
-    await store.delete('sets', id);
+  });
+
+  app.deleteSet = (id) => enqueue(async () => {
+    const target = app.sets.find((s) => s.id === id);
+    if (!target) return;
+    const lastInSession = !app.sets.some((s) => s.id !== id && s.sessionId === target.sessionId);
+    await store.deleteAndPut({ sets: [id], ...(lastInSession ? { sessions: [target.sessionId] } : {}) }, {});
     app.sets = app.sets.filter((s) => s.id !== id);
+    if (lastInSession) app.sessions = app.sessions.filter((s) => s.id !== target.sessionId);
     app.changed();
-  };
-  app.addBodyweight = async (date, weight, calories = null) => {
+  });
+
+  app.addBodyweight = (date, weight, calories = null) => enqueue(async () => {
+    if (!isStrictDate(date) || !weight || !(weight.value > 20 && weight.value < 500) || !isUnit(weight.unit)) throw new RangeError('Enter a realistic bodyweight and date.');
     const rec = { id: uuid(), date, weight, calories, createdAt: new Date().toISOString() };
     await store.put('bodyweights', rec); app.bodyweights.push(rec); app.changed();
-  };
-  app.deleteBodyweight = async (id) => { await store.delete('bodyweights', id); app.bodyweights = app.bodyweights.filter((b) => b.id !== id); app.changed(); };
+  });
+  app.deleteBodyweight = (id) => enqueue(async () => { await store.delete('bodyweights', id); app.bodyweights = app.bodyweights.filter((b) => b.id !== id); app.changed(); });
 
   // ---- backup ----
   app.exportBackup = () => buildBackup(store);
-  app.importBackup = async (text) => {
+  app.importBackup = (text) => enqueue(async () => {
     const v = validateBackup(text);
     if (!v.ok) return v;
     await store.replaceAll(v.snapshot);
     await load();
     return v;
-  };
-  app.resetAll = async () => { await store.clearAll(); await load(); };
-  app.useExample = async () => { await store.delete('meta', 'programme'); app.programme = buildExampleProgramme(); app.usingExample = true; app.changed(); };
+  });
+  app.resetAll = () => enqueue(async () => { await store.clearAll(); await load(); });
+  app.useExample = () => enqueue(async () => { await store.delete('meta', 'programme'); app.programme = buildExampleProgramme(); app.usingExample = true; app.changed(); });
 
   await load();
   return app;

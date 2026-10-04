@@ -15,6 +15,12 @@ function memoryStore() {
     async put(store, rec) { data[store].set(keyOf(store, rec), structuredClone(rec)); },
     async putMany(store, recs) { for (const r of recs) data[store].set(keyOf(store, r), structuredClone(r)); },
     async delete(store, key) { data[store].delete(key); },
+    // Write records into several stores as one unit (all or nothing).
+    async putAll(batch) { for (const [s, recs] of Object.entries(batch)) for (const r of recs) data[s].set(keyOf(s, r), structuredClone(r)); },
+    async deleteAndPut(del, batch) {
+      for (const [s, keys] of Object.entries(del)) for (const k of keys) data[s].delete(k);
+      for (const [s, recs] of Object.entries(batch)) for (const r of recs) data[s].set(keyOf(s, r), structuredClone(r));
+    },
     async replaceAll(snapshot) {
       for (const s of Object.keys(STORES)) data[s].clear();
       for (const [s, recs] of Object.entries(snapshot)) for (const r of recs) data[s].set(keyOf(s, r), structuredClone(r));
@@ -25,6 +31,13 @@ function memoryStore() {
 
 function req(r) {
   return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+}
+// Run synchronous writes inside a transaction; a throw aborts it so nothing half-applies.
+async function applyTx(tx, fn) {
+  const done = txDone(tx);
+  done.catch(() => {});
+  try { fn(); } catch (err) { try { tx.abort(); } catch { /* already finished */ } throw err; }
+  await done;
 }
 function txDone(tx) {
   return new Promise((res, rej) => { tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error('Transaction aborted')); });
@@ -50,13 +63,27 @@ export async function openStore() {
       async put(store, rec) { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put(rec); await txDone(tx); },
       async putMany(store, recs) { const tx = db.transaction(store, 'readwrite'); for (const r of recs) tx.objectStore(store).put(r); await txDone(tx); },
       async delete(store, key) { const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).delete(key); await txDone(tx); },
+      // Several stores in one transaction: either every write lands or none does.
+      async putAll(batch) {
+        const tx = db.transaction(Object.keys(batch), 'readwrite');
+        await applyTx(tx, () => { for (const [s, recs] of Object.entries(batch)) for (const r of recs) tx.objectStore(s).put(r); });
+      },
+      async deleteAndPut(del, batch) {
+        const names = [...new Set([...Object.keys(del), ...Object.keys(batch)])];
+        const tx = db.transaction(names, 'readwrite');
+        await applyTx(tx, () => {
+          for (const [s, keys] of Object.entries(del)) for (const k of keys) tx.objectStore(s).delete(k);
+          for (const [s, recs] of Object.entries(batch)) for (const r of recs) tx.objectStore(s).put(r);
+        });
+      },
       // One transaction across every store: an import either fully applies or not at all.
       async replaceAll(snapshot) {
         const names = Object.keys(STORES);
         const tx = db.transaction(names, 'readwrite');
-        for (const n of names) tx.objectStore(n).clear();
-        for (const [n, recs] of Object.entries(snapshot)) for (const r of recs) tx.objectStore(n).put(r);
-        await txDone(tx);
+        await applyTx(tx, () => {
+          for (const n of names) tx.objectStore(n).clear();
+          for (const [n, recs] of Object.entries(snapshot)) for (const r of recs) tx.objectStore(n).put(r);
+        });
       },
       async clearAll() { const names = Object.keys(STORES); const tx = db.transaction(names, 'readwrite'); for (const n of names) tx.objectStore(n).clear(); await txDone(tx); },
     };

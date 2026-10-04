@@ -1,3 +1,40 @@
+# Lifting tracker handoff (2026-10-04 evening, unattended session)
+
+Status: the app is built, tested and committed on `main` (not pushed). Nothing needs your approval to use it locally.
+
+## What exists
+- `lifting-tracker/`: offline PWA (plain ES modules, no dependencies). Views: Train (Block > Week > Day > Exercise > Set, plan beside actual, log a set, quick log, warm-up), Muscles (front/back heat map with numbers, tap for contributors), Progress (e1RM trends, total, PRs, bodyweight, planned vs actual RPE, by-block table), Plates (tap/drag barbell, target loader, warm-up ladder, meet planner, custom bar, plate counts), Data (workbook import with report, settings, JSON backup/restore, CSV, wipe).
+- Run it: `node lifting-tracker/dev-server.mjs`, open http://127.0.0.1:5173/. Tests: `cd lifting-tracker && node --test` (verified: 86+ pass, 1 opt-in skip). Details in `lifting-tracker/README.md`.
+- First run shows clearly labelled EXAMPLE data. Import your own workbook in Data.
+
+## Verified (evidence from this session)
+- Importer on the real workbook (`Madison Arnido (2).xlsx` in Downloads, read locally only): 13 blocks, 66 weeks, 254 days, 3,190 sets (2,866 completed), 1,465 date-cells converted to rep ranges (matches your count exactly), 866 placeholder cells ignored, 11 cells not understood (all coach notes). The app loaded it and the Train, Muscles, Progress and Data views rendered with it.
+- Offline: service worker registered, 35 files cached, page and data loaded with the dev server stopped.
+- Plate maths exact against hand-checked examples (Codex tests, re-run by Claude). IPF facts used: 25/20/15 kg plates red/blue/yellow, bar plus collars 25 kg for the 20 kg bar (2026 rulebook, via Firecrawl).
+
+## Decisions and assumptions you should check
+1. The workbook's Load column is treated as prescribed, and a set counts as completed when it has an Actual RPE (or a performance note). Check a few sets.
+2. A bare number in Athlete Comments on a rep-range set is read as reps achieved (753 sets). Check.
+3. Bare loads are kg; `235 pounds` style loads keep lb; `30 lg` is assumed kg and warned.
+4. RPE 11 appears 1,342 times (accessories). Kept as written, flagged `rpe_above_10`, excluded from planned-vs-actual RPE.
+5. The workbook has no dates. Block 1 starts the Monday after the overview's START date (Sun 6 Apr 2025 gives Mon 7 Apr 2025) and blocks follow each other week by week. Set real block start dates in Data > Settings > Block start dates; charts are estimates until then.
+6. Progress trends include variants by default (Block 1-3 squats were high bar); toggle "Competition only" if you prefer.
+7. Muscle weights (1 primary, 0.5 secondary) are my estimates in `lifting-tracker/data/exercises.json`; edit freely.
+8. Not done: Wilks/DOTS/IPF GL scoring (coefficients unverified), accounts, sync, AI coaching, nutrition beyond reading bodyweight/calorie text.
+9. A source typo is shown as written (for example a Chest Supported Row load of 6 kg in Block 9, Week 1).
+
+## Workflow record
+- Codex implemented LT-1 core logic, LT-7a plates and LT-0 importer in worktrees; Claude reviewed, fixed and merged. Three Codex verifier runs on the importer each found real issues (phone-number redaction shapes, partial headers); all were fixed with regression tests. Review cap reached, so LT-0r is merged but not marked done in ccx (no verifier "pass" recorded). Residual risk: exotic phone formats in free text. The real phone number lives only in the Athlete cell, which is never imported.
+- A fresh-context `ccx-reviewer` pass over store/backup/state code was run (result in MEMORY.md).
+- Friction logged: directory `owns` need a trailing slash; `node --test <dir>` fails on Node 24; relative worktree path in `task start`.
+- Nothing pushed. No approvals requested or used. Mirror refreshed after commits.
+
+## Next steps
+1. Open the app, import the workbook, set block start dates, check assumptions 1-2 against a few sets you remember.
+2. Host the `lifting-tracker` folder over HTTPS for phone use (see README), or use it on the PC only.
+3. Decide on push (needs `ccx gate -Action push` and a commit-bound approval from you).
+
+---
 # External tools installation checkpoint
 
 Status: PARTIAL for acceptance only: all four tools now pass their stated checks (LazyCodex approved MCP tool call verified; Claw runs). No repository-writing harness trial or Claw/GJC coding-workflow trial has been done, and the final commit/push/mirror of the latest doc update is tracked in the "Current state" block.
