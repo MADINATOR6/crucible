@@ -1,6 +1,8 @@
 # External tools installation checkpoint
 
-Status: PARTIAL
+Status: PARTIAL (LazyCodex agent-mediated tool use, which needs a human approval, remains unverified; Claw now runs)
+
+Current state (2026-10-04, later): checkpoint commit `7af4696` is pushed to `origin/main` (commit-bound approval A-0017) and the OneDrive mirror was refreshed from it. Claw was rebuilt and runs. The sections below are dated history; where they say "no commit was made", "Claw BLOCKED" or "generation not passed", this block and the "Resume 2026-10-04" section win.
 
 Task / start HEAD: `external-tools-install` / `e8f79b1dc1cd5c36951926de031481add4eccc8b`
 
@@ -37,15 +39,15 @@ Final review session (2026-10-04): Claude re-checked the three fixes against `cl
 
 - GJC: `gjc.exe` was missing from `%LOCALAPPDATA%\gjc` and was restored from the retained pinned binary (SHA256 re-checked, L3 gate logged); `--version` and `--smoke-test` exit 0. Codex model selection fixed (source-grounded: discovered models resolve only after a foreground refresh; `--mpreset` forces one) with a user-level `codex-sol` profile in `~/.gjc/agent/models.yml` for the same `openai-codex/gpt-6.1-sol`. Reply-only generation PASS on both subscriptions: ChatGPT (`--mpreset codex-sol`, JSON shows provider/model) and Claude (`anthropic/claude-sonnet-5`, retried once after the reset). No API key, no model substitution.
 - LazyCodex: tool use still UNVERIFIED. It needs a person to approve at the interactive prompt; the `never`-policy refusal was not bypassed. Read-only trial command is in EXTERNAL-TOOLS.md.
-- Claw: still BLOCKED, not executed or rebuilt. A bounded plan (recommended: leave as source reference; one `gnullvm` attempt only if the user wants it) is in EXTERNAL-TOOLS.md. An early `.idata` reading of the fault offset was discarded: WER names the module `unknown`.
+- Claw: at that point BLOCKED and not executed; a bounded plan was written (an early `.idata` reading of the fault offset was discarded: WER names the module `unknown`). **Later the same day, with the user's chat approval, the plan's one `gnullvm` attempt ran: build exit 0, and `claw --version` / `--help` exit 0 via `claw.cmd`** (first run hit a missing `libunwind.dll`, fixed by a child-only PATH entry). No provider call was made. Details and receipts: EXTERNAL-TOOLS.md.
 - Isolation: primary Codex five-file hashes identical (`primary-config-20261004-resume-check.json`).
-- Not all four tools work: GJC works, LazyCodex generates, two skills work; Claw does not run.
+- Status of the four tools: GJC works on both subscriptions; Claw starts (version/help); LazyCodex generates and doctor passes; two Claude-Red skills work. Still unverified: LazyCodex agent-mediated tool use (needs a human approval at its prompt), any Claw provider call, and any coding-workflow trial of the harnesses.
 
 ## Acceptance and next owner
 
 Resume check (2026-10-04): Codex reran full ccx verification successfully (exit 0; json/secrets/scope/memory PASS; unchanged code stages N/A; format/lint SKIP) and confirmed `git diff --check` passed. The current ccx task has a full PASS verification record and remains blocked. Claude was then asked for a bounded read-only Claw startup diagnosis plan, using existing source/tools only. It returned HTTP 429 before any work: "You've hit your session limit", reporting a reset at 5am Australia/Sydney. Receipt: `C:/Users/Madison/.local/share/claude-codex-tools/claude-runtime-plan.json`, session `a93a3c9e-2bbc-40c5-a6f9-09a10a3a401f`. No new plan, review, commit, login, installation or toolchain change occurred. The earlier permission refusals are preserved above; this attempt did not change or bypass those permissions. Claude must still record its own review, log the local-commit gate and make the exact-path checkpoint commit in a permitted session. Reverify after any further edits.
 
-Phases A/B/C/E/F/G: implemented with evidence. Phase D: BLOCKED on runtime failure. The task is not complete and must not be marked done.
+Phases A/B/C/E/F/G: implemented with evidence. Phase D: complete (gnullvm rebuild; `--version`/`--help` exit 0). The task is still not complete and must not be marked done (LazyCodex agent-mediated tool use awaits a human approval; the follow-up docs commit awaits its own push approval).
 
 Claude may review and commit the working three-tool setup and this blocked checkpoint after verification. No new commit-specific push approval exists. The earlier `de368af` approval cannot authorize this commit. A mistyped action `dependency` created unused A-0015; the policy's real `install-dependency` action was then logged as L3 and passed. A-0015 was never approved or used and is not needed for installation.
 
@@ -53,10 +55,10 @@ UNKNOWN: whether Claw's failure comes from this GNU/LLVM runtime combination or 
 
 Later user session (2026-10-04): GJC's screenshot shows Anthropic and both Codex login modes connected; the isolated LazyCodex launcher independently reports ChatGPT login. LazyCodex's reply-only generation check passed, exit 0. GJC's Anthropic generation check reached the provider but was quota-rejected (reset reported as 05:00 Australia/Sydney). Its Codex check failed locally at model selection, including one source-guided flag-format retry; the model list nevertheless advertises the selector. (Superseded by the 2026-10-04 resume section above: both GJC providers now pass reply-only generation.) LazyCodex's initial Git Bash handshake warning did not reproduce in direct initialization; its agent-mediated diagnostic was discovered but refused by the restrictive test's approval policy. Do not bypass that refusal. Commands and all receipt filenames are in EXTERNAL-TOOLS.md. Added a tools-dir-only `gjc.cmd` launcher defaulting to the empty trial folder; no upstream source or security setting changed.
 
-The user requested safe, efficient unattended continuation and explicitly granted permission to push this task before sleeping. This is recorded as user intent, not a fabricated ccx approval; no approval was self-recorded, and no final commit exists yet. Claude retains Git ownership. Next: Claude's permitted review/gate/checkpoint commit, a bounded Claw diagnosis plan, and an interactive isolated coding trial after provider quota and tool approvals permit it. Login is no longer the pending step.
+At that time, the user had requested safe, efficient unattended continuation and explicitly granted permission to push this task before sleeping (a commit-bound approval, A-0017, was later recorded for `7af4696` from the user's chat approval). This was recorded as user intent, not a fabricated ccx approval; no approval was self-recorded, and no final commit exists yet. Claude retains Git ownership. Next: Claude's permitted review/gate/checkpoint commit, a bounded Claw diagnosis plan, and an interactive isolated coding trial after provider quota and tool approvals permit it. Login is no longer the pending step.
 
 Post-login isolation recheck: the same five primary configuration hashes remain unchanged (`primary-config-post-login-check.json`). Read-only Claw evidence now also includes its latest Windows error event and LLVM PE headers/imports, without re-executing or rebuilding it (`claw-windows-error-event.json`, `claw-pe-inspection.txt`). No root cause is claimed. The tools-dir GJC launcher returned `gjc/0.15.3`, exit 0; no staged changes or new commit exist. Full ccx verification and diff whitespace checks passed after the resumed documentation updates.
 
 CHECKED: exact pinned source/binary artifacts, source build logs, offline checks, profile hashes, selected skill content, licenses and actual Claude discovery.
 
-NEEDED: the user's decision on the Claw plan options in EXTERNAL-TOOLS.md (no toolchain change before it); interactive LazyCodex tool approval and an isolated worktree plus task allowlist for any repository-writing harness session; Claude's own ccx review/gate/commit and a satisfied final-commit push gate.
+NEEDED: a commit-bound push approval for the follow-up docs commit; interactive LazyCodex tool approval and an isolated worktree plus task allowlist for any repository-writing harness session; Claude's own ccx review/gate/commit and a satisfied final-commit push gate.
