@@ -9,6 +9,9 @@ function u16(b, o) { return b[o] | (b[o + 1] << 8); }
 function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
 
 async function inflateRaw(bytes) {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('This browser cannot unzip .xlsx files (it lacks DecompressionStream). Update the browser or import on a computer.');
+  }
   const ds = new DecompressionStream('deflate-raw');
   const stream = new Blob([bytes]).stream().pipeThrough(ds);
   return new Uint8Array(await new Response(stream).arrayBuffer());

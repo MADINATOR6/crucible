@@ -59,7 +59,7 @@ export function musclesView(app, ui) {
 
   const detail = sel ? (() => {
     const r = res.muscles[sel]; const band = bandFor(r.sets);
-    return `<div class="card" style="margin-top:14px"><div class="card-h"><h2>${MUSCLE_LABELS[sel]}</h2><span class="pill accent">${fmtSets(r.sets)} hard sets · ${band.label}</span></div>
+    return `<div class="card" id="hm-detail" style="margin-top:14px"><div class="card-h"><h2>${MUSCLE_LABELS[sel]}</h2><span class="pill accent">${fmtSets(r.sets)} hard sets · ${band.label}</span></div>
       ${r.contributors.length ? `<table class="plain"><thead><tr><th>Exercise</th><th>Sets</th><th>Counts as</th></tr></thead><tbody>${r.contributors.map((c) => `<tr><td>${esc(app.exerciseName(c.exerciseId))}</td><td>${fmtSets(c.sets)}</td><td>${fmtSets(c.contribution)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Nothing hit this muscle in this week.</p>'}
       <p class="muted small" style="margin-top:8px">A primary mover counts 1 per set, a secondary mover 0.5. These weights are estimates you can edit in <code>data/exercises.json</code>.</p></div>`;
   })() : '<p class="muted small" style="margin-top:12px">Tap a muscle to see which exercises contributed.</p>';
@@ -92,7 +92,7 @@ export function musclesView(app, ui) {
     root.querySelectorAll('[data-week]').forEach((b) => b.addEventListener('click', () => set({ week: Number(b.dataset.week) })));
     root.querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => set({ calWeek: addDays(m.calWeek, Number(b.dataset.cal)) })));
     root.querySelectorAll('.hm-view-toggle [data-view]').forEach((b) => b.addEventListener('click', () => set({ view: b.dataset.view })));
-    const pick = (id) => set({ selected: m.selected === id ? null : id });
+    const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: `smooth` })); };
     root.querySelectorAll('.hm-region').forEach((el) => {
       el.addEventListener('click', () => pick(el.dataset.muscle));
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el.dataset.muscle); } });
