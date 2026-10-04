@@ -10,3 +10,12 @@ id_rsa*
 .claude/settings.local.json
 # ccx task worktrees (scripts/ccx.ps1 worktree add)
 .ccx-worktrees/
+
+# Personal training workbooks and data derived from them (phone number, bodyweight, calories). Never commit.
+Madison_Arnido*.xlsx
+Madison Arnido*.xlsx
+*.xlsx
+*.xls
+*.xlsm
+lifting-tracker/private/
+lifting-tracker/data/private/
