@@ -1,109 +1,100 @@
-# Lifting Tracker Master Prompt
+# Master prompt: powerlifting progress tracker
 
-Paste everything below the line into Claude Code, started in `C:\Users\Madison\code\claude-codex-collab` (PowerShell, normal non-admin terminal).
-
-This is a build brief for a personal powerlifting and strength training tracker. It replaces the retired `claude-codex-template` powerlifting repo, which must not be read or reused. Start from the requirements below, not from old code.
+Paste everything below the line into a new chat. Attach `Madison_Arnido_2.xlsx` to that chat (do not put it in any repo).
 
 ---
 
-You are building a lifting tracker for me, a single user who trains on a phone in the gym and reviews on a laptop. Work in phases. Do not skip ahead. Follow this repo's AGENTS.md and HANDOFF.md throughout.
+## Role and ground rules
+You are my technical lead and critical thinking partner for a personal project. Be direct and candid. Challenge my assumptions. Lead with the answer, then the reasoning. Use Australian English, kg and lb, and dates like "Mon 5 Oct 2026". Label claims FACT, INTERPRETATION, ESTIMATE, ASSUMPTION or UNKNOWN. Never invent numbers, commands, file contents or rules. If you do not know something, say so and say what would resolve it.
 
-## Product goal
-Log a workout in under 20 seconds per set with one hand, with no signal, then show me whether I am actually getting stronger. Every feature must serve one of those two things. If it does neither, leave it out.
+## What I want
+A powerlifting-focused progress tracker, similar in spirit to a lifting-log app, that I can use on my phone and on my PC. Priorities, in order:
 
-## Hard rules
-- Smallest correct change at every step. No speculative features, no unrelated refactors.
-- Never invent a command, path, API or formula constant. AGENTS.md Commands and Stack stay "Not set" until a command has run successfully in this repo; then record it with the verified output.
-- Label every claim FACT (you ran or measured it), ESTIMATE or UNKNOWN. For UNKNOWN give: what is uncertain, what you checked, what would resolve it.
-- Do not read the retired `claude-codex-template` folder. Do not read `.env`, `*.pem`, `*.key`, or any path in `privacy.excludePaths`.
-- No secrets, personal data, real training logs or bodyweight history in the repo, task specs, tests or telemetry. Use synthetic fixtures only. Anything committed reaches the OneDrive mirror.
-- In PowerShell use `npm.cmd`, `npx.cmd`, `codex.cmd`. Edit text files with the file-editing tools, not `Get-Content`/`Set-Content` round-trips (BOM and encoding corruption).
-- Adding a dependency needs a one-line justification (compatible, maintained, established) recorded in the task spec. Prefer the platform and the standard library.
-- No push, PR, publish or hosting without `ccx gate` and my approval. Local commits are fine.
+1. **Import my coach's programme.** My coach writes my training in an Excel workbook, one sheet per "block". Typing 13 blocks by hand is not acceptable, so an importer comes first.
+2. **Block by block.** The app models my coach's blocks: Block, then Week, then Day, then Exercise, then Set. For each set it shows planned values (reps or rep range, target RPE) next to what I actually did (load, actual RPE).
+3. **Targeted body heat map.** A front and back muscle illustration, coloured by weekly hard sets per muscle, with the number shown on each region (not colour alone). Tap a region to see which exercises contributed.
+4. **Progress.** Estimated 1RM trends, PR detection, squat/bench/deadlift totals over time, bodyweight trend, and a planned-versus-actual RPE view.
+5. **Interactive and beautiful.** A distinctive, polished design that works in light and dark mode, on a phone and on a desktop. Fast, tactile, and clear at a glance. Not a generic template look.
+6. **Barbell plate simulator.** An interactive barbell I can load. Enter a target weight and the app draws the bar with the plates on each side, to scale and colour-coded, with a running total. Drag or tap to add and remove plates and watch the total update. Details:
+   - Choose a plate set: kg or lb. Never mix them silently: a 45 lb bar (20.41 kg) is not a 20 kg bar, and a 45 lb plate is not a 20 kg plate.
+   - Choose the bar (20 kg, 15 kg, 45 lb, or a custom weight) and whether competition collars are on. Spring collars are commonly 2.5 kg each; treat that as UNKNOWN until verified against the federation rules I compete under, and make it editable.
+   - Plate availability is editable (how many of each plate my gym has). If the target cannot be loaded exactly, show the nearest loadable weight above and below, and the difference.
+   - Default plate colours should follow the usual federation colour scheme for kg plates, but verify the colours from the official rulebook and keep them editable. lb plates are usually 45, 35, 25, 10, 5 and 2.5; confirm against what my gym actually has.
+   - Show per-side loading as text too ("2 × 25, 1 × 10, 1 × 2.5 each side") for accessibility, and a warm-up ladder mode that proposes plate-friendly warm-up jumps toward a top set.
+   - Tie it to the log: tapping a planned set loads its weight on the bar.
 
-## Product requirements
+**Units.** Everything works in kg and lb. Store each weight exactly as entered with its unit. Do maths in kg using the exact definition 1 lb = 0.45359237 kg. Show the unit I choose, to 1 decimal place.
 
-### Must have (v1)
-1. **Fast logging.** Start a session, add an exercise, log sets as weight × reps (+ optional RPE). Pre-fill from my last session of that exercise. One tap to repeat the previous set. Large touch targets, usable with gym chalk on my hands, readable in bright light.
-2. **Offline first.** Everything works with no network. Data lives on the device. No account, no backend, no analytics, no third-party scripts at runtime.
-3. **Units.** kg and lb, switchable per user setting. Store one canonical unit (kg) internally and convert only at the display edge. Round-trip conversions must not drift.
-4. **Estimated 1RM.** Compute from any set with 1 to 10 reps, using Epley and Brzycki. Show which formula is used. Do not show an e1RM for sets over 10 reps, or for RPE-less AMRAPs presented as true maxes.
-5. **PR detection.** Rep-max PRs (best weight at 1, 2, 3 … 10 reps) and e1RM PRs, per exercise. A PR is flagged the moment the set is logged, and never flagged twice for the same set. Define ties explicitly (a tie is not a PR).
-6. **Plate calculator.** Given a target weight, bar weight and the plates I own, show the plates per side. Handle impossible targets by showing the nearest loadable weight, never silently rounding.
-7. **Warm-up generator.** From a working weight, produce a warm-up ladder using my bar and plates. Editable defaults.
-8. **Core lifts as first-class.** Squat, bench, deadlift, with competition-style variants (paused, tempo, close-grip, deficit) tracked as variants of their parent lift so progress rolls up correctly.
-9. **History and progress.** Per-exercise history, and a trend of e1RM and volume over time. Weekly volume per lift. Read from the data, no stored derived numbers that can go stale.
-10. **Bodyweight log** with a smoothed trend line (moving average), not just raw points.
-11. **Export and import.** Full-fidelity JSON export and import (round-trips with no loss), plus CSV of sets. Export is the backup story, so it must be one tap and must work offline. Import validates and rejects bad files with a clear message and without partial writes.
+## My data (FACT, from reading the workbook once)
+The file is `Madison_Arnido_2.xlsx`. It contains 14 sheets: "TRAINING OVERVIEW" plus "Block 1 - Introduction" through "Block 13 - Priming". Block names seen: Introduction, Adjustments, Continuing, Low Bar, 3 Days, Return to 4 Days, UNIT, Cyclists Suck, Welcome Home, Sumo, Inner Peace, Reload, Priming.
 
-### Should have (v1.x, only after v1 is accepted)
-- Program templates: percentage-of-1RM blocks, linear progression, 5/3/1 style waves, with auto-calculated working weights from a training max.
-- Competition planner: opener, second and third attempt selection from a projected max, with a rule such as "opener ≈ 90–92% of projected best, never above a confirmed rep PR", clearly labelled as a suggestion.
-- Strength scores: IPF GL Points and DOTS from bodyweight, sex category and total. Constants must come from the published formula and be validated against worked examples. If no worked example can be verified, mark UNKNOWN and do not ship the feature.
-- RPE/RIR to estimated %1RM table, user-editable.
-- Rest timer that survives screen lock.
-- Weight-class tracking against federation limits (state which federation and date the table is from).
-- Optional encrypted cloud sync. Out of scope for v1. Do not design v1 to depend on it, but do not paint it into a corner: give every record a stable id, `createdAt`, `updatedAt` and a schema version.
+**Training overview sheet.** Athlete name, goals text, an "RPE Chart - GUIDE ONLY" panel, and a results table with columns DATE, SQUAT, BENCH, DEADLIFT, TOTAL, COMMENTS. It had one row: 6 Apr 2025, squat 165, bench 120, deadlift 195, total "480kg", comment "START". The total string says kg, so I assume weights are kg.
 
-### Explicitly out of scope
-Social features, leaderboards, coaching marketplace, nutrition tracking, wearable integration, AI-generated programs, ads, payments.
+**Each block sheet.**
+- Top: athlete, block goal, additional instructions (for example "track morning bodyweight every day").
+- Weeks sit side by side, 7 columns each: `<exercise name>`, Reps, Target RPE, Load, Actual RPE, Coach Comments, Athlete Comments. A "Week N" label sits above each group, and a line below it holds "Average Daily Calories" and "Average Morning BW".
+- Under each week: "Day 1" to "Day 4" header rows (some blocks have only 3 days; Block 5 and Block 12 look like 3-day blocks), each repeating the column headers.
+- One set per row. The exercise name sits in the first column on the first set row and is blank on the following set rows.
+- Blocks have roughly 3 to 7 weeks. Block 13 had only 2 weeks filled in, so it is the current or in-progress block.
+- Athlete Comments often hold daily text like "Monday: 84.1 KG, 2000 Calories" (a free-text bodyweight and calorie log). Parse it carefully and treat it as optional.
+- Coach comments hold technique cues ("Stay on the NECK", "Set feet in one spot...").
 
-## Engineering requirements
-- **Domain logic is pure and separate from UI.** One module for calculations (e1RM, plate maths, unit conversion, PR rules, warm-ups, scores), no UI or storage imports. This is the part Codex implements and tests.
-- **Calculation tests are the contract.** Table-driven tests with hand-checked values, including boundaries: 1 rep (e1RM equals the weight), 10 reps, 0 and negative inputs rejected, lb↔kg round-trip, plate edge cases (bar only, odd remainders, unavailable plates), PR ties and ordering of sets logged out of order, editing or deleting a past set recalculating PRs correctly.
-- **Data model is versioned.** Record shapes carry a `schemaVersion`; write a migration path before the first schema change, not after. Prefer an append-friendly structure (a set is an immutable-ish record; edits update `updatedAt`).
-- **Storage is durable and checked.** Handle storage being unavailable, full or cleared. Never lose a session in progress: persist each set as it is logged, not at "finish workout". Ask the browser for persistent storage if the platform supports it, and tell me when it is not granted.
-- **Accessibility and ergonomics.** Works one-handed at phone width, respects system dark mode, text scales, touch targets at least 44 px, no colour-only meaning, no hover-only controls.
-- **Performance.** Opens to the "log set" screen in under 2 seconds on a mid-range phone (ESTIMATE until measured). A year of daily training (about 20,000 sets) must not make history or charts noticeably slower; measure it with synthetic data.
-- **No dead ends.** Every destructive action (delete a set, a session, all data) is undoable or confirmed, and "delete all data" is reachable but deliberate.
+**Exercises seen (most frequent first):** Competition Bench Press, Paused on Chest (a bench variation), Low Bar Squat, Seated Leg Extension, Incline Dumbell Press, Seated Hamstring Curl, Chest Supported Row, Lat Pulldown, Hack Squat, Seated Dumbell Shoulder Press, Toe Elevated RDL, Dumbell Bicep Curl, Cable Tricep Pushdown, Long Pause Bench Press, 45 Degree Back Extension, Conventional Deadlift, Machine Pec Fly, High Bar Squat, Sumo Deadlift, Overhead Cable Tricep Extension, Tempo to Knee Deadlift, Tempo Bench Press, Tempo to Knee Sumo Deadlift, Romanian Deadlift, Cluster Sumo Deadlift, Tempo High Bar Squat, Bulgarian Split Squat, Bicep Movement of Choice, and supersets labelled "A1: ..." and "A2: ...". Spelling is the coach's ("Dumbell"); normalise names but keep the original text.
 
-## Phase 0: Inspect and decide (read-only, no code)
-1. Run `git status`, read recent `git log`, read AGENTS.md, HANDOFF.md, `ccx/policy.json` routing, and the existing task specs in `tasks/` for format. Read nothing else unless needed.
-2. Check what tooling actually exists on this machine (Node, a package manager, a browser to test with) by running version commands. Report FACT only.
-3. Propose the stack. My strong default is a **local-first installable web app (PWA)** that stays dependency-light, with data in IndexedDB, hosted as static files, because it works on both phone and laptop with one codebase and no server. Challenge that if the evidence says otherwise. Give: the recommendation, the one realistic alternative, the trade-off in two lines each, and what would change your mind.
-4. Propose the repo layout (where the app lives; the calculation module path), keeping workflow files untouched.
-5. List the top 5 risks (for example: browser storage eviction on iOS, floating-point rounding in plate maths, PR logic on edited history, formula constants copied wrongly, import corrupting data).
+## Data traps the importer must handle (these are the main risk)
+- **Excel turned rep ranges into dates.** About 1,465 cells in the block sheets are real date values where a rep range was typed. They follow day-month order: the day is the low end and the month is the high end. Observed: 6-10 (about 841 cells), 8-12 (299), 4-8 (276), 4-6 (45), 5-10 (4). In every one of the 1,465 cells the day is smaller than the month, which supports the rule. Convert a date cell back to `reps_min = day`, `reps_max = month`, and ignore the year. Ranges whose upper number is above 12 (for example 10-15, 125-130) stayed as text, so parse text ranges too.
+- **Placeholder cells.** About 778 cells contain a lone `-` meaning "no value". Treat as empty.
+- **Tempo strings** such as 030, 320, 313 appear as plain text. They are tempo notes, not reps or loads.
+- **Half-step RPE** (7.5, 8.5) appears often, and RPE above 10 does not make sense; flag it as a data warning, never silently fix it.
+- **Blank loads** in future weeks or sets I have not done yet. Planned but not completed is a valid state. Do not treat it as zero.
+- **Merged or odd cells and inconsistent layouts between blocks.** Different blocks have different numbers of weeks and days. The importer must find "Week N" labels and "Day N" headers by searching, not by fixed cell addresses.
+- **Free text in numeric columns** (for example "How many reps?" in a reps cell). Keep it as a warning, never crash.
 
-**STOP after Phase 0 and wait for me to approve the stack and layout.** If I am away, do the non-blocking work in Phase 1 only (writing the written spec and test cases, not implementation) and wait.
+The importer must produce an import report: counts of blocks, weeks, days, sets, warnings by type, and a list of every unparsed cell. It must be re-runnable and must never overwrite my logged data without asking.
 
-## Phase 1: Spec and test contract (Claude, no implementation)
-1. Write `docs/lifting-tracker-spec.md` (or the layout I approved): data model, screens and the log-a-set flow, the exact PR rules, the e1RM rules, unit and rounding rules, and the export format with a sample.
-2. Write the calculation test cases as a table of inputs and hand-checked expected outputs, before any implementation exists. Show your working for each expected value so I can check it. Mark any value you could not verify as UNKNOWN.
-3. Register work with `ccx task add` for each task below, with type, class, risk, owner and the write allowlist. Calculations, storage and import/export are **risky** (data integrity); UI screens are normal.
+## Privacy rules (FACT-critical)
+The workbook contains my phone number, bodyweight and calorie data. Therefore:
+- The real workbook and everything derived from it lives only on my device. It is gitignored and never committed, never pushed, never copied to OneDrive or any cloud mirror.
+- Tests and samples use synthetic data that copies the layout only.
+- No accounts, no server, no analytics, no third-party scripts that see my data.
+- Offer JSON export and import so I can back up my own data.
 
-## Phase 2: Build, in order, one task at a time
-Each item is its own task spec in `tasks/`, with goal, write allowlist, Done When, stop conditions, and the line `Do not use computer-use, browser or chrome tools. Only write files inside this repo.` under Constraints.
+## Product decisions already made
+- Web app, works offline, installable on a phone (PWA), also runs on PC. No app store.
+- Plain JavaScript ES modules, no build step, no dependencies for the core logic. Node 18 or later for tests (I must confirm my version).
+- Estimated 1RM uses Epley: `w × (1 + reps ÷ 30)`, with 1 rep returning `w`, and "cannot estimate" above 12 reps. It is an approximation, and the UI must say so.
+- PRs: first working set is the baseline and never a PR; a PR must beat every earlier working set; ties are not PRs. Types: best e1RM, heaviest single, most reps at an exact weight.
+- Only working sets count for e1RM, PRs and volume. Warm-ups never count.
+- Weeks run Monday to Sunday (Australia).
+- 17 muscle regions: chest, front_delts, side_delts, rear_delts, traps, lats, upper_back, lower_back, biceps, triceps, forearms, abs, glutes, quads, hamstrings, adductors, calves.
+- Muscle contribution weights are 1 (primary) or 0.5 (secondary). They are my estimates, not research, and must be editable by me in a data file.
+- Competition scoring (Wilks, DOTS, IPF GL) is out of scope until its coefficients are verified from the official source.
+- Cut from version 1: accounts, cloud sync, social features, AI coaching, nutrition tracking beyond reading the bodyweight and calorie text.
 
-1. **Calculations module + tests** (Codex, risky: Codex verifier tries to break it).
-2. **Storage layer + schema versioning + migration scaffold + tests** (Codex, risky).
-3. **Export/import with validation, round-trip tests and corrupted-file tests** (Codex, risky).
-4. **Log-a-set flow** (the core screen) (Codex implements, Claude reviews the diff and checks it against a real browser at phone width).
-5. **History, PRs, progress charts, bodyweight trend.**
-6. **Plate calculator and warm-ups wired to settings.**
-7. **Install/offline behaviour** (service worker or equivalent), verified with the network disabled.
-8. **Accessibility and performance pass** with synthetic data.
+## Build order (each is one task, small enough to finish in two attempts)
 
-For every task:
-- Dispatch with `scripts/codex-dispatch.ps1 -TaskId <id>`, then `verify -TaskId`, a `task review` by the other model, then `task done`. Follow HANDOFF.md's After return steps. Never let Codex and Claude solve the same problem.
-- Two failed Codex attempts: Claude finishes it. Usage-limit exits are not failures; do non-Codex work and continue.
-- Verification fails: diagnose, one focused repair, verify again. Fails again: stop, undo only your own edits, escalate.
-- One coherent commit per task, no trailers. No push.
+| ID | Task | Class |
+|---|---|---|
+| LT-0 | Workbook importer plus import report, tested on synthetic files that mimic every trap above | complex |
+| LT-1 | Core logic: units, e1RM, PRs, weekly muscle sets (spec already drafted) | normal |
+| LT-2 | Storage (IndexedDB or localStorage) plus JSON backup and restore | normal |
+| LT-3 | Log a workout and view planned versus actual | normal |
+| LT-4 | Heat map (SVG, front and back) | normal |
+| LT-5 | History and progress charts | normal |
+| LT-6 | Offline install (PWA) | normal |
+| LT-7 | Barbell plate simulator (pure loading logic first, then the interactive bar) | normal |
+| LT-8 | Meet tools: attempt planner and warm-up builder | normal |
 
-## Phase 3: Prove it works
-- Run the full test suite and report the exact command and its output (FACT).
-- Open the app in the built-in browser at phone width, log a full synthetic session, kill the network, reload, confirm nothing was lost, export, wipe, import, confirm the data is identical. Report what you actually saw, with screenshots only if useful.
-- Seed ~20,000 synthetic sets and report load and chart times as measured numbers.
-- Write `HANDOFF-REPORT.md`: state, what is done, open items, UNKNOWNs, exact next steps.
+## How to work with me
+1. First, ask me to attach the workbook. Re-inspect it yourself and tell me where my summary above is wrong or incomplete. Do not trust my summary over the file.
+2. Then list what you could not determine (for example block dates, or whether any load is in lb) as UNKNOWN with the question that resolves each.
+3. Produce, in this order: (a) a short architecture note (data model, folder layout, import pipeline); (b) a design brief for the interface (visual direction, type, colour, layout for phone and desktop, how the heat map and planned-versus-actual views look and behave); (c) the LT-0 task spec.
+4. Specs use this structure: Mode and Owner, Goal, Resolved Rules, Write Allowlist, Constraints, Out of Scope, Done When (each item marked as verified by the implementer or by you), Verify (exact commands), Stop Conditions. Include worked examples with real arithmetic that tests can assert.
+5. Only list a command as verified after it has run. Otherwise mark it as not yet run.
+6. When you build interactive previews, make them fully working with example data clearly marked as examples, not mine.
 
-## Acceptance (all must be true before you say it is done)
-- [ ] Every Must-have item works, shown by a test or a recorded manual check, not by assertion.
-- [ ] All calculation tests pass; expected values were hand-verified, not copied from the implementation's own output.
-- [ ] Export → wipe → import reproduces the data exactly; bad files are rejected with no partial write.
-- [ ] Works fully offline after first load; no network requests at runtime (checked in the browser's network log).
-- [ ] No real personal data, secrets or third-party runtime scripts in the repo.
-- [ ] AGENTS.md Stack, Folder Map and Commands filled in from verified inspection only.
-- [ ] Risky tasks (calculations, storage, import/export) each had a Claude diff review and a Codex verifier run.
-- [ ] Scope respected: nothing from "Should have" or "out of scope" built unless I approved it.
+## Workflow I use (optional)
+I run a Claude Code plus Codex workflow with a control plane called ccx: Claude plans, writes the task spec and reviews; Codex implements; the author never reviews their own work; pushes need my approval. If you are not in that environment, produce the specs and code in a form I can hand to it.
 
-## Report format
-Short. Tables for numbers. Lead with the bottom line, then evidence, then open items. No narration, no pasted diffs or long logs; reference paths.
+## Start now
+Begin with step 1 above.
