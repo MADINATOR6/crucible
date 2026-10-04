@@ -132,14 +132,15 @@ test('restore refuses oversized input without parsing it', () => {
 test('generator metadata on blocks and sets is kept, coerced and bounded', () => {
   const p = buildExampleProgramme();
   const s = p.blocks[0].weeks[0].days[0].entries[0].sets[0];
-  s.gen = { slotId: 'd1s1', kind: 'top', family: 'squat', reps: 3, rpe: 7, e1rmRef: 180, k: 1, week: 1 };
+  s.gen = { slotId: 'd1s1', kind: 'top', family: 'squat', reps: 3, rpe: 7, e1rmRef: 180, k: 1, week: 1, exposure: 'secondary' };
   p.blocks[0].generated = { at: '2026-10-04T00:00:00Z', focus: 'maintenance', weeks: 4, daysPerWeek: 3, progression: 'standard', rotate: 0.5, seed: 's', deloadWeek: 'none', fromBlock: 13, athleteAsOf: '2026-10-01',
     e1rmStart: { squat: 180, bench: 130, deadlift: null }, confidence: { squat: 'high', bench: 'medium', deadlift: 'none' },
-    rationale: [{ scope: 'block', text: 'Maintenance: keep intensity, cut volume.' }], warnings: ['bench e1RM is based on little data'] };
+    rationale: [{ scope: 'block', text: 'Maintenance: keep intensity, cut volume.' }], warnings: ['bench e1RM is based on little data'], emphasis: 'bench', layoffWeeks: 6, checkIn: true, deadliftStance: 'sumo' };
   const clean = sanitizeProgramme(JSON.parse(JSON.stringify(p)));
   const cs = clean.blocks[0].weeks[0].days[0].entries[0].sets[0];
-  assert.deepEqual(cs.gen, { slotId: 'd1s1', kind: 'top', family: 'squat', reps: 3, rpe: 7, e1rmRef: 180, k: 1, week: 1 });
+  assert.deepEqual(cs.gen, { slotId: 'd1s1', kind: 'top', family: 'squat', reps: 3, rpe: 7, e1rmRef: 180, k: 1, week: 1, exposure: 'secondary' });
   assert.equal(clean.blocks[0].generated.focus, 'maintenance');
+  assert.deepEqual([clean.blocks[0].generated.emphasis, clean.blocks[0].generated.layoffWeeks, clean.blocks[0].generated.checkIn, clean.blocks[0].generated.deadliftStance], ['bench', 6, true, 'sumo']);
   assert.deepEqual(clean.blocks[0].generated.e1rmStart, { squat: 180, bench: 130, deadlift: null });
   assert.equal(clean.blocks[0].generated.rationale.length, 1);
   assert.deepEqual(sanitizeProgramme(clean), clean, 'idempotent');

@@ -121,7 +121,8 @@ export function coachReview({ events, programme = null, catalogue, athlete = nul
   }
 
   // ---- balance between lifts ----
-  if (e1.squat && e1.bench && e1.deadlift) {
+  // Ratios need real trends for all three lifts (4+ weekly points each), not a couple of sets.
+  if (e1.squat && e1.bench && e1.deadlift && LIFTS.every((l) => trends[l]?.n >= 4)) {
     const bs = e1.bench / e1.squat, ds = e1.deadlift / e1.squat;
     const ev = `Bench is ${(bs * 100).toFixed(0)}% of squat, deadlift is ${(ds * 100).toFixed(0)}% of squat (your estimates: ${kg(e1.squat)} / ${kg(e1.bench)} / ${kg(e1.deadlift)}).`;
     if (bs < T.benchToSquat[0]) add({ id: 'balance-bench', area: 'balance', severity: 'medium', title: 'Bench is lagging behind your squat', because: [ev, 'A typical raw lifter benches about 60 to 75% of their squat.'], suggestion: 'Give bench more weekly work for a block: a second heavy exposure, paused work, and upper-back volume. It is usually the cheapest total gain.', action: { type: 'emphasis', lift: 'bench', label: 'Bring up bench' }, confidence: 'low' });
@@ -255,6 +256,12 @@ export function coachReview({ events, programme = null, catalogue, athlete = nul
 
   if (win.length < 30) add({ id: 'data-thin', area: 'data', severity: 'low', title: 'Not much recent data', because: [`Only ${win.length} working sets in the last ${T.windowWeeks} weeks.`], suggestion: 'Rate your sets with an RPE when you log them; the more you log, the sharper this review gets.', confidence: 'high' });
 
+  // Never tell the athlete a lift is both moving well and lagging: the trend wins over the ratio.
+  const liftOfBalance = { 'balance-bench': 'bench', 'balance-squat': 'squat', 'balance-squat2': 'squat', 'balance-deadlift': 'deadlift' };
+  for (let i = findings.length - 1; i >= 0; i--) {
+    const l = liftOfBalance[findings[i].id];
+    if (l && findings.some((f) => f.id === `progress-${l}`)) findings.splice(i, 1);
+  }
   findings.sort((a, b) => SEV[b.severity] - SEV[a.severity]);
   const priorities = findings.filter((f) => f.severity !== 'good' && f.severity !== 'low').slice(0, 3);
   const notes = findings.filter((f) => f.severity === 'low');
@@ -288,7 +295,7 @@ export function applyExtras(block, extras, catalogue) {
       const withLift = info.lift ? days.filter((d) => d.entries.some((e) => ex.get(e.exerciseId)?.lift === info.lift)) : [];
       const pool = withLift.length ? withLift : days;
       const day = [...pool].sort((a, b) => a.entries.length - b.entries.length || a.number - b.number)[0];
-      if (day.entries.some((e) => e.exerciseId === x.exerciseId)) continue;
+      if (week.days.some((d) => d.entries.some((e) => e.exerciseId === x.exerciseId))) continue; // already in this week
       day.entries.push({ exerciseId: x.exerciseId, name: info.name, rawName: info.name, supersetGroup: null, tempo: null,
         cues: [lo === hi ? '' : 'Find a load that reaches the target effort inside the rep range.'].filter(Boolean),
         sets: Array.from({ length: x.sets }, (_, i) => ({ index: i + 1, repsMin: lo, repsMax: hi, repsRaw: lo === hi ? String(lo) : `${lo}-${hi}`, targetRpe: x.rpe ?? null, load: null, loadRange: null,
@@ -299,4 +306,21 @@ export function applyExtras(block, extras, catalogue) {
     if (placed) rationale.push({ scope: 'slot', text: `Added ${info.name} (${x.sets} x ${lo === hi ? lo : lo + '-' + hi}) because of the coach's review.` });
   }
   return { block: out, rationale };
+}
+
+/** Weekly hard sets per muscle for every planned set of a block (primary 1, secondary 0.5 per set). */
+export function blockVolume(block, catalogue) {
+  const ex = new Map(catalogue.exercises.map((e) => [e.id, e]));
+  const w = catalogue.weights || { primary: 1, secondary: 0.5 };
+  return (block.weeks || []).map((week) => {
+    const muscles = Object.fromEntries(catalogue.muscles.map((m) => [m, 0]));
+    for (const d of week.days || []) for (const e of d.entries || []) {
+      const x = ex.get(e.exerciseId);
+      if (!x) continue;
+      const n = (e.sets || []).length;
+      for (const m of x.primary || []) if (m in muscles) muscles[m] += n * w.primary;
+      for (const m of x.secondary || []) if (m in muscles) muscles[m] += n * w.secondary;
+    }
+    return { week: week.number, muscles };
+  });
 }

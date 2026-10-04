@@ -46,7 +46,8 @@ function cleanSet(s, index) {
 // Metadata the block generator attaches to each planned set so unfinished weeks can be re-loaded later.
 function cleanGen(g) {
   return { slotId: text(g.slotId, 20), kind: text(g.kind, 20), family: ['squat', 'bench', 'deadlift'].includes(g.family) ? g.family : null,
-    reps: int(g.reps), rpe: num(g.rpe), e1rmRef: num(g.e1rmRef), k: num(g.k), week: int(g.week) };
+    reps: int(g.reps), rpe: num(g.rpe), e1rmRef: num(g.e1rmRef), k: num(g.k), week: int(g.week),
+    exposure: g.exposure === 'primary' || g.exposure === 'secondary' ? g.exposure : null };
 }
 
 const FAMILIES = ['squat', 'bench', 'deadlift'];
@@ -57,6 +58,8 @@ function cleanGenerated(g) {
     at: text(g.at, 40), focus: text(g.focus, 20), weeks: int(g.weeks) ?? 0, daysPerWeek: int(g.daysPerWeek) ?? 0, progression: text(g.progression, 20),
     rotate: num(g.rotate) ?? 0, seed: text(g.seed, 60), deloadWeek: text(g.deloadWeek, 10), fromBlock: int(g.fromBlock), athleteAsOf: isStrictDate(g.athleteAsOf) ? g.athleteAsOf : null,
     e1rmStart: famNums(g.e1rmStart), confidence: famText(g.confidence),
+    emphasis: FAMILIES.includes(g.emphasis) ? g.emphasis : null, layoffWeeks: int(g.layoffWeeks), checkIn: typeof g.checkIn === 'boolean' ? g.checkIn : null,
+    deadliftStance: g.deadliftStance === 'sumo' || g.deadliftStance === 'conventional' ? g.deadliftStance : null,
     rationale: arr(g.rationale, 120).filter(isObj).map((r) => ({ scope: text(r.scope, 12), text: text(r.text, 400) })),
     warnings: arr(g.warnings, 60).map((w) => text(w, 300)),
   };

@@ -17,22 +17,26 @@ export function plateBand(valueKg, tolerances) {
  *   actually weighed, in that same unit.
  * @returns {{ nominalKg, minKg, maxKg, bandKnown: boolean, measuredKg: number|null, measuredPlates: number }}
  */
-export function platesTolerance(side, { tolerances = null, measured = {}, mode = 'calibrated' } = {}) {
+export function platesTolerance(side, { tolerances = null, measured = {}, measuredUnit = null, mode = 'calibrated' } = {}) {
   let nominal = 0, min = 0, max = 0, known = true, measuredTotal = 0, measuredCount = 0, allKnown = true;
+  const sizes = new Set(), weighedSizes = new Set();
   for (const p of side || []) {
     const kg = convert(p.value, p.unit, 'kg');
     nominal += kg;
     const band = mode === 'calibrated' && p.unit === 'kg' ? plateBand(p.value, tolerances) : null;
     if (band) { min += band.min; max += band.max; } else { min += kg; max += kg; known = false; }
-    const m = Number(measured?.[String(p.value)]);
-    if (Number.isFinite(m) && m > 0) { measuredTotal += convert(m, p.unit, 'kg'); measuredCount++; } else { measuredTotal += kg; allKnown = false; }
+    // A weighed value belongs to the plates of the unit it was entered for; never to the other unit's plates.
+    const m = measuredUnit && p.unit !== measuredUnit ? NaN : Number(measured?.[String(p.value)]);
+    const sizeKey = `${p.value}${p.unit}`;
+    sizes.add(sizeKey);
+    if (Number.isFinite(m) && m > 0) { measuredTotal += convert(m, p.unit, 'kg'); measuredCount++; weighedSizes.add(sizeKey); } else { measuredTotal += kg; allKnown = false; }
   }
   const r = (x) => Math.round(x * 1e6) / 1e6;
   return {
     nominalKg: r(2 * nominal), minKg: r(2 * min), maxKg: r(2 * max),
     bandKnown: known && (side || []).length > 0,
     measuredKg: measuredCount ? r(2 * measuredTotal) : null,
-    measuredPlates: measuredCount,
+    measuredPlates: measuredCount, sizes: sizes.size, weighedSizes: weighedSizes.size,
     measuredComplete: measuredCount > 0 && allKnown,
   };
 }

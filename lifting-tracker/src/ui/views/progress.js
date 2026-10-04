@@ -98,7 +98,7 @@ export function progressView(app, ui) {
 function coachSummary(app, unit) {
   if (app.usingExample) return '';
   let r;
-  try { r = coachReview({ events: app.events(), programme: app.programme, catalogue: app.catalogue, bodyweight: app.bodyweightPoints(), unit }); } catch { return ''; }
+  try { r = coachReview({ events: app.events(), programme: app.programmeMerged(), catalogue: app.catalogue, athlete: app.athlete(), bodyweight: app.bodyweightPoints(), unit }); } catch { return ''; }
   if (!r?.asOf) return '';
   const top = r.priorities.slice(0, 2);
   return `<div class="card coach" style="margin-bottom:14px"><div class="card-h"><h2>Coach's notes</h2><a class="btn small primary" href="#plan">Plan the next block</a></div>

@@ -195,5 +195,7 @@ Rules (thresholds are the named constants `T` in the module):
 - **Technique**: coach comments that repeat in three or more blocks.
 - **Bodyweight**: losing more than 0.7% a week is flagged; steady is a strength.
 - Fewer than 30 working sets in the window adds a "not much data" note; no history returns an empty review. The headline names the top two priorities and the first strength.
+**reviseBlock semantics (clarified after review).** A `return` block keeps its own ramp: week `w` is projected as `e1rmNow x (s + (1 - s) x (w - 1) / (n - 1))` with `s` from the block's `layoffWeeks`, so revising it with unchanged numbers changes nothing. For drifting focuses the new e1RM is taken as the athlete's level at the start of `fromWeek`, so with no gain since generation projected loads can only come down; from week 1 the formulas equal generation. A secondary slot's `gen.exposure` must survive saving (it is part of the stored metadata). The app marks sets logged in the app as done before revising, and starts at the first week with no logged or completed set.
+
 ## Out of scope
 UI, storage, the sanitiser, warm-up/plate logic, meet attempts, auto-adding exercises for volume gaps (warn only), mixing lb into the model (all kg).

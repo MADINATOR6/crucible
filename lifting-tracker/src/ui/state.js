@@ -5,6 +5,7 @@ import { isStrictDate, sanitizeProgramme, sanitizeSettings } from '../store/prog
 import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
+import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
 import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
@@ -82,15 +83,32 @@ export async function createApp() {
     if (app.programme.blocks.some((b) => b.number === block.number)) throw new RangeError(`Block ${block.number} already exists.`);
     return writeBlocks([...app.programme.blocks, block]);
   });
-  app.replaceBlock = (block) => enqueue(async () => {
+  // Only a generated block can be replaced, and only by a generated block with the same number (a revised copy).
+  // `expectedAt` guards against applying an old revision to a block that has since been replaced.
+  app.replaceBlock = (block, { expectedAt = null } = {}) => enqueue(async () => {
     if (app.usingExample) throw new RangeError('Import your workbook first.');
-    if (!app.programme.blocks.some((b) => b.number === block?.number)) throw new RangeError('No such block to replace.');
+    const current = app.programme.blocks.find((b) => b.number === block?.number);
+    if (!current?.generated) throw new RangeError('Only generated blocks can be replaced.');
+    if (!block.generated) throw new RangeError('The replacement is not a generated block.');
+    if (expectedAt && current.generated.at !== expectedAt) throw new RangeError('That block has changed since the revision was made. Re-load it again.');
     return writeBlocks(app.programme.blocks.map((b) => (b.number === block.number ? block : b)));
   });
+  // Removing a generated block keeps what was logged against it, as free-standing sets in your history (they must
+  // not attach themselves to whichever block later takes the same number).
   app.removeBlock = (number) => enqueue(async () => {
     const b = app.programme.blocks.find((x) => x.number === number);
     if (!b?.generated) throw new RangeError('Only generated blocks can be removed here.');
-    return writeBlocks(app.programme.blocks.filter((x) => x.number !== number));
+    const sessions = app.sessions.filter((s) => s.programmeRef?.blockNumber === number).map((s) => ({ ...s, programmeRef: null, updatedAt: new Date().toISOString() }));
+    const ids = new Set(sessions.map((s) => s.id));
+    const sets = app.sets.filter((s) => ids.has(s.sessionId) && s.plannedRef).map((s) => ({ ...s, plannedRef: null, updatedAt: new Date().toISOString() }));
+    const next = sanitizeProgramme({ ...app.programme, blocks: app.programme.blocks.filter((x) => x.number !== number) });
+    if (!next) throw new Error('That is not a valid programme.');
+    await store.putAll({ meta: [{ key: 'programme', value: next }], sessions, sets });
+    app.programme = next;
+    app.sessions = app.sessions.map((s) => sessions.find((x) => x.id === s.id) || s);
+    app.sets = app.sets.map((s) => sets.find((x) => x.id === s.id) || s);
+    app.changed();
+    return next;
   });
 
   /** Estimated date for a programme day. Dates are estimates: the workbook has none. */
@@ -145,6 +163,20 @@ export async function createApp() {
     }));
     return p;
   });
+
+  /** The programme with sets logged in the app overlaid as done (with what was actually lifted). For reviews and revisions. */
+  app.programmeMerged = () => memo('progMerged', () => {
+    const p = structuredClone(app.programme);
+    for (const b of p.blocks) for (const w of b.weeks) for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
+      const log = app.loggedFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si });
+      if (!log || log.isWarmup) return;
+      s.completed = true; s.actualRpe = log.rpe ?? s.actualRpe; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit };
+    }));
+    return p;
+  });
+
+  /** Athlete model (working e1RMs, stance, RPE bias), cached until the data changes. */
+  app.athlete = () => memo('athlete', () => buildAthleteModel({ events: app.events(), catalogue: app.catalogue, programme: app.programmeMerged(), dateFor: app.dateFor }));
 
   app.events = () => memo('events', () => {
     let progEvents = [];

@@ -47,6 +47,7 @@ export function platesView(app, ui) {
   const unit = app.settings.unit;
   const { plates, bar, collar, set } = plateConfig(app, unit);
   ui.plates ||= { side: [], target: '', top: '' };
+  if (ui.plates.side.some((p) => p.unit !== unit)) ui.plates.side = []; // the unit changed elsewhere: plates of the other unit cannot stay on the bar
   const side = ui.plates.side; // [{value, unit, colour, drawHeightMm}] heaviest first
   const justAdded = ui.plates.justAdded ?? -1; ui.plates.justAdded = -1;
   const total = totalOf(side, bar, collar, unit);
@@ -61,7 +62,7 @@ export function platesView(app, ui) {
   // Calibration: how far the loaded plates may be from their stamped weight.
   const mode = unit === 'kg' ? app.settings.plateMode : 'gym';
   const measuredMap = app.settings.plateMeasured?.[unit] || {};
-  const tolr = platesTolerance(side, { tolerances: set.calibration?.tolerances, measured: measuredMap, mode });
+  const tolr = platesTolerance(side, { tolerances: set.calibration?.tolerances, measured: measuredMap, mode, measuredUnit: unit });
   const nonPlateKg = convert(bar.weight.value, bar.weight.unit, 'kg') + (collar ? 2 * convert(collar.weight.value, collar.weight.unit, 'kg') * collar.perSide : 0);
   const showU = (kgVal, d = 2) => `${(Math.round(convert(kgVal, 'kg', unit) * 10 ** d) / 10 ** d).toFixed(d)} ${unit}`;
   const pctBand = tolr.nominalKg > 0 ? ((tolr.maxKg - tolr.nominalKg) / tolr.nominalKg) * 100 : 0;
@@ -70,7 +71,7 @@ export function platesView(app, ui) {
     ${!side.length ? '<p class="muted small">Load some plates to see how far the weight can be from the number on the bar.</p>'
       : mode === 'calibrated' && tolr.bandKnown ? `<p><b>${showU(tolr.nominalKg)}</b> of plates. Competition-calibrated discs may read <b>${showU(tolr.minKg)}</b> to <b>${showU(tolr.maxKg)}</b> (about ±${pctBand.toFixed(2)}%).</p><p class="small muted">The IPF sets a minimum and maximum for every disc, so a calibrated set is accurate to a few hundred grams. Bar and collars have their own tolerance and are not included. ${esc(set.calibration?.source || '')}</p>`
       : `<p><b>${showU(tolr.nominalKg)}</b> of plates as stamped. ${unit === 'lb' ? 'There is no federation calibration table for lb plates.' : 'Uncalibrated gym plates have no guaranteed accuracy: a stamped plate can be a percent or more off.'} ${tolr.measuredKg == null ? 'Weigh a pair on a scale and enter it under My plates for exact numbers.' : ''}</p>`}
-    ${tolr.measuredKg != null && side.length ? `<p class="small" style="margin-top:6px">As you weighed them: <b>${showU(tolr.measuredKg)}</b> of plates${tolr.measuredComplete ? '' : ` (${tolr.measuredPlates} of ${new Set(side.map((p) => p.value)).size} sizes weighed; the rest use the stamped weight)`}, about <b>${showU(tolr.measuredKg + nonPlateKg)}</b> on the bar with bar and collars at their stated weights.</p>` : ''}
+    ${tolr.measuredKg != null && side.length ? `<p class="small" style="margin-top:6px">As you weighed them: <b>${showU(tolr.measuredKg)}</b> of plates${tolr.measuredComplete ? '' : ` (${tolr.weighedSizes} of ${tolr.sizes} sizes weighed; the rest use the stamped weight)`}, about <b>${showU(tolr.measuredKg + nonPlateKg)}</b> on the bar with bar and collars at their stated weights.</p>` : ''}
   </div>`;
 
   const html = `

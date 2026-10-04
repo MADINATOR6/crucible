@@ -52,3 +52,12 @@ test('inputs are not mutated', () => {
   const r = platesTolerance(side, { tolerances: Object.freeze(tol), measured: Object.freeze({}) });
   assert.equal(r.nominalKg, 50);
 });
+
+test('weighed values apply only to plates of their own unit, and sizes are counted by size not by plate', () => {
+  const side = [kg(25), kg(25), { value: 25, unit: 'lb' }];
+  const r = platesTolerance(side, { tolerances: tol, measured: { 25: 25.3 }, measuredUnit: 'kg' });
+  assert.equal(r.measuredPlates, 2); assert.equal(r.sizes, 2); assert.equal(r.weighedSizes, 1); assert.equal(r.measuredComplete, false);
+  near(r.measuredKg, 2 * (25.3 + 25.3 + 25 * 0.45359237), 'kg weighing is not applied to the lb plate');
+  const four = platesTolerance([kg(25), kg(25), kg(25), kg(25), kg(20), kg(15), kg(10)], { tolerances: tol, measured: { 25: 25.3 }, measuredUnit: 'kg' });
+  assert.equal(four.sizes, 4); assert.equal(four.weighedSizes, 1);
+});

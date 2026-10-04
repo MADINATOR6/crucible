@@ -61,7 +61,7 @@ export function trainView(app, ui) {
   if (week) {
     const t = week.target;
     body += `<div class="stats3">
-      <div class="card stat"><span>Week target</span><b>${t ? t.total + ' kg' : '–'}</b><small>${t ? `${t.squat} / ${t.bench} / ${t.deadlift}` : 'not set by coach'}</small></div>
+      <div class="card stat"><span>Week target</span><b>${t && t.total != null ? t.total + ' kg' : '–'}</b><small>${t ? [t.squat, t.bench, t.deadlift].map((v) => v ?? '–').join(' / ') : 'not set by coach'}${t && [t.squat, t.bench, t.deadlift].some((v) => v == null) ? ' (total of the known lifts)' : ''}</small></div>
       <div class="card stat"><span>Avg bodyweight</span><b>${week.avgBodyweightKg ? week.avgBodyweightKg + ' kg' : '–'}</b><small>${week.avgCalories ? week.avgCalories + ' kcal' : 'no calories noted'}</small></div>
       <div class="card stat"><span>${est ? 'Estimated date' : 'Date'}</span><b>${est ? est.slice(8) + '/' + est.slice(5, 7) : '–'}</b><small>${est ? 'estimate: set the start date in Data' : 'set a start date in Data'}</small></div>
     </div>`;

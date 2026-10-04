@@ -3,7 +3,7 @@
 import { convert, formatWeight, round1, toKg } from '../../core/units.js';
 import { esc, toast, todayIso } from '../dom.js';
 import { renderHeatmap, renderLegend, renderMuscleList, fmtSets } from '../heatmap.js';
-import { coachReview, applyExtras } from '../../core/coach.js';
+import { coachReview, applyExtras, blockVolume } from '../../core/coach.js';
 
 let mods = null; // the planning modules are loaded on first use, so the rest of the app never depends on them
 async function loadMods() {
@@ -37,18 +37,31 @@ function nextBlockNumber(programme) { return Math.max(0, ...programme.blocks.map
 
 /** Athlete model with the user's own e1RM entries applied on top. */
 function athleteFor(app, ui) {
-  const m = mods;
-  const model = m.buildAthleteModel({ events: app.events(), catalogue: app.catalogue, programme: app.programme });
+  const model = app.athlete(); // cached by the app until the data changes
   const o = ui.plan.overrides || {};
+  const key = JSON.stringify(o);
+  const c = ui.plan._ath;
+  if (c && c.model === model && c.key === key) return c.athlete;
   const lifts = { ...model.lifts };
   for (const f of LIFTS) {
-    const v = parseFloat(o[f]);
-    if (Number.isFinite(v) && v > 0) lifts[f] = { ...lifts[f], e1rmKg: round1(toKg({ value: v, unit: app.settings.unit })), confidence: 'high', basis: 'entered by you', n: lifts[f]?.n ?? 0 };
+    const e = o[f]; // { value, unit }: stored with its unit so changing the display unit never changes the number
+    const kg = e && Number.isFinite(e.value) && (e.unit === 'kg' || e.unit === 'lb') ? convert(e.value, e.unit, 'kg') : null;
+    if (kg != null && kg >= 20 && kg <= 600) lifts[f] = { ...lifts[f], e1rmKg: round1(kg), confidence: 'high', basis: 'entered by you', n: lifts[f]?.n ?? 0 };
   }
-  return { ...model, lifts };
+  const athlete = { ...model, lifts };
+  ui.plan._ath = { model, key, athlete };
+  return athlete;
 }
 
-function templateFor(app, athlete) {
+function templateFor(app, athlete, ui) {
+  const c = ui.plan._tpl;
+  if (c && c.programme === app.programme && c.athlete === athlete) return c.template;
+  const template = learnTemplateFor(app, athlete);
+  ui.plan._tpl = { programme: app.programme, athlete, template };
+  return template;
+}
+
+function learnTemplateFor(app, athlete) {
   const m = mods;
   const blockNumber = pickTemplateBlock(app.programme);
   if (blockNumber == null) return null;
@@ -97,6 +110,10 @@ export function planView(app, ui) {
   const unit = app.settings.unit;
   ui.plan ||= { text: '', focus: 'strength', weeks: null, days: null, progression: 'standard', rotate: null, stance: 'auto', emphasis: 'bench', layoffWeeks: 4, checkIn: true, deloadWeek: 'auto', seed: 'a', overrides: {}, understood: null, result: null, error: '', week: 1, revise: null, extras: [], applied: [] };
   const p = ui.plan;
+  if (p.revise) { // an old revision must never be applied to a block that has since been removed or replaced
+    const cur = app.programme.blocks.find((b) => b.number === p.revise.number);
+    if (!cur?.generated || cur.generated.at !== p.revise.baseAt) p.revise = null;
+  }
   if (app.usingExample) {
     return { html: `<div class="topbar"><div><h1>Plan</h1></div><span class="pill example">Example data</span></div>
       <div class="card empty"><h2>Import your workbook first</h2><p>The block generator learns from your own recent training, so it needs your programme. Import your coach's workbook in Data, then come back.</p><a class="btn primary" href="#data">Go to Data</a></div>`, bind() {} };
@@ -104,13 +121,13 @@ export function planView(app, ui) {
   if (!mods) return { html: '<div class="topbar"><div><h1>Plan</h1></div></div><p class="muted">Loading…</p>', bind(root, rerender) { loadMods().then(rerender).catch((err) => { root.innerHTML = `<div class="card"><h2>Could not load the planner</h2><p class="muted">${esc(err.message || err)}</p></div>`; }); } };
 
   let athlete, template, err = '';
-  try { athlete = athleteFor(app, ui); template = templateFor(app, athlete); } catch (e) { err = e.message || String(e); }
+  try { athlete = athleteFor(app, ui); template = templateFor(app, athlete, ui); } catch (e) { err = e.message || String(e); }
   if (err || !template) {
     return { html: `<div class="topbar"><div><h1>Plan</h1></div></div><div class="card empty"><h2>Not enough to learn from yet</h2><p>${esc(err || 'No block with training days was found in your programme.')}</p></div>`, bind() {} };
   }
   if (!p._rev || p._rev.events !== app.events() || p._rev.athlete !== athlete) {
     let review = null;
-    try { review = coachReview({ events: app.events(), programme: app.programme, catalogue: app.catalogue, athlete, bodyweight: app.bodyweightPoints(), unit }); } catch { review = null; }
+    try { review = coachReview({ events: app.events(), programme: app.programmeMerged(), catalogue: app.catalogue, athlete, bodyweight: app.bodyweightPoints(), unit }); } catch { review = null; }
     p._rev = { events: app.events(), athlete, review };
   }
   const review = p._rev.review;
@@ -125,7 +142,7 @@ export function planView(app, ui) {
       <td class="num">${l.e1rmKg != null ? formatWeight({ value: l.e1rmKg, unit: 'kg' }, unit) : '–'}</td>
       <td><span class="pill ${l.confidence === 'high' ? 'pr' : ''}">${esc(l.confidence || 'none')}</span></td>
       <td class="small muted">${esc(l.basis || '')}</td>
-      <td><input type="number" inputmode="decimal" step="0.5" min="0" data-ovr="${f}" value="${esc(p.overrides[f] ?? '')}" placeholder="${l.e1rmKg != null ? round1(convert(l.e1rmKg, 'kg', unit)) : ''}" aria-label="Enter your own ${f} e1RM in ${unit}" style="min-height:38px;width:92px"></td></tr>`;
+      <td><input type="number" inputmode="decimal" step="0.5" min="0" data-ovr="${f}" value="${p.overrides[f] ? round1(convert(p.overrides[f].value, p.overrides[f].unit, unit)) : ''}" placeholder="${l.e1rmKg != null ? round1(convert(l.e1rmKg, 'kg', unit)) : ''}" aria-label="Enter your own ${f} e1RM in ${unit}" style="min-height:38px;width:92px"></td></tr>`;
   }).join('');
 
   const html = `
@@ -182,8 +199,19 @@ export function planView(app, ui) {
       const f = review?.findings.find((x) => x.id === id);
       if (!f?.action) return;
       const a = f.action;
-      const on = p.applied.includes(id);
-      if (on) { p.applied = p.applied.filter((x) => x !== id); if (a.type === 'addExercise') p.extras = p.extras.filter((x) => x.exerciseId !== a.exerciseId); rerender(); return; }
+      const FIELDS = ['focus', 'emphasis', 'progression', 'days', 'deloadWeek', 'rotate', 'extras'];
+      p.undo ||= {};
+      if (p.applied.includes(id)) { // undo: put every setting this action touched back as it was
+        Object.assign(p, p.undo[id] || {}); delete p.undo[id];
+        p.applied = p.applied.filter((x) => x !== id); rerender(); return;
+      }
+      // Actions that set the block's focus exclude each other; the newest one wins and the older one is dropped.
+      const group = (x) => (x.type === 'emphasis' || x.type === 'focus' ? 'focus' : x.type === 'addExercise' ? `x:${x.exerciseId}` : x.type);
+      for (const other of p.applied.slice()) {
+        const of = review.findings.find((y) => y.id === other);
+        if (of?.action && group(of.action) === group(a)) p.applied = p.applied.filter((y) => y !== other);
+      }
+      p.undo[id] = Object.fromEntries(FIELDS.map((k) => [k, structuredClone(p[k])]));
       p.applied = [...p.applied, id];
       if (a.type === 'emphasis') { p.focus = 'specialise'; p.emphasis = a.lift; }
       else if (a.type === 'focus') p.focus = a.focus;
@@ -196,7 +224,7 @@ export function planView(app, ui) {
     }));
     root.querySelectorAll('[data-focus]').forEach((b) => b.addEventListener('click', () => set({ focus: b.dataset.focus, understood: null, applied: [], extras: [] })));
     const num = (id) => { const v = parseInt(root.querySelector(id)?.value, 10); return Number.isFinite(v) ? v : null; };
-    root.querySelector('#p-weeks').addEventListener('change', () => { p.weeks = num('#p-weeks'); });
+    root.querySelector('#p-weeks').addEventListener('change', () => { const v = num('#p-weeks'); p.weeks = v == null ? null : Math.min(8, Math.max(3, v)); rerender(); });
     root.querySelector('#p-days').addEventListener('change', () => { p.days = num('#p-days'); });
     root.querySelector('#p-prog').addEventListener('change', (e) => { p.progression = e.target.value; });
     root.querySelector('#p-rot').addEventListener('change', (e) => { p.rotate = e.target.value === '' ? null : Number(e.target.value); });
@@ -205,15 +233,28 @@ export function planView(app, ui) {
     root.querySelector('#p-emph')?.addEventListener('change', (e) => { p.emphasis = e.target.value; });
     root.querySelector('#p-layoff')?.addEventListener('change', () => { p.layoffWeeks = Math.min(52, Math.max(1, num('#p-layoff') ?? 4)); });
     root.querySelector('#p-checkin')?.addEventListener('change', (e) => { p.checkIn = e.target.checked; });
-    root.querySelectorAll('[data-ovr]').forEach((i) => i.addEventListener('change', () => { p.overrides = { ...p.overrides, [i.dataset.ovr]: i.value }; rerender(); }));
+    root.querySelectorAll('[data-ovr]').forEach((i) => i.addEventListener('change', () => {
+      const v = parseFloat(i.value);
+      const next = { ...p.overrides };
+      const kg = Number.isFinite(v) ? convert(v, unit, 'kg') : NaN;
+      if (kg >= 20 && kg <= 600) next[i.dataset.ovr] = { value: v, unit }; else { delete next[i.dataset.ovr]; if (i.value !== '') toast('Enter an e1RM between 20 and 600 kg'); }
+      p.overrides = next; rerender();
+    }));
 
     const generate = (seedSuffix = '') => {
       try {
         const res = mods.generateBlock({ catalogue: app.catalogue, template, athlete, blockNumber: nextBlockNumber(app.programme), ...optionsFrom(p), seed: p.seed + seedSuffix, now: () => new Date() });
         let out = res;
-        if (p.extras.length) { const x = applyExtras(res.block, p.extras, app.catalogue); out = { ...res, block: x.block, rationale: [...res.rationale, ...x.rationale] }; }
+        if (p.extras.length) {
+          const x = applyExtras(res.block, p.extras, app.catalogue);
+          const missed = p.extras.filter((e) => !x.block.weeks.some((w) => w.days.some((d) => d.entries.some((en) => en.exerciseId === e.exerciseId && en.sets.some((s) => s.gen?.slotId === `x-${e.exerciseId}`)))))
+            .map((e) => `${app.exerciseName(e.exerciseId)} was not added: there is no free day in the working weeks.`);
+          // The volume map and numbers must include what was added.
+          out = { ...res, block: x.block, rationale: [...res.rationale, ...x.rationale], warnings: [...res.warnings, ...missed],
+            volume: { ...res.volume, perWeek: blockVolume(x.block, app.catalogue) } };
+        }
         if (['maintenance', 'return'].includes(p.focus)) out = { ...out, warnings: out.warnings.filter((w) => !/volume changes from/.test(w)) };
-        set({ result: out, week: 1, error: '' });
+        set({ result: out, week: 1, error: '', revise: null });
       } catch (e) { set({ error: e instanceof RangeError ? e.message : `Could not generate: ${e.message || e}`, result: null }); }
     };
     root.querySelector('#gen').addEventListener('click', () => generate());
@@ -231,21 +272,30 @@ export function planView(app, ui) {
       } catch (err) { toast(err.message || String(err), 4200); e.target.disabled = false; }
     });
     root.querySelectorAll('[data-revise]').forEach((b) => b.addEventListener('click', () => {
-      const block = app.programme.blocks.find((x) => x.number === Number(b.dataset.revise));
-      const firstOpen = block.weeks.find((w) => !w.days.some((d) => d.entries.some((e) => e.sets.some((s) => s.completed))));
-      if (!firstOpen) { toast('Every week already has training logged'); return; }
+      const number = Number(b.dataset.revise);
+      const original = app.programme.blocks.find((x) => x.number === number);
+      // Sets logged in the app count as done, so revision starts after the last week you trained.
+      const merged = app.programmeMerged().blocks.find((x) => x.number === number);
+      const firstOpen = merged?.weeks.find((w) => !w.days.some((d) => d.entries.some((e) => e.sets.some((s) => s.completed))));
+      if (!original || !firstOpen) { toast('Every week already has training logged'); return; }
       try {
-        const r = mods.reviseBlock({ block, athlete, catalogue: app.catalogue, fromWeek: firstOpen.number });
-        set({ revise: { number: block.number, fromWeek: firstOpen.number, block: r.block, changes: r.changes } });
+        const r = mods.reviseBlock({ block: merged, athlete, catalogue: app.catalogue, fromWeek: firstOpen.number });
+        // Keep the stored completion state: revision changes loads only.
+        const keep = structuredClone(r.block);
+        keep.weeks.forEach((w, wi) => w.days.forEach((d, di) => d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
+          const o = original.weeks[wi]?.days[di]?.entries[ei]?.sets[si];
+          if (o) { s.completed = o.completed; s.actualRpe = o.actualRpe; s.actualReps = o.actualReps; s.actualLoad = o.actualLoad; }
+        }))));
+        set({ revise: { number, fromWeek: firstOpen.number, block: keep, changes: r.changes, baseAt: original.generated?.at ?? null } });
       } catch (err) { toast(err.message || String(err), 4200); }
     }));
     root.querySelector('#apply-revise')?.addEventListener('click', async () => {
-      try { await app.replaceBlock({ ...p.revise.block }); toast('Remaining weeks updated'); p.revise = null; rerender(); } catch (err) { toast(err.message || String(err), 4200); }
+      try { await app.replaceBlock({ ...p.revise.block }, { expectedAt: p.revise.baseAt }); toast('Remaining weeks updated'); p.revise = null; rerender(); } catch (err) { toast(err.message || String(err), 4200); p.revise = null; rerender(); }
     });
     root.querySelector('#cancel-revise')?.addEventListener('click', () => set({ revise: null }));
     root.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', async () => {
       if (!confirm(`Remove generated block ${b.dataset.remove}? Sets you logged stay in your history.`)) return;
-      try { await app.removeBlock(Number(b.dataset.remove)); toast('Block removed'); } catch (err) { toast(err.message || String(err), 4200); }
+      try { p.revise = null; await app.removeBlock(Number(b.dataset.remove)); toast('Block removed'); } catch (err) { toast(err.message || String(err), 4200); }
     }));
     root.querySelectorAll('.hm-region').forEach((el) => el.addEventListener('click', () => { p.sel = p.sel === el.dataset.muscle ? null : el.dataset.muscle; rerender(); }));
     root.querySelectorAll('.hm-row').forEach((el) => el.addEventListener('click', () => { p.sel = p.sel === el.dataset.muscle ? null : el.dataset.muscle; rerender(); }));
@@ -306,6 +356,6 @@ function previewHtml(app, p, R, wk, unit) {
 
 function reviseHtml(r, unit) {
   return `<div style="margin-top:12px;padding:12px;border:1px solid var(--line-strong);border-radius:12px"><b>Block ${r.number}: from week ${r.fromWeek}</b>
-    ${r.changes.length ? `<ul class="small" style="margin:6px 0;padding-left:18px">${r.changes.slice(0, 40).map((c) => `<li>Week ${c.week} day ${c.day}: ${esc(c.exerciseId)} set ${c.setIndex + 1}: ${esc(formatWeight({ value: c.from, unit: 'kg' }, unit))} → <b>${esc(formatWeight({ value: c.to, unit: 'kg' }, unit))}</b></li>`).join('')}</ul>${r.changes.length > 40 ? `<p class="small muted">…and ${r.changes.length - 40} more</p>` : ''}` : '<p class="small muted">Your numbers have not moved enough to change any load.</p>'}
+    ${r.changes.length ? `<ul class="small" style="margin:6px 0;padding-left:18px">${r.changes.slice(0, 40).map((c) => `<li>Week ${c.week} day ${c.day}: ${esc(c.exerciseId)} set ${c.setIndex}: ${esc(formatWeight({ value: c.from, unit: 'kg' }, unit))} → <b>${esc(formatWeight({ value: c.to, unit: 'kg' }, unit))}</b></li>`).join('')}</ul>${r.changes.length > 40 ? `<p class="small muted">…and ${r.changes.length - 40} more</p>` : ''}` : '<p class="small muted">Your numbers have not moved enough to change any load.</p>'}
     <div class="row"><button class="btn primary small" id="apply-revise" ${r.changes.length ? '' : 'disabled'}>Apply</button><button class="btn ghost small" id="cancel-revise">Cancel</button></div></div>`;
 }

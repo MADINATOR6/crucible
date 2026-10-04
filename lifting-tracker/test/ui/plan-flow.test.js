@@ -91,3 +91,50 @@ test('coach review of the example history, applied extras, and no exceptions on 
   const empty = coachReview({ events: [], programme: { blocks: [] }, catalogue: app.catalogue });
   assert.equal(empty.findings.length, 0);
 });
+
+test('stale or foreign revisions are refused; only generated blocks can be replaced', async () => {
+  const app = await readyApp();
+  const athlete = athleteOf(app);
+  const mk = (seed) => generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 4, seed, now: () => new Date('2026-10-05T00:00:00Z') });
+  await app.addBlock(mk('a').block);
+  const oldAt = app.programme.blocks.find((b) => b.number === 2).generated.at;
+  await assert.rejects(() => app.replaceBlock({ number: 1, name: 'x', weeks: [] }), /Only generated blocks can be replaced/);
+  await assert.rejects(() => app.replaceBlock({ ...mk('a').block, generated: undefined }), /not a generated block/);
+  // remove, add a different block 2, then try to apply the old revision against it
+  await app.removeBlock(2);
+  const second = mk('b').block; second.generated = { ...second.generated, at: '2026-10-06T00:00:00.000Z' };
+  await app.addBlock(second);
+  await assert.rejects(() => app.replaceBlock(mk('a').block, { expectedAt: oldAt }), /has changed since/);
+});
+
+test('removing a generated block detaches what was logged against it, so a later block with that number starts clean', async () => {
+  const app = await readyApp();
+  const athlete = athleteOf(app);
+  const res = generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 4, seed: 'a', now: () => new Date('2026-10-05T00:00:00Z') });
+  await app.addBlock(res.block);
+  const e = app.programme.blocks.find((b) => b.number === 2).weeks[0].days[0].entries[0];
+  await app.logSet({ date: '2026-10-06', programmeRef: { blockNumber: 2, weekNumber: 1, dayNumber: 1 }, plannedRef: { entryIndex: 0, setIndex: 0 }, exerciseId: e.exerciseId, weight: { value: 100, unit: 'kg' }, reps: 5, rpe: 8 });
+  await app.removeBlock(2);
+  assert.equal(app.sets.length, 1);
+  assert.equal(app.sets[0].plannedRef, null);
+  assert.equal(app.sessions[0].programmeRef, null);
+  await app.addBlock({ ...generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 4, seed: 'z', now: () => new Date('2026-10-07T00:00:00Z') }).block });
+  assert.equal(app.loggedFor({ blockNumber: 2, weekNumber: 1, dayNumber: 1, entryIndex: 0, setIndex: 0 }), null, 'the old log does not attach to the new block');
+  assert.equal(app.events().filter((x) => x.source === 'logged').length, 1, 'but it still counts in your history');
+});
+
+test('sets logged in the app count as done for reviews and revisions, and the athlete model is cached', async () => {
+  const app = await readyApp();
+  const athlete = athleteOf(app);
+  const res = generateBlock({ catalogue: app.catalogue, template: templateOf(app, athlete), athlete, blockNumber: 2, weeks: 4, seed: 'a', now: () => new Date('2026-10-05T00:00:00Z') });
+  await app.addBlock(res.block);
+  const e = app.programme.blocks.find((b) => b.number === 2).weeks[0].days[0].entries[0];
+  await app.logSet({ date: '2026-10-06', programmeRef: { blockNumber: 2, weekNumber: 1, dayNumber: 1 }, plannedRef: { entryIndex: 0, setIndex: 0 }, exerciseId: e.exerciseId, weight: { value: 101, unit: 'kg' }, reps: 4, rpe: 8.5 });
+  const merged = app.programmeMerged().blocks.find((b) => b.number === 2).weeks[0].days[0].entries[0].sets[0];
+  assert.equal(merged.completed, true); assert.equal(merged.actualRpe, 8.5); assert.equal(merged.actualReps, 4); assert.equal(merged.actualLoad.value, 101);
+  assert.equal(app.programme.blocks.find((b) => b.number === 2).weeks[0].days[0].entries[0].sets[0].completed, false, 'the stored programme is untouched');
+  assert.equal(app.athlete(), app.athlete(), 'same object until the data changes');
+  const before = app.athlete();
+  await app.logSet({ date: '2026-10-06', programmeRef: null, plannedRef: null, exerciseId: 'comp_bench', weight: { value: 90, unit: 'kg' }, reps: 5, rpe: 8 });
+  assert.notEqual(app.athlete(), before, 'rebuilt after the data changed');
+});

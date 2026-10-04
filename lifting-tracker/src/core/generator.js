@@ -466,8 +466,12 @@ export function reviseBlock({ block, athlete, fromWeek } = {}) { // `catalogue` 
   if (!block || !Array.isArray(block.weeks) || !block.generated) fail('block must be a block made by generateBlock');
   if (!athlete || !athlete.lifts || typeof athlete.lifts !== 'object') fail('athlete is required (from buildAthleteModel)');
   if (!Number.isInteger(fromWeek) || fromWeek < 1) fail('fromWeek must be a positive integer');
-  const { progression, focus, deloadWeek, weeks: n } = block.generated;
+  const { progression, focus, deloadWeek, weeks: n, layoffWeeks } = block.generated;
   const g = drift(progression, focus);
+  // A return block keeps its ramp back to 100% (it is relative to the block, not to the week revision starts at).
+  const proj = (e1, w) => (focus === 'return'
+    ? projectedE1rm(e1, progression, focus, w, { weeks: n, layoffWeeks: Number.isInteger(layoffWeeks) ? layoffWeeks : 4 })
+    : e1 * (1 + g) ** (w - fromWeek));
   const out = structuredClone(block);
   const changes = [];
   for (const week of out.weeks) for (const day of week.days ?? []) for (const entry of day.entries ?? []) for (const set of entry.sets ?? []) {
@@ -476,7 +480,7 @@ export function reviseBlock({ block, athlete, fromWeek } = {}) { // `catalogue` 
     const e1 = e1rmOf(athlete, gen.family);
     if (e1 == null) continue;
     const deload = deloadWeek === 'all' || (deloadWeek === 'last' && gen.week === n);
-    const e = gen.exposure === 'secondary' ? e1 : e1 * (1 + g) ** ((deload ? Math.max(fromWeek, gen.week - 1) : gen.week) - fromWeek);
+    const e = gen.exposure === 'secondary' ? (focus === 'return' ? proj(e1, 1) : e1) : proj(e1, deload ? Math.max(focus === 'return' ? 1 : fromWeek, gen.week - 1) : gen.week);
     const base = unrounded(e, gen.reps, gen.rpe, biasOf(athlete, gen.family), gen.k);
     if (base == null) continue;
     gen.e1rmRef = round1(e);

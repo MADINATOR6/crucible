@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { coachReview, applyExtras } from '../../src/core/coach.js';
+import { coachReview, applyExtras, blockVolume } from '../../src/core/coach.js';
 import { addDays } from '../../src/core/weeks.js';
 
 const catalogue = JSON.parse(await readFile(new URL('../../data/exercises.json', import.meta.url), 'utf8'));
@@ -130,4 +130,27 @@ test('applyExtras puts an added exercise on the lightest day in every non-deload
   const r2 = applyExtras(lift, [{ exerciseId: 'nope', sets: 1, reps: 5 }, { exerciseId: 'long_pause_bench', sets: 3, reps: 3, rpe: 7 }], catalogue);
   assert.equal(r2.block.weeks[0].days[0].entries.at(-1).exerciseId, 'long_pause_bench');
   assert.equal(r2.rationale.length, 1);
+});
+
+test('thin data gives no lift-balance verdict; a lift that is moving well is never also called lagging', () => {
+  const two = [ev(0, 'low_bar_squat', 200, 5, 8), ev(1, 'comp_bench', 100, 5, 8), ev(1, 'conventional_deadlift', 200, 5, 8)];
+  assert.ok(!ids(coachReview({ events: two, catalogue })).some((id) => id.startsWith('balance')));
+  const r = coachReview({ events: history({ squat: (k) => 120 + 3 * k, bench: () => 130, deadlift: () => 150 }), catalogue });
+  assert.ok(ids(r).includes('progress-squat'));
+  assert.ok(!ids(r).includes('balance-squat') && !ids(r).includes('balance-squat2'), ids(r).join());
+});
+
+test('applyExtras never adds the same exercise twice in one week', () => {
+  const mk = (n, withCrunch) => ({ number: n, entries: withCrunch ? [{ exerciseId: 'cable_crunch', name: 'Cable Crunch', sets: [], cues: [] }] : [] });
+  const block = { number: 3, weeks: [{ number: 1, label: 'Week 1', days: [mk(1, true), mk(2, false)] }] };
+  const { block: out, rationale } = applyExtras(block, [{ exerciseId: 'cable_crunch', sets: 2, reps: [10, 15], rpe: 9 }], catalogue);
+  assert.equal(out.weeks[0].days.flatMap((d) => d.entries).filter((e) => e.exerciseId === 'cable_crunch').length, 1);
+  assert.equal(rationale.length, 0);
+});
+
+test('blockVolume counts primary as 1 and secondary as 0.5 per set, per week', () => {
+  const set = { index: 1 };
+  const block = { weeks: [{ number: 1, days: [{ number: 1, entries: [{ exerciseId: 'low_bar_squat', sets: [set, set, set] }, { exerciseId: 'seated_leg_extension', sets: [set, set] }] }] }] };
+  const v = blockVolume(block, catalogue)[0].muscles;
+  assert.equal(v.quads, 5); assert.equal(v.glutes, 3); assert.equal(v.adductors, 1.5); assert.equal(v.chest, 0);
 });
