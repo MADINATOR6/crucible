@@ -1,195 +1,62 @@
-# Report for Madison: ccx upgrade (30 Sep - 1 Oct 2026)
+# External tools installation checkpoint
 
-Branch `claude/architecture-audit-migration-649829`, based on `c2f515b`. Update 1 Oct 2026: the upgrade is already in `origin/main` (checked against the remote). This branch is no longer on the remote; how it reached `main` is UNKNOWN.
+Status: PARTIAL
 
-## 1. Status
+Task / start HEAD: `external-tools-install` / `e8f79b1dc1cd5c36951926de031481add4eccc8b`
 
-**Complete.** It is built, tested, independently verified and committed.
-- **Tasks:** all 7 ccx tasks are done through ccx's own gate.
-- **Codex's findings:** every finding from Codex's verification is fixed and confirmed by Codex (CCX-4b, 4c and 4d).
-- **CCX-7:** the last one-line fix was finished by Claude on your instruction, while Codex was at its limit. Your quoted chat approval (A-0001) is recorded in place of its cross-model review.
-- **Waiting on you:** nothing for this upgrade. It is already merged and pushed.
+Repository: https://github.com/MADINATOR6/claude-codex-collab
 
-## 2. What changed
+Local path: `C:\Users\Madison\code\claude-codex-collab`. Do not use the powerlifting `claude-codex-template` checkout.
 
-The template now has a control plane called **ccx**. It is a set of PowerShell scripts plus one policy file, with no services, databases or new dependencies. It is optional: the old way of dispatching Codex still works exactly as before.
+## Changes
 
-| Master prompt layer | What exists now |
-|---|---|
-| Master Computer | `ccx status`: tasks, approvals, notifications, worktrees, routing history and agent availability. `-Brief` gives 5 lines. |
-| OMNIROUTE | `ccx route` plus `ccx/policy.json`. Deterministic rules, no model involved. It is **not** the third-party OmniRoute gateway, which stays rejected. |
-| Orchestrator | Claude, recording each task with `ccx task` (owner, files owned, class, risk, budget). |
-| Kairos-style runtime | A durable event queue and `ccx tick`: deduplicated, leased, retried with backoff, dead-lettered. No background process. |
-| Workers | Codex through `scripts\codex-dispatch.ps1 -TaskId`, Claude, and two scoped Claude subagents. |
-| Worktrees | `ccx worktree add / list / prune` and `ccx merge-check`. |
-| Verification | `ccx verify`, launcher post-checks, reviews, and a gated `task done`. |
-| Approval gate | `ccx gate / approve / deny`, with permission levels L0 to L5. |
+- `EXTERNAL-TOOLS.md`: pins, user-local locations, verified commands, isolation, adaptations, logs and the Claw runtime blocker.
+- `.claude/skills/offensive-reporting/` and `.claude/skills/offensive-bug-identification/`: concise authorized-review adaptations, matching YAML names, pinned provenance and unchanged upstream MIT LICENSE files.
+- `AGENTS.md`: one pointer to the separately authorized installation; existing reference sections and external-harness boundary retained.
+- `TASK.md` / `MEMORY.md`: Claude-assisted plan, bounded Claw diagnoses, progress and honest pending work.
 
-## 3. Claude and Codex collaboration
+No control-plane or app code changed. Installations and logs are outside the repo at `C:\Users\Madison\.local\share\claude-codex-tools`, with GJC in `%LOCALAPPDATA%/gjc` and Rust in the standard user directories. No binaries or provider state will be committed or mirrored.
 
-1. Claude registers the task: `ccx task add` with type, class, risk, owner, owned files and spec file.
-2. OMNIROUTE picks the route, model, effort, budget and required checks.
-3. `ccx worktree add` gives the task its own worktree, after checking nobody else owns those files.
-4. `codex-dispatch.ps1 -TaskId <id>` runs Codex with the routed model and effort. Afterwards it records tokens, status and post-checks automatically.
-5. `ccx verify` runs the full pipeline.
-6. The *other* model reviews: `task review`. The author cannot review their own work.
-7. `task done` refuses anything unverified or unreviewed.
-8. `merge-check`, then merge (logged). Pushing needs your approval.
+## Checks
 
-Review loops are capped at 2.
+- GJC v0.15.3 release SHA256: PASS; `--version` and `--smoke-test`: exit 0. The official PowerShell installer failed to find `Get-FileHash`; the same pinned binary was verified using Python SHA256 and checked before installation.
+- Portable Bash version and local command: PASS. Effective GJC shell setting is in its migrated `~/.gjc/agent/config.yml`.
+- Isolated LazyCodex/OmO 5.1.13: installer exit 0, doctor 3/3 PASS, 0 failures/warnings after ast-grep bootstrap. Isolated Codex launcher `--version`: exit 0 (`0.160.0`). Bundled comment-checker `--help`: exit 0.
+- Primary Codex config/AGENTS/agents/hooks (5 existing files): before/after hashes identical. Authentication material not read or copied. Child launchers preserve parent environment, disable telemetry/auto-update, and default to an empty external trial directory.
+- Claude skill-catalog discovery: PASS for both actual installed names/descriptions. Name/frontmatter and unchanged MIT-license checks: PASS. Optional skill-creator Python validator: NOT RUN successfully (PyYAML missing); no success claimed for it.
+- Claw locked release build: exit 0 after Claude's diagnoses and child-only compiler/dlltool setup. Runtime `--version`: FAIL, exit `3221225477` / `0xC0000005` with no output. Help/doctor/inference unverified. The artifact is retained for diagnosis and not advertised as ready.
+- `git diff --check`: PASS. ccx quick verification: PASS json/secrets/scope/memory; parse N/A (no changed PowerShell).
 
-What actually happened in this upgrade:
-- Codex wrote most of the code, then hit its usage limit four times.
-- With your agreement, Claude finished Codex's partial work.
-- Codex then verified everything independently (CCX-4).
+Full ccx verification passed its applicable json/secrets/scope/memory stages; unchanged control-plane test stages were N/A. Independent read-only Codex verifier `external_tools_verify` reran GJC smoke/version, isolated Codex version/help and OmO doctor, compared all five primary config hashes, checked skill frontmatter/licenses/scope and reproduced the Claw crash. PASS for the honest partial checkpoint; not acceptance of all four.
 
-## 4. OMNIROUTE
+Claude independently reviewed the tracked diff and every new skill file against receipts (session `6fc21ecd-ce28-4657-8a48-7f8109261533`): PASS for the partial checkpoint. Nonblocking requests were addressed by capturing `claw-runtime-check.json`, naming both hash receipts, and clarifying the three LazyCodex version layers. Claude's final checkpoint/commit step remains pending; do not mark the full task done.
 
-**Routing order, cheapest reliable first:** a plain tool (no AI), an existing result, a script, a cheap model (Haiku scout or Codex at low effort), a worker, a premium model, the Mythos tier. Two special routes: `defer` (Codex is at its limit) and `surface` (stop and ask you).
+Final review session (2026-10-04): Claude re-checked the three fixes against `claw-runtime-check.json` and `primary-config-before/after.json` (all five hashes identical) and the version-layer note: PASS. `git diff --check` clean. **No commit was made.** In that session, the permission mode denied every `scripts\ccx.ps1` call, so Claude could not rerun full `ccx verify`, record `task review -Id external-tools-install -By claude -Result pass`, or log `ccx gate -Action local-commit`. This report requires full ccx verification before the local commit, and the commit was conditional on logging that gate. WIP is preserved uncommitted. Next session with ccx permitted: run full verify, record the review, log the gate, stage exactly `AGENTS.md TASK.md MEMORY.md HANDOFF-REPORT.md EXTERNAL-TOOLS.md .claude/skills/offensive-reporting/ .claude/skills/offensive-bug-identification/`, then commit. Keep the task blocked and do not run `task done`.
 
-**Models:**
-- Codex dispatches use GPT-6 Astra. GPT-5.3-Codex is not in your Codex model list.
-- Claude uses Opus 5.5.
-- Claude's cheap subagent uses Haiku 4.5.
+## Resume 2026-10-04 (after the Claude quota reset)
 
-**Effort by class:** routine low, normal medium, complex high, critical and exceptional xhigh. A failure or ambiguity raises it one step within the class cap; max needs two failed attempts.
+- GJC: `gjc.exe` was missing from `%LOCALAPPDATA%\gjc` and was restored from the retained pinned binary (SHA256 re-checked, L3 gate logged); `--version` and `--smoke-test` exit 0. Codex model selection fixed (source-grounded: discovered models resolve only after a foreground refresh; `--mpreset` forces one) with a user-level `codex-sol` profile in `~/.gjc/agent/models.yml` for the same `openai-codex/gpt-6.1-sol`. Reply-only generation PASS on both subscriptions: ChatGPT (`--mpreset codex-sol`, JSON shows provider/model) and Claude (`anthropic/claude-sonnet-5`, retried once after the reset). No API key, no model substitution.
+- LazyCodex: tool use still UNVERIFIED. It needs a person to approve at the interactive prompt; the `never`-policy refusal was not bypassed. Read-only trial command is in EXTERNAL-TOOLS.md.
+- Claw: still BLOCKED, not executed or rebuilt. A bounded plan (recommended: leave as source reference; one `gnullvm` attempt only if the user wants it) is in EXTERNAL-TOOLS.md. An early `.idata` reading of the fault offset was discarded: WER names the module `unknown`.
+- Isolation: primary Codex five-file hashes identical (`primary-config-20261004-resume-check.json`).
+- Not all four tools work: GJC works, LazyCodex generates, two skills work; Claw does not run.
 
-**Seen working live:**
-- The CCX-5a trial was routed to Astra **low** and used about 56k effective tokens.
-- The CCX-4 verifier was routed to Astra **high**.
-- After Codex hit its limit, routing switched to `defer` by itself.
+## Acceptance and next owner
 
-**Adaptive routing** learns from telemetry, within fixed bounds. Quota exits never count as model failures.
+Resume check (2026-10-04): Codex reran full ccx verification successfully (exit 0; json/secrets/scope/memory PASS; unchanged code stages N/A; format/lint SKIP) and confirmed `git diff --check` passed. The current ccx task has a full PASS verification record and remains blocked. Claude was then asked for a bounded read-only Claw startup diagnosis plan, using existing source/tools only. It returned HTTP 429 before any work: "You've hit your session limit", reporting a reset at 5am Australia/Sydney. Receipt: `C:/Users/Madison/.local/share/claude-codex-tools/claude-runtime-plan.json`, session `a93a3c9e-2bbc-40c5-a6f9-09a10a3a401f`. No new plan, review, commit, login, installation or toolchain change occurred. The earlier permission refusals are preserved above; this attempt did not change or bypass those permissions. Claude must still record its own review, log the local-commit gate and make the exact-path checkpoint commit in a permitted session. Reverify after any further edits.
 
-## 5. Persistent runtime and memory
+Phases A/B/C/E/F/G: implemented with evidence. Phase D: BLOCKED on runtime failure. The task is not complete and must not be marked done.
 
-**Runtime:**
-- Events come from dispatches, verification and approvals.
-- `ccx status` runs one tick first, so you always see current notifications.
-- Handlers are capped at permission level L2 and never launch Codex on their own.
-- `ccx runtime off` pauses it.
+Claude may review and commit the working three-tool setup and this blocked checkpoint after verification. No new commit-specific push approval exists. The earlier `de368af` approval cannot authorize this commit. A mistyped action `dependency` created unused A-0015; the policy's real `install-dependency` action was then logged as L3 and passed. A-0015 was never approved or used and is not needed for installation.
 
-**Memory:**
-- MEMORY.md was consolidated; the old checkpoints are in MEMORY-ARCHIVE.md.
-- `ccx memory lint` checks for secrets, size caps, duplicate lines and checkpoint overflow. It also runs as a verification stage.
+UNKNOWN: whether Claw's failure comes from this GNU/LLVM runtime combination or the upstream Windows implementation; full coding-workflow compatibility for both harnesses. LazyCodex reply-only generation is confirmed below.
 
-## 6. Verification (all actually run)
+Later user session (2026-10-04): GJC's screenshot shows Anthropic and both Codex login modes connected; the isolated LazyCodex launcher independently reports ChatGPT login. LazyCodex's reply-only generation check passed, exit 0. GJC's Anthropic generation check reached the provider but was quota-rejected (reset reported as 05:00 Australia/Sydney). Its Codex check failed locally at model selection, including one source-guided flag-format retry; the model list nevertheless advertises the selector. (Superseded by the 2026-10-04 resume section above: both GJC providers now pass reply-only generation.) LazyCodex's initial Git Bash handshake warning did not reproduce in direct initialization; its agent-mediated diagnostic was discovered but refused by the restrictive test's approval policy. Do not bypass that refusal. Commands and all receipt filenames are in EXTERNAL-TOOLS.md. Added a tools-dir-only `gjc.cmd` launcher defaulting to the empty trial folder; no upstream source or security setting changed.
 
-**Test suites (the suites grew during the work):**
+The user requested safe, efficient unattended continuation and explicitly granted permission to push this task before sleeping. This is recorded as user intent, not a fabricated ccx approval; no approval was self-recorded, and no final commit exists yet. Claude retains Git ownership. Next: Claude's permitted review/gate/checkpoint commit, a bounded Claw diagnosis plan, and an interactive isolated coding trial after provider quota and tool approvals permit it. Login is no longer the pending step.
 
-| Suite | Tests | Result |
-|---|---|---|
-| test-ccx | 29 | pass |
-| test-ccx-ops | 15 | pass |
-| test-codex-dispatch | 46 | pass; it had 23 at baseline |
-| test-sync-mirror | 21, plus 1 skip | pass |
+Post-login isolation recheck: the same five primary configuration hashes remain unchanged (`primary-config-post-login-check.json`). Read-only Claw evidence now also includes its latest Windows error event and LLVM PE headers/imports, without re-executing or rebuilding it (`claw-windows-error-event.json`, `claw-pe-inspection.txt`). No root cause is claimed. The tools-dir GJC launcher returned `gjc/0.15.3`, exit 0; no staged changes or new commit exist. Full ccx verification and diff whitespace checks passed after the resumed documentation updates.
 
-**Real checks:**
-- `ccx verify` passes on every task.
-- `ccx health` exits 0. Its only warning is Codex being at its limit.
+CHECKED: exact pinned source/binary artifacts, source build logs, offline checks, profile hashes, selected skill content, licenses and actual Claude discovery.
 
-**Rollback rehearsal:**
-1. Merged the upgrade into a copy of `main`.
-2. Reverted it with `git revert -m 1`.
-3. The tree was identical to `c2f515b`, and the old suites passed there: 23/23 and 21/21 plus 1 skip.
-
-**Independent verification by Codex (CCX-4):** it attacked 8 areas and found 5 real defects that no test had caught. All five are fixed, each with a new regression test.
-
-| Defect | Found by | Fixed |
-|---|---|---|
-| A private-key body leaking past redaction | CCX-4 | yes |
-| Committed broken code passing verification | CCX-4 | yes |
-| A "laundering" hole in task baselines | CCX-4, plus two more paths found by CCX-4b | yes |
-| A rename slipping past merge-check | CCX-4 | yes |
-| An explicit effort bypassing the retry cap | CCX-4 | yes |
-| worktree add starting from the wrong commit | the end-to-end trial | yes |
-| A status parse miss | CCX-4's own report | yes |
-| A health false warning | the real health run | yes |
-
-Codex's re-checks:
-- CCX-4b: F2 and F4 passed.
-- CCX-4c: F1, F5 and every current F3 path passed.
-- CCX-4d: the F3 legacy path and the status parse passed.
-
-The end-to-end trials also found, and fixed:
-- `worktree add` starting from the wrong commit, and a stale-baseline bug (CCX-7);
-- test-harness failures that only happen inside Codex's sandbox (`taskkill` denied, CLIXML-wrapped errors). Those cases now SKIP there instead of failing.
-
-Final gate:
-- test-ccx 30/30;
-- test-ccx-ops 16/16;
-- test-codex-dispatch 46/46;
-- test-sync-mirror 22/22.
-
-## 7. Security and permissions
-
-| Level | Covers | Rule |
-|---|---|---|
-| L0 | read | automatic |
-| L1 | write in the task | automatic |
-| L2 | build, test, dispatch | automatic |
-| L3 | branches, worktrees, local commits and merges | allowed and logged |
-| L4 | push, pull requests, messages, publishing, Codex full access | needs approval, in chat or in your terminal |
-| L5 | production, credentials, force-push, history rewrite | needs you to type the approval in your own terminal |
-
-- **What is enforced technically:**
-  - Codex's sandbox cannot touch the state at all.
-  - AI shells cannot pass the interactive approval.
-  - Codex full access is gated.
-  - Tick handlers cannot go above L2.
-- **What relies on rules instead:** anything with full shell access could still edit state files directly.
-- **Secrets and private data:**
-  - Secrets are redacted everywhere ccx writes.
-  - `nursing-a2/` is excluded by policy and never read or scanned.
-  - No secrets were found in any commit.
-
-## 8. Cost and token controls
-
-- **Per-class budgets** (dispatches 2 to 4, model escalations, review cycles, timeouts, token targets), enforced by the launcher, router and `task review`.
-- **Usage-limit runs** do not use up a retry.
-- **Measured quota:** about 35 minutes of Astra at high effort per usage window. Parallel Codex runs used it in 19 minutes. The docs now say: one Codex task at a time, and spend Codex first on verification.
-
-## 9. Files
-
-- **New:**
-  - `ccx/policy.json`, `ccx/ARCHITECTURE.md`;
-  - `scripts/ccx.ps1`, `scripts/ccx-core.ps1`, `scripts/ccx-ops.ps1`, `scripts/test-ccx.ps1`, `scripts/test-ccx-ops.ps1`;
-  - `.claude/agents/ccx-scout.md`, `.claude/agents/ccx-reviewer.md`;
-  - `tasks/CCX-*.md`, `MEMORY-ARCHIVE.md`.
-- **Changed:**
-  - `scripts/codex-dispatch.ps1`, `scripts/test-codex-dispatch.ps1`, `scripts/test-sync-mirror.ps1`;
-  - AGENTS.md, HANDOFF.md, README.md, BOOTSTRAP.md, MEMORY.md, FRICTION.md, TASK.md (reset), `.gitignore`.
-- **Local only, never committed:** `.git/ccx/` (the state) and one line in `.git/info/exclude` (`.ccx-worktrees/`).
-
-## 10. Remaining issues
-
-- **Your approval:** none needed for the upgrade; it is already in `origin/main`.
-- **Codex desktop app agent sync:** it copied our Claude scout agent into `.codex/agents/` without its read-only restriction. The folder is excluded from git here. Consider turning the sync off in Codex settings.
-- **One unexplained flake:** process starts were briefly denied ("Access is denied") during one test run; a re-run passed. Cause UNKNOWN; likely security software.
-- **Slow tests:** about 4.3 s per PowerShell start on this machine, so the core suite takes about 15 minutes.
-- **Still open from 27 Sept:** the Mythos rule questions, deleting the old merged branch `claude/codex-mythos-upgrade-analysis-nv6hg1`, and recycling `claude-codex-template`.
-
-## 11. How to use it
-
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 status
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 health
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 approve -Id A-0001
-```
-
-- `status` shows what's going on.
-- `health` checks the setup.
-- `approve` approves something. Run it in *your* terminal when asked.
-
-Day to day, just ask Claude for work as usual. Claude runs the ccx steps.
-
-## 12. Rollback
-
-- **Before merging into main:** nothing to undo. Delete the branch if you don't want it.
-- **After merging:**
-  1. `git revert -m 1 <merge commit>` on a branch.
-  2. Run the old test suites.
-  3. Merge and push that branch.
-  4. Delete `.git\ccx`.
-
-  This was rehearsed; the result is in section 6. Never reset or force-push `main`.
+NEEDED: the user's decision on the Claw plan options in EXTERNAL-TOOLS.md (no toolchain change before it); interactive LazyCodex tool approval and an isolated worktree plus task allowlist for any repository-writing harness session; Claude's own ccx review/gate/commit and a satisfied final-commit push gate.
