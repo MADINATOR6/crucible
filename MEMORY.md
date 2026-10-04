@@ -2,7 +2,14 @@
 
 Operating state for autonomous sessions on this repo. Read first every session. Cap 400 lines; archive old entries to MEMORY-ARCHIVE.md.
 
-## Active task (2026-10-04)
+## Active task (2026-10-04 evening, unattended; user said "full access, do your best, ill be away")
+- `lifting-tracker` (master prompt `prompts/lifting-tracker-master-prompt.md`): offline PWA in `lifting-tracker/` (plain ES modules, no deps; `node --test` from that folder; `node lifting-tracker/dev-server.mjs`). Workbook used for inspection: `~/Downloads/Madison Arnido (2).xlsx` (private; `*.xlsx` gitignored; never give it to Codex or commit derived data). Findings are in `lifting-tracker/ARCHITECTURE.md`.
+- Done and merged on main: gitignore rule, `xlsx.js` reader, LT-1 core (e1RM/PRs/weeks/muscles/schedule/lifts/rpe) and LT-7a plates logic via Codex (re-registered as LT-1r/LT-7ar after a bookkeeping error), UI shell (train/muscles/progress/plates/data), store + backup, PWA files.
+- LT-0 importer: Codex implemented in worktree `.ccx-worktrees/codex-LT-0` (task LT-0r), real-workbook smoke check passed (13 blocks, 66 weeks, 1465 date-reps converted, 11 unparsed cells). Codex verifier run in progress; then fix, review, commit, merge. Remove hard-coded name regex in `programme.js` (line ~187) when merging.
+- Friction logged: ccx task `owns` entries for directories need a trailing `/`; `node --test <dir>` fails on Node 24 (use `node --test` in the folder or a glob); `task start -Worktree` needs an absolute path.
+- Not pushed. No user approval for push exists for this work.
+
+## Earlier task (2026-10-04)
 - `external-tools-install` [complex, medium risk, Dispatch]: user-authorized, Claude-assisted install of all four external tools (GJC, LazyCodex, Claude-Red 2 defensive skills, Claw-Code) for this repo. Supersedes the AGENTS.md reference-only + Claw exclusions **for install only**; control-plane boundary, Security and L4/L5 gates still bind. User-local dep installs are L3 logged (ARCHITECTURE.md:279).
 - Plan is TASK.md at clean baseline `e8f79b1`. Codex implements; Claude reviews/commits. Work runs in the user's existing desktop session: no new full-access write dispatch and no sandbox change. Registered ccx task; exact `install-dependency` L3 gates passed. A mistyped unknown action `dependency` created unused approval A-0015; it is not needed for the correctly logged L3 installs and was never approved or used.
 - Installed and checked: GJC v0.15.3 at `%LOCALAPPDATA%/gjc/gjc.exe` (version/smoke exit 0); isolated OmO 5.1.13 under `%USERPROFILE%/.local/share/claude-codex-tools/lazycodex-profile` (doctor 3/3, no warnings); two concise Claude-Red project skill adaptations (matching names, MIT notices, actual Claude skill-catalog discovery PASS). GJC migrated its Bash setting to `~/.gjc/agent/config.yml`; portable Bash check passes.

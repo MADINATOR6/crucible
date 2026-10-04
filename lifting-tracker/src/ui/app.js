@@ -57,7 +57,9 @@ async function main() {
   app.subscribe(() => { applyTheme(app.settings.theme); render(); });
   render({ keepScroll: false });
 
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !location.hostname.match(/^(localhost|127\.0\.0\.1)$/)) {
+  // The service worker is skipped on localhost while developing, unless asked for with ?sw=1.
+  const isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && (!isLocal || location.search.includes('sw=1'))) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   window.__app = app; // handy in the console while developing

@@ -66,14 +66,14 @@ A **set event** is `{ date, exerciseId, weightKg, reps, rpe, isWarmup, order, so
 UI, storage, plates, import, scoring formulas (Wilks/DOTS/IPF GL), bodyweight trends.
 
 ## Done When
-- [ ] Every function and example above has a passing test (Codex runs `node --test lifting-tracker/test/core`; reports command and output).
+- [ ] Every function and example above has a passing test (Codex runs `node --test test/core/calculations.test.js` from the `lifting-tracker` folder; reports command and output).
 - [ ] Expected values in tests are hand-derived (Claude spot-checks the PR sequence and muscle totals).
 - [ ] No file outside the allowlist changed (`git status`; Claude checks).
-- [ ] `node --test lifting-tracker/test` from repo root passes (Claude re-runs after merging with the other lifting-tracker tasks).
+- [ ] `cd lifting-tracker && node --test` passes (Claude re-runs after merging with the other lifting-tracker tasks).
 
 ## Verify
 ```
-node --test lifting-tracker/test/core     # not yet run
+cd lifting-tracker && node --test test/core/calculations.test.js   # verified 2026-10-04: 18 pass. (`node --test <directory>` fails MODULE_NOT_FOUND on Node 24.)
 ```
 
 ## Stop Conditions

@@ -55,14 +55,14 @@ Defaults: kg set with plates from `data/plates.json` (counts as given), 20 kg ba
 Drawing, UI, tapping to add plates (the UI computes totals by calling `loadBar` and a small helper you do not need to write), federation rules, plate colours (data only).
 
 ## Done When
-- [ ] Every example above has a passing test with hand-derived expected values (Codex runs `node --test lifting-tracker/test/plates` and reports the output).
+- [ ] Every example above has a passing test with hand-derived expected values (Codex runs `node --test test/plates/loading.test.js` from the `lifting-tracker` folder and reports the output).
 - [ ] The exhaustive round-trip test over targets passes.
 - [ ] No file outside the allowlist changed.
 - [ ] Claude spot-checks three expected values by hand and re-runs the suite.
 
 ## Verify
 ```
-node --test lifting-tracker/test/plates      # not yet run
+cd lifting-tracker && node --test test/plates/loading.test.js   # verified 2026-10-04: 23 pass. (`node --test <directory>` fails MODULE_NOT_FOUND on Node 24.)
 ```
 
 ## Stop Conditions

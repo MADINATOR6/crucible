@@ -9,7 +9,7 @@ import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  unit: 'kg', theme: 'system', barId: 'kg20', collar: true, plateCounts: null, programmeStart: null, dayWeekdays: { 1: 1, 2: 2, 3: 4, 4: 5 },
+  unit: 'kg', theme: 'system', barId: 'kg20', collar: true, plateCounts: null, programmeStart: null, blockStarts: {}, dayWeekdays: { 1: 1, 2: 2, 3: 4, 4: 5 },
 });
 
 async function fetchJson(path) {
@@ -64,10 +64,16 @@ export async function createApp() {
     if (!p) return starts;
     let start = app.settings.programmeStart;
     if (p.isExample) start = addDays(mondayOf(todayIso()), -21);
-    if (!start) { const d = p.overview?.results?.[0]?.date; if (d) start = mondayOf(d); }
+    if (!start) {
+      // The overview's first result is usually logged on the day before training starts: a Sunday means the next Monday.
+      const d = p.overview?.results?.[0]?.date;
+      if (d) { const m = mondayOf(d); start = addDays(m, 6) === d ? addDays(d, 1) : m; }
+    }
     if (!start) return starts;
     let cursor = mondayOf(start);
+    const overrides = app.settings.blockStarts || {};
     for (const b of [...p.blocks].sort((a, c) => a.number - c.number)) {
+      if (overrides[b.number]) cursor = mondayOf(overrides[b.number]); // the athlete knows when a block really began
       starts.set(b.number, cursor);
       cursor = addDays(cursor, 7 * Math.max(1, b.weeks.length));
     }

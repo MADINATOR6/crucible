@@ -5,8 +5,8 @@ const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'styles/app.css',
   'data/exercises.json', 'data/plates.json',
   'src/ui/app.js', 'src/ui/state.js', 'src/ui/dom.js', 'src/ui/charts.js', 'src/ui/heatmap.js', 'src/ui/barbell.js', 'src/ui/example-data.js',
-  'src/ui/views/train.js', 'src/ui/views/muscles.js', 'src/ui/views/progress.js', 'src/ui/views/plates.js', 'src/ui/views/data.js',
-  'src/core/units.js', 'src/core/e1rm.js', 'src/core/sets.js', 'src/core/prs.js', 'src/core/weeks.js', 'src/core/muscles.js', 'src/core/schedule.js', 'src/core/lifts.js', 'src/core/rpe.js',
+  'src/ui/views/train.js', 'src/ui/views/muscles.js', 'src/ui/views/progress.js', 'src/ui/views/plates.js', 'src/ui/views/data.js', 'src/ui/views/meet.js',
+  'src/core/units.js', 'src/core/e1rm.js', 'src/core/sets.js', 'src/core/prs.js', 'src/core/weeks.js', 'src/core/muscles.js', 'src/core/schedule.js', 'src/core/lifts.js', 'src/core/rpe.js', 'src/core/attempts.js',
   'src/plates/loading.js', 'src/import/xlsx.js', 'src/import/programme.js', 'src/store/db.js', 'src/store/backup.js',
 ];
 

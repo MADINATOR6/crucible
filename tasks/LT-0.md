@@ -101,14 +101,14 @@ UI, storage, merging into logged data, block dates, e1RM, PRs, muscle maths, wri
 ## Done When
 - [ ] All unit and fixture tests above pass (Codex: run, report command and output).
 - [ ] No test or fixture contains text copied from the athlete's real workbook (Claude verifies by reading the fixtures).
-- [ ] `node --test lifting-tracker/test` passes from the repo root (Codex runs; Claude re-runs).
+- [ ] `cd lifting-tracker && node --test` passes (Codex runs; Claude re-runs).
 - [ ] Smoke test against the real workbook prints counts and no cell text (Claude runs with `LT_REAL_WORKBOOK`; real data stays out of the repo).
 - [ ] Redaction rule and `unparsedCells` behaviour covered by tests (Codex).
 - [ ] Diff review of rules vs this spec (Claude); Codex verifier attack run afterwards.
 
 ## Verify
 ```
-node --test lifting-tracker/test        # not yet run
+cd lifting-tracker && node --test   # verified 2026-10-04 on the importer branch. (`node --test <directory>` fails MODULE_NOT_FOUND on Node 24.)
 ```
 
 ## Stop Conditions

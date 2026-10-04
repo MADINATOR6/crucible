@@ -49,6 +49,10 @@ export function dataView(app, ui) {
         <div class="field"><span>Theme</span><div class="seg" role="group" aria-label="Theme">${['system', 'dark', 'light'].map((t) => `<button data-theme="${t}" aria-pressed="${s.theme === t}">${t}</button>`).join('')}</div></div>
         <label class="field"><span>Programme start date (Block 1, week 1)</span><input id="start" type="date" value="${esc(startDefault)}"></label>
       </div>
+      <details class="fold" style="margin-top:10px"><summary>Block start dates (optional)</summary>
+        <p class="small muted">Leave blank to follow on from the previous block. Set a date when a block really began (for example after a break); later blocks then follow it.</p>
+        <div class="grid cols-2">${(p?.blocks || []).map((b) => `<label class="field"><span>Block ${b.number} · ${esc(b.name)}</span><input type="date" data-block-start="${b.number}" value="${esc((s.blockStarts || {})[b.number] || '')}"></label>`).join('')}</div>
+      </details>
       <p class="small muted" style="margin-top:8px">The workbook has no dates, so charts place sets using this start date and the assumption that blocks follow each other week by week. Treat dates as estimates. A start on any day is moved to that week's Monday.</p>
     </div>
 
@@ -85,6 +89,11 @@ export function dataView(app, ui) {
     root.querySelector('#use-example')?.addEventListener('click', async () => { await app.useExample(); ui.train = null; ui.muscles = null; toast('Showing example data'); });
     root.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => app.saveSettings({ unit: b.dataset.unit })));
     root.querySelectorAll('[data-theme]').forEach((b) => b.addEventListener('click', async () => { await app.saveSettings({ theme: b.dataset.theme }); }));
+    root.querySelectorAll('[data-block-start]').forEach((inp) => inp.addEventListener('change', () => {
+      const cur = { ...(app.settings.blockStarts || {}) };
+      if (inp.value) cur[inp.dataset.blockStart] = mondayOf(inp.value); else delete cur[inp.dataset.blockStart];
+      app.saveSettings({ blockStarts: cur });
+    }));
     root.querySelector('#start').addEventListener('change', (e) => app.saveSettings({ programmeStart: e.target.value ? mondayOf(e.target.value) : null }));
     root.querySelector('#export-json').addEventListener('click', async () => {
       const data = await app.exportBackup();
