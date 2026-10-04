@@ -12,7 +12,10 @@ export function plateConfig(app, unit) {
   const counts = app.settings.plateCounts?.[unit] || {};
   const plates = set.plates.map((p) => ({ ...p, count: Number.isInteger(counts[p.value]) ? counts[p.value] : p.count }));
   const barId = app.settings.barByUnit?.[unit] || set.bars[0].id;
-  const bar = set.bars.find((b) => b.id === barId) || set.bars[0];
+  const customValue = Number(app.settings.customBar?.[unit]);
+  const bar = barId === 'custom' && customValue > 0
+    ? { id: 'custom', label: 'Custom bar', weight: { value: customValue, unit } }
+    : (set.bars.find((b) => b.id === barId) || set.bars[0]);
   const collar = app.settings.collar ? set.collar : null;
   return { plates, bar, collar, set };
 }
@@ -81,7 +84,8 @@ export function platesView(app, ui) {
       </div>
       <div class="card">
         <div class="card-h"><h2>Bar &amp; collars</h2></div>
-        <div class="field"><span>Bar</span><select id="bar">${set.bars.map((b) => `<option value="${b.id}" ${b.id === bar.id ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}</select></div>
+        <div class="field"><span>Bar</span><select id="bar">${set.bars.map((b) => `<option value="${b.id}" ${b.id === bar.id ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}<option value="custom" ${bar.id === 'custom' || app.settings.barByUnit?.[unit] === 'custom' ? 'selected' : ''}>Custom weight…</option></select></div>
+        ${(app.settings.barByUnit?.[unit] === 'custom') ? `<label class="field" style="margin-top:10px"><span>Custom bar weight (${unit})</span><input id="custombar" type="number" step="0.5" min="1" inputmode="decimal" value="${esc(app.settings.customBar?.[unit] ?? '')}"></label>` : ''}
         <label class="row" style="margin-top:12px"><input type="checkbox" id="collar" ${collar ? 'checked' : ''} style="width:auto;min-height:0"> Competition collars (${esc(String(set.collar.weight.value))} ${set.collar.weight.unit} each side)</label>
         <p class="small muted" style="margin-top:8px">${esc(set.collar.source)}</p>
       </div>
@@ -155,6 +159,7 @@ export function platesView(app, ui) {
       if (!r.exact) toast(`Loaded ${round1(r.loadedTotal.value)} ${unit} (nearest loadable)`);
     });
     root.querySelector('#bar').addEventListener('change', async (e) => { await app.saveSettings({ barByUnit: { ...(app.settings.barByUnit || {}), [unit]: e.target.value } }); });
+    root.querySelector('#custombar')?.addEventListener('change', (e) => { const v = Number(e.target.value); if (v > 0) app.saveSettings({ customBar: { ...(app.settings.customBar || {}), [unit]: v } }); });
     root.querySelector('#collar').addEventListener('change', (e) => app.saveSettings({ collar: e.target.checked }));
     root.querySelectorAll('[data-count]').forEach((inp) => inp.addEventListener('change', async () => {
       const n = Math.max(0, Math.floor(Number(inp.value) || 0));
