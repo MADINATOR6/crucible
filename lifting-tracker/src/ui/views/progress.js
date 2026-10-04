@@ -1,0 +1,75 @@
+// Progress view: e1RM trends, totals, PRs, bodyweight trend, planned vs actual RPE.
+import { estimate1RM } from '../../core/e1rm.js';
+import { workingSets } from '../../core/sets.js';
+import { runningBests } from '../../core/lifts.js';
+import { rpeDeltas } from '../../core/rpe.js';
+import { formatWeight, round1, convert } from '../../core/units.js';
+import { lineChart, movingAverage, longDate } from '../charts.js';
+import { esc, toast, todayIso } from '../dom.js';
+import { prLabel } from './train.js';
+
+const LIFTS = ['squat', 'bench', 'deadlift'];
+
+function bestE1rmByDate(app) {
+  const byLift = { squat: new Map(), bench: new Map(), deadlift: new Map() };
+  for (const e of workingSets(app.events())) {
+    const ex = app.exercise(e.exerciseId);
+    if (!ex?.competition || !ex.lift) continue;
+    const v = estimate1RM(e.weightKg, e.reps);
+    if (v == null) continue;
+    const m = byLift[ex.lift];
+    if (!m.has(e.date) || v > m.get(e.date)) m.set(e.date, v);
+  }
+  return byLift;
+}
+
+export function progressView(app, ui) {
+  const unit = app.settings.unit;
+  const toU = (kg) => round1(convert(kg, 'kg', unit));
+  const byLift = bestE1rmByDate(app);
+  const series = LIFTS.map((l) => ({ id: l, label: l[0].toUpperCase() + l.slice(1), points: [...byLift[l]].map(([x, y]) => ({ x, y: toU(y) })) })).filter((s) => s.points.length);
+  const bests = runningBests(app.events(), app.catalogue, { basis: 'e1rm' });
+  const last = bests.at(-1);
+  const totalSeries = [{ id: 'total', label: 'Total (e1RM)', area: true, points: bests.filter((r) => r.total != null).map((r) => ({ x: r.date, y: toU(r.total) })) }];
+  const prs = app.prs().slice().reverse().slice(0, 12);
+  const bw = app.bodyweightPoints();
+  const bwSeries = bw.length ? [{ id: 'bw', label: 'Bodyweight', points: bw.map((p) => ({ x: p.x, y: toU(p.y) })), dashed: true }, { id: 'total', label: '7-day average', points: movingAverage(bw.map((p) => ({ x: p.x, y: toU(p.y) })), 7) }] : [];
+  const rpe = rpeDeltas(app.programme);
+  const rpeRows = Object.entries(rpe.perExercise).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.sets - a.sets).slice(0, 12);
+  const allDeltas = rpe.perSet.map((s) => s.delta);
+  const meanDelta = allDeltas.length ? allDeltas.reduce((a, b) => a + b, 0) / allDeltas.length : null;
+  const datesEst = app.usingExample || !(app.programme?.blocks || []).length ? '' : 'Programme dates are estimates until you set a start date in Data.';
+
+  const tile = (lift) => {
+    const v = last?.[lift];
+    return `<div class="card stat s-${lift}"><span>${lift} e1RM</span><b style="color:var(--c)">${v != null ? toU(v) : '–'}<small style="font-size:14px"> ${v != null ? unit : ''}</small></b><small>best so far</small></div>`;
+  };
+
+  const html = `
+    <div class="topbar"><div><h1>Progress</h1><p class="muted small">Estimated 1RM uses Epley and is an approximation. ${esc(datesEst)}</p></div>${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>
+    <div class="stats3">${LIFTS.map(tile).join('')}</div>
+    <div class="card"><div class="card-h"><h2>Estimated 1RM by session</h2></div>${series.length ? lineChart({ series, unit, title: 'Estimated one-rep max over time for squat, bench press and deadlift' }) : '<p class="muted">Log or import competition lifts to see a trend.</p>'}</div>
+    <div class="card"><div class="card-h"><h2>Total over time</h2><span class="muted small">${last?.total != null ? 'now ' + formatWeight({ value: last.total, unit: 'kg' }, unit) : ''}</span></div>${totalSeries[0].points.length ? lineChart({ series: totalSeries, unit, title: 'Estimated squat plus bench plus deadlift total over time' }) : '<p class="muted">The total appears once squat, bench and deadlift all have data.</p>'}</div>
+    <div class="grid cols-2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Personal records</h2></div>
+        ${prs.length ? `<ul class="feed">${prs.map((x) => `<li><span class="medal">PR</span><span><b>${esc(app.exerciseName(x.exerciseId))}</b><br><span class="muted small">${esc(prLabel(x, unit))}</span></span><span class="muted small">${esc(longDate(x.date))}</span></li>`).join('')}</ul>` : '<p class="muted">PRs appear after your first logged sessions. The first set is a baseline, never a PR.</p>'}</div>
+      <div class="card"><div class="card-h"><h2>Planned vs actual RPE</h2><span class="muted small">${meanDelta == null ? '' : (meanDelta >= 0 ? '+' : '') + (Math.round(meanDelta * 100) / 100) + ' avg'}</span></div>
+        ${rpeRows.length ? `<p class="small muted">Positive means you finished harder than the coach planned. RPE 11 "to failure" sets are left out.</p><table class="plain"><thead><tr><th>Exercise</th><th>Sets</th><th>Δ RPE</th></tr></thead><tbody>${rpeRows.map((r) => `<tr><td>${esc(app.exerciseName(r.id))}</td><td>${r.sets}</td><td style="color:${Math.abs(r.meanDelta) < 0.3 ? 'var(--good)' : r.meanDelta > 0 ? 'var(--warn)' : 'var(--text-2)'}">${r.meanDelta > 0 ? '+' : ''}${r.meanDelta}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Needs sets with both a target and an actual RPE.</p>'}</div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="card-h"><h2>Bodyweight</h2><span class="muted small">${bw.length ? bw.length + ' entries' : ''}</span></div>
+      ${bwSeries.length ? lineChart({ series: bwSeries, unit, title: 'Bodyweight and its 7-entry moving average' }) : '<p class="muted">No bodyweight yet.</p>'}
+      <form id="bwform" class="row" style="margin-top:12px;align-items:end"><label class="field" style="flex:1;min-width:120px"><span>Weight (${unit})</span><input name="w" type="number" step="0.1" min="20" inputmode="decimal" required></label>
+        <label class="field" style="flex:1;min-width:140px"><span>Date</span><input name="d" type="date" value="${todayIso()}" required></label><button class="btn primary" type="submit">Add</button></form>
+      ${datesEst && bw.some((p) => p.estimated) ? '<p class="small muted" style="margin-top:8px">Points from the workbook use estimated dates.</p>' : ''}</div>`;
+
+  function bind(root) {
+    root.querySelector('#bwform')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target); const w = parseFloat(f.get('w'));
+      if (!(w > 20 && w < 500)) { toast('Enter a realistic bodyweight'); return; }
+      await app.addBodyweight(String(f.get('d')), { value: w, unit });
+      toast('Bodyweight added');
+    });
+  }
+  return { html, bind };
+}
