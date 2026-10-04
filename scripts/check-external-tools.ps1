@@ -1,46 +1,36 @@
-<#
-Read-only external tool checks. Exit 0 if all six pass, otherwise 1.
-Child commands receive closed stdin and have a 60 second timeout.
-#>
+# Read-only checks; child commands have closed stdin and a 60 second timeout.
 param(
   [string]$ToolsDir = (Join-Path $env:USERPROFILE '.local\share\claude-codex-tools'),
   [string]$GjcExe = (Join-Path $env:LOCALAPPDATA 'gjc\gjc.exe'),
   [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot)
 )
+$ToolsDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsDir)
+$GjcExe = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($GjcExe)
+$RepoRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RepoRoot)
 $ErrorActionPreference = 'Stop'
 $script:failed = 0
+$script:gjcTrusted = $false
 
 function Test-Check([string]$Name, [scriptblock]$Check) {
   try {
     if (-not (& $Check)) { throw 'Check did not pass.' }
     Write-Output "PASS: $Name"
-  } catch {
-    # Do not echo tool output or exception messages: they may contain account data.
-    Write-Output "FAIL: $Name"
-    $script:failed++
-  }
+  } catch { Write-Output "FAIL: $Name"; $script:failed++ } # Never disclose exception text.
 }
 
 function Invoke-Version([string]$File) {
   if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { throw 'Missing command.' }
-  $File = [IO.Path]::GetFullPath($File)
-  $info = New-Object Diagnostics.ProcessStartInfo
+  $info = New-Object Diagnostics.ProcessStartInfo -Property @{
+    FileName = $File; Arguments = '--version'; UseShellExecute = $false; CreateNoWindow = $true
+    RedirectStandardInput = $true; RedirectStandardOutput = $true; RedirectStandardError = $true
+  }
   if ([IO.Path]::GetExtension($File) -ieq '.cmd') {
-    # cmd.exe requires the outer quotes around a quoted command path.
     if ($File -match '["%\r\n]') { throw 'Unsafe command path.' }
     $info.FileName = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
     $info.Arguments = '/d /s /c ""' + $File + '" --version"'
-  } else {
-    $info.FileName = $File
-    $info.Arguments = '--version'
   }
-  $info.UseShellExecute = $false
-  $info.CreateNoWindow = $true
-  $info.RedirectStandardInput = $true
-  $info.RedirectStandardOutput = $true
-  $info.RedirectStandardError = $true
-  $process = New-Object Diagnostics.Process
-  $process.StartInfo = $info
+  $process = New-Object Diagnostics.Process -Property @{ StartInfo = $info }
+  $timer = $null
   try {
     [void]$process.Start()
     $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -55,27 +45,32 @@ function Invoke-Version([string]$File) {
     if ($process.ExitCode -ne 0) { throw 'Command failed.' }
     return $stdout.Result + "`n" + $stderr.Result
   } finally {
-    # Kill the wrapper and its descendants if a command or its output hangs.
-    if ($null -ne $timer -and (-not $process.HasExited -or $timer.ElapsedMilliseconds -ge 60000)) {
-      $killInfo = New-Object Diagnostics.ProcessStartInfo
-      $killInfo.FileName = Join-Path ([Environment]::SystemDirectory) 'taskkill.exe'
-      $killInfo.Arguments = '/PID ' + $process.Id + ' /T /F'
-      $killInfo.UseShellExecute = $false
-      $killInfo.CreateNoWindow = $true
-      $killInfo.RedirectStandardOutput = $true
-      $killInfo.RedirectStandardError = $true
-      $killer = [Diagnostics.Process]::Start($killInfo)
-      try { [void]$killer.WaitForExit(5000) } finally { $killer.Dispose() }
-    }
-    $process.Dispose()
+    try {
+      if ($null -ne $timer -and (-not $process.HasExited -or $timer.ElapsedMilliseconds -ge 60000)) {
+        $killInfo = New-Object Diagnostics.ProcessStartInfo -Property @{
+          FileName = (Join-Path ([Environment]::SystemDirectory) 'taskkill.exe')
+          Arguments = ('/PID ' + $process.Id + ' /T /F'); UseShellExecute = $false; CreateNoWindow = $true
+          RedirectStandardOutput = $true; RedirectStandardError = $true
+        }
+        $killer = [Diagnostics.Process]::Start($killInfo)
+        try {
+          $killer.BeginOutputReadLine(); $killer.BeginErrorReadLine()
+          if (-not $killer.WaitForExit(5000)) { $killer.Kill() }
+        } finally { $killer.Dispose() }
+      }
+    } finally { $process.Dispose() }
   }
 }
 
 Test-Check 'gjc-sha256' {
-  (Get-FileHash -LiteralPath $GjcExe -Algorithm SHA256).Hash -ieq
+  $script:gjcTrusted = (Get-FileHash -LiteralPath $GjcExe -Algorithm SHA256).Hash -ieq
     'd574517f49c8dbbbbe79ad5f082dadae5bee52bb17bb138b1af5720852794402'
+  $script:gjcTrusted
 }
-Test-Check 'gjc-version' { (Invoke-Version $GjcExe) -match '(?m)^gjc/0\.15\.3\s*$' }
+Test-Check 'gjc-version' {
+  if (-not $script:gjcTrusted) { throw 'Untrusted executable.' }
+  (Invoke-Version $GjcExe) -match '(?m)^gjc/0\.15\.3\s*$'
+}
 Test-Check 'claw-version' {
   $output = Invoke-Version (Join-Path $ToolsDir 'claw.cmd')
   $output -match '0\.1\.3' -and $output -match '08106b0c3771'
@@ -84,34 +79,34 @@ Test-Check 'lazycodex-version' {
   (Invoke-Version (Join-Path $ToolsDir 'lazycodex-codex.cmd')) -match 'codex-cli'
 }
 Test-Check 'primary-codex-unchanged' {
-  $baseline = Get-Content -LiteralPath (Join-Path $ToolsDir 'primary-config-before.json') -Raw |
-    ConvertFrom-Json
+  $baseline = Get-Content -LiteralPath (Join-Path $ToolsDir 'primary-config-before.json') -Raw | ConvertFrom-Json
   if ($baseline -isnot [pscustomobject]) { throw 'Expected a flat object.' }
   $entries = @($baseline.PSObject.Properties)
   if ($entries.Count -eq 0) { throw 'Empty baseline.' }
   $root = [IO.Path]::GetFullPath((Join-Path $env:USERPROFILE '.codex')).TrimEnd('\') + '\'
   foreach ($entry in $entries) {
-    $relative = $entry.Name
-    # Validate before hashing. Reject traversal and credential-bearing components.
-    if ([IO.Path]::IsPathRooted($relative) -or $relative -match '[:]' -or
+    $relative = $entry.Name.Replace('/', '\')
+    if ([IO.Path]::IsPathRooted($relative) -or $relative -match ':' -or
         $relative -match '(^|[\\/])\.\.([\\/]|$)' -or
-        $relative -match '(?i)(^|[\\/])(auth\.json|agent\.db|models\.db|broker\.json|[^\\/]*\.secret|credential[^\\/]*)([\\/]|$)' -or
         $entry.Value -isnot [string] -or $entry.Value -notmatch '^[0-9a-fA-F]{64}$') {
       throw 'Unsafe baseline entry.'
     }
     $path = [IO.Path]::GetFullPath((Join-Path $root $relative))
     if (-not $path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { throw 'Path escaped root.' }
-    # A link could redirect even an innocuous filename into a credential store.
+    # Comparing the canonical path rejects altered spellings of components.
+    $canonical = ($path.Substring($root.Length).Split('\') | ForEach-Object { $_.TrimEnd(' ', '.') }) -join '\'
+    if ($canonical -cne $relative -or
+        $canonical -match '(?i)(^|\\)(auth\.json|agent\.db|models\.db|broker\.json|[^\\]*\.secret|credential[^\\]*)(\\|$)') {
+      throw 'Unsafe canonical entry.'
+    }
+    # Inspect every component through .codex, never its parents.
     $cursor = $path
-    while ($cursor) {
-      if ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        throw 'Linked baseline path.'
-      }
+    while ($true) {
+      if ((Get-Item -LiteralPath $cursor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked baseline path.' }
+      if ($cursor -ieq $root.TrimEnd('\')) { break }
       $cursor = [IO.Path]::GetDirectoryName($cursor)
     }
-    if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $entry.Value) {
-      throw 'Hash differs.'
-    }
+    if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $entry.Value) { throw 'Hash differs.' }
   }
   $true
 }
@@ -121,17 +116,15 @@ Test-Check 'skills' {
     $content = Get-Content -LiteralPath $path -Raw
     $frontmatter = [regex]::Match($content, '\A---\r?\n(.*?)\r?\n---(?:\r?\n|\z)', 'Singleline')
     if (-not $frontmatter.Success) { throw 'Missing frontmatter.' }
-    $names = [regex]::Matches($frontmatter.Groups[1].Value, '(?m)^name:\s*([^\r\n]+?)\s*$')
-    if ($names.Count -ne 1 -or $names[0].Groups[1].Value.Trim() -cne $name) {
-      throw 'Skill name differs.'
-    }
+    $names = [regex]::Matches($frontmatter.Groups[1].Value, '(?m)^name:[ \t]*([^\r\n]+?)[ \t]*\r?$')
+    if ($names.Count -ne 1) { throw 'Missing or duplicate skill name.' }
+    $value = $names[0].Groups[1].Value.Trim()
+    if ($value -match '^("|'')(.+)\1$') { $value = $Matches[2] }
+    if ($value -cne $name) { throw 'Skill name differs.' }
   }
   $true
 }
 
-if ($script:failed -eq 0) {
-  Write-Output 'RESULT: PASS'
-  exit 0
-}
+if ($script:failed -eq 0) { Write-Output 'RESULT: PASS'; exit 0 }
 Write-Output "RESULT: FAIL ($script:failed of 6)"
 exit 1
