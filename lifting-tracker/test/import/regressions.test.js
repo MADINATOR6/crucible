@@ -78,3 +78,45 @@ test('digit lists that are not phone numbers survive', async () => {
     ...setRow(3, [c(3, 5, 'Warm up 60 80 100 120 then 140 x 5 (2 sets)')])]);
   assert.equal(p.blocks[0].weeks[0].days[0].entries[0].sets[0].coachComment, 'Warm up 60 80 100 120 then 140 x 5 (2 sets)');
 });
+test('phone shapes found by the third verifier run are redacted (including Unicode spaces)', async () => {
+  const phones = ['1300 123 456', '1800 123 456', '61 4 1234 5678', '0412\u00a0345\u00a0678', '+61\u00a0499\u00a0888\u00a0777', '+1 234 567', '0412\u202f345\u202f678'];
+  const cells = [c(0, 0, 'Week 1'), c(1, 0, 'Day 1'), ...header(2)];
+  phones.forEach((p, i) => cells.push(...setRow(3 + i, [c(3 + i, 5, 'contact ' + p)])));
+  const p = await run(cells);
+  const sets = p.blocks[0].weeks[0].days[0].entries.flatMap((e) => e.sets);
+  assert.equal(sets.length, phones.length);
+  sets.forEach((s, i) => assert.equal(s.coachComment, 'contact [redacted]', phones[i]));
+});
+
+test('redaction removes only the phone, never neighbouring training numbers', async () => {
+  const goal = (text) => run([c(0, 0, 'Block Goal'), c(1, 0, text), c(3, 0, 'Week 1'), c(4, 0, 'Day 1'), ...header(5), ...setRow(6)]).then((p) => p.blocks[0].goal);
+  assert.equal(await goal('work up (60 80 100 120 140)'), 'work up (60 80 100 120 140)');
+  assert.equal(await goal('RPE (7.5 8.5 9.5 10 10)'), 'RPE (7.5 8.5 9.5 10 10)');
+  assert.equal(await goal('call 0412 345 678\n100 120 140'), 'call [redacted]\n100 120 140');
+  assert.equal(await goal('3 x 8 @ 7 then 4 x 6 @ 8'), '3 x 8 @ 7 then 4 x 6 @ 8');
+});
+
+test('a comment that says "Load" after a full header row is a comment, not a header', async () => {
+  for (const word of ['Load', '  lOaD  ']) {
+    const p = await run([c(0, 0, 'Week 1'), c(1, 0, 'Day 1'), ...header(2), ...setRow(3), c(4, 5, word),
+      c(5, 0, 'Low Bar Squat'), c(5, 1, 6, { t: 'n' }), c(5, 2, 8, { t: 'n' }), c(5, 3, 120, { t: 'n' })]);
+    const sets = p.blocks[0].weeks[0].days[0].entries.flatMap((e) => e.sets);
+    const last = sets.at(-1);
+    assert.deepEqual([last.repsMin, last.targetRpe, last.load?.value, last.source.col], [6, 8, 120, 1]);
+    assert.match(sets[0].coachComment, /load/i);
+  }
+});
+
+test('a partial header with extra text cells is still a header (first, middle and last group)', async () => {
+  for (const starts of [[0], [0, 7], [0, 7, 14]]) {
+    const cells = [];
+    starts.forEach((s, g) => cells.push(c(0, s, `Week ${g + 1}`), c(2, s, 'Day 1'), c(3, s, 'Exercise'), c(3, s + 1, 'kg'), c(3, s + 2, 'Reps'),
+      c(4, s, 'Synthetic Lift'), c(4, s + 2, 5, { t: 'n' }), c(4, s + 3, 7, { t: 'n' }), c(4, s + 4, 100, { t: 'n' }), c(4, s + 5, 8, { t: 'n' }), c(4, s + 6, 'steady'), c(4, s + 7, 'fine')));
+    const p = await run(cells);
+    for (const w of p.blocks[0].weeks) {
+      const sets = w.days[0].entries.flatMap((e) => e.sets);
+      assert.equal(w.days[0].entries.length, 1, 'no phantom Exercise entry');
+      assert.deepEqual([sets[0].repsMin, sets[0].targetRpe, sets[0].load?.value, sets[0].actualRpe], [5, 7, 100, 8]);
+    }
+  }
+});

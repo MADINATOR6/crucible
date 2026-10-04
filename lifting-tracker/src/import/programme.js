@@ -125,13 +125,26 @@ export function parseAthleteComment(text) {
 }
 
 // Redact report evidence too, so a warning cannot reintroduce a removed phone number.
-// Phone shapes: a run that starts with `+`, `(` or `0`, uses only digits, spaces, newlines, dots, dashes and
-// brackets, and holds 9+ digits (so +61 499 888 777, (03) 9999 1234, 04 1234 5678 and newline-split numbers go);
-// plus any unbroken run of 7+ digits. A plain list of loads such as "100 120 140" is left alone.
-const PHONE_RUN = /(?:\+\s*\(?\d|\(\s*\d|\b0\d)[\d \t\r\n().-]{6,}\d/g;
-const redact = (raw) => String(raw ?? '')
-  .replace(PHONE_RUN, (run) => (run.replace(/\D/g, '').length >= 9 ? '[redacted]' : run))
-  .replace(/\d{7,}/g, '[redacted]');
+// Phone shapes. A candidate starts with `+`, an area code in brackets `(03)`, a leading `0`, `1300`/`1800`, or
+// `61`, and continues over digits, whitespace (including non-breaking spaces and newlines), dots, dashes and
+// brackets. Digits are taken group by group up to the longest real number (11, or 15 with a `+`), so a number
+// followed by other numbers loses only itself; it counts as a phone with 9+ digits (7+ with a `+`). Plain
+// lists of loads or RPEs such as "60 80 100 120" or "(7.5 8.5 9)" are left alone. Any unbroken run of 7+
+// digits is removed as well.
+const PHONE_RUN = /(?:\+\s*\(?\d|\(\s*0\d{1,2}\s*\)\s*\d|\b0\d|\b1[38]00(?=[\s.-])|\b61(?=[\s.-]))[\d\s().-]{5,}\d/g;
+function redactRun(run) {
+  const plus = run.startsWith('+');
+  const max = plus ? 15 : 11, min = plus ? 7 : 9;
+  const groups = /\d+/g;
+  let digits = 0, end = -1, m;
+  while ((m = groups.exec(run))) {
+    if (digits + m[0].length > max) break;
+    digits += m[0].length; end = m.index + m[0].length;
+  }
+  if (digits < min) return run;
+  return '[redacted]' + run.slice(run[end] === ')' ? end + 1 : end);
+}
+const redact = (raw) => String(raw ?? '').replace(PHONE_RUN, redactRun).replace(/\d{7,}/g, '[redacted]');
 const evidence = (raw) => { const text = redact(raw); return text.length > 200 ? text.slice(0, 199) + '…' : text; };
 
 export async function importProgramme(bytes, options = {}) {
@@ -245,7 +258,7 @@ export async function parseProgramme(workbook, { catalogue = {}, fileName = '', 
           week[label === 'average daily calories' ? 'avgCalories' : 'avgBodyweightKg'] = next?.v ?? null;
         }
       }
-      let columns = headers.map((_, i) => start + i + 1), day = null, entry = null, previousSet = null;
+      let columns = headers.map((_, i) => start + i + 1), day = null, entry = null, previousSet = null, seenFullHeader = false;
       const record = (result, cell, set) => {
         consume(cell);
         for (const item of result.warnings) {
@@ -296,10 +309,13 @@ export async function parseProgramme(workbook, { catalogue = {}, fileName = '', 
           consume(label); day = { number: Number(dayMatch[1]), entries: [] }; week.days.push(day); entry = null; previousSet = null;
         }
         const foundHeaders = headers.map((header) => rowCells.find((cell) => normalise(textOf(cell)) === header));
-        // A header row names at least two columns, or is made only of header texts (a partial, shifted header).
-        const ignorable = (cell) => placeholder(cell) || (cell.c === start && ['exercise', 'exercises', 'movement', 'lift'].includes(normalise(textOf(cell))));
-        const headerOnly = foundHeaders.some(Boolean) && rowCells.every((cell) => ignorable(cell) || headers.includes(normalise(textOf(cell))));
-        if (dayMatch || foundHeaders.filter(Boolean).length >= 2 || headerOnly) {
+        // A header row names at least two columns. Until a full header row has been seen in this group, a row
+        // with one header name and no numbers is also a (partial, shifted) header; later such rows are comments.
+        const fullHeader = foundHeaders.filter(Boolean).length >= 2;
+        const headerOnly = !seenFullHeader && foundHeaders.some(Boolean) && !rowCells.some((cell) => cell.t === 'n' || cell.t === 'd');
+        if (fullHeader) seenFullHeader = true;
+        if (dayMatch || fullHeader || headerOnly) {
+          if (headerOnly) for (const cell of rowCells) if (cell.c === start && ['exercise', 'exercises', 'movement', 'lift'].includes(normalise(textOf(cell)))) consume(cell);
           // Undiscovered headers keep their default offset, shifted by the same amount as the first discovered one.
           const first = foundHeaders.findIndex(Boolean);
           if (first >= 0) {
