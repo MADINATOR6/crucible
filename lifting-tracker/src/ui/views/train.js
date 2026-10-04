@@ -51,7 +51,7 @@ export function trainView(app, ui) {
     <div class="topbar"><div>
       <h1>${esc(block.name)}</h1>
       <p class="muted small">Block ${block.number}${block.goal ? ' · ' + esc(block.goal) : ''}</p></div>
-      <div class="row">${app.usingExample ? '<span class="pill example">Example data</span>' : ''}<button class="btn small" id="quick" style="white-space:nowrap" aria-label="Quick log a set outside the programme">+ Log</button></div></div>
+      <div class="row">${app.usingExample ? '<span class="pill example">Example data</span>' : ''}<a class="btn small" href="#plan" style="white-space:nowrap">Plan next block</a><button class="btn small" id="quick" style="white-space:nowrap" aria-label="Quick log a set outside the programme">+ Log</button></div></div>
     ${app.usingExample ? `<div class="banner" style="margin-bottom:14px"><span>You're looking at <b>example data</b>, not yours. Import your coach's workbook to replace it.</span><a class="btn small primary" href="#data">Import workbook</a></div>` : ''}
     <div class="chips" role="group" aria-label="Block">${blocks.map((b) => `<button class="chip" data-block="${b.number}" aria-pressed="${b.number === block.number}">${b.number}<small>${esc(b.name)}</small></button>`).join('')}</div>
     <div class="chips" role="group" aria-label="Week">${block.weeks.map((w) => { const st = weekStats(w); return `<button class="chip" data-week="${w.number}" aria-pressed="${w.number === week?.number}">Week ${w.number}<small>${st.done}/${st.total}</small></button>`; }).join('') || '<span class="muted small">No weeks parsed for this block.</span>'}</div>

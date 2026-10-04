@@ -5,6 +5,7 @@ import { musclesView } from './views/muscles.js';
 import { progressView } from './views/progress.js';
 import { platesView } from './views/plates.js';
 import { dataView } from './views/data.js';
+import { planView } from './views/plan.js';
 import { esc, toast, download, todayIso } from './dom.js';
 import { openStore } from '../store/db.js';
 import { buildBackup } from '../store/backup.js';
@@ -51,13 +52,14 @@ async function main() {
     <nav class="tabbar" aria-label="Main">${nav()}</nav></div>`;
   const view = document.getElementById('view');
 
-  const current = () => { const id = location.hash.replace('#', ''); return TABS.find((t) => t[0] === id) || TABS[0]; };
+  const EXTRA = [['plan', 'Plan', planView]]; // reachable from Train and Progress, not a tab of its own
+  const current = () => { const id = location.hash.replace('#', ''); return TABS.find((t) => t[0] === id) || EXTRA.find((t) => t[0] === id) || TABS[0]; };
   let skip = false;
   function render({ keepScroll = true } = {}) {
     if (skip) return;
     const [id, label, fn] = current();
     document.title = `${label} · Lifting Tracker`;
-    document.querySelectorAll('[data-tab]').forEach((a) => (a.dataset.tab === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+    document.querySelectorAll('[data-tab]').forEach((a) => (a.dataset.tab === (id === 'plan' ? 'train' : id) ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
     const y = window.scrollY;
     let out;
     try { out = fn(app, ui); } catch (err) { console.error(err); out = { html: `<div class="card"><h2>Something went wrong</h2><p class="muted">${esc(err.message || err)}</p></div>${emergencyHtml()}`, bind: bindEmergency }; }

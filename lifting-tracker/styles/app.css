@@ -298,3 +298,9 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .plate-btn { position: relative; }
 .plate-btn small { font-variant-numeric: tabular-nums; }
 .plate-btn .disc { color: inherit; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+/* Coach's review */
+.coach-headline { font-size: 17px; line-height: 1.4; margin: 0 0 4px; font-weight: 600; }
+.coach-find { border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface-2); }
+.coach-find.sev-high { border-left-color: var(--accent); }
+.coach-find.sev-medium { border-left-color: var(--warn); }
+.coach-find.sev-good { border-left-color: var(--good); }

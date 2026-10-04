@@ -7,6 +7,7 @@ import { formatWeight, round1, convert } from '../../core/units.js';
 import { lineChart, movingAverage, longDate } from '../charts.js';
 import { esc, toast, todayIso } from '../dom.js';
 import { prLabel } from './train.js';
+import { coachReview } from '../../core/coach.js';
 
 const LIFTS = ['squat', 'bench', 'deadlift'];
 
@@ -63,6 +64,7 @@ export function progressView(app, ui) {
     <div class="row spread" style="margin-bottom:12px"><span class="small muted">Estimate 1RM from sets of up to</span>
       <div class="seg" role="group" aria-label="Maximum reps for the estimate">${[5, 8, 12].map((n) => `<button data-maxreps="${n}" aria-pressed="${pg.maxReps === n}">${n} reps</button>`).join(``)}</div></div>
     <div class="stats3">${LIFTS.map(tile).join('')}</div>
+    ${coachSummary(app, unit)}
     <div class="card"><div class="card-h"><h2>Estimated 1RM by session</h2></div>${series.length ? lineChart({ series, unit, title: 'Estimated one-rep max over time for squat, bench press and deadlift' }) : '<p class="muted">Log or import competition lifts to see a trend.</p>'}</div>
     <div class="card"><div class="card-h"><h2>Total over time</h2><span class="muted small">${last?.total != null ? 'now ' + formatWeight({ value: last.total, unit: 'kg' }, unit) : ''}</span></div>${totalSeries[0].points.length ? lineChart({ series: totalSeries, unit, title: 'Estimated squat plus bench plus deadlift total over time' }) : '<p class="muted">The total appears once squat, bench and deadlift all have data.</p>'}</div>
     <div class="grid cols-2" style="margin-top:14px">
@@ -91,4 +93,15 @@ export function progressView(app, ui) {
     });
   }
   return { html, bind };
+}
+
+function coachSummary(app, unit) {
+  if (app.usingExample) return '';
+  let r;
+  try { r = coachReview({ events: app.events(), programme: app.programme, catalogue: app.catalogue, bodyweight: app.bodyweightPoints(), unit }); } catch { return ''; }
+  if (!r?.asOf) return '';
+  const top = r.priorities.slice(0, 2);
+  return `<div class="card coach" style="margin-bottom:14px"><div class="card-h"><h2>Coach's notes</h2><a class="btn small primary" href="#plan">Plan the next block</a></div>
+    <p class="coach-headline">${esc(r.headline)}</p>
+    ${top.map((f) => `<p class="small" style="margin:6px 0 0"><b>${esc(f.title)}.</b> <span class="muted">${esc(f.suggestion)}</span></p>`).join('')}</div>`;
 }

@@ -3,6 +3,7 @@
 import { convert, formatWeight, round1, toKg } from '../../core/units.js';
 import { esc, toast, todayIso } from '../dom.js';
 import { renderHeatmap, renderLegend, renderMuscleList, fmtSets } from '../heatmap.js';
+import { coachReview, applyExtras } from '../../core/coach.js';
 
 let mods = null; // the planning modules are loaded on first use, so the rest of the app never depends on them
 async function loadMods() {
@@ -94,7 +95,7 @@ function blockAsText(block, unit) {
 
 export function planView(app, ui) {
   const unit = app.settings.unit;
-  ui.plan ||= { text: '', focus: 'strength', weeks: null, days: null, progression: 'standard', rotate: null, stance: 'auto', emphasis: 'bench', layoffWeeks: 4, checkIn: true, deloadWeek: 'auto', seed: 'a', overrides: {}, understood: null, result: null, error: '', week: 1, revise: null };
+  ui.plan ||= { text: '', focus: 'strength', weeks: null, days: null, progression: 'standard', rotate: null, stance: 'auto', emphasis: 'bench', layoffWeeks: 4, checkIn: true, deloadWeek: 'auto', seed: 'a', overrides: {}, understood: null, result: null, error: '', week: 1, revise: null, extras: [], applied: [] };
   const p = ui.plan;
   if (app.usingExample) {
     return { html: `<div class="topbar"><div><h1>Plan</h1></div><span class="pill example">Example data</span></div>
@@ -107,6 +108,12 @@ export function planView(app, ui) {
   if (err || !template) {
     return { html: `<div class="topbar"><div><h1>Plan</h1></div></div><div class="card empty"><h2>Not enough to learn from yet</h2><p>${esc(err || 'No block with training days was found in your programme.')}</p></div>`, bind() {} };
   }
+  if (!p._rev || p._rev.events !== app.events() || p._rev.athlete !== athlete) {
+    let review = null;
+    try { review = coachReview({ events: app.events(), programme: app.programme, catalogue: app.catalogue, athlete, bodyweight: app.bodyweightPoints(), unit }); } catch { review = null; }
+    p._rev = { events: app.events(), athlete, review };
+  }
+  const review = p._rev.review;
   const R = p.result;
   const wk = R ? R.block.weeks.find((w) => w.number === p.week) || R.block.weeks[0] : null;
   const generatedBlocks = app.programme.blocks.filter((b) => b.generated);
@@ -124,7 +131,8 @@ export function planView(app, ui) {
   const html = `
     <div class="topbar"><div><h1>Plan</h1><p class="muted small">Tell me what you need. I build the next block from your recent training: same shape as your last block, new numbers.</p></div></div>
 
-    <div class="card">
+    ${coachCard(review, p)}
+    <div class="card" style="margin-top:14px">
       <div class="card-h"><h2>What do you need?</h2></div>
       <form id="ask" class="row" style="align-items:end"><label class="field" style="flex:1;min-width:220px"><span>In your own words</span><input id="ask-text" value="${esc(p.text)}" placeholder='e.g. "maintenance block, 3 days a week for 4 weeks"' autocomplete="off"></label><button class="btn primary" type="submit">Understand</button></form>
       ${p.understood ? `<div class="small" style="margin-top:10px"><b>${esc(p.understood.summary || 'Here is what I understood')}</b>${p.understood.understood.length ? '<ul style="margin:6px 0 0;padding-left:18px">' + p.understood.understood.map((u) => `<li>${esc(u.key)}: <b>${esc(String(u.value))}</b> <span class="muted">(${esc(u.because)})</span></li>`).join('') + '</ul>' : ''}${p.understood.unclear.map((u) => `<p style="color:var(--warn);margin:6px 0 0">${esc(u)}</p>`).join('')}</div>` : ''}
@@ -169,7 +177,24 @@ export function planView(app, ui) {
       set({ text, understood: r, focus: o.focus ?? p.focus, weeks: o.weeks ?? p.weeks, days: o.daysPerWeek ?? p.days, progression: o.progression ?? p.progression, rotate: o.rotate ?? p.rotate,
         stance: o.deadliftStance ?? p.stance, deloadWeek: o.deloadWeek ?? p.deloadWeek, emphasis: o.emphasis ?? p.emphasis, layoffWeeks: o.layoffWeeks ?? p.layoffWeeks, checkIn: o.checkIn ?? p.checkIn });
     });
-    root.querySelectorAll('[data-focus]').forEach((b) => b.addEventListener('click', () => set({ focus: b.dataset.focus, understood: null })));
+    root.querySelectorAll('[data-coach]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.coach;
+      const f = review?.findings.find((x) => x.id === id);
+      if (!f?.action) return;
+      const a = f.action;
+      const on = p.applied.includes(id);
+      if (on) { p.applied = p.applied.filter((x) => x !== id); if (a.type === 'addExercise') p.extras = p.extras.filter((x) => x.exerciseId !== a.exerciseId); rerender(); return; }
+      p.applied = [...p.applied, id];
+      if (a.type === 'emphasis') { p.focus = 'specialise'; p.emphasis = a.lift; }
+      else if (a.type === 'focus') p.focus = a.focus;
+      else if (a.type === 'progression') p.progression = a.value;
+      else if (a.type === 'days') p.days = a.value;
+      else if (a.type === 'deloadWeek') p.deloadWeek = a.value;
+      else if (a.type === 'rotate') p.rotate = a.value;
+      else if (a.type === 'addExercise') p.extras = [...p.extras.filter((x) => x.exerciseId !== a.exerciseId), { exerciseId: a.exerciseId, sets: a.sets, reps: a.reps, rpe: a.rpe }];
+      rerender();
+    }));
+    root.querySelectorAll('[data-focus]').forEach((b) => b.addEventListener('click', () => set({ focus: b.dataset.focus, understood: null, applied: [], extras: [] })));
     const num = (id) => { const v = parseInt(root.querySelector(id)?.value, 10); return Number.isFinite(v) ? v : null; };
     root.querySelector('#p-weeks').addEventListener('change', () => { p.weeks = num('#p-weeks'); });
     root.querySelector('#p-days').addEventListener('change', () => { p.days = num('#p-days'); });
@@ -185,7 +210,10 @@ export function planView(app, ui) {
     const generate = (seedSuffix = '') => {
       try {
         const res = mods.generateBlock({ catalogue: app.catalogue, template, athlete, blockNumber: nextBlockNumber(app.programme), ...optionsFrom(p), seed: p.seed + seedSuffix, now: () => new Date() });
-        set({ result: res, week: 1, error: '' });
+        let out = res;
+        if (p.extras.length) { const x = applyExtras(res.block, p.extras, app.catalogue); out = { ...res, block: x.block, rationale: [...res.rationale, ...x.rationale] }; }
+        if (['maintenance', 'return'].includes(p.focus)) out = { ...out, warnings: out.warnings.filter((w) => !/volume changes from/.test(w)) };
+        set({ result: out, week: 1, error: '' });
       } catch (e) { set({ error: e instanceof RangeError ? e.message : `Could not generate: ${e.message || e}`, result: null }); }
     };
     root.querySelector('#gen').addEventListener('click', () => generate());
@@ -224,6 +252,32 @@ export function planView(app, ui) {
     root.querySelectorAll('[data-pview]').forEach((b) => b.addEventListener('click', () => set({ view: b.dataset.pview })));
   }
   return { html, bind };
+}
+
+const SEV_LABEL = { high: 'Fix first', medium: 'Worth fixing', low: 'Note', good: 'Going well' };
+
+function findingHtml(f, p) {
+  const applied = p.applied.includes(f.id);
+  return `<article class="coach-find sev-${f.severity}">
+    <div class="row spread"><b>${esc(f.title)}</b><span class="pill ${f.severity === 'good' ? 'pr' : f.severity === 'high' ? 'accent' : ''}">${esc(SEV_LABEL[f.severity])}</span></div>
+    ${f.because.length ? `<ul class="small muted" style="margin:6px 0 0;padding-left:18px">${f.because.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    <p style="margin:8px 0 0"><b>Do this:</b> ${esc(f.suggestion)}</p>
+    <div class="row spread" style="margin-top:8px"><span class="small muted">Confidence: ${esc(f.confidence)}</span>
+      ${f.action ? `<button class="btn small ${applied ? '' : 'primary'}" data-coach="${esc(f.id)}" aria-pressed="${applied}">${applied ? '✓ In the plan (tap to undo)' : esc(f.action.label)}</button>` : ''}</div>
+  </article>`;
+}
+
+function coachCard(review, p) {
+  if (!review) return '';
+  const { priorities, strengths, notes } = review;
+  return `<div class="card coach">
+    <div class="card-h"><h2>Coach's review</h2><span class="muted small">${review.asOf ? 'from your training up to ' + esc(review.asOf) : ''}</span></div>
+    <p class="coach-headline">${esc(review.headline)}</p>
+    ${priorities.length ? `<h3 style="margin:12px 0 6px">What to improve</h3>${priorities.map((f) => findingHtml(f, p)).join('')}` : ''}
+    ${strengths.length ? `<h3 style="margin:14px 0 6px">What is working</h3>${strengths.map((f) => findingHtml(f, p)).join('')}` : ''}
+    ${notes.length ? `<details class="fold" style="margin-top:10px"><summary>More notes (${notes.length})</summary>${notes.map((f) => findingHtml(f, p)).join('')}</details>` : ''}
+    <p class="small muted" style="margin-top:10px">These come from patterns in your own numbers, using common powerlifting practice. They are suggestions, not a diagnosis. Check anything that matters with your coach. Tap a button to build the fix into the next block.</p>
+  </div>`;
 }
 
 function previewHtml(app, p, R, wk, unit) {
