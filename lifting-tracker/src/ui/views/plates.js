@@ -4,6 +4,7 @@ import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
 import { renderBarbell, renderEndView } from '../barbell.js';
 import { esc, toast } from '../dom.js';
 import { meetCard } from './meet.js';
+import { platesTolerance } from '../../plates/tolerance.js';
 
 export function barsFor(app, unit) { return app.platesData[unit].bars; }
 
@@ -57,6 +58,21 @@ export function platesView(app, ui) {
   const ladder = ui.plates.top ? safeLadder(app, ui.plates.top) : [];
   const meet = meetCard(app, ui, { bar, collar, plates });
 
+  // Calibration: how far the loaded plates may be from their stamped weight.
+  const mode = unit === 'kg' ? app.settings.plateMode : 'gym';
+  const measuredMap = app.settings.plateMeasured?.[unit] || {};
+  const tolr = platesTolerance(side, { tolerances: set.calibration?.tolerances, measured: measuredMap, mode });
+  const nonPlateKg = convert(bar.weight.value, bar.weight.unit, 'kg') + (collar ? 2 * convert(collar.weight.value, collar.weight.unit, 'kg') * collar.perSide : 0);
+  const showU = (kgVal, d = 2) => `${(Math.round(convert(kgVal, 'kg', unit) * 10 ** d) / 10 ** d).toFixed(d)} ${unit}`;
+  const pctBand = tolr.nominalKg > 0 ? ((tolr.maxKg - tolr.nominalKg) / tolr.nominalKg) * 100 : 0;
+  const calibrationCard = `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Calibration</h2>
+      ${unit === 'kg' ? `<div class="seg" role="group" aria-label="Plate type"><button data-pmode="calibrated" aria-pressed="${mode === 'calibrated'}">Calibrated</button><button data-pmode="gym" aria-pressed="${mode === 'gym'}">Gym plates</button></div>` : '<span class="pill">lb</span>'}</div>
+    ${!side.length ? '<p class="muted small">Load some plates to see how far the weight can be from the number on the bar.</p>'
+      : mode === 'calibrated' && tolr.bandKnown ? `<p><b>${showU(tolr.nominalKg)}</b> of plates. Competition-calibrated discs may read <b>${showU(tolr.minKg)}</b> to <b>${showU(tolr.maxKg)}</b> (about ±${pctBand.toFixed(2)}%).</p><p class="small muted">The IPF sets a minimum and maximum for every disc, so a calibrated set is accurate to a few hundred grams. Bar and collars have their own tolerance and are not included. ${esc(set.calibration?.source || '')}</p>`
+      : `<p><b>${showU(tolr.nominalKg)}</b> of plates as stamped. ${unit === 'lb' ? 'There is no federation calibration table for lb plates.' : 'Uncalibrated gym plates have no guaranteed accuracy: a stamped plate can be a percent or more off.'} ${tolr.measuredKg == null ? 'Weigh a pair on a scale and enter it under My plates for exact numbers.' : ''}</p>`}
+    ${tolr.measuredKg != null && side.length ? `<p class="small" style="margin-top:6px">As you weighed them: <b>${showU(tolr.measuredKg)}</b> of plates${tolr.measuredComplete ? '' : ` (${tolr.measuredPlates} of ${new Set(side.map((p) => p.value)).size} sizes weighed; the rest use the stamped weight)`}, about <b>${showU(tolr.measuredKg + nonPlateKg)}</b> on the bar with bar and collars at their stated weights.</p>` : ''}
+  </div>`;
+
   const html = `
     <div class="topbar"><div><h1>Plates</h1><p class="muted small">Tap plates to load the bar, or type a target. Heaviest plates sit innermost, as in competition.</p></div>
       <div class="seg" role="group" aria-label="Unit"><button data-unit="kg" aria-pressed="${unit === 'kg'}">kg</button><button data-unit="lb" aria-pressed="${unit === 'lb'}">lb</button></div></div>
@@ -77,6 +93,7 @@ export function platesView(app, ui) {
         <button class="btn ghost small" data-act="clear" ${side.length ? '' : 'disabled'}>Clear bar</button>
       </div>
     </div>
+    ${calibrationCard}
     <div class="grid cols-2" style="margin-top:14px">
       <div class="card">
         <div class="card-h"><h2>Load a weight</h2></div>
@@ -101,6 +118,9 @@ export function platesView(app, ui) {
     <details class="card fold" style="margin-top:14px"><summary>My plates (how many your gym has)</summary>
       <p class="muted small">Counts are the total number of each plate, both sides. Colours follow the IPF rule for 25, 20 and 15 kg; the rest are convention and editable in <code>data/plates.json</code>.</p>
       <div class="grid cols-3">${plates.map((p) => `<label class="field"><span>${p.value} ${p.unit}</span><input type="number" min="0" step="2" inputmode="numeric" data-count="${p.value}" value="${p.count}"></label>`).join('')}</div>
+      <h3 style="margin-top:16px">Weighed on a scale (optional)</h3>
+      <p class="muted small">Weigh one plate of each size, in ${unit}, and enter it here. The Calibration card then shows what your plates really add up to. Leave blank to use the stamped weight.</p>
+      <div class="grid cols-3">${plates.map((p) => `<label class="field"><span>${p.value} ${p.unit} plate weighs</span><input type="number" min="0" step="0.01" inputmode="decimal" data-measured="${p.value}" value="${esc(measuredMap[String(p.value)] ?? '')}" placeholder="${p.value}"></label>`).join('')}</div>
     </details>`;
 
   function bind(root, rerender) {
@@ -141,6 +161,14 @@ export function platesView(app, ui) {
       el.addEventListener('click', rm);
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rm(); } });
     });
+    root.querySelectorAll('[data-pmode]').forEach((b) => b.addEventListener('click', () => app.saveSettings({ plateMode: b.dataset.pmode })));
+    root.querySelectorAll('[data-measured]').forEach((inp) => inp.addEventListener('change', () => {
+      const cur = app.settings.plateMeasured || { kg: {}, lb: {} };
+      const next = { ...(cur[unit] || {}) };
+      const v = parseFloat(inp.value);
+      if (Number.isFinite(v) && v > 0 && v < 100) next[inp.dataset.measured] = v; else delete next[inp.dataset.measured];
+      app.saveSettings({ plateMeasured: { ...cur, [unit]: next } });
+    }));
     root.querySelectorAll('[data-bview]').forEach((b) => b.addEventListener('click', () => { ui.plates.view = b.dataset.bview; rerender(); }));
     root.querySelector('[data-act=undo]')?.addEventListener('click', () => keepSide(() => side.pop()));
     root.querySelector('[data-act=clear]')?.addEventListener('click', () => keepSide(() => { side.length = 0; }));

@@ -7,6 +7,14 @@
       { "id": "kg15", "label": "15 kg bar", "weight": { "value": 15, "unit": "kg" } }
     ],
     "collar": { "label": "Competition collar", "weight": { "value": 2.5, "unit": "kg" }, "perSide": 1, "source": "IPF 2026 rulebook: bar and collars total 25 kg for the 20 kg bar, so 2 collars = 5 kg (2.5 kg each)." },
+    "calibration": {
+      "source": "IPF Technical Rules 2026, table of disc weights: face value with maximum and minimum (read from the rulebook PDF on 2026-10-04). Check the rules of the federation you compete under.",
+      "tolerances": {
+        "25": { "min": 24.9375, "max": 25.0625 }, "20": { "min": 19.95, "max": 20.05 }, "15": { "min": 14.9625, "max": 15.0375 },
+        "10": { "min": 9.975, "max": 10.025 }, "5": { "min": 4.9875, "max": 5.0125 }, "2.5": { "min": 2.49, "max": 2.51 },
+        "1.25": { "min": 1.24, "max": 1.26 }, "1": { "min": 0.99, "max": 1.01 }, "0.5": { "min": 0.49, "max": 0.51 }, "0.25": { "min": 0.245, "max": 0.255 }
+      }
+    },
     "plates": [
       { "value": 25, "unit": "kg", "count": 8, "colour": "#d62828", "colourStatus": "ipf-rule", "drawHeightMm": 450 },
       { "value": 20, "unit": "kg", "count": 8, "colour": "#1d4ed8", "colourStatus": "ipf-rule", "drawHeightMm": 450 },
@@ -15,6 +23,7 @@
       { "value": 5, "unit": "kg", "count": 4, "colour": "#f1f5f9", "colourStatus": "convention", "drawHeightMm": 230 },
       { "value": 2.5, "unit": "kg", "count": 4, "colour": "#111827", "colourStatus": "convention", "drawHeightMm": 190 },
       { "value": 1.25, "unit": "kg", "count": 4, "colour": "#94a3b8", "colourStatus": "convention", "drawHeightMm": 160 },
+      { "value": 1, "unit": "kg", "count": 2, "colour": "#7dd3a8", "colourStatus": "convention", "drawHeightMm": 145 },
       { "value": 0.5, "unit": "kg", "count": 2, "colour": "#cbd5e1", "colourStatus": "convention", "drawHeightMm": 130 },
       { "value": 0.25, "unit": "kg", "count": 2, "colour": "#e2e8f0", "colourStatus": "convention", "drawHeightMm": 110 }
     ]

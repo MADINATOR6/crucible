@@ -88,6 +88,10 @@
     {"id":"reverse_pec_fly","name":"Reverse Pec Fly","pattern":"rear-delt","primary":["rear_delts"],"secondary":["upper_back"],"aliases":["Reverse Pec Fly","Rear Delt Fly"]},
     {"id":"standing_calf_raise","name":"Standing Calf Raise","pattern":"calves","primary":["calves"],"secondary":[],"aliases":["Standing Calf Raise","Calf Raise"]},
     {"id":"seated_calf_raise","name":"Seated Calf Raise","pattern":"calves","primary":["calves"],"secondary":[],"aliases":["Seated Calf Raise"]},
-    {"id":"hip_thrust","name":"Hip Thrust","pattern":"glute-accessory","primary":["glutes"],"secondary":["hamstrings"],"aliases":["Hip Thrust"]}
+    {"id":"hip_thrust","name":"Hip Thrust","pattern":"glute-accessory","primary":["glutes"],"secondary":["hamstrings"],"aliases":["Hip Thrust"]},
+    {"id":"cable_crunch","name":"Cable Crunch","pattern":"abs","primary":["abs"],"secondary":[],"aliases":["Cable Crunch","Kneeling Cable Crunch"]},
+    {"id":"hanging_leg_raise","name":"Hanging Leg Raise","pattern":"abs","primary":["abs"],"secondary":["forearms"],"aliases":["Hanging Leg Raise","Hanging Knee Raise"]},
+    {"id":"ab_wheel","name":"Ab Wheel Rollout","pattern":"abs","primary":["abs"],"secondary":["lats"],"aliases":["Ab Wheel","Ab Wheel Rollout"]},
+    {"id":"db_shrug","name":"Dumbbell Shrug","pattern":"traps","primary":["traps"],"secondary":["forearms"],"aliases":["Dumbell Shrug","Dumbbell Shrug","Shrug"]}
   ]
 }

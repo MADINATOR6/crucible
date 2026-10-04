@@ -114,17 +114,20 @@ export function sanitizeProgramme(p) {
 }
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  unit: 'kg', theme: 'system', barByUnit: {}, customBar: {}, collar: true, plateCounts: null, programmeStart: null, blockStarts: {},
+  unit: 'kg', theme: 'system', barByUnit: {}, customBar: {}, plateMode: 'calibrated', plateMeasured: { kg: {}, lb: {} }, collar: true, plateCounts: null, programmeStart: null, blockStarts: {},
   dayWeekdays: { 1: 1, 2: 2, 3: 4, 4: 5 },
 });
 
 /** Whitelist and coerce settings (never trust stored or restored values). */
 export function sanitizeSettings(s) {
-  const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays } };
+  const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays } };
   if (!isObj(s)) return out;
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;
   if (['system', 'dark', 'light'].includes(s.theme)) out.theme = s.theme;
   out.collar = s.collar !== false;
+  out.plateMode = s.plateMode === 'gym' ? 'gym' : 'calibrated';
+  out.plateMeasured = { kg: {}, lb: {} };
+  if (isObj(s.plateMeasured)) for (const u of ['kg', 'lb']) if (isObj(s.plateMeasured[u])) for (const [k, v] of Object.entries(s.plateMeasured[u])) if (/^\d+(\.\d+)?$/.test(k) && num(v) !== null && v > 0 && v < 100) out.plateMeasured[u][k] = v;
   if (isObj(s.barByUnit)) for (const u of ['kg', 'lb']) if (typeof s.barByUnit[u] === 'string' && /^[a-z0-9_-]{1,20}$/i.test(s.barByUnit[u])) out.barByUnit[u] = s.barByUnit[u];
   if (isObj(s.customBar)) for (const u of ['kg', 'lb']) if (num(s.customBar[u]) !== null && s.customBar[u] > 0 && s.customBar[u] < 500) out.customBar[u] = s.customBar[u];
   if (isObj(s.plateCounts)) {
