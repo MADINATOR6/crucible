@@ -48,6 +48,8 @@ The app is plain static files with nothing private in them, so it is safe to hos
 3. Open it once while online so it can cache itself; after that it works offline.
 4. Import your workbook on the phone, or restore a JSON backup exported from your PC. The two devices do not sync; use backups to move data.
 
+**Quick try on the same Wi-Fi (no hosting).** On the PC run `$env:HOST='0.0.0.0'; node lifting-tracker/dev-server.mjs` (allow Node through the firewall on Private networks if Windows asks), then open `http://<the PC's Wi-Fi address>:5173/` on the phone (find it with `ipconfig`). Plain http on a LAN address has no service worker, so there is no offline use or home-screen install; data still saves in the phone's browser. Close the server when you are done; it serves only this folder and never `private/`.
+
 Browsers can clear site data. Export a backup now and then (Data → Export backup).
 
 ## Importing the coach's workbook
