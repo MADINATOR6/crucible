@@ -1,7 +1,7 @@
 // Plate simulator view + shared helpers for describing a load with the user's plates.
 import { convert, round1 } from '../../core/units.js';
 import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
-import { renderBarbell } from '../barbell.js';
+import { renderBarbell, renderEndView } from '../barbell.js';
 import { esc, toast } from '../dom.js';
 import { meetCard } from './meet.js';
 
@@ -47,6 +47,7 @@ export function platesView(app, ui) {
   const { plates, bar, collar, set } = plateConfig(app, unit);
   ui.plates ||= { side: [], target: '', top: '' };
   const side = ui.plates.side; // [{value, unit, colour, drawHeightMm}] heaviest first
+  const justAdded = ui.plates.justAdded ?? -1; ui.plates.justAdded = -1;
   const total = totalOf(side, bar, collar, unit);
   const used = new Map();
   for (const p of side) used.set(p.value, (used.get(p.value) || 0) + 1);
@@ -60,7 +61,8 @@ export function platesView(app, ui) {
     <div class="topbar"><div><h1>Plates</h1><p class="muted small">Tap plates to load the bar, or type a target. Heaviest plates sit innermost, as in competition.</p></div>
       <div class="seg" role="group" aria-label="Unit"><button data-unit="kg" aria-pressed="${unit === 'kg'}">kg</button><button data-unit="lb" aria-pressed="${unit === 'lb'}">lb</button></div></div>
     <div class="card">
-      <div class="bb-stage">${renderBarbell({ plates: side, collar: !!collar })}</div>
+      <div class="row spread" style="margin-bottom:8px"><span class="small muted">${ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${ui.plates.view !== 'end'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button></div></div>
+      <div class="bb-stage">${ui.plates.view === 'end' ? renderEndView({ plates: side, collar: !!collar }) : renderBarbell({ plates: side, collar: !!collar, justAdded })}</div>
       <div class="bb-total" aria-live="polite"><b>${round1(total)}</b><span>${unit}</span></div>
       <p class="loading-text">${esc(perSideText(grouped, unit))}</p>
       ${mixed ? '<p class="small" style="color:var(--warn);text-align:center">Mixed units on the bar: kg and lb plates are not interchangeable.</p>' : ''}
@@ -108,6 +110,7 @@ export function platesView(app, ui) {
       const p = plates.find((q) => String(q.value) === b.dataset.add);
       side.push({ value: p.value, unit: p.unit, colour: p.colour, drawHeightMm: p.drawHeightMm });
       side.sort((a, c) => convert(c.value, c.unit, 'kg') - convert(a.value, a.unit, 'kg'));
+      ui.plates.justAdded = side.map((q) => q.value).lastIndexOf(p.value); // animate the new outermost plate of that size
     });
     const stage = root.querySelector('.bb-stage');
     root.querySelectorAll('[data-add]').forEach((b) => {
@@ -138,6 +141,7 @@ export function platesView(app, ui) {
       el.addEventListener('click', rm);
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rm(); } });
     });
+    root.querySelectorAll('[data-bview]').forEach((b) => b.addEventListener('click', () => { ui.plates.view = b.dataset.bview; rerender(); }));
     root.querySelector('[data-act=undo]')?.addEventListener('click', () => keepSide(() => side.pop()));
     root.querySelector('[data-act=clear]')?.addEventListener('click', () => keepSide(() => { side.length = 0; }));
     const target = root.querySelector('#target');

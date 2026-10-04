@@ -39,6 +39,26 @@ function cleanSet(s, index) {
     completed: bool(s.completed),
     source: isObj(s.source) ? { sheet: text(s.source.sheet, 100), row: int(s.source.row) ?? 0, col: int(s.source.col) ?? 0 } : { sheet: '', row: 0, col: 0 },
     warnings: arr(s.warnings, 30).map((w) => text(w, 60)),
+    ...(isObj(s.gen) ? { gen: cleanGen(s.gen) } : {}),
+  };
+}
+
+// Metadata the block generator attaches to each planned set so unfinished weeks can be re-loaded later.
+function cleanGen(g) {
+  return { slotId: text(g.slotId, 20), kind: text(g.kind, 20), family: ['squat', 'bench', 'deadlift'].includes(g.family) ? g.family : null,
+    reps: int(g.reps), rpe: num(g.rpe), e1rmRef: num(g.e1rmRef), k: num(g.k), week: int(g.week) };
+}
+
+const FAMILIES = ['squat', 'bench', 'deadlift'];
+const famNums = (o) => Object.fromEntries(FAMILIES.map((f) => [f, isObj(o) ? num(o[f]) : null]));
+const famText = (o) => Object.fromEntries(FAMILIES.map((f) => [f, isObj(o) ? str(o[f], 12) : null]));
+function cleanGenerated(g) {
+  return {
+    at: text(g.at, 40), focus: text(g.focus, 20), weeks: int(g.weeks) ?? 0, daysPerWeek: int(g.daysPerWeek) ?? 0, progression: text(g.progression, 20),
+    rotate: num(g.rotate) ?? 0, seed: text(g.seed, 60), deloadWeek: text(g.deloadWeek, 10), fromBlock: int(g.fromBlock), athleteAsOf: isStrictDate(g.athleteAsOf) ? g.athleteAsOf : null,
+    e1rmStart: famNums(g.e1rmStart), confidence: famText(g.confidence),
+    rationale: arr(g.rationale, 120).filter(isObj).map((r) => ({ scope: text(r.scope, 12), text: text(r.text, 400) })),
+    warnings: arr(g.warnings, 60).map((w) => text(w, 300)),
   };
 }
 
@@ -81,6 +101,7 @@ export function sanitizeProgramme(p) {
   const blocks = arr(p.blocks, LIMITS.blocks).filter((b) => isObj(b) && int(b.number) !== null).map((b) => ({
     id: text(b.id, 20) || `b${b.number}`, number: b.number, name: text(b.name, 200), goal: text(b.goal, 1000), instructions: text(b.instructions, 1000),
     weeks: arr(b.weeks, LIMITS.weeks).map(cleanWeek).filter(Boolean),
+    ...(isObj(b.generated) ? { generated: cleanGenerated(b.generated) } : {}),
   }));
   const results = isObj(p.overview) ? arr(p.overview.results, 200).filter(isObj).map((r) => ({
     date: isStrictDate(r.date) ? r.date : null, squat: num(r.squat), bench: num(r.bench), deadlift: num(r.deadlift), totalText: text(r.totalText, 40), comment: text(r.comment, 300),

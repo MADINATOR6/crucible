@@ -68,6 +68,31 @@ export async function createApp() {
     app.changed();
   });
 
+  // Generated blocks: appended to (or replaced in) the athlete's own programme, never the example one.
+  const writeBlocks = async (blocks) => {
+    const next = sanitizeProgramme({ ...app.programme, blocks });
+    if (!next) throw new Error('That is not a valid programme.');
+    await store.put('meta', { key: 'programme', value: next });
+    app.programme = next; app.changed();
+    return next;
+  };
+  app.addBlock = (block) => enqueue(async () => {
+    if (app.usingExample) throw new RangeError('Import your workbook first: generated blocks are added to your own programme.');
+    if (!block || !Number.isInteger(block.number)) throw new RangeError('The block has no number.');
+    if (app.programme.blocks.some((b) => b.number === block.number)) throw new RangeError(`Block ${block.number} already exists.`);
+    return writeBlocks([...app.programme.blocks, block]);
+  });
+  app.replaceBlock = (block) => enqueue(async () => {
+    if (app.usingExample) throw new RangeError('Import your workbook first.');
+    if (!app.programme.blocks.some((b) => b.number === block?.number)) throw new RangeError('No such block to replace.');
+    return writeBlocks(app.programme.blocks.map((b) => (b.number === block.number ? block : b)));
+  });
+  app.removeBlock = (number) => enqueue(async () => {
+    const b = app.programme.blocks.find((x) => x.number === number);
+    if (!b?.generated) throw new RangeError('Only generated blocks can be removed here.');
+    return writeBlocks(app.programme.blocks.filter((x) => x.number !== number));
+  });
+
   /** Estimated date for a programme day. Dates are estimates: the workbook has none. */
   app.blockStarts = () => memo('blockStarts', () => {
     const p = app.programme; const starts = new Map();

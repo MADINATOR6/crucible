@@ -128,3 +128,30 @@ test('restore refuses oversized input without parsing it', () => {
   assert.equal(validateBackup('x'.repeat(100 * 1024 * 1024 + 1)).ok, false);
   assert.equal(validateBackup(undefined).ok, false);
 });
+
+test('generator metadata on blocks and sets is kept, coerced and bounded', () => {
+  const p = buildExampleProgramme();
+  const s = p.blocks[0].weeks[0].days[0].entries[0].sets[0];
+  s.gen = { slotId: 'd1s1', kind: 'top', family: 'squat', reps: 3, rpe: 7, e1rmRef: 180, k: 1, week: 1 };
+  p.blocks[0].generated = { at: '2026-10-04T00:00:00Z', focus: 'maintenance', weeks: 4, daysPerWeek: 3, progression: 'standard', rotate: 0.5, seed: 's', deloadWeek: 'none', fromBlock: 13, athleteAsOf: '2026-10-01',
+    e1rmStart: { squat: 180, bench: 130, deadlift: null }, confidence: { squat: 'high', bench: 'medium', deadlift: 'none' },
+    rationale: [{ scope: 'block', text: 'Maintenance: keep intensity, cut volume.' }], warnings: ['bench e1RM is based on little data'] };
+  const clean = sanitizeProgramme(JSON.parse(JSON.stringify(p)));
+  const cs = clean.blocks[0].weeks[0].days[0].entries[0].sets[0];
+  assert.deepEqual(cs.gen, { slotId: 'd1s1', kind: 'top', family: 'squat', reps: 3, rpe: 7, e1rmRef: 180, k: 1, week: 1 });
+  assert.equal(clean.blocks[0].generated.focus, 'maintenance');
+  assert.deepEqual(clean.blocks[0].generated.e1rmStart, { squat: 180, bench: 130, deadlift: null });
+  assert.equal(clean.blocks[0].generated.rationale.length, 1);
+  assert.deepEqual(sanitizeProgramme(clean), clean, 'idempotent');
+  // hostile values
+  s.gen = { slotId: XSS, kind: XSS, family: XSS, reps: XSS, rpe: Infinity, e1rmRef: XSS, k: NaN, week: XSS };
+  p.blocks[0].generated.athleteAsOf = '2026-02-30'; p.blocks[0].generated.rationale = [{ scope: XSS, text: XSS }, 5, null]; p.blocks[0].generated.e1rmStart = { squat: XSS };
+  const bad = sanitizeProgramme(JSON.parse(JSON.stringify(p)));
+  const g = bad.blocks[0].weeks[0].days[0].entries[0].sets[0].gen;
+  assert.deepEqual([g.family, g.reps, g.rpe, g.e1rmRef, g.k, g.week], [null, null, null, null, null, null]);
+  assert.equal(bad.blocks[0].generated.athleteAsOf, null);
+  assert.deepEqual(bad.blocks[0].generated.e1rmStart, { squat: null, bench: null, deadlift: null });
+  assert.equal(bad.blocks[0].generated.rationale.length, 1);
+  // sets without gen stay without it
+  assert.equal('gen' in bad.blocks[0].weeks[1].days[0].entries[0].sets[0], false);
+});
