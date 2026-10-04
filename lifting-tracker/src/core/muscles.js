@@ -7,8 +7,9 @@ export function weeklyHardSets(events, catalogue, weekStart) {
   const muscles = Object.fromEntries([...catalogue.muscles].sort().map(muscle => [muscle, { sets: 0, contributors: [] }]));
   const exercises = new Map(catalogue.exercises.map(exercise => [exercise.id, exercise]));
   const unknown = new Set();
-  for (const event of sortEvents(workingSets(events))) {
-    if (event.date < weekStart || event.date > end) continue;
+  // Narrow to the week first: sorting a whole training history for one week's counts would be wasted work.
+  const inWeek = (events ?? []).filter((event) => event && event.date >= weekStart && event.date <= end);
+  for (const event of sortEvents(workingSets(inWeek))) {
     const exercise = exercises.get(event.exerciseId);
     if (!exercise) { if (typeof event.exerciseId === 'string') unknown.add(event.exerciseId); continue; }
     for (const role of ['primary', 'secondary']) {

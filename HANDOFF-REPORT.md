@@ -3,8 +3,8 @@
 Status: the app is built, tested and committed on `main` (not pushed). Nothing needs your approval to use it locally.
 
 ## What exists
-- `lifting-tracker/`: offline PWA (plain ES modules, no dependencies). Views: Train (Block > Week > Day > Exercise > Set, plan beside actual, log a set, quick log, warm-up), Muscles (front/back heat map with numbers, tap for contributors), Progress (e1RM trends, total, PRs, bodyweight, planned vs actual RPE, by-block table), Plates (tap/drag barbell, target loader, warm-up ladder, meet planner, custom bar, plate counts), Data (workbook import with report, settings, JSON backup/restore, CSV, wipe).
-- Run it: `node lifting-tracker/dev-server.mjs`, open http://127.0.0.1:5173/. Tests: `cd lifting-tracker && node --test` (verified: 86+ pass, 1 opt-in skip). Details in `lifting-tracker/README.md`.
+- `lifting-tracker/`: offline PWA (plain ES modules, no dependencies). Views: Train (Block > Week > Day > Exercise > Set, plan beside actual, log a set, quick log, warm-up), Muscles (front/back heat map with numbers, tap for contributors), Progress (e1RM trends, total, PRs, bodyweight, planned vs actual RPE, by-block table), Plates (tap/drag barbell, target loader, warm-up ladder, meet planner, custom bar, plate counts), a rest timer after each logged set (3 min for the main lifts, 90 s otherwise), Data (workbook import with report, settings, JSON backup/restore, CSV, wipe).
+- Run it: `node lifting-tracker/dev-server.mjs`, open http://127.0.0.1:5173/. Tests: `cd lifting-tracker && node --test` (verified: 111 tests, 110 pass, 1 opt-in real-workbook skip). Details in `lifting-tracker/README.md`.
 - First run shows clearly labelled EXAMPLE data. Import your own workbook in Data.
 
 ## Verified (evidence from this session)
@@ -25,7 +25,8 @@ Status: the app is built, tested and committed on `main` (not pushed). Nothing n
 
 ## Workflow record
 - Codex implemented LT-1 core logic, LT-7a plates and LT-0 importer in worktrees; Claude reviewed, fixed and merged. Three Codex verifier runs on the importer each found real issues (phone-number redaction shapes, partial headers); all were fixed with regression tests. Review cap reached, so LT-0r is merged but not marked done in ccx (no verifier "pass" recorded). Residual risk: exotic phone formats in free text. The real phone number lives only in the Athlete cell, which is never imported.
-- A fresh-context `ccx-reviewer` pass over store/backup/state code was run (result in MEMORY.md).
+- A fresh-context `ccx-reviewer` pass over store/backup/state/log code found real problems (stored XSS and a broken-app state from a hostile or corrupt backup, double-tap duplicate sets, impossible dates accepted, non-atomic session+set writes, missing storage-unavailable warning). All were fixed with tests: `src/store/programme-schema.js` rebuilds programme and settings from known fields on restore and on load, backups are strictly validated, writes are serialised and atomic, a Content-Security-Policy blocks inline script, and a Recovery panel (raw export, delete) shows if a view cannot render. Not fixed: the in-browser IndexedDB path was exercised by hand in Chrome only (Node tests use the in-memory store); an `onversionchange` handler is not needed until the schema changes.
+- Performance (20,300 synthetic sets, Node): events 150-185 ms, PRs 90-110 ms, running bests ~90 ms, weekly muscle counts 1.3 ms per call. Phones will be several times slower; the real data is about 3,000 sets.
 - Friction logged: directory `owns` need a trailing slash; `node --test <dir>` fails on Node 24; relative worktree path in `task start`.
 - Nothing pushed. No approvals requested or used. Mirror refreshed after commits.
 
