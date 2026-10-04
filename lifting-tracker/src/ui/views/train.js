@@ -50,7 +50,7 @@ export function trainView(app, ui) {
     <div class="topbar"><div>
       <h1>${esc(block.name)}</h1>
       <p class="muted small">Block ${block.number}${block.goal ? ' · ' + esc(block.goal) : ''}</p></div>
-      <div class="row">${app.usingExample ? '<span class="pill example">Example data</span>' : ''}<button class="btn small" id="quick">+ Quick log</button></div></div>
+      <div class="row">${app.usingExample ? '<span class="pill example">Example data</span>' : ''}<button class="btn small" id="quick" style="white-space:nowrap" aria-label="Quick log a set outside the programme">+ Log</button></div></div>
     ${app.usingExample ? `<div class="banner" style="margin-bottom:14px"><span>You're looking at <b>example data</b>, not yours. Import your coach's workbook to replace it.</span><a class="btn small primary" href="#data">Import workbook</a></div>` : ''}
     <div class="chips" role="group" aria-label="Block">${blocks.map((b) => `<button class="chip" data-block="${b.number}" aria-pressed="${b.number === block.number}">${b.number}<small>${esc(b.name)}</small></button>`).join('')}</div>
     <div class="chips" role="group" aria-label="Week">${block.weeks.map((w) => { const st = weekStats(w); return `<button class="chip" data-week="${w.number}" aria-pressed="${w.number === week?.number}">Week ${w.number}<small>${st.done}/${st.total}</small></button>`; }).join('') || '<span class="muted small">No weeks parsed for this block.</span>'}</div>
@@ -71,7 +71,7 @@ export function trainView(app, ui) {
       return `<section class="entry">
         <div class="entry-h"><h3>${e.supersetGroup ? `<span class="pill">${esc(e.supersetGroup)}</span> ` : ''}${esc(ex?.name || e.name)}</h3>
           <button class="btn small ghost" data-warm="${ei}" aria-label="Warm-up ladder for ${esc(ex?.name || e.name)}">Warm-up</button></div>
-        ${e.tempo ? `<p class="cue">Tempo ${esc(e.tempo)}</p>` : ''}${e.cues?.length ? `<p class="cue">${e.cues.map(esc).join(' · ')}</p>` : ''}
+        ${e.tempo ? `<p class="cue">Tempo ${esc(e.tempo)}</p>` : ''}${e.cues?.length ? `<p class="cue">${e.cues.map(esc).join(' · ')}</p>` : ''}${[...new Set(e.sets.map((x) => x.coachComment).filter(Boolean))].map((t) => `<p class="cue coach">${esc(t)}</p>`).join('')}
         <table class="sets"><thead><tr><th>#</th><th>Plan</th><th>Load</th><th>Actual</th><th></th></tr></thead><tbody>
         ${e.sets.map((s, si) => {
           const logged = app.loggedFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day.number, entryIndex: ei, setIndex: si });
@@ -83,7 +83,7 @@ export function trainView(app, ui) {
           return `<tr class="${done ? 'done' : ''}"><td>${si + 1}</td>
             <td><button class="set-btn" data-set="${ei}:${si}"><span class="planned">${planned}</span></button></td>
             <td class="num">${s.load ? fmtLoad(s.load) : s.loadRange ? esc(`${s.loadRange.min}–${s.loadRange.max} ${s.loadRange.unit}`) : '–'}</td>
-            <td>${actual}</td>
+            <td>${actual}${s.athleteComment ? `<span class="note">${esc(s.athleteComment)}</span>` : ``}</td>
             <td><button class="btn small ${done ? 'ghost' : ''}" data-set="${ei}:${si}" aria-label="${done ? 'Edit' : 'Log'} set ${si + 1} of ${esc(ex?.name || e.name)}">${done ? 'Edit' : 'Log'}</button></td></tr>`;
         }).join('')}
         </tbody></table></section>`;

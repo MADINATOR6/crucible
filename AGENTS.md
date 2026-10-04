@@ -1,18 +1,23 @@
 # Project
 
-Not set. When this template is applied to a real repository, fill Project, Stack, Folder Map and Commands from verified inspection only.
+This repository is the Claude + Codex workflow template. It also hosts one product built with it: `lifting-tracker/`, a personal offline powerlifting tracker (spec: `prompts/lifting-tracker-master-prompt.md`; design and data model: `lifting-tracker/ARCHITECTURE.md`). The athlete's real workbook and anything derived from it is private: never commit it, never give it to Codex, and `*.xlsx` is gitignored. Tests use synthetic data only.
 
 # Stack
 
-Not set.
+`lifting-tracker/`: plain JavaScript ES modules, no build step, no runtime dependencies, offline PWA (service worker, IndexedDB). Verified on Node v24.21.0 (`node --test` needs Node 18+). Everything else in the repo: PowerShell 5.1 scripts.
 
 # Folder Map
 
-Not set. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `tasks/` (one spec per concurrent task), `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `scripts/sync-mirror.ps1`, `.codex/`. Control plane: `ccx/` (policy, architecture), `scripts/ccx*.ps1`, `.claude/agents/ccx-*.md`.
+`lifting-tracker/`: `src/core` pure logic, `src/plates` plate loading, `src/import` workbook reader and importer, `src/store` storage and backup, `src/ui` views, `data/` editable catalogues, `test/` suites, `README.md`. Workflow files: `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md`, `TASK.md`, `tasks/` (one spec per concurrent task), `FRICTION.md`, `MEMORY.md` (unattended sessions only), `handoffs/`, `scripts/codex-dispatch.ps1`, `scripts/sync-mirror.ps1`, `.codex/`. Control plane: `ccx/` (policy, architecture), `scripts/ccx*.ps1`, `.claude/agents/ccx-*.md`.
 
 # Commands
 
-Not set. Add a dev, test, lint, typecheck or build command only after it has run successfully in this repo. Never invent one.
+Add a dev, test, lint, typecheck or build command only after it has run successfully in this repo. Never invent one.
+
+- Lifting tracker tests (verified 2026-10-04, 86 tests): `cd lifting-tracker && node --test`. Do not pass a directory (`node --test <dir>` fails with MODULE_NOT_FOUND on Node 24); a single file or a quoted glob works.
+- Lifting tracker dev server (verified): `node lifting-tracker/dev-server.mjs` then open http://127.0.0.1:5173/ (also `.claude/launch.json`).
+- Opt-in real-workbook smoke test, structure only, prints counts and no cell text: set `LT_REAL_WORKBOOK` to the .xlsx path, then run `cd lifting-tracker && node --test test/import/real-workbook.smoke.test.js`. Never run it through Codex.
+- No linter or formatter is configured for the JavaScript.
 
 # Video Analysis
 
