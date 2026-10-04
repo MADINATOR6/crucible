@@ -179,5 +179,21 @@ Lines in plain English, each `{ scope: 'block'|'week'|'day'|'slot', text }`: whe
 - `checkIn`: `no (check.?in|test)` -> false; `test (my )?(strength|maxes)` or `check.?in` -> true.
 - `summary`: one plain sentence from `understood`, e.g. `"Maintenance block, 4 weeks, 3 days a week."`
 - Empty or unrecognised text: `options: {}`, `unclear: ['I did not recognise a goal; pick one below.']`. Never throws; non-string input is treated as empty.
+## Coach's review (`src/core/coach.js`)
+
+`coachReview({ events, programme, catalogue, athlete?, bodyweight?, asOf?, unit? })` -> `{ asOf, headline, priorities, strengths, notes, findings, apply }`. Pure; `asOf` defaults to the latest event date. A finding is `{ id, area, severity: 'high'|'medium'|'low'|'good', title, because: [evidence], suggestion, action?, confidence }`. `priorities` are the top three high/medium findings; `notes` the low ones; `strengths` the good ones. `action` is something the planner can apply: `emphasis` (lift), `focus`, `progression`, `days`, `deloadWeek`, `rotate`, `addExercise` (exerciseId, sets, reps, rpe). `applyExtras(block, extras, catalogue)` adds `addExercise` actions to a generated block.
+
+Rules (thresholds are the named constants `T` in the module):
+- **Progress**: weekly best RPE-based e1RM per lift over the last 12 weeks (competition lift, else variants), least-squares slope. At least 6 weekly points spanning 8 weeks are needed. +0.3% a week or better is good; between -0.3% and +0.15% a week is a plateau (medium, action: emphasis); -0.3% a week or worse is a regression (high, action: conservative progression).
+- **Balance**: bench 60-78% of squat and deadlift 108-132% of squat are normal for a raw lifter; outside that is a low-confidence note with an emphasis action. Uses the same weekly-best basis as the trends.
+- **Effort**: mean of (actual RPE - target RPE) per lift over completed planned sets in the last 12 programme weeks (at least 8 sets): +0.5 or more is "costing more than planned" (conservative progression), -0.4 or less is "loads look light". A rising weekly mean (+0.15 RPE a week or more over 4+ weeks) is effort creep (action: deload block).
+- **Consistency**: completed share of planned sets over the last 4 full weeks (a still-running newest week is excluded when under 80%): under 85% is a finding (high under 70%), with the most-skipped day named and a 3-day action; 93% or more is a strength.
+- **Volume**: median weekly hard sets over 4 completed weeks; key muscles under 6, any muscle over 22, and calves, side delts, rear delts and abs under 4 (with an `addExercise` action).
+- **Specificity**: no set at 85% of e1RM in 6 weeks (with at least 6 sets), or no 90% set for 8 weeks.
+- **Weak points** (low confidence): paused bench under 90% of competition bench, tempo-to-knee deadlift under 85% of the full pull, high bar squat stronger than low bar by 5%.
+- **Recovery**: deload overdue when no week with 70% or less of the median sets for 8 weeks.
+- **Technique**: coach comments that repeat in three or more blocks.
+- **Bodyweight**: losing more than 0.7% a week is flagged; steady is a strength.
+- Fewer than 30 working sets in the window adds a "not much data" note; no history returns an empty review. The headline names the top two priorities and the first strength.
 ## Out of scope
 UI, storage, the sanitiser, warm-up/plate logic, meet attempts, auto-adding exercises for volume gaps (warn only), mixing lb into the model (all kg).

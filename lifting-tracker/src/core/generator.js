@@ -76,7 +76,10 @@ function biasOf(athlete, family) {
 function unrounded(e, reps, rpe, bias, k) {
   if (e == null || !Number.isFinite(k) || !Number.isFinite(rpe)) return null;
   const pct = pctSmooth(chartReps(reps), clamp(rpe - bias, 6, 10));
-  return pct == null ? null : e * pct * k;
+  if (pct == null) return null;
+  // Safety cap: never above the load of an all-out set (RPE 10) for those reps, whatever k or the wave says.
+  const ceiling = e * (pctSmooth(chartReps(reps), 10) ?? pct);
+  return Math.min(e * pct * k, ceiling);
 }
 
 function resolve(opts) {

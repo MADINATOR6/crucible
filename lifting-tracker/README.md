@@ -26,6 +26,19 @@ Open `http://127.0.0.1:5173/`. Tests (from the `lifting-tracker` folder):
 cd lifting-tracker && node --test
 ```
 
+## Plan: the block generator and the coach's review
+
+Open **Plan** from Train ("Plan next block") or Progress. It does three things.
+
+1. **Coach's review.** It reads your history and says what is working and what to improve, in order of priority, with the numbers behind each point: stalled or falling lifts (weekly best e1RM trend), a lift lagging the other two (strength ratios), effort running above or below the plan (your RPE against the coach's), effort creeping up week on week, missed sessions and which day gets skipped, muscles with very little or very high volume, no heavy work lately, possible weak spots from variation numbers (paused bench, tempo deadlifts, high bar vs low bar), cues your coach keeps repeating, bodyweight trend, and deload timing. Most points come with a button that builds the fix into the next block. It is a set of rules from common powerlifting practice, not a diagnosis, and every point shows its confidence.
+2. **Tell it what you need.** Type it ("maintenance block, 3 days a week for 4 weeks", "back from the flu, off for 3 weeks", "bring up my bench") or tap a goal: **Maintain**, **Build strength**, **Build size**, **Back from a break**, **Peak for a meet**, **Bring up a lift**, **Deload**. It shows what it understood and fills in the settings, which you can change.
+3. **Generate.** It learns the shape of your last block (days, main-lift scheme, accessories, set and rep style) and your current e1RMs from RPE-rated sets with the RPE chart, then builds a new block: loads rounded to 2.5 kg, a weekly wave, deload and check-in weeks where they make sense, accessories rotated within the same movement pattern, and a volume heat map with arrows against your last block. It explains every choice and warns where its numbers are shaky. Type your own e1RM for any lift if you disagree with the estimate. **Add to my programme** puts it in Train, ready to log; **Re-load remaining weeks** recalculates unfinished weeks later from your latest numbers.
+
+What each goal does: *maintenance* keeps intensity but cuts main-lift sets by about a third and accessories by one set, holds loads flat and ends with a heavy single check-in; *return* starts at about 94% (more for longer breaks, down to 80%) and climbs to 100%; *specialise* adds a set to one lift's work and trims the others' variations; *volume* adds sets; *peak* sharpens towards singles; *deload* is an easy block. Details: `GENERATOR.md`.
+
+## Calibrated plates
+
+The Plates screen has a **Calibration** card. In Calibrated mode (kg) it shows how far the plates you loaded can be from the number on them, using the IPF disc table (25 kg may weigh 24.9375 to 25.0625 kg, and so on), so a loaded bar reads as a band such as 99.75 to 100.25 kg of plates. Gym plates carry no guarantee, and lb plates have no federation table. Under **My plates** you can enter what each plate size actually weighed on a scale; the card then shows your real total.
 ## Put it on your phone
 
 The app is plain static files with nothing private in them, so it is safe to host anywhere that serves HTTPS (GitHub Pages, Netlify, Cloudflare Pages, your own server). Your training data never goes there: it lives in your browser's storage on each device.
@@ -68,7 +81,7 @@ The import report in Data lists counts, warnings by type and every cell it could
 
 ```
 index.html  manifest.webmanifest  sw.js  styles/app.css  icons/
-src/core/    pure logic (units, e1RM, PRs, weeks, muscles, schedule, lifts, RPE, attempts)
+src/core/    pure logic (units, e1RM, PRs, weeks, muscles, schedule, lifts, RPE chart and deltas, attempts, athlete model, template, generator, request parser, coach)
 src/plates/  plate loading and warm-up ladders
 src/import/  workbook reader (zip + XML, no dependencies) and programme importer
 src/store/   IndexedDB storage, JSON backup/restore, CSV

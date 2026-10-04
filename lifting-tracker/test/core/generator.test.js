@@ -570,3 +570,11 @@ test('example 22: emphasis is ignored outside specialise; bad emphasis or checkI
     assert.throws(() => run({ ...A_OPTS, ...o }), RangeError, JSON.stringify(o));
   }
 });
+
+test('safety cap: a load never exceeds an all-out (RPE 10) set for its reps, whatever k says', () => {
+  const sq = { slotId: 'd1s1', exerciseId: 'low_bar_squat', name: 'Low Bar Squat', supersetGroup: null, tempo: null, cues: [], role: 'main', family: 'squat', scheme: 'singles', sets: 1, reps: 1, rpe: 9, loadKg: null, k: 1.2 };
+  const tpl = { fromBlock: 1, blockName: 'T', weeksInBlock: 3, daysPerWeek: 1, days: [{ number: 1, slots: [sq] }] };
+  const ath = { asOf: '2026-01-01', lifts: { squat: { e1rmKg: 100, confidence: 'high' }, bench: { e1rmKg: null, confidence: 'none' }, deadlift: { e1rmKg: null, confidence: 'none' } }, rpeBias: { squat: 0, bench: 0, deadlift: 0 }, exercises: {} };
+  const r = generateBlock({ catalogue, template: tpl, athlete: ath, blockNumber: 2, weeks: 3, focus: 'peak', seed: 's', now: () => new Date('2026-01-01') });
+  for (const w of r.block.weeks) for (const d of w.days) for (const e of d.entries) for (const s of e.sets) if (s.load) assert.ok(s.load.value <= 100 + 1e-9, `load ${s.load.value} above e1RM`);
+});

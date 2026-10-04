@@ -304,3 +304,4 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .coach-find.sev-high { border-left-color: var(--accent); }
 .coach-find.sev-medium { border-left-color: var(--warn); }
 .coach-find.sev-good { border-left-color: var(--good); }
+.card-h { flex-wrap: wrap; row-gap: 4px; }
