@@ -1,6 +1,6 @@
 # External tools installation checkpoint
 
-Status: PARTIAL (LazyCodex agent-mediated tool use, which needs a human approval, remains unverified; Claw now runs)
+Status: PARTIAL for acceptance only: all four tools now pass their stated checks (LazyCodex approved MCP tool call verified; Claw runs). No repository-writing harness trial or Claw/GJC coding-workflow trial has been done, and the final commit/push/mirror of the latest doc update is tracked in the "Current state" block.
 
 Current state (2026-10-04, later): checkpoint commit `7af4696` is pushed to `origin/main` (commit-bound approval A-0017) and the OneDrive mirror was refreshed from it. Claw was rebuilt and runs. The sections below are dated history; where they say "no commit was made", "Claw BLOCKED" or "generation not passed", this block and the "Resume 2026-10-04" section win.
 
@@ -38,16 +38,16 @@ Final review session (2026-10-04): Claude re-checked the three fixes against `cl
 ## Resume 2026-10-04 (after the Claude quota reset)
 
 - GJC: `gjc.exe` was missing from `%LOCALAPPDATA%\gjc` and was restored from the retained pinned binary (SHA256 re-checked, L3 gate logged); `--version` and `--smoke-test` exit 0. Codex model selection fixed (source-grounded: discovered models resolve only after a foreground refresh; `--mpreset` forces one) with a user-level `codex-sol` profile in `~/.gjc/agent/models.yml` for the same `openai-codex/gpt-6.1-sol`. Reply-only generation PASS on both subscriptions: ChatGPT (`--mpreset codex-sol`, JSON shows provider/model) and Claude (`anthropic/claude-sonnet-5`, retried once after the reset). No API key, no model substitution.
-- LazyCodex: tool use still UNVERIFIED. It needs a person to approve at the interactive prompt; the `never`-policy refusal was not bypassed. Read-only trial command is in EXTERNAL-TOOLS.md.
+- LazyCodex: tool use was UNVERIFIED at this point (the `never`-policy refusal was not bypassed). **Later, on the user's explicit instruction, a single-tool grant for `git_bash.diagnose` was applied temporarily in the isolated profile and the read-only test completed (`status: ready`, exit 0; `lazycodex-mcp-approved-check.jsonl`); the config was restored byte-for-byte.** Not a TUI-prompt or repository-writing trial. Details: EXTERNAL-TOOLS.md.
 - Claw: at that point BLOCKED and not executed; a bounded plan was written (an early `.idata` reading of the fault offset was discarded: WER names the module `unknown`). **Later the same day, with the user's chat approval, the plan's one `gnullvm` attempt ran: build exit 0, and `claw --version` / `--help` exit 0 via `claw.cmd`** (first run hit a missing `libunwind.dll`, fixed by a child-only PATH entry). No provider call was made. Details and receipts: EXTERNAL-TOOLS.md.
 - Isolation: primary Codex five-file hashes identical (`primary-config-20261004-resume-check.json`).
-- Status of the four tools: GJC works on both subscriptions; Claw starts (version/help); LazyCodex generates and doctor passes; two Claude-Red skills work. Still unverified: LazyCodex agent-mediated tool use (needs a human approval at its prompt), any Claw provider call, and any coding-workflow trial of the harnesses.
+- Status of the four tools: GJC works on both subscriptions; Claw starts (version/help); LazyCodex generates and doctor passes; two Claude-Red skills work. LazyCodex's approved MCP tool call is now verified (see above). Still unverified: any Claw provider call, the LazyCodex TUI approval prompt itself, and any coding-workflow or repository-writing trial of the harnesses.
 
 ## Acceptance and next owner
 
 Resume check (2026-10-04): Codex reran full ccx verification successfully (exit 0; json/secrets/scope/memory PASS; unchanged code stages N/A; format/lint SKIP) and confirmed `git diff --check` passed. The current ccx task has a full PASS verification record and remains blocked. Claude was then asked for a bounded read-only Claw startup diagnosis plan, using existing source/tools only. It returned HTTP 429 before any work: "You've hit your session limit", reporting a reset at 5am Australia/Sydney. Receipt: `C:/Users/Madison/.local/share/claude-codex-tools/claude-runtime-plan.json`, session `a93a3c9e-2bbc-40c5-a6f9-09a10a3a401f`. No new plan, review, commit, login, installation or toolchain change occurred. The earlier permission refusals are preserved above; this attempt did not change or bypass those permissions. Claude must still record its own review, log the local-commit gate and make the exact-path checkpoint commit in a permitted session. Reverify after any further edits.
 
-Phases A/B/C/E/F/G: implemented with evidence. Phase D: complete (gnullvm rebuild; `--version`/`--help` exit 0). The task is still not complete and must not be marked done (LazyCodex agent-mediated tool use awaits a human approval; the follow-up docs commit awaits its own push approval).
+Phases A/B/C/E/F/G: implemented with evidence. Phase D: complete (gnullvm rebuild; `--version`/`--help` exit 0). All Done When items are met once the latest docs commit is pushed. `ccx task done` is a separate decision; remaining unverified items (Claw provider call, LazyCodex TUI prompt, repository-writing trials) are outside the Done When list.
 
 Claude may review and commit the working three-tool setup and this blocked checkpoint after verification. No new commit-specific push approval exists. The earlier `de368af` approval cannot authorize this commit. A mistyped action `dependency` created unused A-0015; the policy's real `install-dependency` action was then logged as L3 and passed. A-0015 was never approved or used and is not needed for installation.
 
@@ -61,4 +61,4 @@ Post-login isolation recheck: the same five primary configuration hashes remain 
 
 CHECKED: exact pinned source/binary artifacts, source build logs, offline checks, profile hashes, selected skill content, licenses and actual Claude discovery.
 
-NEEDED: a commit-bound push approval for the follow-up docs commit; interactive LazyCodex tool approval and an isolated worktree plus task allowlist for any repository-writing harness session; Claude's own ccx review/gate/commit and a satisfied final-commit push gate.
+NEEDED (only for work beyond this task): an isolated worktree plus task allowlist under HANDOFF.md for any repository-writing harness session; a user-run test of the LazyCodex TUI approval prompt if wanted; a Claw provider-backed trial only with the user's choice of credential.
