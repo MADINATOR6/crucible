@@ -50,7 +50,7 @@ export function trainView(app, ui) {
     <div class="topbar"><div>
       <h1>${esc(block.name)}</h1>
       <p class="muted small">Block ${block.number}${block.goal ? ' · ' + esc(block.goal) : ''}</p></div>
-      ${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>
+      <div class="row">${app.usingExample ? '<span class="pill example">Example data</span>' : ''}<button class="btn small" id="quick">+ Quick log</button></div></div>
     ${app.usingExample ? `<div class="banner" style="margin-bottom:14px"><span>You're looking at <b>example data</b>, not yours. Import your coach's workbook to replace it.</span><a class="btn small primary" href="#data">Import workbook</a></div>` : ''}
     <div class="chips" role="group" aria-label="Block">${blocks.map((b) => `<button class="chip" data-block="${b.number}" aria-pressed="${b.number === block.number}">${b.number}<small>${esc(b.name)}</small></button>`).join('')}</div>
     <div class="chips" role="group" aria-label="Week">${block.weeks.map((w) => { const st = weekStats(w); return `<button class="chip" data-week="${w.number}" aria-pressed="${w.number === week?.number}">Week ${w.number}<small>${st.done}/${st.total}</small></button>`; }).join('') || '<span class="muted small">No weeks parsed for this block.</span>'}</div>
@@ -91,12 +91,13 @@ export function trainView(app, ui) {
   }
 
   function bind(root, rerender) {
+    root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
     root.querySelectorAll('[data-block]').forEach((b) => b.addEventListener('click', () => { ui.train.block = Number(b.dataset.block); ui.train.week = null; ui.train.day = null; rerender(); }));
     root.querySelectorAll('[data-week]').forEach((b) => b.addEventListener('click', () => { ui.train.week = Number(b.dataset.week); ui.train.day = null; rerender(); }));
     root.querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => { ui.train.day = Number(b.dataset.day); rerender(); }));
     root.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', () => {
       const [ei, si] = b.dataset.set.split(':').map(Number);
-      openLogSheet(app, { block, week, day, entryIndex: ei, setIndex: si });
+      openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si });
     }));
     root.querySelectorAll('[data-warm]').forEach((b) => b.addEventListener('click', () => openWarmups(app, day.entries[Number(b.dataset.warm)], week)));
   }
@@ -108,7 +109,7 @@ function suggestedWeight(app, entry, set, unit) {
   return w ? round1(convert(w.value, w.unit, unit)) : '';
 }
 
-function openLogSheet(app, { block, week, day, entryIndex, setIndex }) {
+function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
   const entry = day.entries[entryIndex];
   const set = entry.sets[setIndex];
   const unit = app.settings.unit;
@@ -133,7 +134,7 @@ function openLogSheet(app, { block, week, day, entryIndex, setIndex }) {
     <p id="est" class="small muted" style="margin-top:8px"></p>
     <label class="field" style="margin-top:10px"><span>Date</span><input id="d" type="date" value="${esc(date)}"></label>
     <div class="row spread" style="margin-top:16px">
-      ${logged ? '<button class="btn ghost" id="del">Remove logged set</button>' : '<span></span>'}
+      <div class="row">${logged ? '<button class="btn ghost" id="del">Remove</button>' : ''}<button class="btn ghost" id="onbar">Open in Plates</button></div>
       <div class="row"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>
     </div>`);
   const el = sheet.el;
@@ -152,6 +153,7 @@ function openLogSheet(app, { block, week, day, entryIndex, setIndex }) {
   };
   ['#w', '#r'].forEach((s) => q(s).addEventListener('input', refresh)); refresh();
   q('#cancel').addEventListener('click', sheet.close);
+  q('#onbar').addEventListener('click', () => { const w = parseFloat(q('#w').value); if (!(w > 0)) { toast('Enter a weight first'); return; } ui.plates = { side: [], target: String(w), top: '', autoload: true }; sheet.close(); location.hash = '#plates'; });
   q('#del')?.addEventListener('click', async () => { await app.deleteSet(logged.id); sheet.close(); toast('Logged set removed'); });
   q('#save').addEventListener('click', async () => {
     const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10), rpe = q('#e').value === '' ? null : parseFloat(q('#e').value), d = q('#d').value;
@@ -160,6 +162,35 @@ function openLogSheet(app, { block, week, day, entryIndex, setIndex }) {
     const weight = { value: w, unit };
     const before = new Set(app.prs().map(prKey));
     await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId: entry.exerciseId || ('custom:' + entry.name), weight, reps: r, rpe, note: '' });
+    const fresh = app.prs().filter((x) => !before.has(prKey(x)));
+    sheet.close();
+    toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
+  });
+}
+
+/** Log a set that is not part of the coach's programme (any catalogue exercise). */
+function openQuickLog(app) {
+  const unit = app.settings.unit;
+  const options = [...app.catalogue.exercises].sort((a, b) => a.name.localeCompare(b.name));
+  const sheet = openSheet(`
+    <div class="card-h"><h2>Quick log</h2><span class="pill">outside the programme</span></div>
+    <label class="field"><span>Exercise</span><select id="ex">${options.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</select></label>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
+      <label class="field"><span>Weight (${unit})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal"></label>
+      <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="1" inputmode="numeric"></label>
+      <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal"></label>
+    </div>
+    <label class="row" style="margin-top:10px"><input id="wu" type="checkbox" style="width:auto;min-height:0"> Warm-up set (not counted for PRs or volume)</label>
+    <label class="field" style="margin-top:10px"><span>Date</span><input id="d" type="date" value="${todayIso()}"></label>
+    <div class="row spread" style="margin-top:16px"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>`);
+  const q = (s) => sheet.el.querySelector(s);
+  q('#cancel').addEventListener('click', sheet.close);
+  q('#save').addEventListener('click', async () => {
+    const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10), rpe = q('#e').value === '' ? null : parseFloat(q('#e').value);
+    if (!(w >= 0) || !Number.isInteger(r) || r < 1 || !q('#d').value) { toast('Enter a weight, reps and date'); return; }
+    if (rpe != null && !(rpe >= 1 && rpe <= 11)) { toast('RPE must be between 1 and 11'); return; }
+    const before = new Set(app.prs().map(prKey));
+    await app.logSet({ date: q('#d').value, programmeRef: null, plannedRef: null, exerciseId: q('#ex').value, weight: { value: w, unit }, reps: r, rpe, isWarmup: q('#wu').checked });
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     sheet.close();
     toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');

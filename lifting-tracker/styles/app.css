@@ -257,3 +257,5 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .stats3 .stat b { font-size: clamp(20px, 6vw, 34px); overflow-wrap: anywhere; }
 .stats3 .stat span { font-size: 10.5px; letter-spacing: .08em; }
 .stats3 .stat small { font-size: 11.5px; line-height: 1.25; }
+
+.plate-btn { touch-action: none; user-select: none; -webkit-user-select: none; }

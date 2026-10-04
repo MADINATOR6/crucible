@@ -3,6 +3,7 @@ import { convert, round1 } from '../../core/units.js';
 import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
 import { renderBarbell } from '../barbell.js';
 import { esc, toast } from '../dom.js';
+import { meetCard } from './meet.js';
 
 export function barsFor(app, unit) { return app.platesData[unit].bars; }
 
@@ -50,6 +51,7 @@ export function platesView(app, ui) {
   for (const p of side) { const last = grouped.at(-1); if (last && last.plate.value === p.value) last.count++; else grouped.push({ plate: p, count: 1 }); }
   const mixed = side.some((p) => p.unit !== unit);
   const ladder = ui.plates.top ? safeLadder(app, ui.plates.top) : [];
+  const meet = meetCard(app, ui, { bar, collar, plates });
 
   const html = `
     <div class="topbar"><div><h1>Plates</h1><p class="muted small">Tap plates to load the bar, or type a target. Heaviest plates sit innermost, as in competition.</p></div>
@@ -89,6 +91,7 @@ export function platesView(app, ui) {
       <div class="row"><div class="field" style="flex:1;min-width:140px"><span>Top set (${unit})</span><input id="top" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.top)}"></div><button class="btn" data-act="ladder" style="align-self:end">Build</button></div>
       ${ladder.length ? `<ol class="feed" style="margin-top:12px">${ladder.map((s, i) => `<li><span class="medal" style="background:var(--surface-3);color:var(--text)">${i + 1}</span><span><b>${round1(s.weight.value)} ${unit}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><button class="btn small" data-ladder="${i}">Load</button></li>`).join('')}</ol>` : '<p class="muted small" style="margin-top:10px">Enter your top set to get plate-friendly warm-up jumps.</p>'}
     </div>
+    ${meet.html}
     <details class="card fold" style="margin-top:14px"><summary>My plates (how many your gym has)</summary>
       <p class="muted small">Counts are the total number of each plate, both sides. Colours follow the IPF rule for 25, 20 and 15 kg; the rest are convention and editable in <code>data/plates.json</code>.</p>
       <div class="grid cols-3">${plates.map((p) => `<label class="field"><span>${p.value} ${p.unit}</span><input type="number" min="0" step="2" inputmode="numeric" data-count="${p.value}" value="${p.count}"></label>`).join('')}</div>
@@ -97,11 +100,35 @@ export function platesView(app, ui) {
   function bind(root, rerender) {
     const keepSide = (fn) => { fn(); rerender(); };
     root.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', async () => { ui.plates.side = []; await app.saveSettings({ unit: b.dataset.unit }); }));
-    root.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => keepSide(() => {
+    const addPlate = (b) => keepSide(() => {
       const p = plates.find((q) => String(q.value) === b.dataset.add);
       side.push({ value: p.value, unit: p.unit, colour: p.colour, drawHeightMm: p.drawHeightMm });
       side.sort((a, c) => convert(c.value, c.unit, 'kg') - convert(a.value, a.unit, 'kg'));
-    })));
+    });
+    const stage = root.querySelector('.bb-stage');
+    root.querySelectorAll('[data-add]').forEach((b) => {
+      b.addEventListener('click', () => { if (b.dataset.dragged) { delete b.dataset.dragged; return; } addPlate(b); });
+      // Drag a plate from the tray onto the bar (tap also works).
+      b.addEventListener('pointerdown', (e) => {
+        if (b.disabled || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        const sx = e.clientX, sy = e.clientY; let ghost = null;
+        const over = (ev) => { const r = stage.getBoundingClientRect(); return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top - 24 && ev.clientY <= r.bottom + 24; };
+        const move = (ev) => {
+          if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 10) {
+            ghost = b.querySelector('.disc').cloneNode(true);
+            Object.assign(ghost.style, { position: 'fixed', zIndex: 80, pointerEvents: 'none', transform: 'translate(-50%,-50%) scale(1.25)', opacity: '.92' });
+            document.body.append(ghost);
+          }
+          if (ghost) { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; stage.style.outline = over(ev) ? '2px dashed var(--accent)' : ''; }
+        };
+        const end = (ev) => {
+          window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+          stage.style.outline = '';
+          if (ghost) { ghost.remove(); b.dataset.dragged = '1'; if (ev.type === 'pointerup' && over(ev)) addPlate(b); }
+        };
+        window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+      });
+    });
     root.querySelectorAll('.bb-plate').forEach((el) => {
       const rm = () => keepSide(() => side.splice(Number(el.dataset.index), 1));
       el.addEventListener('click', rm);
@@ -121,6 +148,7 @@ export function platesView(app, ui) {
       return r;
     };
     target.addEventListener('input', preview); preview();
+    if (ui.plates.autoload) { ui.plates.autoload = false; root.querySelector('[data-act=load]').click(); }
     root.querySelector('[data-act=load]').addEventListener('click', () => {
       const r = preview(); if (!r) return;
       keepSide(() => { side.length = 0; side.push(...drawable(r.perSide)); });
@@ -133,6 +161,7 @@ export function platesView(app, ui) {
       const cur = app.settings.plateCounts || {};
       await app.saveSettings({ plateCounts: { ...cur, [unit]: { ...(cur[unit] || {}), [inp.dataset.count]: n } } });
     }));
+    meet.bind(root, rerender, (w) => keepSide(() => { const r = loadBar({ target: w, bar: bar.weight, collar, plates }); side.length = 0; side.push(...drawable(r.perSide)); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
     root.querySelector('[data-act=ladder]').addEventListener('click', () => { ui.plates.top = root.querySelector('#top').value; rerender(); });
     root.querySelectorAll('[data-ladder]').forEach((b) => b.addEventListener('click', () => keepSide(() => {
       const s = ladder[Number(b.dataset.ladder)];
