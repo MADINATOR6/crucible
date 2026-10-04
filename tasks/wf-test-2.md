@@ -32,15 +32,28 @@ Implementer (GJC): `scripts/check-external-tools.ps1` inside the task worktree o
 Any other file; running Claw with a provider; credentials; notifications; the autonomous or loop modes of any tool; editing the main checkout from an external tool; Git by external tools; push in this task.
 
 ## Done When
-- [ ] (Claude) Pre-change reviews recorded: skill findings and LazyCodex findings on the original script, triaged confirmed vs rejected with a reason each.
-- [ ] (GJC) Change made in the task worktree only; changed-path list is exactly the one allowlisted file.
-- [ ] (Claude) Behaviour tests identical before and after: positive run 6/6 exit 0; missing-tools run prints five FAIL, `PASS: skills`, `RESULT: FAIL (5 of 6)`, exit 1; tampered baseline naming `auth.json` fails only that check; bad `-RepoRoot` fails only `skills`; hung-child case not left running if testable.
-- [ ] (Claude + LazyCodex) Post-change review of the diff by the skill and by LazyCodex; no new unresolved finding; line count and guarantee list compared.
-- [ ] (Claude) `ccx verify -TaskId wf-test-2`, `task review`, `merge-check`, commit and merge by Claude only; worktree removed or recorded.
-- [ ] (Claude) Results section filled: per-tool contribution, what failed or needed intervention, token/usage notes, score.
+- [x] (Claude) Pre-change reviews recorded: skill findings and LazyCodex findings on the original script, triaged confirmed vs rejected with a reason each.
+- [x] (GJC) Change made in the task worktree only; changed-path list is exactly the one allowlisted file.
+- [x] (Claude) Behaviour tests identical before and after: positive run 6/6 exit 0; missing-tools run prints five FAIL, `PASS: skills`, `RESULT: FAIL (5 of 6)`, exit 1; tampered baseline naming `auth.json` fails only that check; bad `-RepoRoot` fails only `skills`; hung-child case not left running if testable.
+- [x] (Claude + LazyCodex) Post-change review of the diff by the skill and by LazyCodex; no new unresolved finding; line count and guarantee list compared.
+- [x] (Claude) `ccx verify -TaskId wf-test-2`, `task review`, `merge-check`, commit and merge by Claude only; worktree removed or recorded.
+- [x] (Claude) Results section filled: per-tool contribution, what failed or needed intervention, token/usage notes, score.
 
 ## Verify
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-external-tools.ps1` and the negative/tamper/bad-root variants from wf-test-1, plus `scripts\ccx.ps1 verify -TaskId wf-test-2`.
+
+## Results (2026-10-04, Claude)
+
+Outcome: merged fast-forward as `f822255` (local; not pushed). Behaviour suite (scratch harness, 22 tests incl. hung-child): original script failed 5, final passes all 22. Script 133 -> 126 non-blank lines (goal of about 100 was **not** met; GJC mostly compacted lines).
+
+Per tool:
+- **Claude-Red `offensive-bug-identification` (Claude, static):** found the credential-guard bypass (not covered by the existing tests) (`auth.json ` / `auth.json.` canonicalize to `auth.json`; confirmed on synthetic names) and the unconditional execution of an unverified `gjc`. Useful, fast, no tooling needed.
+- **LazyCodex (read-only reviewer):** 11 findings on the original; 4 confirmed, 7 rejected with reasons (hard-link/TOCTOU needs write access to `~\.codex`; extra deny inventory; caller-supplied `-GjcExe`; unbounded output of own tools; diagnostics conflict with no-printing rule; Job Object overkill). On the diff it found a real path-confusion bug (relative `-GjcExe`: hash gate and execution resolve different files; reproduced with a decoy) that nothing else caught, plus the slash-key regression. Best catch of the trial. **Friction:** headless with approval `never` it could read nothing (OmO steers every command to the `git_bash.run` MCP tool, which needs approval; plain PowerShell hit the execution policy). Worked only with the files supplied as data over stdin. `git_bash.run` was deliberately not pre-approved (arbitrary shell).
+- **GJC (`--mpreset codex-sol`, tools read,find,edit):** two passes, both stayed inside the single allowlisted file and applied every instruction it was given; it could not run tests (no shell, by design), so Claude's harness was the safety net. **Friction:** it leaves an untracked `.gjc/` runtime directory in the working directory even with `--no-session`; removed by Claude each time (task artifact only). Its simplification was cosmetic (dense one-liners), not structural.
+- **Claw:** not exercised beyond the version check inside the script; no provider credential authorized.
+- **ccx:** worktree/branch isolation, ownership, verify, review record, merge-check, gated commit and `worktree prune -Apply` all worked. Friction (mine): guessed gate action names (`worktree`, `worktree-remove`) are unknown actions and create unused L4 approval requests A-0020 and A-0021; do not approve them.
+
+Scoring: workflow mechanics 8/10; review value from the external tools 8/10 (two reviewers found things the author-side tests missed); implementer autonomy 6/10 (correct but needed a second pass and cannot self-test). The skill review and LazyCodex independently reported all 4 of the first confirmed items, which is the useful redundancy signal; the path-confusion bug came from LazyCodex alone.
 
 ## Stop Conditions
 Stop and report if: an external tool touches a path outside its allowlist (undo only that edit); a tool asks for credentials, an API key or elevated permission; GJC or LazyCodex hits a usage limit twice; behaviour tests regress after one focused repair. Never widen a sandbox or tool list to make a step pass.
