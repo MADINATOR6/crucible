@@ -1,3 +1,23 @@
+# Lifting tracker, part 2 (2026-10-05): generator, coach, plates
+
+Status: built, tested (see the test count in `lifting-tracker/README.md`'s command below), committed on `main`, not pushed.
+
+## What was added
+- **Plan screen** (Train > "Plan next block", or Progress): type or tap what you need (Maintain, Build strength, Build size, Back from a break, Peak for a meet, Bring up a lift, Deload) and it generates the next block from your last block's shape and your current e1RMs (RPE chart read from your workbook; the workbook's logo and any coach branding are not used). Preview with week tabs, volume heat map (arrows against your last block), reasons and warnings; "Add to my programme", "Another version", "Copy as text"; later "Re-load remaining weeks" from your newest numbers. Design: `lifting-tracker/GENERATOR.md`.
+- **Coach's review** on Plan and a short version on Progress: prioritised, evidence-backed suggestions (stalled/falling lifts, lagging lift, effort vs plan, effort creep, missed sessions, volume gaps, no heavy work, possible weak spots, repeated technique cues, bodyweight, deload timing). Buttons build the fix into the next block. Rules and thresholds are documented in GENERATOR.md; they are heuristics, labelled as suggestions with a confidence.
+- **Heat map** redesign (anatomical silhouette, shaded regions, hover focus, target-zone bars, change on previous week), **plate simulator** redesign (side view with knurled bar and shaded plates, stylised end view, slide-in animation), **calibrated plates** (IPF disc tolerance band per loaded bar, Gym-plates mode, weighed-plate totals).
+
+## How it was built and checked
+- Codex hit its usage limit mid-task. As you asked, Claude agents implemented LT-9a (athlete model, template), LT-9b (generator), LT-9c (request parser) in worktrees; Claude reviewed and merged them. A Gemini fallback verifier ran once on the generator (partial quota); a fresh-context `ccx-reviewer` reviewed the whole feature and found 17 problems (two high: saved blocks lost `gen.exposure` and a revised "return" block jumped to full loads). All fixed with regression tests. A Codex verifier (LT-9d) on current `main` was dispatched after the reset; its result is in MEMORY.md.
+- Real-data run (local only, wiped): generated maintenance, strength and return blocks from your history; loads, wave, rotation and warnings looked sensible. Check them yourself before training on them.
+
+## Things to know
+- The generator needs your imported programme; it refuses to save into the example data.
+- Block numbers are never reused for logs: removing a generated block turns its logged sets into free-standing history.
+- Loads are capped at an all-out set for the reps; everything is editable when logging.
+- Not done: Wilks/DOTS/IPF GL scores; Codex-written code (the generator modules were written by Claude while Codex was out, so the independent check matters).
+
+---
 # Lifting tracker handoff (2026-10-04 evening, unattended session)
 
 Status: the app is built, tested and committed on `main` (not pushed). Nothing needs your approval to use it locally.
