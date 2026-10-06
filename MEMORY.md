@@ -33,7 +33,7 @@ Operating state for autonomous sessions on this repo. Read first every session. 
 - (Superseded by the entries above) Next: Claude resumes in a permitted session after quota returns: reverify changed files, record its own ccx review, log `gate -Action local-commit`, then make the exact-path local checkpoint commit; keep task PARTIAL/BLOCKED until Claw runtime is repaired. A new bounded Claw runtime plan is still required before toolchain changes. Login is complete; GJC generation, interactive LazyCodex tool approval and isolated coding trials remain pending. Any new full-access dispatch needs its own approval; the final commit's push gate must pass (old de368af approval does not apply). Preserve prior operating history below.
 
 ## Current state
-- Project: claude-codex-collab (Claude Code + Codex workflow template)
+- Project: Crucible (formerly claude-codex-collab; Claude Code + Codex workflow template)
 - Last task commit: c5df6b5 (Mythos check fixes); the stop-report commit follows it
 - Task: ccx upgrade (user's CLAUDE_CODEX_MASTER_UPGRADE_PROMPT, 2026-09-30) on branch claude/architecture-audit-migration-649829 from c2f515b. Queue below.
 - Status: ccx upgrade COMPLETE (2026-10-01 ~15:00). All tasks CCX-2..7 done via ccx; final gate test-ccx 30/30, ops 16/16, dispatch 46/46, mirror 22/22; health exit 0. Nothing pushed; merge into main + push await the user's approval. Baseline tests at c2f515b: dispatch 23/23, mirror 21/21 + 1 skip.

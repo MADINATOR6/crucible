@@ -1,6 +1,6 @@
-# claude-codex-collab
+# Crucible
 
-A lightweight workflow template for running Claude Code and Codex on the same repository: clear roles, no overlapping edits, token-efficient handoffs, and safe long unattended sessions.
+A lightweight workflow template for running coding agents on the same repository (Claude Code and Codex today, other models and external tools as they are adopted): clear roles, no overlapping edits, token-efficient handoffs, and safe long unattended sessions.
 
 | File | Purpose |
 |---|---|

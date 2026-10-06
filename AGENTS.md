@@ -1,6 +1,6 @@
 # Project
 
-This repository is the Claude + Codex workflow template. It also hosts one product built with it: `lifting-tracker/`, a personal offline powerlifting tracker (spec: `prompts/lifting-tracker-master-prompt.md`; design and data model: `lifting-tracker/ARCHITECTURE.md`). The athlete's real workbook and anything derived from it is private: never commit it, never give it to Codex, and `*.xlsx` is gitignored. Tests use synthetic data only.
+This repository is Crucible, the Claude + Codex workflow template; other models and external tools plug in through the same routing and handoff rules. It also hosts one product built with it: `lifting-tracker/`, a personal offline powerlifting tracker (spec: `prompts/lifting-tracker-master-prompt.md`; design and data model: `lifting-tracker/ARCHITECTURE.md`). The athlete's real workbook and anything derived from it is private: never commit it, never give it to Codex, and `*.xlsx` is gitignored. Tests use synthetic data only.
 
 # Stack
 

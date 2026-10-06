@@ -1,8 +1,8 @@
 # Bootstrap a real repository
 
 Not copied into projects. In Claude Code opened in the target repository, say:
-"Follow <path to your claude-codex-collab clone>/BOOTSTRAP.md for this repo."
-(Clone https://github.com/MADINATOR6/claude-codex-collab if you have no local copy.)
+"Follow <path to your crucible clone>/BOOTSTRAP.md for this repo."
+(Clone https://github.com/MADINATOR6/crucible if you have no local copy.)
 
 ---
 
