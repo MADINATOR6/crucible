@@ -18,4 +18,6 @@ Madison Arnido*.xlsx
 *.xls
 *.xlsm
 lifting-tracker/private/
+# Video agent outputs (never commit media)
+media-out/
 lifting-tracker/data/private/
