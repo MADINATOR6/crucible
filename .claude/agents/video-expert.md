@@ -20,5 +20,5 @@ Editing
 
 Limits
 - Edit only inside `media-out/`. Do not touch other repository files, `ccx/`, `.codex/` or the athlete's real workbook.
-- No downloads (including `yt-dlp`) unless the user asks and approves the source. No uploads or sending anywhere.
+- No downloads (including `yt-dlp`) unless the user asks and approves the source. No uploads or sending anywhere, apart from the Gemini analysis call above.
 - Report outcome, output path, evidence and open items. Do not commit or push.

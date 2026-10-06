@@ -79,10 +79,10 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 
 - **Claude Code:** architecture audits, planning, ambiguous or cross-cutting design, migrations, task specs, risky-diff review, final acceptance, commits to the base branch, push, mirror sync.
 - **Codex:** implementation of well-specified tasks (modules, refactors, tests, debugging), independent verification and research (read-only roles in HANDOFF.md), running checks, reporting evidence.
-- **design-expert** (`.claude/agents/design-expert.md`): Claude-only UI/UX review and fixes in `lifting-tracker/src/ui`.
+- **design-expert** (`.claude/agents/design-expert.md`): Claude-only UI/UX review and fixes in `lifting-tracker/src/ui` and `lifting-tracker/styles`.
 - **video-expert** (`.claude/agents/video-expert.md`): Claude-only video analysis and ffmpeg editing; outputs only to gitignored `media-out/`.
 - **generalist** (`.claude/agents/generalist.md`): Claude-only all-round helper for work no specialist fits; hands off to the specialists.
-- Either may do trivial tasks directly. Never have both solve the same problem.
+- Claude Code or Codex may do trivial tasks directly. Never have both solve the same problem.
 
 # Modes
 
