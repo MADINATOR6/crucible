@@ -2,7 +2,10 @@
 param(
   [string]$ToolsDir = (Join-Path $env:USERPROFILE '.local\share\claude-codex-tools'),
   [string]$GjcExe = (Join-Path $env:LOCALAPPDATA 'gjc\gjc.exe'),
-  [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot)
+  [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+  [string]$SkillRoot = (Join-Path $env:USERPROFILE '.claude\skills\claude-red'),
+  [switch]$Inventory,
+  [switch]$Json
 )
 $ToolsDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsDir)
 $GjcExe = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($GjcExe)
@@ -18,10 +21,10 @@ function Test-Check([string]$Name, [scriptblock]$Check) {
   } catch { Write-Output "FAIL: $Name"; $script:failed++ } # Never disclose exception text.
 }
 
-function Invoke-Version([string]$File) {
+function Invoke-Version([string]$File, [string]$Arguments = '--version') {
   if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { throw 'Missing command.' }
   $info = New-Object Diagnostics.ProcessStartInfo -Property @{
-    FileName = $File; Arguments = '--version'; UseShellExecute = $false; CreateNoWindow = $true
+    FileName = $File; Arguments = $Arguments; UseShellExecute = $false; CreateNoWindow = $true
     RedirectStandardInput = $true; RedirectStandardOutput = $true; RedirectStandardError = $true
   }
   if ([IO.Path]::GetExtension($File) -ieq '.cmd') {
@@ -60,6 +63,42 @@ function Invoke-Version([string]$File) {
       }
     } finally { $process.Dispose() }
   }
+}
+
+if ($Inventory -or $Json) {
+$rows = @()
+foreach ($tool in @('gjc','claw','codex')) {
+    $flag = if ($tool -eq 'codex') { '--help' } else { '--version' }
+    $status = 'unavailable'
+    try {
+        # Existing wrappers perform native resolution and isolated OmO manifest/hook checks.
+        $wrapper = Join-Path $PSScriptRoot ($tool + '.ps1')
+        $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + $wrapper + '" ' + $flag)
+        $status = 'cli-pass'
+    } catch { $status = 'unavailable' }
+    $rows += [PSCustomObject]@{
+        Tool = if ($tool -eq 'codex') { 'omo' } else { $tool }
+        AvailableTo = if ($tool -eq 'codex') { 'Codex; Claude uses native workflow' } else { 'Both' }
+        Status = $status
+        Check = $flag
+    }
+}
+$libraryStatus = 'unavailable'
+try {
+    if (Test-Path -LiteralPath $SkillRoot -PathType Container) {
+        $markdown = Get-ChildItem -LiteralPath $SkillRoot -Filter '*.md' -File -Recurse | Select-Object -First 1
+        if ($markdown) { $libraryStatus = 'files-present' }
+    }
+} catch { $libraryStatus = 'unavailable' }
+$rows += [PSCustomObject]@{ Tool='claude-red'; AvailableTo='Both'; Status=$libraryStatus; Check='Markdown storage only; no content executed' }
+if ($Json) { ConvertTo-Json -InputObject @($rows) -Depth 3 }
+else {
+    $rows | Format-Table -AutoSize
+    Write-Output 'Optional inventory only. cli-pass does not prove provider access or interactive OmO hooks. ccx alone approves done.'
+    Write-Output 'For unavailable tools use tool: none and the normal Claude/Codex workflow. See EXTERNAL-TOOLS.md.'
+}
+# Missing enhancements never turn this inventory into a mandatory workflow dependency.
+exit 0
 }
 
 Test-Check 'gjc-sha256' {
