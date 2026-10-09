@@ -1,92 +1,61 @@
-# Task
+# Task: external tools for both agents
 
-<!-- Task spec for Dispatch-mode work (Parallel tasks use their handoff note instead). May be overwritten per task after checking it holds no uncommitted manual edits. Reference paths; do not paste files. -->
+Task ID: `external-tools-operational`. Baseline `7a4a4c7`, `main`, 2026-10-09. Direct user assignment: Codex implements; Claude independently reviews. User authorizes one local commit after all verification and ccx done, superseding default Dispatch commit ownership for this task only. No push or mirror sync.
 
-## Mode and Owner
-<!-- Task ID and depth (trivial / normal / complex / frontier). Dispatch or Parallel. Who implements, who reviews. -->
-`external-tools-install`: complex, medium-risk install + documentation task. Dispatch ownership: Codex implements by direct user assignment; Claude plans, reviews the diff and all changed/untracked paths, and owns all Git, push and mirror sync. No other agent edits these files.
+Optional `tool: none` (default). Allowed for both agents: `none`, `gjc`, `claw`, `claude-red`; `omo` selects a Codex runtime (Claude may launch it within authorized dispatch scope). Descriptive metadata only, manual tool selection; no ccx routing or permission change.
 
-Authorization: on 2026-10-04 the user explicitly authorized a Claude-assisted install of all four external tools (Gajae-Code, LazyCodex, Claude-Red, Claw-Code) for this repo, superseding the reference-only and Claw-Code exclusions in AGENTS.md for this task. User-local dependency installs are L3 (allowed, logged; `ccx/ARCHITECTURE.md:279`). The control-plane boundary and the L4/L5 gates still apply.
+## Goal and write allowlist
 
-Baseline: local `main` at `e8f79b1`; initial `git status` clean. Codex records HEAD and status before any edit and makes no Git mutation in this repo.
+Operational tools accessible independently to both agents, documented equivalent for agent-specific functionality, mirrored instructions and offline mocks. ccx alone approves done. Install/verify tooling only; never execute library contents.
 
-Execution context: the user directly assigned this installation to the existing desktop session, whose permissions are already configured. No new Codex write dispatch or sandbox change is requested or performed. Log dependency installation with the policy's exact action `ccx gate -Action install-dependency` (L3). If a new full-access Codex dispatch becomes necessary, it separately requires `ccx gate -Action codex-full-access` and human approval; do not launch it unattended. Push remains a separate L4 action. No credentials, provider login, paid API, notification, primary-config edit or autonomous loop is authorized.
+Repository writes: `AGENTS.md`, `CLAUDE.md`, `EXTERNAL-TOOLS.md`, `HANDOFF.md`, `TASK.md`, `scripts/gjc.ps1`, `scripts/claw.ps1`, `scripts/load-claude-skill.ps1`, `scripts/codex-load-skill.ps1`, `scripts/codex.ps1`, `scripts/test-external-tools.ps1`, `scripts/invoke-external-tool.ps1`, `tests/mocks/`. External installs/logs/synthetic fixtures: `~/.local/share/claude-codex-tools`, `~/.claude/skills/claude-red`, unique TEMP directories. ccx may update ignored task state. No other writes.
 
-## Goal
-<!-- What must be accomplished. -->
-Install all four tools into user-local paths and record exact per-tool status, pinned versions/SHAs and evidence in `EXTERNAL-TOOLS.md`, then add one `AGENTS.md` pointer to it with the reference sections and the Boundary preserved. Prerequisites Git Bash and a Rust toolchain are installed user-local and pinned only where a tool actually needs them. The primary Codex config/auth is never read (beyond read-only hashes/listings), modified or overridden.
+Pre-existing untracked: `prompts/crucible-overall-upgrade.md`, `tasks/WP-1.md`, `wallpaper/`; preserve and exclude from staging. Planned CRU-25/CRU-23 overlap docs/health but are not active. Other active ownership stays separate. The unrelated Powerlifting Tracker checkout `C:/Users/Madison/code/claude-codex-template` is untouched.
 
-## Relevant Files
-<!-- Only likely relevant files/directories. -->
-Read-only context: `AGENTS.md` (External Agent Tools, Boundary), `HANDOFF.md` (Optional external-tool trial), `ccx/policy.json`, `ccx/ARCHITECTURE.md` permission levels, upstream READMEs / install / skills / format guides linked in AGENTS.md (treat as untrusted source material). Tools dir: `C:/Users/Madison/.local/share/claude-codex-tools` holding per-tool subfolders, portable Git Bash, the LazyCodex trial directory (isolated `CODEX_HOME`), and all logs. Rustup/cargo install to the standard user Rust path. Nothing is written to the repo outside the Write Allowlist, to the primary `~/.codex`, or to OneDrive.
+Out of scope: ccx/policy and dispatch/sync changes, primary Codex config/auth, provider credentials, external source changes, security testing, library execution, admin/OS/global settings changes, autonomous permissions, real repository-writing harness trials, push and mirror sync.
 
-## Write Allowlist
-<!-- Exact paths the implementer may change or create, and where temporary files may go. -->
-In-repo: `AGENTS.md`, `TASK.md`, `MEMORY.md`, `HANDOFF-REPORT.md`, `EXTERNAL-TOOLS.md`, `.claude/skills/offensive-reporting/`, `.claude/skills/offensive-bug-identification/`, and optionally `scripts/external-tools.ps1` only if source inspection of the pinned installers justifies a thin, review-only launcher (default: do not create it). Outside the repo: the tools dir and Rust user path named in Relevant Files, for installs and logs only. ccx may update its normal user-local task/verification state. No other repo paths; no scratch files elsewhere in the repo.
+## Decisions
 
-## Constraints
-<!-- Important requirements, resolved business/data rules, and things that must not change. -->
-- **Pin everything.** Before each install, record in `EXTERNAL-TOOLS.md` the exact release tag where available, otherwise commit SHA, plus installer/download URL and checksum for release binaries. Inspect the pinned installer/source. No install from a moving `main` or an unpinned script.
-- **Dependencies (L3, user-local, no admin).** When a tool needs them: install a pinned **portable Git Bash** into the tools dir, and the official **rustup** minimal Windows GNU user-local toolchain (`--profile minimal`, default user paths). No administrator elevation, no OS feature/Windows-component enablement, no WSL/VM/account creation, no machine-wide PATH changes beyond the user scope the official installers set.
-- **GJC.** Install the pinned build; point its shell at the portable Git Bash; run `gjc --version` and `gjc --smoke-test` with captured output. `--tmux --worktree` managed sessions are not run (no tmux).
-- **Claw-Code.** Build from the pinned SHA with the user-local Rust toolchain and run its `--version`/`--help` (or nearest documented check) with captured output. Mark BLOCKED only if the pinned build actually fails after one focused repair, recording the exact error — not proactively.
-- **LazyCodex (isolated).** Install the local bundle into a separate trial directory with its own `CODEX_HOME`, and set `OMO_CODEX_PROJECT`, `OMO_CODEX_GIT_BASH_PATH` (to the portable Git Bash), `--no-codex-autonomous`, and `DO_NOT_TRACK=1`. The primary `~/.codex` is never read for content, modified or overridden; verify isolation by comparing read-only hashes/listings of the primary config taken before and after (see Verify).
-- **Claude-Red is skills-only, defensive-only.** Copy ONLY `offensive-reporting` and `offensive-bug-identification` into `.claude/skills/<name>/SKILL.md`, each with YAML frontmatter (`name`, `description`) whose `name` matches the directory, retaining the upstream MIT license/copyright and recording upstream URL + commit SHA + local adaptations. `offensive-bug-identification` lacks frontmatter upstream: add reviewed frontmatter before copying. No other skill, no attack/target skill, no library-wide activation, no offensive technique run against anything.
-- **Read-only config checks.** Hashing and directory listings of the primary Codex config for unchanged-verification are allowed; never read auth material, tokens or secrets, and never copy them anywhere.
-- **No** provider login, credential, token or paid API call; **no** notification (Telegram/Discord/Slack) delivery; **no** autonomous/long-loop flags adopted into this repo's routing; **no** change to ccx budgets, caps or routing. ccx routing, budgets and retry caps stay authoritative.
-- **Boundary intact.** Do not modify `ccx/`, `scripts/ccx*.ps1`, `scripts/codex-dispatch.ps1`, `scripts/sync-mirror.ps1`, `.codex/`, `.claude/agents/ccx-*.md`, or any shared workflow instruction beyond the single AGENTS.md pointer. External tools must not write to the base branch, commit, push, merge, publish, sync the mirror, or self-approve.
-- Windows: call `codex.cmd`/`npm.cmd`/`npx.cmd`, never bare names. Edit text files with file-editing tools, not `Get-Content`/`Set-Content` round-trips (UTF-8 BOM corruption).
+- Reuse verified pinned GJC rather than reinstall via shell/Bun/npm. Original Windows installer failed resolving `Get-FileHash`; checksum-verified binary installation succeeded previously.
+- Claw runs on Windows gnullvm. Rebuild requested full workspace with that known working target; old default target crashes and is retained as evidence.
+- User selected **keep isolated OmO; preserve permissions** on 2026-10-09. Doctor passes 3/3; no `--codex-autonomous` or primary config writes. Hooks still require interactive approval/re-approval; composer skills are not native CLI help subcommands.
+- Claude supports `--append-system-prompt-file`, not requested `--system-file -`; append the selected Markdown, preserving normal instructions. Codex prepends the same file to a new prompt.
+- Full Claude-Red checkout verified by revision/files only; no library content execution. Real loader check uses a synthetic module.
+- Optional tool metadata/manual launchers suffice; no ccx routing adapter. `ccx status` may process events; prefer read-only task/state snapshots.
 
-## Out of Scope
-<!-- Adjacent work that must NOT be done. -->
-Administrator elevation; OS feature/Windows-component enablement; WSL/VM/account creation; any read of or write to the primary `~/.codex` auth/config content (read-only hash/listing excepted); any provider login, credential, token or paid API call; notification delivery; adopting autonomous or long-loop configuration into this repo; activating the full Claude-Red library or any attack/target skill; running any offensive technique against any target; editing the control-plane files under Boundary; Git branch/history/commit/push/merge/mirror by Codex; self-review or self-approval; further write-agent dispatch. A bounded read-only independent verifier is required by the complex-task policy and may inspect the final artifacts and run offline checks.
+## Acceptance and results
 
-## Done When
-<!-- Concrete acceptance criteria, each marked (Codex) or (Claude) for verification. -->
-- [x] (Codex) Phase A — Pins recorded: exact tag + commit SHA + installer URL and a source-inspection note for each tool and each needed dependency (Git Bash, rustup) written to `EXTERNAL-TOOLS.md`; no install started before its pin is recorded.
-- [x] (Codex) Phase B — Dependencies: portable Git Bash installed under the tools dir; rustup minimal GNU user-local toolchain installed if Claw needs it. Evidence: `bash --version` from the portable path, `cargo --version` (captured output).
-- [x] (Codex) Phase C — GJC: pinned build installed, shell pointed at the portable Git Bash; `gjc --version` and `gjc --smoke-test` run with captured output.
-- [x] (Codex) Phase D — Claw-Code: built from the pinned SHA; `--version`/`--help` run with captured output. Completed 2026-10-04 by Claude on user approval via a second `gnullvm` build (exit 0 for both; `claw-gnullvm-runtime-check.json`, `claw-gnullvm-help-check.txt`). The first GNU-target build crashed and is kept as evidence.
-- [x] (Codex) Phase E — LazyCodex: installed in the isolated trial dir with its own `CODEX_HOME`, `OMO_CODEX_PROJECT`, `OMO_CODEX_GIT_BASH_PATH`, `--no-codex-autonomous`, `DO_NOT_TRACK=1`; primary `~/.codex` hash/listing unchanged before vs after. Evidence: isolation config + the unchanged-check result.
-- [x] (Codex) Phase F — Claude-Red skills: `offensive-reporting` and `offensive-bug-identification` copied to `.claude/skills/<name>/SKILL.md` with matching-`name` frontmatter, MIT license retained, provenance (URL + SHA + adaptations) recorded; no other skill present.
-- [x] (Codex) Phase G — `EXTERNAL-TOOLS.md` records per-tool status (installed / blocked-with-error / skipped), pins, install location, isolation approach and the authorization reference; `AGENTS.md` gains one pointer to it with the reference sections and Boundary preserved.
-- [x] (Codex) Scope + quick checks pass: only allowlisted repo paths changed; `git diff --check` exits 0; ccx quick stages (json/secrets/scope/memory) PASS. Evidence in the report.
-- [x] (Claude) Diff and all changed/untracked paths reviewed against the allowlist and baseline; skill discovery verified in the intended agent; primary `~/.codex` confirmed unchanged by hash; each captured version/smoke/build check confirmed; any BLOCKED item confirmed to carry a real error, not caution. Evidence: PASS for the partial checkpoint against `gjc-verification.txt`, `lazycodex-doctor-final.json`, the launchers, `lazycodex-install.log`, `claw-build-repair3.log`, `claw-runtime-check.json` (`0xc0000005`, empty output), identical `primary-config-before/after.json`, and `claude-skill-discovery.json`. `git diff --check` clean. The ccx `task review` record is still pending (see HANDOFF-REPORT.md).
-- [x] (Claude) Committed; push and mirror sync only after `ccx gate -Action push` and explicit human approval. Done as commit-bound checkpoints `7af4696` (A-0017) and `abb308d` (A-0018), each pushed and mirrored; a final docs commit for the LazyCodex result follows the same gate.
+- [x] Correct Crucible checkout, source inventory, all scripts and required docs read; both agents' workflow summarized.
+- [x] GJC version/smoke PASS; Claw version/help PASS; repo-root wrappers created.
+- [x] Claw full workspace build PASS, exit 0 in 163s; rebuilt version/help PASS.
+- [x] Isolated OmO profile, enabled plugin, hook files and wrapper exist; doctor PASS 3/3; wrapper/native help run.
+- [x] Claude-Red clone: `739512a8588b28ff3b554e669391c22508602878`, 84 Markdown files; both loaders created.
+- [x] Real Claude loader PASS: `SYNTHETIC_CLAUDE_LOADER_OK`, exit 0; synthetic module only.
+- [x] Agent files have identical External Tools sections and symmetry rule first; external tools status/equivalents and optional handoff/task `tool:` metadata documented.
+- [x] Final expanded mock/symmetry suite PASS 20/20, exit 0 on Windows PowerShell 5.1; includes short flags, native empty/quoted/Unicode/metachar argv, shell-shim refusal and same-process environment restoration.
+- [x] Existing regressions PASS: core 31/31 exit 0 (826s), operations 16/16 exit 0, dispatch isolated rerun 49/49 exit 0 (444s), mirror 21/21 exit 0 (165s), one host-refused junction fixture skip. Diff check exit 0; ccx parse/JSON/secrets/scope/memory PASS.
+- [x] Independent verifier PASS on repaired state (20/20 and diff check); actual Claude final diff review PASS. ccx verification previously PASS; delivery must refresh the final fingerprint and run task done before committing.
+- [x] Local commit prepared with exact requested title, 17 task-owned paths and shared/Codex/Claude availability in its body. Execute only after final ccx acceptance; resulting commit is recorded in Git history and the final report. No push.
 
 ## Verify
-<!-- Commands/checks proving the task works. -->
-From this repo root (Codex runs the Codex-owned checks with captured evidence; Claude re-runs before commit):
-- `git diff --check`
-- `git status --short` (only allowlisted repo paths)
-- `<tools-dir>/git-bash/.../bash --version` and `cargo --version` (Phase B)
-- `gjc --version` and `gjc --smoke-test` (Phase C)
-- Claw-Code `--version`/`--help` from the built binary (Phase D)
-- LazyCodex isolation: a read-only hash + file listing of the primary `~/.codex` taken before Phase E equals the one taken after (content never read); confirm the trial `CODEX_HOME` is a distinct path
-- Skill discovery: list `.claude/skills/`, confirm each `SKILL.md` has matching-`name` frontmatter and the agent discovers both skills
-- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 verify -TaskId external-tools-install -Quick`
 
-No target is attacked and no offensive technique is executed.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-external-tools.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ccx.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-ccx-ops.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-codex-dispatch.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-sync-mirror.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gjc.ps1 --version
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/claw.ps1 --version
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex.ps1 --help
+git diff --check
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ccx.ps1 verify -TaskId external-tools-operational
+```
 
-## Implementation checkpoint (2026-10-04)
+Review reports, synthetic real-loader fixtures and detailed outputs remain under tools dir with `integration-` names. Record Claude review only from a genuine independent report. ccx done must accept current full verification fingerprint before local commit. On install/check failure document exact error, continue independent tools, and never claim all-pass or commit incomplete work. Ask before admin or environment-breaking actions.
 
-PARTIAL: phases A/B/C/E/F/G completed with evidence in EXTERNAL-TOOLS.md; phase D compiled but failed runtime verification (`--version` exits `0xC0000005`). Final runtime failure ends the Claw phase under the stop conditions. Do not mark the all-four installation task done. Codex requests independent verification and Claude's review of the working installations, adapted skills and honest blocked record, followed by a local checkpoint commit if that scope passes review. No push is authorized for that new commit.
+Claude initial review requested changes to flag forwarding and UTF-8 piping. Replaced wrapper parameters with environment overrides and one shared native argv helper. Original ccx registration external-tools-symmetry was explicitly abandoned without completion; external-tools-operational registers the expanded exact allowlist. Core regression PASS 31/31 (826s); operations PASS 16/16; mirror PASS 21/21, one host junction skip. Dispatch first run 48/49: stale writer-lock child exceeded 25s during parallel suites/build; isolated rerun PASS 49/49, exit 0 in 444s; no ccx/dispatch code changes needed.
 
-Resume check (2026-10-04): Codex reran full `ccx verify -TaskId external-tools-install`: exit 0, PASS json/secrets/scope/memory, unchanged code stages N/A, format/lint SKIP because tools are not configured. `git diff --check` passed. A bounded read-only Claude request for a new Claw runtime diagnosis plan stopped immediately with HTTP 429/session limit, reporting a reset at 5am Australia/Sydney (`claude-runtime-plan.json` in the tools dir). No plan, review record, commit or further toolchain change resulted. Claude must resume its own review/gate/commit steps after access returns; keep the task blocked.
+Final native-wrapper runs: GJC version, Claw version/help, Codex help, and real synthetic Claude loader all exit 0. Final Claude loader output: SYNTHETIC_CLAUDE_LOADER_OK. Receipts integration-native-0 through integration-native-4.
 
-Later user steering: the user completed provider login, requested safe/efficient/convenient unattended continuation and granted permission to push this task before sleeping. The original no-agent-login/API-key/primary-auth-copy restrictions remain; the user performed login themselves. Subscription-only reply tests were run without writes or API-key environment overrides: isolated LazyCodex generation PASS; GJC Anthropic quota-rejected; GJC Codex model selection failed including one focused flag-format retry. An attempted LazyCodex MCP diagnostic required approval and was refused by the test's `never` policy; no bypass or permission change. Details and receipts: EXTERNAL-TOOLS.md. A tools-dir-only `gjc.cmd` now launches in the empty trial folder. General push intent does not become a self-recorded human approval or cover a yet-unknown final commit; Claude still owns Git and must satisfy ccx.
-
-The skills are concise, reviewed adaptations of the selected reporting and static-review principles, not verbatim activation of the upstream exploit methodology. Their retained scope has no external executable/reference dependencies. GJC's setting migrated to `~/.gjc/agent/config.yml`; the actual portable directory is `<tools-dir>/PortableGit/bin/bash.exe`.
-
-Claude resume (2026-10-04, after the 05:00 reset): GJC restored and both subscription providers verified. `%LOCALAPPDATA%\gjc\gjc.exe` was missing and was restored from the retained pinned binary (SHA256 re-checked; L3 `install-dependency` logged). The Codex "model not found" was a startup-order issue in GJC (discovered models resolve only after a refresh that `--list-models` and `--mpreset` do in the foreground); fixed with a user-level `codex-sol` profile in `~/.gjc/agent/models.yml` pinning the same `openai-codex/gpt-6.1-sol`. Reply-only generation PASS: ChatGPT via `--mpreset codex-sol` (JSON confirms provider/model), Claude `anthropic/claude-sonnet-5` after the reset. Primary Codex hashes: five of five identical again. LazyCodex tool use stays unverified (needs a human to approve at the interactive prompt; read-only trial, no worktree needed). Claw (later the same day, user approved "anything that needs to be done and fixed"): one bounded `gnullvm` rebuild succeeded and `claw --version`/`--help` exit 0 via `claw.cmd`; Phase D is complete. LazyCodex agent-mediated tool use was then verified on the user's explicit instruction ("approve lazy codex ... do it yourself"): the terminal tools cannot press keys in a TUI, so a single-tool `approval_mode = "approve"` grant for `git_bash.diagnose` was added temporarily to the isolated profile config, the read-only `exec` test completed (`status: ready`, exit 0, `lazycodex-mcp-approved-check.jsonl`), and the config was restored byte-for-byte (SHA256 matched). Not a TUI-prompt or repository-writing trial. All four tools now pass their stated checks; remaining untested items (Claw provider call, repo-writing trials) are outside Done When. Sources and receipts: EXTERNAL-TOOLS.md.
-
-## Stop Conditions
-<!-- When to stop and report instead of continuing (for example: a check fails twice, the sandbox blocks a step, data-loss risk). -->
-Stop the affected phase and report (do not work around) when: a pinned installer's source inspection shows it writing to the primary `~/.codex`, reading/exfiltrating auth or secrets, requesting credentials, enabling notifications or autonomous flags, or reaching outside the tools dir / user Rust path; an install would need administrator elevation, an OS feature, WSL, a VM or a new account; or a step needs an L4/L5 action beyond the one approved install dispatch (push, PR, remote change, paid action, credential, security setting, history rewrite) — those need `ccx gate` + human approval at an interactive console. On a build/check failing twice, make one focused repair, then record BLOCKED with the exact error and continue independent phases. Never weaken a sandbox or the boundary to make a step pass; never record Claude review or acceptance on Codex's behalf.
-
-## Escalation (2026-10-04, Phase D)
-Claude diagnosis of the failed Claw repair (`claw-build-repair.log`): `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER` pointed at LLVM-MinGW's clang wrapper, which has no `libgcc`/`libgcc_eh` (it ships `libunwind.a` + compiler-rt). The `x86_64-pc-windows-gnu` target links `-lgcc_eh -lgcc`; Rust's own self-contained MinGW kit ships them (`lib/rustlib/x86_64-pc-windows-gnu/lib/self-contained/libgcc*.a`) plus `dlltool.exe` in `bin/self-contained/`. The first build linked build scripts fine with the default linker and failed only on missing `dlltool.exe`.
-
-Authorized: exactly one corrected Claw build attempt, no new download or install, child-process environment only. Unset `CC`, `AR` and `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER`; prepend the toolchain's `lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained` to the child PATH; keep the LLVM-MinGW `bin` off PATH; set `CC_x86_64_pc_windows_gnu` and `AR_x86_64_pc_windows_gnu` to the full paths of LLVM-MinGW's `x86_64-w64-mingw32-clang.exe` and `llvm-ar.exe` (C compile only). Same locked command, log to a new file. If it fails, record Phase D BLOCKED with the exact error; switching to `x86_64-pc-windows-gnullvm` needs a new rust-std download and a separate user decision.
-
-Second escalation: that attempt (`claw-build-repair2.log:42-47`) failed in `windows-sys` because the bundled GNU `dlltool.exe` gets `-f --64` (assembler flags) and cannot spawn an assembler (`CreateProcess`; the bundled kit has no `as.exe`). LLVM-MinGW's `llvm-dlltool.exe` builds import libraries without an assembler, and its option table in `bin\libLLVM-23.dll` includes everything rustc passes (`i386:x86-64`, `-f` "Assembler Flags", `--no-leading-underscore`, `--temp-prefix`). Authorized: one final build with the same environment plus child-only `RUSTFLAGS=-C dlltool=<tools-dir>\llvm-mingw-20260922-msvcrt-x86_64\bin\llvm-dlltool.exe` (full path, no spaces). Keep everything else: Rust's default linker, LLVM-MinGW only for C compilation and dlltool, the same GNU target, and LLVM-MinGW `bin` off PATH. If it fails, Phase D is BLOCKED with the exact error; no further toolchain changes.
+Final verification summary: 137 applicable checks passed across five suites, one host junction skip; no unresolved failures. Both actual Claude review and independent Codex verifier PASS. The final delivery sequence is ccx verify -> ccx task done -> L3 local-commit gate -> one scoped local commit. No push or mirror sync. The ccx state and Git history record those delivery actions after this snapshot.
