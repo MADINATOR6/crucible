@@ -1,0 +1,20 @@
+{
+  "title": "5 copy-paste prompts that save hours",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompt structure: clear instructions and supplied context", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 copy-paste prompts that save hours of staring at a blank page.\nUse these everyday work prompts for email replies, meeting notes, study planning and clearer writing. Give your AI assistant useful context, then check the draft yourself.\nSave this for your next busy day. Comment PROMPTS and I will send the prompt list.",
+  "hashtags": ["#AIProductivity", "#WorkPrompts", "#EmailWriting", "#StudyPlanning", "#ProductivityTips"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "YOUR NEXT WORKDAY", "headline": "5 prompts. Less busywork."},
+    {"role": "point", "kicker": "START HERE", "headline": "Give it the context", "body": ["Name the task, the audience and the result you need."], "chips": ["Task", "Context", "Format"]},
+    {"role": "point", "kicker": "PROMPT 1", "headline": "Reply without rambling", "body": ["Replace the brackets. Check the tone before sending."], "chips": ["For: emails"], "prompt": "Draft a concise reply to [message] for [recipient]. My goal is [goal]. Use a [tone] tone. Ask me about missing facts."},
+    {"role": "point", "kicker": "PROMPT 2", "headline": "Turn notes into actions", "body": ["Check every owner and deadline against your notes."], "chips": ["For: meetings"], "prompt": "Summarize [notes] as decisions, action items and open questions. Include owners and deadlines only when stated. Flag anything unclear instead of guessing."},
+    {"role": "point", "kicker": "PROMPT 3", "headline": "Plan your study week", "body": ["Adjust the plan to your actual available time."], "chips": ["For: studying"], "prompt": "Build a study plan for [topic] using [materials]. I have [time] before [date]. Include short practice sessions and review. Ask about missing constraints."},
+    {"role": "point", "kicker": "PROMPT 4", "headline": "Compare your options", "body": ["Use the comparison to think, then make your own decision."], "chips": ["For: decisions"], "prompt": "Compare [options] against [criteria]. List pros, cons and unknowns using only [information]. Show what I should investigate before deciding."},
+    {"role": "point", "kicker": "PROMPT 5", "headline": "Make the wording clear", "body": ["Read both versions to check that the meaning survived."], "chips": ["For: writing"], "prompt": "Rewrite [text] in plain language for [audience]. Keep the meaning and necessary details. Use short sentences. Flag wording that could have multiple meanings."},
+    {"role": "point", "kicker": "MAKE IT USEFUL", "headline": "Ask for one revision", "body": ["Point to the part that needs work instead of starting over."], "prompt": "Revise [section] to be [specific change]. Keep [details] unchanged. Explain any assumptions that still need my input."},
+    {"role": "point", "kicker": "BEFORE YOU USE IT", "headline": "Check the draft yourself", "body": ["Confirm names, facts and dates.", "Remove private information before sharing.", "Treat uncertain answers as questions to investigate."], "chips": ["Review first"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save your next starting point", "body": ["Comment PROMPTS and I will send the prompt list.", "Share this with someone facing a blank page."], "chips": ["Save", "Share", "PROMPTS"]}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "PAGE NAME TBD",
+  "handle": "@pagehandle",
+  "tagline": "Clear prompts. Useful work.",
+  "colors": {
+    "bg1": "#10162B", "bg2": "#382454", "accent": "#BDA0FF",
+    "accent2": "#78E6D3", "text": "#FFFFFF", "card": "#17253A"
+  }
+}

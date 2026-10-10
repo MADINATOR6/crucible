@@ -26,4 +26,7 @@ media-out/
 finance-shorts/.venv/
 finance-shorts/assets/
 finance-shorts/output/
+# instagram: venv and rendered carousels
+instagram/.venv/
+instagram/output/
 lifting-tracker/data/private/
