@@ -103,14 +103,17 @@ class Visuals(unittest.TestCase):
     def test_music_is_original_and_audible(self):
         import tempfile
         import wave
-        from src.music import write_music
+        from src.music import STYLES, write_music
         with tempfile.TemporaryDirectory() as d:
-            p = Path(d) / "m.wav"
-            write_music(3.0, p)
-            with wave.open(str(p)) as w:
-                self.assertGreater(w.getnframes(), 3 * 44100)
-                samples = array.array("h", w.readframes(w.getnframes()))
-            self.assertGreater(max(abs(x) for x in samples), 10000)  # audible, not silence
+            for style in STYLES:
+                p = Path(d) / f"{style}.wav"
+                write_music(6.0, p, style)
+                with wave.open(str(p)) as w:
+                    self.assertGreater(w.getnframes(), 6 * 44100)
+                    samples = array.array("h", w.readframes(w.getnframes()))
+                self.assertGreater(max(abs(x) for x in samples), 10000, style)  # audible, not silence
+            with self.assertRaises(ValueError):
+                write_music(1.0, Path(d) / "x.wav", "polka")
 
     def test_ass_times_and_captions(self):
         self.assertEqual(ass_time(61.5), "0:01:01.50")

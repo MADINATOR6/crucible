@@ -21,6 +21,7 @@ from .visuals import events_for, render_scene
 ROOT = Path(__file__).resolve().parent.parent
 VOICE = os.environ.get("SHORTS_VOICE", "en-US-RogerNeural")
 RATE = os.environ.get("SHORTS_RATE", "+22%")  # Roger is slow at +0%: ~1.8 words/s, too long for a 30 s Short
+MUSIC_VOL = float(os.environ.get("SHORTS_MUSIC_VOL", "0.06"))  # ~18 dB under the voice after ducking (measured); owner asked for quiet
 PITCH = os.environ.get("SHORTS_PITCH", "-6Hz")  # slightly lower = gruffer; Edge TTS has no accents
 MODEL = os.environ.get("SHORTS_MODEL", "claude-sonnet-5-5")
 FPS = 30
@@ -221,13 +222,14 @@ def build_ass(scenes: list[dict], durs: list[float]) -> str:
 
 
 def pick_music(total: float, work: Path) -> Path | None:
-    """Your own .mp3 in assets/music/ wins; else the synthesised original klezmer-style loop; SHORTS_MUSIC=off disables."""
+    """Your own .mp3 in assets/music/ wins; else a synthesised original track (SHORTS_MUSIC: mobster jazz default, or klezmer); SHORTS_MUSIC=off disables."""
     mine = sorted((ROOT / "assets" / "music").glob("*.mp3")) if (ROOT / "assets" / "music").exists() else []
     if mine:
         return mine[0]
-    if os.environ.get("SHORTS_MUSIC", "klezmer").lower() == "off":
+    style = os.environ.get("SHORTS_MUSIC", "mobster").lower()
+    if style == "off":
         return None
-    write_music(total, work / "music.wav")
+    write_music(total, work / "music.wav", style)
     return work / "music.wav"
 
 
@@ -237,12 +239,14 @@ def assemble(work: Path, n: int, ass: str, out: Path, music: Path | None) -> Non
     sh(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "segs.txt", "-c", "copy", "video.mp4"], work)
     out.parent.mkdir(parents=True, exist_ok=True)
     cmd = ["ffmpeg", "-y", "-i", "video.mp4", "-i", "voice.m4a", "-i", "sfx.wav"]
-    flt = "[0:v]ass=captions.ass[v];[1:a]volume=1.0[a1];[2:a]volume=0.5[a2]"  # relative filter path: no Windows drive colon
-    if music:
+    flt = "[0:v]ass=captions.ass[v];[2:a]volume=0.5[a2]"  # relative filter path: no Windows drive colon
+    if music:  # music sits well under the voice and ducks further whenever the voice is speaking (sidechain)
         cmd += ["-stream_loop", "-1", "-i", str(music)]
-        flt += ";[3:a]volume=0.16[a3];[a1][a2][a3]amix=inputs=3:duration=first:normalize=0[a]"
+        flt += (f";[1:a]asplit=2[a1][vk];[3:a]volume={MUSIC_VOL}[m];"
+                "[m][vk]sidechaincompress=threshold=0.02:ratio=12:attack=10:release=300[md];"
+                "[a1][a2][md]amix=inputs=3:duration=first:normalize=0[a]")
     else:
-        flt += ";[a1][a2]amix=inputs=2:duration=first:normalize=0[a]"
+        flt += ";[1:a]volume=1.0[a1];[a1][a2]amix=inputs=2:duration=first:normalize=0[a]"
     cmd += ["-filter_complex", flt, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
             "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(out)]
     sh(cmd, work)
@@ -331,11 +335,12 @@ def main() -> int:
     ap.add_argument("--list", action="store_true", help="show topics and brief status")
     ap.add_argument("--script", type=Path, help="use this script.json instead of calling the Anthropic API")
     ap.add_argument("--brief", type=Path, help="fact brief path (default briefs/<slug>.json)")
-    ap.add_argument("--no-music", action="store_true", help="skip the built-in music, e.g. to add a licensed track in YouTube's audio picker")
+    ap.add_argument("--music", choices=["mobster", "klezmer", "off"], help="built-in music style (default mobster)")
+    ap.add_argument("--no-music", action="store_true", help="same as --music off, e.g. to add a licensed track in YouTube's audio picker")
     a = ap.parse_args()
     load_env()
-    if a.no_music:
-        os.environ["SHORTS_MUSIC"] = "off"
+    if a.no_music or a.music:
+        os.environ["SHORTS_MUSIC"] = "off" if a.no_music else a.music
     if a.list or not a.slug:
         list_topics()
         return 0

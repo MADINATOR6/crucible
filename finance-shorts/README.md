@@ -14,7 +14,7 @@ Needs `ffmpeg`/`ffprobe` on PATH, and `yt-dlp` for `src.learn`. Keys, all option
 
 - `ANTHROPIC_API_KEY` (console.anthropic.com, cents per script). Without it, pass `--script file.json` (Claude Code can write that file in a session).
 - `PEXELS_API_KEY` (free, pexels.com/api) only matters for `footage` scenes. The default scene types are drawn in code and need no key.
-- Music: a silly klezmer-style loop is synthesised for every video (`src/music.py`, an original tune, not any existing song) and mixed quietly under the voice. To use your own, drop an `.mp3` in `assets/music/`. To add a licensed track in YouTube's audio picker at upload instead, render with `--no-music` so the two don't clash.
+- Music: an original smoky mafia-jazz track is synthesised for every video (`src/music.py`, not any existing song), mixed quietly under the voice (about 18 dB below it, and it ducks while he talks). `--music klezmer` gives the silly alternative; `python -m src.music` writes audition samples to `assets/music-samples/`; `SHORTS_MUSIC_VOL` sets the level. To use your own, drop an `.mp3` in `assets/music/`. To add a licensed track in YouTube's audio picker at upload instead, render with `--no-music` so the two don't clash.
 - Persona: the narrator is "Big Nickel", an original coin-head tracksuit wise guy (`style/persona.md`). Voice: `python -m src.voices` writes samples to `assets/voice-samples/`; set `SHORTS_VOICE`, `SHORTS_RATE`, `SHORTS_PITCH` in `.env`.
 
 ## Making a video

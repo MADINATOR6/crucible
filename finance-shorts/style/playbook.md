@@ -25,6 +25,8 @@ Distilled from `references.json` and `results.json`. The script prompt injects t
 ## Owner direction (2026-10-10)
 - Persona: an old-school wisecracking tracksuit narrator, original character "Big Nickel" (`persona.md`); never a real show's character, voice or catchphrases.
 - Sound: silly, meme-quality klezmer-style background music plus cartoon effects (boing on hook slams). Music licensing note: the built-in track is original; a real song should be added through YouTube's own audio picker at upload (render with `--no-music`).
+- Music style: Italian-mobster-style smoky minor-key swing jazz (default `mobster`, owner request 2026-10-10) fits the Big Nickel theme; `klezmer` is the silly alternative. Both are original tunes.
+- Music level: keep it quiet under the voice (owner feedback 2026-10-10). The first mix at 0.16 measured -24.7 dB against a -24.0 dB voice, i.e. as loud as the narrator. Default `SHORTS_MUSIC_VOL=0.06` plus sidechain ducking measures ~18 dB under the voice. Re-measure after any music change.
 - Voice pacing lesson: a gruffer, slower voice (Roger) ran 50 s for 77 words at +0% rate; at +22% with per-clip silence trimmed it runs 36 s. Always check duration after changing voice.
 
 ## Do not copy
