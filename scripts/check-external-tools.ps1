@@ -91,6 +91,13 @@ try {
     }
 } catch { $libraryStatus = 'unavailable' }
 $rows += [PSCustomObject]@{ Tool='claude-red'; AvailableTo='Both'; Status=$libraryStatus; Check='Markdown storage only; no content executed' }
+$generateStatus = 'unavailable'
+try {
+    # Offline `list` only; it never reads key values, only reports which providers lack one.
+    $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $PSScriptRoot 'generate.ps1') + '" list')
+    $generateStatus = 'cli-pass'
+} catch { $generateStatus = 'unavailable' }
+$rows += [PSCustomObject]@{ Tool='generate'; AvailableTo='Both'; Status=$generateStatus; Check='list (offline); paid calls need a provider key and approval' }
 if ($Json) { ConvertTo-Json -InputObject @($rows) -Depth 3 }
 else {
     $rows | Format-Table -AutoSize

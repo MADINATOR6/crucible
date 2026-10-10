@@ -13,6 +13,7 @@ Optional enhancements only: **ccx remains the only authority allowed to approve 
 | Gajae-Code (`gjc`) | Both | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gjc.ps1 --version` |
 | Claw-Code (`claw`) | Both | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/claw.ps1 --version` |
 | Claude-Red (Markdown library) | Both | Claude: `scripts/load-claude-skill.ps1`; Codex: `scripts/codex-load-skill.ps1` |
+| Generate (image generation, `/generate`) | Both | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate.ps1 list`; Claude can also use the `/generate` skill, which runs the same script |
 | LazyCodex / OmO | Codex-only runtime | `scripts/codex.ps1`; Claude uses its native skills, planning and reviews through ccx, and can independently launch this Codex wrapper when the task permits a Codex run. |
 
 Explicit examples (PowerShell, from the repo root):
@@ -20,6 +21,7 @@ Explicit examples (PowerShell, from the repo root):
 ```powershell
 .\scripts\gjc.ps1 --version
 .\scripts\claw.ps1 --help
+.\scripts\generate.ps1 list
 # Claude: append one reviewed file to the normal system prompt.
 .\scripts\load-claude-skill.ps1 "$env:USERPROFILE\.claude\skills\claude-red\Skills\utility\offensive-reporting\SKILL.md"
 # Codex: prepend the same selected module to a task prompt, creating a NEW file.
@@ -45,7 +47,9 @@ Claude-Red is cloned under `~/.claude/skills/claude-red`; cloning verifies stora
 
 OmO is **Codex-only**. The wrapper selects the separate user-local `lazycodex-profile`, validates its enabled plugin and hook files, preserves current working directory and restores process environment afterward. It does not change the primary `~/.codex`, bypass hook trust or enable autonomous permissions. On first interactive launch and after every upgrade, review and approve the new/Modified OmO hooks in Codex's startup review; restart after bootstrap completes. `codex --help` lists native CLI commands; OmO skills are browsed with `$` in the composer, so their absence from CLI help is expected. Claude's workaround above gives it the same shared tools and ccx acceptance, without making OmO a dependency.
 
-`tool:` is optional task/handoff metadata: `none` (default), `gjc`, `claw`, `claude-red`, `omo`. `none`, `gjc`, `claw` and `claude-red` are valid for either agent. `omo` denotes a Codex runtime session; Claude can request or launch it under existing dispatch authorization. Tool selection is manual; it never changes ccx routing, models, budgets, retry caps or ownership. Existing `codex-dispatch.ps1` continues using ordinary `codex.cmd`.
+Generate (`scripts/generate.ps1`, skill `.claude/skills/generate`) makes images through pay-as-you-go providers (kie.ai, fal.ai, WaveSpeed) using the cheapest one that has a key; keys `KIE_API_KEY`, `FAL_KEY` and `WAVESPEED_API_KEY` come from the environment or the gitignored repo `.env` and are never read, printed or committed. Real generation is a paid action (L4): run `--dry-run`, show the quote and get the user's approval of that amount first; `--budget` (default $1.00) is a hard per-call cap. Prompts go to third-party providers, so never include private data (the athlete's workbook or anything derived from it, secrets, personal files). Output and `log.jsonl` stay in gitignored `media-out/generations/`. `list`, `--dry-run` and `gallery` work offline; Codex's sandbox may block the network, so when a real `run` fails there Claude runs it and Codex works from the saved files.
+
+`tool:` is optional task/handoff metadata: `none` (default), `gjc`, `claw`, `claude-red`, `generate`, `omo`. `none`, `gjc`, `claw`, `claude-red` and `generate` are valid for either agent. `omo` denotes a Codex runtime session; Claude can request or launch it under existing dispatch authorization. Tool selection is manual; it never changes ccx routing, models, budgets, retry caps or ownership. Existing `codex-dispatch.ps1` continues using ordinary `codex.cmd`.
 
 ## Boundary for external harness work
 

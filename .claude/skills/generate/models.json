@@ -1,0 +1,15 @@
+{
+  "_note": "cost = USD per image, est:true means a guess (verify on the provider's pricing page and edit). Routing picks the cheapest provider that has a key. To add a model, copy an entry and fill in the provider docs' model id.",
+  "gpt-image-2": {
+    "providers": [
+      {"p": "kie", "id": "gpt-image-2-text-to-image", "cost": 0.05},
+      {"p": "fal", "id": "openai/gpt-image-2", "cost": 0.33, "extra": {"quality": "high"}},
+      {"p": "wavespeed", "id": "openai/gpt-image-2/text-to-image", "cost": 0.15, "est": true, "extra": {"resolution": "2k", "quality": "high", "output_format": "png"}}
+    ]
+  },
+  "nano-banana-pro": {
+    "providers": [
+      {"p": "kie", "id": "nano-banana-pro", "cost": 0.15, "est": true, "extra": {"resolution": "2K", "output_format": "png"}}
+    ]
+  }
+}

@@ -169,7 +169,7 @@ try {
             $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -SkillRoot $temp -Json) -join "`n"
             Assert ($LASTEXITCODE -eq 0) 'Inventory failed.'
             $rows = $json | ConvertFrom-Json
-            Assert ($rows.Count -eq 4 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 3) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+            Assert ($rows.Count -eq 5 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 4) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
             Assert ($rows[3].Status -eq 'files-present') 'Synthetic Markdown not detected.'
             Assert (-not $json.Contains('synthetic-private-value')) 'Credential disclosed.'
             $record = Record
@@ -177,11 +177,11 @@ try {
         } finally { $env:ANTHROPIC_AUTH_TOKEN = $beforeKey }
     }
     Check 'Unavailable optional tools never block inventory or normal workflow' {
-        foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
+        foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_PYTHON_EXE')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
         $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -SkillRoot (Join-Path $temp 'missing-library') -Json) -join "`n"
         Assert ($LASTEXITCODE -eq 0) 'Optional absence blocked inventory.'
         $rows = $json | ConvertFrom-Json
-        Assert ($rows.Count -eq 4 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 4) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+        Assert ($rows.Count -eq 5 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 5) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
     }
     Check 'OmO wrapper rejects missing hooks' {
         Remove-Item -LiteralPath (Join-Path $plugin 'hooks\test.json')
@@ -193,12 +193,26 @@ try {
         Run 'codex.ps1' @('-CodexHome',$profile,'-Executable',(Join-Path $mockRoot 'codex.ps1'),'--help') 2>$null
         Assert ($script:code -ne 0) 'Disabled plugin accepted.'
     }
+    Remove-Item Env:CRUCIBLE_PYTHON_EXE -ErrorAction SilentlyContinue
+    Check 'generate wrapper: offline self-check, list, and key-less refusal (no provider calls)' {
+        $saved = @{}
+        foreach ($name in @('KIE_API_KEY','FAL_KEY','WAVESPEED_API_KEY')) { $saved[$name] = [Environment]::GetEnvironmentVariable($name,'Process'); Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
+        $env:GENERATE_NO_DOTENV = '1'
+        try {
+            $null = & (Join-Path $root 'scripts\generate.ps1') list
+            Assert ($LASTEXITCODE -eq 0) 'generate list failed.'
+            $null = & (Join-Path $root 'scripts\generate.ps1') run gpt-image-2 x --dry-run 2>$null
+            Assert ($LASTEXITCODE -ne 0) 'generate ran with no provider key.'
+            $null = & python -I (Join-Path $root '.claude\skills\generate\test_generate.py')
+            Assert ($LASTEXITCODE -eq 0) 'generate self-check failed.'
+        } finally { Remove-Item Env:GENERATE_NO_DOTENV -ErrorAction SilentlyContinue; foreach ($name in $saved.Keys) { if ($null -ne $saved[$name]) { [Environment]::SetEnvironmentVariable($name,$saved[$name],'Process') } } }
+    }
     Check 'Agent documentation symmetry' {
         $agents = [IO.File]::ReadAllText((Join-Path $root 'AGENTS.md'))
         $claude = [IO.File]::ReadAllText((Join-Path $root 'CLAUDE.md'))
         foreach ($document in @($agents,$claude)) {
             Assert ($document.StartsWith('> Symmetry rule:')) 'Symmetry rule is not at the top.'
-            foreach ($name in @('Gajae-Code','Claw-Code','Claude-Red','OmO','gjc.ps1','claw.ps1','load-claude-skill.ps1','codex-load-skill.ps1','codex.ps1','check-external-tools.ps1','connect-claw.ps1','Choosing a tool','tool: none')) {
+            foreach ($name in @('Gajae-Code','Claw-Code','Claude-Red','OmO','gjc.ps1','claw.ps1','load-claude-skill.ps1','codex-load-skill.ps1','codex.ps1','check-external-tools.ps1','connect-claw.ps1','generate.ps1','Choosing a tool','tool: none')) {
                 Assert ($document.Contains($name)) "Missing tool: $name"
             }
         }

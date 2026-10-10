@@ -18,6 +18,7 @@ Madison Arnido*.xlsx
 *.xls
 *.xlsm
 lifting-tracker/private/
+__pycache__/
 # Video agent outputs (never commit media)
 media-out/
 lifting-tracker/data/private/
