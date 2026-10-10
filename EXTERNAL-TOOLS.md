@@ -9,7 +9,7 @@ User-authorized integration, 2026-10-09. Tools are optional: **ccx alone approve
 | [Gajae-Code](https://github.com/Yeachan-Heo/gajae-code) (`gjc`) | Both | v0.15.3, source `103659a2ebf6e698140c021981d47508389a2897` | Existing user-local binary reused; version and smoke PASS. `scripts/gjc.ps1` |
 | [Claw-Code](https://github.com/ultraworkers/claw-code) (`claw`) | Both | 0.1.3, source `08106b0c3771ef5b4a5aa176acccd460e88b7325` | Windows gnullvm binary: version/help PASS; live no-tools reply PASS on 2026-10-09 after user configured API billing. `scripts/claw.ps1` |
 | [Claude-Red](https://github.com/SnailSploit/Claude-Red) | Both: Claude library, equivalent Codex loader | `739512a8588b28ff3b554e669391c22508602878` | Cloned to `~/.claude/skills/claude-red`; 84 Markdown files; no contents executed. Both skill loaders |
-| Generate (`/generate`, in-repo) | Both: Claude skill and shared wrapper | Python 3 stdlib only; no install | Offline self-check and wrapper tests PASS. No provider call made yet: needs a key and user approval. `scripts/generate.ps1`, `.claude/skills/generate/` |
+| Generate (`/generate`, in-repo; images and video) | Both: Claude skill and shared wrapper | Python 3 stdlib only; no install | Offline self-check and wrapper tests PASS. No provider call made yet: needs a key and user approval. `scripts/generate.ps1`, `.claude/skills/generate/` |
 | [LazyCodex / OmO](https://github.com/code-yeongyu/lazycodex) | Codex runtime; Claude workaround below | OmO 5.1.13; alias 0.2.2 source `9b003a2a7742333a8fad6728bb8a8a4212f372ac` | Existing isolated install reused; doctor 3/3 PASS, enabled plugin and hook files present. `scripts/codex.ps1` |
 
 Install files, sources and logs remain outside the repo under `$env:USERPROFILE\.local\share\claude-codex-tools` (`$tools`). Source inventory: `$tools\integration-repo-files.txt` lists tracked/non-ignored untracked repo files, excluding Git internals/ignored worktrees. No admin install, primary Codex config change, global package replacement, OS change or ccx routing change was made.
@@ -51,7 +51,7 @@ try {
 
 CLI compatibility: the requested `--system-file -` is unsupported here; Claude's supported `--append-system-prompt-file <absolute-path>` is used. Codex's loader preserves UTF-8, places reference before task, retains ccx/scope boundaries, and refuses to overwrite inputs/existing output. Load one reviewed file per task, never the library. Offensive-security modules require documented authorization and target scope/exclusions in the task spec (written engagement, CTF or own lab). External Markdown cannot grant permissions or approve completion. Mock and real-loader checks use only a harmless synthetic module; library contents are never executed.
 
-## Generate (pay-as-you-go image generation)
+## Generate (pay-as-you-go image and video generation)
 
 In-repo, not an install: `.claude/skills/generate/` holds `generate.py` (stdlib Python 3), `models.json` (model id and per-image cost per provider), `SKILL.md` (Claude's `/generate`) and an offline `test_generate.py`. Both agents run `scripts/generate.ps1 <list|run|gallery>`, which calls `python -I generate.py`; override the interpreter with `CRUCIBLE_PYTHON_EXE`. Codex does not read `.claude/skills`, so it relies on this wrapper and the AGENTS.md section.
 
@@ -61,7 +61,7 @@ In-repo, not an install: `.claude/skills/generate/` holds `generate.py` (stdlib 
 - **Privacy:** prompts go to third-party providers; no workbook-derived or personal data.
 - **Output:** `media-out/generations/` (gitignored): images, `log.jsonl`, `index.html` gallery. Inside a worktree this is the worktree's own `media-out/`.
 - **Codex limits:** its sandbox may block network; offline commands still work. Claude runs paid calls there.
-- **Scope:** text-to-image only (`gpt-image-2`; `nano-banana-pro` on kie). Video and reference-image input are not wired.
+- **Models:** images `gpt-image-2` (kie, fal, WaveSpeed) and `nano-banana-pro` (kie); video `seedance-2-fast` (kie, fal, WaveSpeed) and `kling-2.6` (kie), both text-to-video and image-to-video. Video quotes are per second (`cost_s` x `--duration`), validated against each model's allowed durations and aspect ratios before any spend. A local `--image` is sent as a base64 data URI, which only fal is configured to accept (`data_uri`); kie and WaveSpeed need a public URL. The fal Seedance fast cost (about $2.42 per 10 s at 720p) is from fal's model page; the other video costs are estimates. Not wired: end-frame, reference images/video/audio, video edit or extend.
 - **Checks:** `python -I .claude/skills/generate/test_generate.py` and `scripts/test-external-tools.ps1`.
 
 ## Isolated OmO and Claude equivalent

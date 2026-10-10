@@ -1,5 +1,5 @@
 {
-  "_note": "cost = USD per image, est:true means a guess (verify on the provider's pricing page and edit). Routing picks the cheapest provider that has a key. To add a model, copy an entry and fill in the provider docs' model id.",
+  "_note": "Image models: cost = USD per image. Video models (type video): cost_s = USD per second of output. est:true means a guess: verify on the provider's pricing page and edit. Routing picks the cheapest provider that has a key. To add a model, copy an entry and fill in the provider docs' model id. Video provider fields: id (text-to-video), id_i2v (image-to-video if different), img_key/img_list (how the first-frame image is passed), dur_str (duration sent as a string), i2v_no_aspect, data_uri (accepts a local image as a base64 data URI).",
   "gpt-image-2": {
     "providers": [
       {"p": "kie", "id": "gpt-image-2-text-to-image", "cost": 0.05},
@@ -10,6 +10,25 @@
   "nano-banana-pro": {
     "providers": [
       {"p": "kie", "id": "nano-banana-pro", "cost": 0.15, "est": true, "extra": {"resolution": "2K", "output_format": "png"}}
+    ]
+  },
+  "seedance-2-fast": {
+    "type": "video",
+    "dur_min": 4,
+    "dur_max": 15,
+    "aspects": ["1:1", "4:3", "3:4", "16:9", "9:16", "21:9"],
+    "providers": [
+      {"p": "kie", "id": "bytedance/seedance-2-fast", "img_key": "first_frame_url", "cost_s": 0.10, "est": true, "extra": {"resolution": "720p"}},
+      {"p": "fal", "id": "bytedance/seedance-2.0/fast/text-to-video", "id_i2v": "bytedance/seedance-2.0/fast/image-to-video", "img_key": "image_url", "dur_str": true, "data_uri": true, "cost_s": 0.242, "extra": {"resolution": "720p"}},
+      {"p": "wavespeed", "id": "bytedance/seedance-2.0-fast/text-to-video", "id_i2v": "bytedance/seedance-2.0-fast/image-to-video", "img_key": "image", "cost_s": 0.15, "est": true, "extra": {"resolution": "720p"}}
+    ]
+  },
+  "kling-2.6": {
+    "type": "video",
+    "dur_in": [5, 10],
+    "aspects": ["1:1", "16:9", "9:16"],
+    "providers": [
+      {"p": "kie", "id": "kling-2.6/text-to-video", "id_i2v": "kling-2.6/image-to-video", "img_key": "image_urls", "img_list": true, "dur_str": true, "i2v_no_aspect": true, "cost_s": 0.07, "est": true, "extra": {"sound": false}}
     ]
   }
 }
