@@ -32,9 +32,9 @@ Sources: V1 Luke Gosseling "faceless Instagram business in 30 minutes" (SVM6h593
 5. First money, in order: (a) a $9-29 digital product from our own material (Gumroad or Payhip), (b) free lead magnet to an email list (Beehiiv), (c) brand deals once ~5-10k engaged followers, (d) affiliate offers only with disclosure and only for products we would recommend. Sell nothing before ~1k engaged followers.
 6. Metrics to log per post: views, saves %, shares %, follows from post, profile visits (file to be created with the niche). Revisit this file at 30 posts.
 7. Human gates stay: the owner looks at every carousel and posts it. Nothing is posted automatically.
-8. Renderer: `carousel.py` (see `README.md`), standalone Pillow code with its own validation; first post `posts/prompts-that-save-hours.json`. Brand name and handle in `brand.json` are placeholders until the owner picks them.
+8. Renderer: `carousel.py` (see `README.md`), standalone Pillow code with its own validation; first post `posts/prompts-that-save-hours.json`. Account created 2026-10-10: @promptdeskhq, display name "Prompt Desk | AI Workflows" (in `brand.json`). Profile picture: `python avatar.py`.
 
 ## Open questions
-- Page name and handle (memorable, no numbers or underscores); owner checks availability.
+- First 10 posts and a 3-5 per week schedule; the bio link and first digital product (after ~1k engaged followers).
 - Do number-hook carousels out-save question-hook carousels?
 - Does a carousel with music reach more people than one without (music carousels can surface in the Reels tab)?
