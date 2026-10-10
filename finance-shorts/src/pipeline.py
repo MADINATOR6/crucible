@@ -113,7 +113,8 @@ def generate_script(topic: dict, brief: dict) -> dict:
     msgs = [{"role": "user", "content": prompt}]
     errs: list[str] = []
     for _ in range(3):  # initial try + 2 repairs
-        text = client.messages.create(model=MODEL, max_tokens=3000, messages=msgs).content[0].text
+        resp = client.messages.create(model=MODEL, max_tokens=8000, messages=msgs)
+        text = "".join(b.text for b in resp.content if b.type == "text")  # replies may start with a thinking block
         try:
             script = extract_json(text)
             errs = check_script(script, brief)
