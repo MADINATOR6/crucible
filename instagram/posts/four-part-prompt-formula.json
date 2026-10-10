@@ -1,0 +1,20 @@
+{
+  "title": "One formula for every prompt",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: clear instructions, context and output format", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "One simple formula you can reuse for almost any prompt: task, context, format and limits.\nSwap in your own details, then review the draft before you use it.\nSave this template. Comment FORMULA and I will send it.",
+  "hashtags": ["#PromptTemplate", "#AIProductivity", "#PromptEngineering", "#WorkSmarter", "#AITips"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "COPY THIS", "headline": "One formula for every prompt."},
+    {"role": "point", "kicker": "THE FORMULA", "headline": "Four parts, every time", "body": ["Task: what you want done.", "Context: what it needs to know.", "Format and limits: how the answer looks."], "chips": ["Task", "Context", "Format"]},
+    {"role": "point", "kicker": "PART 1", "headline": "Start with the task", "body": ["Use a clear verb: draft, compare, summarize, list."], "prompt": "Summarize the article below for a busy manager."},
+    {"role": "point", "kicker": "PART 2", "headline": "Add the context", "body": ["Include the audience, the goal and anything it cannot guess."], "prompt": "The reader has two minutes and needs to decide whether to attend the event. My goal is a clear yes or no."},
+    {"role": "point", "kicker": "PART 3", "headline": "Choose the format", "body": ["Ask for bullets, a table or numbered steps."], "prompt": "Use three bullet points: what it is, why it matters and what to do next."},
+    {"role": "point", "kicker": "PART 4", "headline": "Set the limits", "body": ["Length, tone and things to avoid."], "prompt": "Stay under 80 words. Use plain language and avoid jargon."},
+    {"role": "point", "kicker": "PUT IT TOGETHER", "headline": "The full prompt", "body": ["Copy this and swap in your own details."], "prompt": "Summarize [article] for a busy manager deciding whether to attend [event]. Use three bullets: what it is, why it matters, what to do next. Under 80 words, plain language."},
+    {"role": "point", "kicker": "THEN ITERATE", "headline": "Fix one thing at a time", "body": ["Ask for a single change instead of starting over."], "prompt": "Keep the same bullets, but make the tone more direct and add one risk to consider."},
+    {"role": "point", "kicker": "CHECK IT", "headline": "You review the result", "body": ["Names, dates and numbers need your eyes.", "Treat uncertain claims as things to verify."], "chips": ["Verify facts"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save the four-part formula", "body": ["Comment FORMULA and I will send the template.", "Share this with someone who types one-line prompts."], "chips": ["Save", "Share", "FORMULA"]}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "title": "5 mistakes that ruin AI answers",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: break tasks into steps, give context and examples", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 common prompting mistakes and the simple fix for each.\nMost bad answers come from missing context, too many requests at once or skipping the review.\nSave this fix list. Comment MISTAKES and I will send it.",
+  "hashtags": ["#PromptMistakes", "#AIProductivity", "#AITips", "#PromptWriting", "#WorkSmarter"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "STOP DOING THIS", "headline": "5 mistakes that ruin AI answers."},
+    {"role": "point", "kicker": "MISTAKE 1", "headline": "Asking for everything at once", "body": ["Big requests produce shallow answers.", "Fix: split the job into steps."], "chips": ["One step at a time"]},
+    {"role": "point", "kicker": "MISTAKE 2", "headline": "Giving no context", "body": ["It cannot guess your audience or goal."], "chips": ["Fix: add context"], "prompt": "I am writing for [audience]. My goal is [goal]. They already know [background]."},
+    {"role": "point", "kicker": "MISTAKE 3", "headline": "Never showing an example", "body": ["A sample of the style you want beats a description."], "chips": ["Fix: paste a sample"], "prompt": "Match the style and length of this example: [example]. Use my topic: [topic]."},
+    {"role": "point", "kicker": "MISTAKE 4", "headline": "Trusting the first draft", "body": ["Drafts can contain wrong facts or the wrong tone.", "Fix: read it and ask for one change."], "chips": ["You review"]},
+    {"role": "point", "kicker": "MISTAKE 5", "headline": "Pasting private information", "body": ["Remove names, numbers and anything confidential first.", "Fix: use placeholders."], "chips": ["Use [brackets]"]},
+    {"role": "point", "kicker": "A BETTER HABIT", "headline": "Draft, check, revise", "body": ["Get a first version, review it, then ask for targeted edits."], "prompt": "Revise the second paragraph to be shorter and more direct. Keep everything else the same."},
+    {"role": "point", "kicker": "ASK IT TO HELP", "headline": "Have it ask you questions", "body": ["Missing details become obvious fast."], "prompt": "Before you answer, ask me up to three questions about anything unclear."},
+    {"role": "point", "kicker": "QUICK CHECK", "headline": "Your pre-send checklist", "body": ["One step at a time.", "Context and example included.", "Private details removed."], "chips": ["Checklist"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this fix list", "body": ["Comment MISTAKES and I will send it.", "Share this with someone who is frustrated with AI answers."], "chips": ["Save", "Share", "MISTAKES"]}
+  ]
+}

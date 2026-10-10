@@ -1,0 +1,23 @@
+{
+  "title": "Check AI answers before you trust them",
+  "verified_on": "2026-10-10",
+  "sources": [
+    {"name": "Prompting guidance: verify outputs and iterate", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"},
+    {"name": "Prompting guidance overview", "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview"}
+  ],
+  "caption": "AI can sound confident and still be wrong. Here is a simple 5-step routine for checking an answer before you use it.\nFor anything important, confirm it with official or primary sources yourself.\nSave this checklist. Comment CHECK and I will send it.",
+  "hashtags": ["#AIAccuracy", "#FactCheck", "#AIProductivity", "#AITips", "#DigitalLiteracy"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "STOP AND CHECK", "headline": "Don't trust it blindly."},
+    {"role": "point", "kicker": "THE PROBLEM", "headline": "Confident is not correct", "body": ["AI can state wrong facts in a smooth, convincing tone."], "chips": ["Always verify"]},
+    {"role": "point", "kicker": "STEP 1", "headline": "Ask what it is unsure about", "body": ["This surfaces weak spots worth checking."], "prompt": "Which parts of your answer are you least certain about? List them and say what I should verify."},
+    {"role": "point", "kicker": "STEP 2", "headline": "Open the real sources", "body": ["Do not rely on a link you have not opened.", "Check that the page really says it."], "chips": ["Open the link"]},
+    {"role": "point", "kicker": "STEP 3", "headline": "Cross-check the numbers", "body": ["Compare figures and dates with an official or primary source."], "chips": ["Dates", "Figures", "Names"]},
+    {"role": "point", "kicker": "STEP 4", "headline": "Ask for the other side", "body": ["Look for gaps, exceptions and reasons it might be wrong."], "prompt": "What is the strongest argument against your answer? What exceptions or missing context should I know about?"},
+    {"role": "point", "kicker": "STEP 5", "headline": "Check how recent it is", "body": ["Rules, prices and features change.", "Look for the date on the source."], "chips": ["Is it current?"]},
+    {"role": "point", "kicker": "HIGH STAKES?", "headline": "Use an expert instead", "body": ["For health, legal or money decisions, ask a qualified professional."], "chips": ["Not a substitute"]},
+    {"role": "point", "kicker": "THE ROUTINE", "headline": "Ask, open, compare, challenge", "body": ["Four quick habits catch most mistakes."], "chips": ["Ask", "Open", "Compare"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this checking routine", "body": ["Comment CHECK and I will send the checklist.", "Share this with someone who copies AI answers directly."], "chips": ["Save", "Share", "CHECK"]}
+  ]
+}

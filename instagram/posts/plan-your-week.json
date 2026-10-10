@@ -1,0 +1,20 @@
+{
+  "title": "Plan your week with 5 prompts",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: give constraints and ask for a defined output", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 prompts to turn a messy to-do list into a realistic week: priorities, time blocks, saying no, a daily top three and a weekly review.\nAdjust every plan to your real energy and calendar.\nSave this planning set. Comment WEEK and I will send the prompt list.",
+  "hashtags": ["#WeeklyPlanning", "#Productivity", "#AIProductivity", "#TimeManagement", "#WorkSmarter"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "MONDAY RESET", "headline": "Plan your week in minutes."},
+    {"role": "point", "kicker": "START HERE", "headline": "Dump everything first", "body": ["Write every task and commitment in one messy list."], "chips": ["No sorting yet"]},
+    {"role": "point", "kicker": "PROMPT 1", "headline": "Find the priorities", "body": ["Let it sort, then you decide."], "prompt": "Here is my task list: [list]. Group it into must do this week, should do, and can wait. Explain each choice in one line."},
+    {"role": "point", "kicker": "PROMPT 2", "headline": "Build time blocks", "body": ["Give it your real hours and fixed commitments."], "prompt": "Make a weekly schedule from [tasks]. I am free [hours]. Fixed commitments: [commitments]. Include breaks and leave 20 percent of the time unscheduled."},
+    {"role": "point", "kicker": "PROMPT 3", "headline": "Practice saying no", "body": ["Protect your priorities politely."], "prompt": "Write a polite message declining [request] because my week is full. Offer [alternative] or a later date."},
+    {"role": "point", "kicker": "PROMPT 4", "headline": "Pick a daily top three", "body": ["Three tasks beat a list of twenty."], "prompt": "From today's tasks [tasks], pick the three most important for [goal]. Put them in order and say what to drop if I run out of time."},
+    {"role": "point", "kicker": "PROMPT 5", "headline": "Run a weekly review", "body": ["Reflect in five minutes on Friday."], "prompt": "Ask me five short questions about what went well, what slipped and what to change next week. Then summarize my answers in three bullets."},
+    {"role": "point", "kicker": "BE REALISTIC", "headline": "Plans bend, so leave slack", "body": ["Schedule fewer tasks than you think you can finish."], "chips": ["Leave buffer"]},
+    {"role": "point", "kicker": "YOU DECIDE", "headline": "AI suggests, you choose", "body": ["Adjust the plan to your energy, calendar and priorities."], "chips": ["Your call"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this planning set", "body": ["Comment WEEK and I will send the prompt list.", "Share this with someone who plans on Sundays."], "chips": ["Save", "Share", "WEEK"]}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "title": "5 prompts to learn faster",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: give context and ask for a specific output", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 prompts to turn your AI assistant into a study partner: explain, quiz, find gaps, compare and plan reviews.\nAI answers can be wrong, so confirm key facts in your course materials or official sources.\nSave this study set. Comment LEARN and I will send the prompt list.",
+  "hashtags": ["#StudyTips", "#LearnWithAI", "#AIProductivity", "#StudyPrompts", "#SelfImprovement"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "STUDY SMARTER", "headline": "5 prompts to learn faster."},
+    {"role": "point", "kicker": "START HERE", "headline": "Tell it your level", "body": ["Say what you know and what you want to understand."], "chips": ["Level", "Goal", "Time"]},
+    {"role": "point", "kicker": "PROMPT 1", "headline": "Explain it simply", "body": ["Use this for any topic that feels too dense."], "prompt": "Explain [topic] to a complete beginner in plain language. Use one everyday example and define each technical term the first time it appears."},
+    {"role": "point", "kicker": "PROMPT 2", "headline": "Quiz me", "body": ["Answering from memory beats rereading."], "prompt": "Ask me five questions about [topic], one at a time. Wait for my answer, tell me if I am right, then explain anything I missed."},
+    {"role": "point", "kicker": "PROMPT 3", "headline": "Find my gaps", "body": ["Paste your own summary and let it spot what is missing."], "prompt": "Here is my summary of [topic]: [summary]. List what is missing, unclear or possibly wrong, so I can check my sources."},
+    {"role": "point", "kicker": "PROMPT 4", "headline": "Compare two ideas", "body": ["Side-by-side tables make differences easy to see."], "prompt": "Compare [concept A] and [concept B] in a table: what each is, how they differ and when each applies."},
+    {"role": "point", "kicker": "PROMPT 5", "headline": "Build a review plan", "body": ["Fit it to the days you actually have."], "prompt": "Make a review schedule for [topic] over [number] days, with short daily sessions and one practice test on the last day."},
+    {"role": "point", "kicker": "STAY HONEST", "headline": "Check it against real sources", "body": ["AI can sound sure and still be wrong.", "Confirm key facts in your textbook or official sources."], "chips": ["Verify"]},
+    {"role": "point", "kicker": "HABIT", "headline": "Short sessions are easier to keep", "body": ["Regular practice beats one long cram."], "chips": ["Little and often"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this study set", "body": ["Comment LEARN and I will send the prompt list.", "Share this with a friend who is studying."], "chips": ["Save", "Share", "LEARN"]}
+  ]
+}

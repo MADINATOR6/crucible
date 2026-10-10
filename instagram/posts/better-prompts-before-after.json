@@ -1,0 +1,20 @@
+{
+  "title": "Your prompt is the problem: before and after",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: be specific about task, context and format", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "Most weak AI answers start with a weak prompt. Here are two before-and-after examples you can copy.\nBe specific about the task, the audience and the format, then check the result yourself.\nSave this checklist. Comment BETTER and I will send the before-and-after list.",
+  "hashtags": ["#PromptWriting", "#AIProductivity", "#WorkSmarter", "#AIForBeginners", "#ProductivityTips"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "BETTER ANSWERS", "headline": "Your prompt is the problem."},
+    {"role": "point", "kicker": "THE RULE", "headline": "Vague in, vague out", "body": ["The more specific the request, the more useful the draft."], "chips": ["Task", "Audience", "Format"]},
+    {"role": "point", "kicker": "BEFORE 1", "headline": "Too vague", "body": ["Nothing here says who it is for or what you need."], "prompt": "Write an email about the meeting."},
+    {"role": "point", "kicker": "AFTER 1", "headline": "Specific and usable", "body": ["Now it knows the audience, tone and next step."], "prompt": "Write a short email to my team moving Friday's meeting to Monday at 10am. Friendly tone. Ask them to reply if Monday does not work."},
+    {"role": "point", "kicker": "BEFORE 2", "headline": "Too open", "body": ["It has to guess everything."], "prompt": "Give me dinner ideas."},
+    {"role": "point", "kicker": "AFTER 2", "headline": "Constraints help", "body": ["Limits make the answer fit your real life."], "prompt": "Give me 5 dinner ideas for two people, under 30 minutes, with no oven. We like chicken and rice. Include one vegetarian option."},
+    {"role": "point", "kicker": "ADD A FORMAT", "headline": "Say what shape the answer takes", "body": ["Table, bullets, steps or short paragraphs. Pick one."], "prompt": "Put the answer in a table with columns for the idea, the time needed and the main ingredients."},
+    {"role": "point", "kicker": "ADD LIMITS", "headline": "Say what to leave out", "body": ["Length limits and exclusions stop rambling answers."], "prompt": "Keep it under 150 words. Skip the introduction and do not suggest anything that needs special equipment."},
+    {"role": "point", "kicker": "QUICK CHECK", "headline": "Before you hit send", "body": ["Did you name the task?", "Did you say who it is for?", "Did you ask for a format?"], "chips": ["Task", "Audience", "Format"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this prompt checklist", "body": ["Comment BETTER and I will send the before-and-after list.", "Share this with someone who types one-line prompts."], "chips": ["Save", "Share", "BETTER"]}
+  ]
+}

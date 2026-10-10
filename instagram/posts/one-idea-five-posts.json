@@ -1,0 +1,20 @@
+{
+  "title": "Turn one idea into five posts",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: give context, constraints and an output format", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 prompts to turn one idea into a week of content: angles, hooks, an outline, caption options and repurposed versions.\nUse them as drafts, add your own experience, and never copy another creator's work.\nSave this content set. Comment IDEAS and I will send the prompt list.",
+  "hashtags": ["#ContentCreation", "#ContentIdeas", "#AIProductivity", "#CreatorTips", "#SocialMediaTips"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "CONTENT HACK", "headline": "One idea. Five posts."},
+    {"role": "point", "kicker": "START HERE", "headline": "Begin with your own idea", "body": ["Use your experience, your examples and your voice."], "chips": ["Original first"]},
+    {"role": "point", "kicker": "PROMPT 1", "headline": "Find five angles", "body": ["Same idea, different way in."], "prompt": "Give me five different angles for a post about [idea] for [audience]: a how-to, a mistake, a list, a story and a question."},
+    {"role": "point", "kicker": "PROMPT 2", "headline": "Write stronger hooks", "body": ["The first line decides if people keep reading."], "prompt": "Write ten opening lines for a post about [idea]. Keep each under twelve words. No exaggerated claims."},
+    {"role": "point", "kicker": "PROMPT 3", "headline": "Outline the post", "body": ["One point per slide or paragraph."], "prompt": "Outline a ten-slide carousel about [idea]. One point per slide, a clear hook on slide one and a call to action on the last."},
+    {"role": "point", "kicker": "PROMPT 4", "headline": "Try caption options", "body": ["Pick the one that sounds like you."], "prompt": "Write three caption options for this post: [summary]. Include a keyword phrase, one clear takeaway and a simple call to action."},
+    {"role": "point", "kicker": "PROMPT 5", "headline": "Repurpose it", "body": ["Turn one post into a few formats."], "prompt": "Turn this post [text] into a short video script, a three-sentence caption and five quote lines. Keep the meaning the same."},
+    {"role": "point", "kicker": "STAY ORIGINAL", "headline": "Add what only you know", "body": ["Your examples and results make the post worth saving."], "chips": ["Your story"]},
+    {"role": "point", "kicker": "RESPECT OTHERS", "headline": "Never copy another creator", "body": ["Learn formats, but write your own words and make your own images."], "chips": ["Original only"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this content set", "body": ["Comment IDEAS and I will send the prompt list.", "Share this with a creator who is out of ideas."], "chips": ["Save", "Share", "IDEAS"]}
+  ]
+}

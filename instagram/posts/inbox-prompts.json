@@ -1,0 +1,20 @@
+{
+  "title": "5 prompts to clear your inbox faster",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: state the task, audience and tone", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 prompts for the email jobs that eat your day: triage, quick replies, polite declines, follow-ups and clearer subject lines.\nRemove private details before pasting, and always read the draft before you send it.\nSave this for your next full inbox. Comment INBOX and I will send the prompt list.",
+  "hashtags": ["#EmailProductivity", "#InboxZero", "#AIProductivity", "#WorkSmarter", "#ProductivityTips"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "FULL INBOX?", "headline": "Clear your inbox faster."},
+    {"role": "point", "kicker": "START HERE", "headline": "Remove private details first", "body": ["Swap names and sensitive facts for placeholders before pasting."], "chips": ["Use [brackets]"]},
+    {"role": "point", "kicker": "PROMPT 1", "headline": "Triage the pile", "body": ["Paste only the parts you need sorted."], "prompt": "Sort these emails into: needs a reply today, needs a reply this week, and no reply needed. Give a one-line reason for each. [emails]"},
+    {"role": "point", "kicker": "PROMPT 2", "headline": "Write the quick reply", "body": ["Short answers for simple questions."], "prompt": "Draft a two-sentence reply to [message]. Answer the question directly and keep the tone friendly and professional."},
+    {"role": "point", "kicker": "PROMPT 3", "headline": "Decline politely", "body": ["Say no clearly without sounding cold."], "prompt": "Write a polite decline to [request]. Thank them, give one short reason, and suggest [alternative] if it fits."},
+    {"role": "point", "kicker": "PROMPT 4", "headline": "Follow up without nagging", "body": ["A gentle nudge that makes the next step clear."], "prompt": "Write a brief follow-up to [message] sent [days] ago. Restate the ask in one sentence and make it easy to reply."},
+    {"role": "point", "kicker": "PROMPT 5", "headline": "Fix the subject line", "body": ["Clear subjects get opened and answered."], "prompt": "Give me five clear subject lines for an email about [topic]. Each under eight words. Do not use all caps."},
+    {"role": "point", "kicker": "KEEP YOUR VOICE", "headline": "Edit it to sound like you", "body": ["Remove stiff phrases and add your usual greeting."], "prompt": "Rewrite this draft in a warmer, more casual tone. Keep the facts and the request unchanged."},
+    {"role": "point", "kicker": "BEFORE YOU SEND", "headline": "Read it once, out loud", "body": ["Check names, dates and attachments.", "Make sure the ask is obvious."], "chips": ["Review first"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this inbox toolkit", "body": ["Comment INBOX and I will send the prompt list.", "Share this with someone drowning in email."], "chips": ["Save", "Share", "INBOX"]}
+  ]
+}

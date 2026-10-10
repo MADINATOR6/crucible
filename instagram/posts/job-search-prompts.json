@@ -1,0 +1,20 @@
+{
+  "title": "5 prompts for your job search",
+  "verified_on": "2026-10-10",
+  "sources": [{"name": "Prompting guidance: supply real context and ask for a defined output", "url": "https://developers.openai.com/api/docs/guides/prompt-engineering"}],
+  "caption": "5 prompts to make job applications faster: sharper resume bullets, a cover letter draft, interview practice, a follow-up and a skills check.\nUse only true details about your own experience and review everything before you send it.\nSave this job search set. Comment JOBS and I will send the prompt list.",
+  "hashtags": ["#JobSearch", "#CareerTips", "#ResumeTips", "#InterviewPrep", "#AIProductivity"],
+  "disclosure": "",
+  "slides": [
+    {"role": "hook", "kicker": "JOB HUNTING", "headline": "5 prompts for your job search."},
+    {"role": "point", "kicker": "GROUND RULE", "headline": "Only use true details", "body": ["Never invent experience, skills or results.", "Use AI to say real things more clearly."], "chips": ["Stay honest"]},
+    {"role": "point", "kicker": "PROMPT 1", "headline": "Sharpen resume bullets", "body": ["Paste your real bullet and the job posting."], "prompt": "Rewrite this bullet to be clearer and more specific, using only facts I gave: [bullet]. Match the language in this job posting where it is true: [posting]."},
+    {"role": "point", "kicker": "PROMPT 2", "headline": "Draft a cover letter", "body": ["A starting point, never a finished letter."], "prompt": "Draft a short cover letter for [role] at [company]. Use only these facts about me: [facts]. Keep it under 200 words and avoid cliches."},
+    {"role": "point", "kicker": "PROMPT 3", "headline": "Practice the interview", "body": ["Answer out loud, then ask for feedback."], "prompt": "Ask me one interview question at a time for [role]. After each answer, give feedback on clarity and suggest one improvement."},
+    {"role": "point", "kicker": "PROMPT 4", "headline": "Write the follow-up", "body": ["Short, polite and easy to answer."], "prompt": "Write a brief thank-you email after an interview for [role]. Mention [specific topic we discussed] and restate my interest in two sentences."},
+    {"role": "point", "kicker": "PROMPT 5", "headline": "Spot your skills gap", "body": ["Compare what they want with what you have."], "prompt": "Compare this job posting [posting] with my experience [summary]. List matches, gaps and learning I could do to close them."},
+    {"role": "point", "kicker": "PERSONAL TOUCH", "headline": "Make it sound like you", "body": ["Read it aloud and change anything stiff."], "chips": ["Your voice"]},
+    {"role": "point", "kicker": "BEFORE YOU SEND", "headline": "Check every detail", "body": ["Names, dates and job titles must be correct.", "Remove anything that is not true."], "chips": ["Review first"]},
+    {"role": "cta", "kicker": "KEEP THIS HANDY", "headline": "Save this job search set", "body": ["Comment JOBS and I will send the prompt list.", "Share this with someone applying this month."], "chips": ["Save", "Share", "JOBS"]}
+  ]
+}
