@@ -1,0 +1,28 @@
+{
+  "title": "Where Does $1,000 End Up in 30 Years?",
+  "description": "Big Nickel breaks down compound interest: interest on your interest, the CFPB $1,000 example, and the Rule of 72.",
+  "tags": ["personal finance", "compound interest", "investing basics", "money tips", "beginner finance"],
+  "scenes": [
+    {"narration": "Kid, where does $1,000 end up in 30 years?", "fact_ids": ["a1"],
+     "visual": {"type": "hook", "text": "Where does $1,000 end up in 30 years?", "mascot": "shrug"}},
+    {"narration": "Here's the deal: compound interest.", "fact_ids": [],
+     "visual": {"type": "hook", "text": "Compound interest", "mascot": "idle"}},
+    {"narration": "Interest on your money, plus interest on the interest.", "fact_ids": ["f1"],
+     "visual": {"type": "lines", "lines": ["Interest", "+ interest", "on interest"]}},
+    {"narration": "Say $1,000 at 5% a year.", "fact_ids": ["f2"],
+     "visual": {"type": "ledger", "title": "5% a year, added yearly", "upto": 1,
+                "rows": [{"label": "Start", "value": 1000}, {"label": "Year 1", "value": 1050, "gain": 50}, {"label": "Year 2", "value": 1102.5, "gain": 52.5}]}},
+    {"narration": "After year one, $1,050.", "fact_ids": ["f2"],
+     "visual": {"type": "ledger", "title": "5% a year, added yearly", "upto": 2,
+                "rows": [{"label": "Start", "value": 1000}, {"label": "Year 1", "value": 1050, "gain": 50}, {"label": "Year 2", "value": 1102.5, "gain": 52.5}]}},
+    {"narration": "Year two, $1,102.50. See? The second gain's bigger.", "fact_ids": ["f2"],
+     "visual": {"type": "ledger", "title": "5% a year, added yearly", "upto": 3, "highlight": true,
+                "rows": [{"label": "Start", "value": 1000}, {"label": "Year 1", "value": 1050, "gain": 50}, {"label": "Year 2", "value": 1102.5, "gain": 52.5}]}},
+    {"narration": "Over 30 years at 7%, $1,000 grows to about $7,612. Example only, not a prediction.", "fact_ids": ["a1"],
+     "visual": {"type": "counter", "principal": 1000, "rate": 0.07, "years": 30}},
+    {"narration": "Trick: divide 72 by your rate for years to double. At 9%, about 8.", "fact_ids": ["f3"],
+     "visual": {"type": "lines", "lines": ["72", "÷ 9%", "= 8 years"]}},
+    {"narration": "Real returns vary. Start now or wait?", "fact_ids": [],
+     "visual": {"type": "hook", "text": "Start now or wait?", "mascot": "cheer", "bubble": true}}
+  ]
+}

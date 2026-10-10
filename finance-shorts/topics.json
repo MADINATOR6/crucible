@@ -1,0 +1,10 @@
+[
+  {"slug": "compound-interest", "title": "How compound interest works", "angle": "interest on interest, with the CFPB $1,000 example and the Rule of 72"},
+  {"slug": "emergency-fund", "title": "What an emergency fund is and why people keep one", "angle": "CFPB guidance on rainy-day savings"},
+  {"slug": "apr-vs-apy", "title": "APR vs APY", "angle": "why the same rate reads differently when interest compounds"},
+  {"slug": "credit-score-basics", "title": "What goes into a credit score", "angle": "CFPB explanation of credit reports and scores"},
+  {"slug": "credit-card-interest", "title": "How credit card interest is charged", "angle": "CFPB: APR, grace period, carrying a balance"},
+  {"slug": "fund-fees", "title": "Why fund fees matter", "angle": "SEC Investor.gov: expense ratios and how fees compound against you"},
+  {"slug": "roth-vs-traditional-ira", "title": "Roth vs traditional IRA", "angle": "IRS: when each is taxed, in general terms"},
+  {"slug": "inflation-basics", "title": "What inflation does to savings", "angle": "BLS CPI definition and a real published figure"}
+]

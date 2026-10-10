@@ -21,4 +21,9 @@ lifting-tracker/private/
 __pycache__/
 # Video agent outputs (never commit media)
 media-out/
+!finance-shorts/.env.example
+# finance-shorts: venv, downloaded footage/voice/charts, rendered videos
+finance-shorts/.venv/
+finance-shorts/assets/
+finance-shorts/output/
 lifting-tracker/data/private/

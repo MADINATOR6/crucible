@@ -1,0 +1,18 @@
+{
+  "reviewed": false,
+  "_note": "Drafted 2026-10-10 from the full text of two CFPB pages. Both are the same agency; add a third source from FINRA, FTC-via-Investor.gov or the Fed if you want more variety. Open both URLs, confirm every fact, then set reviewed to true.",
+  "sources": [
+    {"name": "CFPB, What is a credit score?", "url": "https://www.consumerfinance.gov/ask-cfpb/what-is-a-credit-score-en-315/"},
+    {"name": "CFPB, How do I get and keep a good credit score?", "url": "https://www.consumerfinance.gov/ask-cfpb/how-do-i-get-and-keep-a-good-credit-score-en-318/"}
+  ],
+  "facts": [
+    {"id": "f1", "source": 0, "text": "A credit score is a prediction of your credit behavior, such as how likely you are to pay a loan back on time, based on information from your credit reports."},
+    {"id": "f2", "source": 0, "text": "Most credit scores range from 300-850. Usually a higher score makes it easier to qualify for a loan and may result in a better interest rate or loan terms."},
+    {"id": "f3", "source": 0, "text": "Factors typically taken into account include your bill-paying history, your current unpaid debt, the number and type of loan accounts you have, how long you have had them open, how much of your available credit you are using, and new applications for credit."},
+    {"id": "f4", "source": 0, "text": "You do not have just one credit score. Each score depends on the data used and the scoring model, and it may even differ depending on the day it was calculated."},
+    {"id": "f5", "source": 1, "text": "Most credit scores consider repayment history as the number one factor. Setting up automatic payments or electronic reminders can help make sure payments are on time."},
+    {"id": "f6", "source": 1, "text": "Experts advise keeping your use of credit at no more than 30 percent of your total credit limit."},
+    {"id": "f7", "source": 1, "text": "You do not need to carry a balance on credit cards to get a good score. Paying the balance in full each month helps get the best scores and keeps interest costs as low as possible."}
+  ],
+  "assumptions": []
+}

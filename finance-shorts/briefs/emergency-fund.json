@@ -1,0 +1,18 @@
+{
+  "reviewed": false,
+  "_note": "Drafted 2026-10-10 from the full CFPB guide and the Federal Reserve executive summary excerpt. Open both URLs, confirm every fact, then set reviewed to true.",
+  "sources": [
+    {"name": "CFPB, An essential guide to building an emergency fund", "url": "https://www.consumerfinance.gov/an-essential-guide-to-building-an-emergency-fund/"},
+    {"name": "Federal Reserve, Economic Well-Being of U.S. Households in 2025 (executive summary)", "url": "https://www.federalreserve.gov/publications/2026-economic-well-being-of-us-households-in-2025-executive-summary.htm"}
+  ],
+  "facts": [
+    {"id": "f1", "source": 0, "text": "An emergency fund is a cash reserve set aside for unplanned expenses or financial emergencies, such as car repairs, home repairs, medical bills, or a loss of income."},
+    {"id": "f2", "source": 0, "text": "How much you need depends on your situation. Think about the most common unexpected expenses you have had and what they cost to set a goal. Even a small amount can provide some financial security."},
+    {"id": "f3", "source": 0, "text": "Without savings, even a minor financial shock can set you back, and if it turns into debt it can have a lasting impact. People with less savings may rely on credit cards or loans, which can lead to debt that is harder to pay off."},
+    {"id": "f4", "source": 0, "text": "If you use a credit card or take out a loan to pay for an emergency expense, the bill can grow significantly larger than the original because of interest and fees."},
+    {"id": "f5", "source": 0, "text": "Ways to build the fund include setting a specific goal, setting up automatic recurring transfers from checking to savings, saving all or part of a tax refund, and splitting your paycheck between two accounts through direct deposit."},
+    {"id": "f6", "source": 0, "text": "Keep the fund safe, accessible, and somewhere you are not tempted to spend it on non-emergencies. A bank or credit union account is generally considered one of the safest places to keep money."},
+    {"id": "f7", "source": 1, "text": "63 percent of adults said they would cover a hypothetical $400 emergency expense using cash, savings, or a credit card paid off at the next statement. This was unchanged from the previous three years, but down from a high of 68 percent in 2021."}
+  ],
+  "assumptions": []
+}

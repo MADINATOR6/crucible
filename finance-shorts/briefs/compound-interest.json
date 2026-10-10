@@ -1,0 +1,17 @@
+{
+  "reviewed": false,
+  "_note": "Drafted from the search excerpts of these pages. A human must open each URL, confirm every fact below, then set reviewed to true.",
+  "sources": [
+    {"name": "Investor.gov, Compound Interest (glossary)", "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/compound-interest"},
+    {"name": "Investor.gov, What is compound interest?", "url": "https://www.investor.gov/additional-resources/information/youth/teachers-classroom-resources/what-compound-interest"},
+    {"name": "CFPB, How does compound interest work?", "url": "https://www.consumerfinance.gov/ask-cfpb/how-does-compound-interest-work-en-1683/"}
+  ],
+  "facts": [
+    {"id": "f1", "source": 0, "text": "Compound interest is interest paid on principal and on accumulated interest."},
+    {"id": "f2", "source": 2, "text": "Example: $1,000 earning 5 percent interest compounded once a year becomes $1,050 after the first year (5 percent of $1,000 is $50) and $1,102.50 after the second year (5 percent of $1,050 is $52.50)."},
+    {"id": "f3", "source": 1, "text": "Rule of 72: divide 72 by the interest rate to estimate how many years it takes an investment to double. At a 9 percent rate of return, an investment doubles about every 8 years (72 divided by 9 equals 8)."}
+  ],
+  "assumptions": [
+    {"id": "a1", "text": "Illustration only, computed by us: $1,000 at 7 percent a year, compounded annually for 30 years, grows to about $7,612. This is an example, not a prediction; real returns vary and investments can lose value."}
+  ]
+}

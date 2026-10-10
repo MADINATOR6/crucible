@@ -1,0 +1,17 @@
+{
+  "reviewed": false,
+  "_note": "Drafted 2026-10-10 from the full CFPB APR page and the CFPB Regulation DD definitions (12 CFR 1030.2). The Investor.gov APY glossary page returned no text, so it is not cited. Open both URLs, confirm every fact, then set reviewed to true.",
+  "sources": [
+    {"name": "CFPB, What is the difference between a loan interest rate and the APR?", "url": "https://www.consumerfinance.gov/ask-cfpb/what-is-the-difference-between-a-loan-interest-rate-and-the-apr-en-733/"},
+    {"name": "CFPB, Regulation DD section 1030.2 Definitions", "url": "https://www.consumerfinance.gov/rules-policy/regulations/1030/2/"}
+  ],
+  "facts": [
+    {"id": "f1", "source": 0, "text": "A loan's interest rate is the cost you pay the lender for borrowing money. The annual percentage rate (APR) is the interest rate plus additional fees charged with the loan, including origination charges. Both are expressed as a percentage."},
+    {"id": "f2", "source": 0, "text": "Lenders must give you the APR, so you can use it to compare loans. Compare APRs to APRs, not APRs to interest rates, because the two are not the same."},
+    {"id": "f3", "source": 1, "text": "Annual percentage yield (APY) is a percentage rate reflecting the total amount of interest paid on a deposit account, based on the interest rate and the frequency of compounding for a 365-day period."},
+    {"id": "f4", "source": 1, "text": "For a deposit account, the interest rate is the annual rate of interest paid, which does not reflect compounding."}
+  ],
+  "assumptions": [
+    {"id": "a1", "text": "Illustration only, computed by us: a 5 percent interest rate compounded monthly gives an APY of about 5.12 percent, so $1,000 earns about $51.16 in a year before any fees. This is an example, not a prediction."}
+  ]
+}
