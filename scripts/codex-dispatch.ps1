@@ -222,10 +222,27 @@ try {
       $firstReason = @($decision.reasons | Select-Object -First 1)
       Write-Output ("Route: $($decision.route) $(if ($providerName) { $providerName + '/' })$Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
     } else { Write-Output 'Route: explicit' }
-    if ($Sandbox -eq 'danger-full-access') {
-      $gate = Invoke-CcxGate -Action codex-full-access -Target $TaskId -TaskId $TaskId
-      if ($gate.code -ne 0) { throw (New-CcxError ($gate.message + [Environment]::NewLine + $gate.command) 10) }
-      Write-Output $gate.message
+    $requiredApprovals = @()
+    if ($Sandbox -eq 'danger-full-access') { $requiredApprovals += 'codex-full-access' }
+    if ($Role -eq 'implement' -and @($policy.taskTypes[$task.type].gates) -contains 'paid-action') { $requiredApprovals += 'paid-action' }
+    if ($requiredApprovals.Count) {
+      $approvals = (Get-CcxState).approvals.Values
+      $missing = @($requiredApprovals | Where-Object {
+        $action = $_
+        -not @($approvals | Where-Object { $_.action -ceq $action -and [object]::Equals($_.target, $TaskId) -and $_.status -eq 'approved' }).Count
+      })
+      if ($missing.Count) {
+        $requests = @($missing | ForEach-Object {
+          $gate = Invoke-CcxGate -Action $_ -Target $TaskId -TaskId $TaskId
+          $gate.message + [Environment]::NewLine + $gate.command
+        })
+        throw (New-CcxError ($requests -join [Environment]::NewLine) 10)
+      }
+      foreach ($action in $requiredApprovals) {
+        $gate = Invoke-CcxGate -Action $action -Target $TaskId -TaskId $TaskId
+        if ($gate.code -ne 0) { throw (New-CcxError ($gate.message + [Environment]::NewLine + $gate.command) 10) }
+        Write-Output $gate.message
+      }
     }
     $dispatch = Invoke-CcxLocked {
       param($state)

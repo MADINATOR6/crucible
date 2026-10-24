@@ -306,6 +306,54 @@ try {
     $records = @([IO.File]::ReadAllLines((Join-Path $env:CCX_STATE_DIR 'telemetry.jsonl')) | ForEach-Object { $json.DeserializeObject($_) })
     Assert (@($records | Where-Object { $_.kind -eq 'task-done' -and $_.accepted -and $_.firstTry }).Count -eq 1) 'accepted first-try telemetry missing'
   }
+  Case 'media types validate credit caps and owned ledger folders and route gates' {
+    $base = @('task','add','-Id','M1','-Title','Synthetic media','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','media-out/higgsfield/demo/')
+    foreach ($cap in @($null,'0','-1','NaN','Infinity','text')) {
+      $arguments = $base
+      if ($null -ne $cap) { $arguments += @('-CreditCap',$cap) }
+      $r = Run-Cli $arguments
+      Check-Code $r 2
+      Assert ($r.Stdout -match 'CreditCap') 'cap refusal missing'
+    }
+    $badOwns = @($base); $badOwns[-1] = 'src/'
+    Check-Code (Run-Cli ($badOwns + @('-CreditCap','60'))) 2
+    $badOwns[-1] = 'media-out/higgsfield/'
+    Check-Code (Run-Cli ($badOwns + @('-CreditCap','60'))) 2
+    Check-Code (Run-Cli ($base + @('-CreditCap','60'))) 0
+    $r = Cli-Json @('route','-TaskId','M1')
+    Assert ($r.gates.Count -eq 1 -and $r.gates[0] -eq 'paid-action' -and $r.creditCap -eq 60 -and $r.permissionLevel -eq 'L4' -and $r.codexRole -eq 'implement') 'media generation route wrong'
+    $base[3] = 'M2'; $base[7] = 'implement'
+    Check-Code (Run-Cli ($base + @('-CreditCap','60'))) 2
+    $base[7] = 'media-edit'
+    Check-Code (Run-Cli $base) 0
+    $r = Cli-Json @('route','-TaskId','M2')
+    Assert ($r.gates.Count -eq 0 -and $null -eq $r.creditCap -and $r.permissionLevel -eq 'L2') 'media edit route wrong'
+  }
+  Case 'media completion requires paid approval and a readable ledger within cap' {
+    Check-Code (Run-Cli @('task','add','-Id','M1','-Title','Synthetic media','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','media-out/higgsfield/demo/','-CreditCap','60')) 0
+    $folder = Join-Path $repo 'media-out/higgsfield/demo'
+    [void][IO.Directory]::CreateDirectory($folder)
+    $ledger = Join-Path $folder 'log.jsonl'
+    Write-Utf8File $ledger ('{"task":"M1","credits":61}' + "`n" + '{"task":"other","credits":500}' + "`n" + '{"credits":500}')
+    Set-Verification 'M1'
+    Check-Code (Run-Cli @('task','review','-Id','M1','-Result','pass','-By','claude')) 0
+    $r = Run-Cli @('task','done','-Id','M1')
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'paid-action approval') 'missing approval not reported'
+    $id = Pending-Id 'paid-action' 'M1'
+    Check-Code (Run-Cli @('approve','-Id',$id,'-Chat','-Quote','Approve synthetic media M1')) 0
+    $r = Run-Cli @('task','done','-Id','M1')
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'ledger total 61 exceeds credit cap 60' -and $r.Stdout -notmatch 'paid-action approval') 'ledger cap refusal wrong'
+    Write-Utf8File $ledger 'invalid json'
+    Set-Verification 'M1'
+    $r = Run-Cli @('task','done','-Id','M1')
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'readable ledger') 'unreadable ledger accepted'
+    Write-Utf8File $ledger ('{"task":"M1","credits":30}' + "`n" + '{"task":"M1","credits":30}' + "`n" + '{"task":"m1","credits":500}' + "`n" + '{"task":"other","credits":500}' + "`n" + '{"credits":500}')
+    Set-Verification 'M1'
+    Check-Code (Run-Cli @('task','done','-Id','M1')) 0
+  }
   Case 'critical completion requires independent verifier and human approval' {
     Add-Task 'T1' 'src/' 'critical'
     Set-Verification
@@ -583,12 +631,15 @@ try {
     Assert ((Invoke-CcxQuickChecks -Task (Get-TestTask) -Root $repo).pass) 'repaired quick checks still fail'
   }
   Case 'invalid policy refuses unknown effort, action level and nonnumeric budget' {
-    foreach ($mutation in @('effort','level','budget')) {
+    foreach ($mutation in @('effort','level','budget','gate','ledger','ledger-path')) {
       $bad = Read-Json $sourcePolicy
       switch ($mutation) {
         'effort' { $bad.classes.normal.effort.codex.base = 'invalid' }
         'level' { $bad.permissions.actions.read = 'invalid' }
         'budget' { $bad.classes.normal.budget.maxDispatches = 'invalid' }
+        'gate' { $bad.taskTypes['media-generate'].gates = @('unknown-action') }
+        'ledger' { $bad.taskTypes['media-generate'].ledger = 'media-out/higgsfield' }
+        'ledger-path' { $bad.taskTypes['media-generate'].ledger = '../outside/' }
       }
       Write-Json $env:CCX_POLICY $bad
       $r = Run-Cli @('route','-Type','implement')

@@ -122,6 +122,15 @@ function Get-CcxPolicy {
         }
         foreach ($entry in $policy.taskTypes.Values) {
             if (-not $levels.ContainsKey($entry.level)) { throw 'Unknown task permission level' }
+            if ($entry.ContainsKey('gates')) {
+                foreach ($gate in @($entry.gates)) {
+                    if ($gate -isnot [string] -or -not $policy.permissions.actions.ContainsKey($gate)) { throw 'Unknown task gate' }
+                }
+            }
+            if ($entry.ContainsKey('ledger')) {
+                if ($entry.ledger -isnot [string] -or -not $entry.ledger.EndsWith('/')) { throw 'Invalid task ledger' }
+                $null = ConvertTo-CcxOwnedPath $entry.ledger -Policy $policy
+            }
         }
         foreach ($entry in $levels.Values) {
             if ($entry.mode -notin @('autonomous','logged','approval')) { throw 'Unknown permission mode' }
@@ -332,7 +341,7 @@ function Split-CcxList {
     }
 }
 function ConvertTo-CcxOwnedPath {
-    param([string]$Path)
+    param([string]$Path, $Policy = (Get-CcxPolicy))
     $pathValue = $Path.Replace('\','/')
     if ([string]::IsNullOrWhiteSpace($pathValue) -or $pathValue.StartsWith('/') -or $pathValue.Contains(':') -or $pathValue -match '(^|/)\.\.(/|$)' -or $pathValue -match '[\x00-\x1f*?"<>|]' -or $pathValue -match '(^|/)\.(/|$)' -or $pathValue.Contains('//')) {
         throw (New-CcxError 'Owned paths must be nonempty, literal repo-relative paths without parent segments.' 2)
@@ -341,11 +350,11 @@ function ConvertTo-CcxOwnedPath {
         if ($segment.EndsWith('.') -or $segment.EndsWith(' ') -or $segment -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw (New-CcxError 'Invalid Windows path segment.' 2) }
     }
     if ($pathValue -match '^(?i:\.git)(/|$)') { throw (New-CcxError 'Protected path is outside CCX task scope.' 2) }
-    foreach ($excluded in @((Get-CcxPolicy).privacy.excludePaths)) {
+    foreach ($excluded in @($Policy.privacy.excludePaths)) {
         $excludedPath = $excluded.Replace('\','/').TrimEnd('/') + '/'
         if (Test-CcxPathOverlap ($pathValue.TrimEnd('/') + '/') $excludedPath) { throw (New-CcxError 'Protected path is outside CCX task scope (privacy.excludePaths).' 2) }
     }
-    if ((Protect-CcxText $pathValue) -cne $pathValue) { throw (New-CcxError 'Path exceeds the safe field limit or contains sensitive data.' 2) }
+    if ((Protect-CcxText $pathValue -Policy $Policy) -cne $pathValue) { throw (New-CcxError 'Path exceeds the safe field limit or contains sensitive data.' 2) }
     return $pathValue
 }
 function Test-CcxPathOverlap {
@@ -615,6 +624,7 @@ function Invoke-CcxRoute {
         model=$null; provider=$null; effort=$null; command=$typePolicy.command; verifyStage=$typePolicy.verifyStage
         class=$Class; risk=$Risk; attempt=$Attempt; verification=@(); budget=@()
         permissionLevel=$typePolicy.level; escalation=$null; fallbacks=@(); reasons=@()
+        gates=@($typePolicy.gates | Where-Object { $null -ne $_ }); creditCap=$(if ($task) { $task.creditCap } else { $null })
     }
     if ($typePolicy.route -eq 'tool') {
         $decision.llmRequired = $false; $decision.agent = 'none'
@@ -962,6 +972,17 @@ function Invoke-CcxCmdTask {
             if (-not $policy.taskTypes.ContainsKey($Parameters.Type) -or -not $policy.classes.ContainsKey($Parameters.Class) -or $Parameters.Risk -notin $policy.risk.levels -or $Parameters.Owner -notin @('claude','codex')) { throw (New-CcxError 'Unknown task type, class, risk or owner.' 2) }
             $owns = @(Split-CcxList $Parameters.Owns | ForEach-Object { ConvertTo-CcxOwnedPath $_ } | Select-Object -Unique)
             if (-not $owns.Count) { throw (New-CcxError 'Task must own at least one path.' 2) }
+            $typePolicy = $policy.taskTypes[$Parameters.Type]
+            $creditCap = $null
+            if (@($typePolicy.gates) -contains 'paid-action') {
+                $parsedCap = 0.0
+                if (-not [double]::TryParse($Parameters.CreditCap, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$parsedCap) -or
+                    [double]::IsNaN($parsedCap) -or [double]::IsInfinity($parsedCap) -or $parsedCap -le 0) { throw (New-CcxError 'task add requires -CreditCap to be a finite number above 0.' 2) }
+                $creditCap = $parsedCap
+            } elseif ($Parameters.ContainsKey('CreditCap')) { throw (New-CcxError '-CreditCap is only valid for paid-action task types.' 2) }
+            if ($typePolicy.ledger -and -not @($owns | Where-Object { $_.StartsWith($typePolicy.ledger, [StringComparison]::OrdinalIgnoreCase) -and $_.Length -gt $typePolicy.ledger.Length -and $_.EndsWith('/') }).Count) {
+                throw (New-CcxError ('Task must own a project folder under ' + $typePolicy.ledger) 2)
+            }
             $now = Get-CcxNow
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
@@ -969,6 +990,7 @@ function Invoke-CcxCmdTask {
                 owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=@(); baselines=@{}
                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
+                creditCap=$creditCap
             }
             $state.tasks[$task.id] = $task
             return @{task=$task; code=0}
@@ -1057,6 +1079,23 @@ function Invoke-CcxCmdTask {
                         'deterministic' { } # Covered by full PASS verification above.
                         default { $missing += "unsupported verification requirement: $requirement" }
                     }
+                }
+                $typePolicy = $policy.taskTypes[$task.type]
+                if (@($typePolicy.gates) -contains 'paid-action') {
+                    if (-not @($state.approvals.Values | Where-Object { $_.action -ceq 'paid-action' -and ($_.taskId -ceq $task.id -or $_.target -ceq $task.id) -and $_.status -in @('approved','used') }).Count) { $missing += 'paid-action approval' }
+                    $total = 0.0
+                    try {
+                        foreach ($owned in @($task.owns | Where-Object { $typePolicy.ledger -and $_.StartsWith($typePolicy.ledger, [StringComparison]::OrdinalIgnoreCase) -and $_.EndsWith('/') })) {
+                            $ledger = Get-CcxSafeFile -Root $root -Path ($owned + 'log.jsonl')
+                            if ([IO.File]::Exists($ledger)) {
+                                foreach ($line in [IO.File]::ReadLines($ledger, $script:CcxUtf8)) {
+                                    $row = $script:CcxJson.DeserializeObject($line)
+                                    if ($row.task -ceq $task.id) { $total += [double]$row.credits }
+                                }
+                            }
+                        }
+                    } catch { $missing += 'readable ledger' }
+                    if ($total -gt $task.creditCap) { $missing += "ledger total $total exceeds credit cap $($task.creditCap)" }
                 }
                 if ($missing.Count) { throw (New-CcxError ('Task not done: ' + ($missing -join ', ')) 8) }
                 $task.status = 'done'

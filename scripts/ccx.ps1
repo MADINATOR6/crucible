@@ -4,7 +4,7 @@ param(
     [Parameter(Position=1)][string]$Sub,
     [string]$Id, [string]$TaskId, [string]$Title, [string]$Type, [string]$Class, [string]$Risk,
     [string]$Owner, [string[]]$Owns, [string]$Parent, [string[]]$DependsOn, [string]$TaskFile,
-    [string]$Status, [string]$Note, [string]$Result, [string]$By, [string]$Kind,
+    [string]$Status, [string]$Note, [string]$Result, [string]$By, [string]$Kind, [string]$CreditCap,
     [string]$Action, [AllowNull()][string]$Target, [string]$Reason, [string]$Quote,
     [string]$Key, [string]$Data, [string]$Max, [string[]]$Stage, [string[]]$Path,
     [string]$Agent, [string]$Base, [string]$Branch, [string]$Into, [string]$Attempt,

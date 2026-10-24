@@ -15,6 +15,8 @@ param(
     [string]$File,
     [string]$Prompt,
     [double]$Budget = 0,
+    [string]$Task,
+    [double]$Next = 0,
     [string]$Dir
 )
 # Shared entry point for Claude and Codex (see .claude/skills/higgsfield/playbook.md).
@@ -42,7 +44,9 @@ switch ($Command) {
         if (Test-Path -LiteralPath $pfile) { Fail "project exists: $pfile" }
         New-Item -ItemType Directory -Force -Path $pdir | Out-Null
         # One image model for hero + every reference sheet: mixing models makes elements read differently.
-        Save ([ordered]@{ name = $slug; imageModel = $Image; videoModel = $Video; aspect = $Aspect; resolution = $Resolution; elements = @() })
+        $projectData = [ordered]@{ name = $slug; imageModel = $Image; videoModel = $Video; aspect = $Aspect; resolution = $Resolution; elements = @() }
+        if ($Budget -gt 0) { $projectData.budget = $Budget }
+        Save $projectData
         [Console]::Out.WriteLine($pfile)
     }
     'element' {
@@ -55,8 +59,10 @@ switch ($Command) {
         [Console]::Out.WriteLine("<<<$Id>>>  = $Name ($Category)")
     }
     'log' {
+        if ($PSBoundParameters.ContainsKey('Task') -and $Task -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { Fail '-Task must be a task id (1-40 letters, digits, dots, underscores or hyphens)' }
         $null = Load
         $row = [ordered]@{ ts = (Get-Date).ToUniversalTime().ToString('s') + 'Z'; kind = $Kind; model = $Model; credits = $Credits; job = $Job; file = $File; prompt = $Prompt }
+        if ($Task) { $row.task = $Task }
         [IO.File]::AppendAllText($lfile, (($row | ConvertTo-Json -Compress) + "`n"), $utf8)
     }
     'summary' {
@@ -64,10 +70,16 @@ switch ($Command) {
         [Console]::Out.WriteLine("project ${slug}: image=$($p.imageModel) video=$($p.videoModel) $($p.aspect) $($p.resolution)")
         foreach ($e in $p.elements) { [Console]::Out.WriteLine("  element $($e.name) [$($e.category)] <<<$($e.id)>>>") }
         $rows = @(); if (Test-Path -LiteralPath $lfile) { $rows = @(Get-Content -LiteralPath $lfile -Encoding UTF8 | Where-Object { $_.Trim() } | ForEach-Object { $_ | ConvertFrom-Json }) }
+        if ($Task) { $rows = @($rows | Where-Object { $_.task -ceq $Task }); [Console]::Out.WriteLine("  task     $Task") }
         foreach ($g in ($rows | Group-Object kind)) { [Console]::Out.WriteLine(('  {0,-8} {1,3} jobs {2,8:N1} credits' -f $g.Name, $g.Count, ($g.Group | Measure-Object credits -Sum).Sum)) }
         $total = [double](($rows | Measure-Object credits -Sum).Sum)
         [Console]::Out.WriteLine(('  total    {0:N1} credits' -f $total))
-        if ($Budget -gt 0 -and $total -gt $Budget) { [Console]::Out.WriteLine("OVER BUDGET: $total > $Budget"); exit 1 }
+        $cap = if ($Budget -gt 0) { $Budget } elseif ($p.budget -gt 0) { [double]$p.budget } else { 0 }
+        if ($cap -gt 0) {
+            [Console]::Out.WriteLine("  budget   $cap credits")
+            if ($total -gt $cap) { [Console]::Out.WriteLine("OVER BUDGET: $total > $cap"); exit 1 }
+            if ($total + $Next -gt $cap) { [Console]::Out.WriteLine("OVER BUDGET: $total + next $Next > $cap"); exit 1 }
+        }
     }
 }
 exit 0

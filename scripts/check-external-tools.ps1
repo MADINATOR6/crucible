@@ -72,7 +72,7 @@ foreach ($tool in @('gjc','claw','codex')) {
     $status = 'unavailable'
     try {
         # Existing wrappers perform native resolution and isolated OmO manifest/hook checks.
-        $wrapper = Join-Path $PSScriptRoot ($tool + '.ps1')
+        $wrapper = Join-Path $RepoRoot ('scripts\' + $tool + '.ps1')
         $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + $wrapper + '" ' + $flag)
         $status = 'cli-pass'
     } catch { $status = 'unavailable' }
@@ -94,10 +94,21 @@ $rows += [PSCustomObject]@{ Tool='claude-red'; AvailableTo='Both'; Status=$libra
 $generateStatus = 'unavailable'
 try {
     # Offline `list` only; it never reads key values, only reports which providers lack one.
-    $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $PSScriptRoot 'generate.ps1') + '" list')
+    $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $RepoRoot 'scripts\generate.ps1') + '" list')
     $generateStatus = 'cli-pass'
 } catch { $generateStatus = 'unavailable' }
 $rows += [PSCustomObject]@{ Tool='generate'; AvailableTo='Both'; Status=$generateStatus; Check='list (offline); paid calls need a provider key and approval' }
+$higgsfieldStatus = 'unavailable'
+try {
+    $mcp = Get-Content -LiteralPath (Join-Path $RepoRoot '.mcp.json') -Raw | ConvertFrom-Json
+    $codexConfig = Get-Content -LiteralPath (Join-Path $RepoRoot '.codex\config.toml') -Raw
+    if ($mcp.mcpServers.higgsfield -and $codexConfig -match '(?m)^\[mcp_servers\.higgsfield\]\s*$') {
+        $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $RepoRoot 'scripts\higgsfield.ps1') + '" show')
+        $higgsfieldStatus = 'cli-pass'
+    }
+} catch { $higgsfieldStatus = 'unavailable' }
+$higgsfieldCli = if (Get-Command higgsfield.cmd -ErrorAction SilentlyContinue) { 'present' } else { 'absent' }
+$rows += [PSCustomObject]@{ Tool='higgsfield'; AvailableTo='Both'; Status=$higgsfieldStatus; Check="show + both MCP configs (offline); higgsfield CLI $higgsfieldCli; sign-in and credits UNKNOWN (never spends)" }
 if ($Json) { ConvertTo-Json -InputObject @($rows) -Depth 3 }
 else {
     $rows | Format-Table -AutoSize

@@ -169,8 +169,9 @@ try {
             $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -SkillRoot $temp -Json) -join "`n"
             Assert ($LASTEXITCODE -eq 0) 'Inventory failed.'
             $rows = $json | ConvertFrom-Json
-            Assert ($rows.Count -eq 5 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 4) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+            Assert ($rows.Count -eq 6 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 5) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
             Assert ($rows[3].Status -eq 'files-present') 'Synthetic Markdown not detected.'
+            Assert ($rows[5].Tool -eq 'higgsfield' -and $rows[5].Status -eq 'cli-pass') 'Higgsfield offline inventory failed.'
             Assert (-not $json.Contains('synthetic-private-value')) 'Credential disclosed.'
             $record = Record
             Assert (($record.args -join '|') -ceq '--help') 'OmO probe executed a provider prompt.'
@@ -178,10 +179,10 @@ try {
     }
     Check 'Unavailable optional tools never block inventory or normal workflow' {
         foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_PYTHON_EXE')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
-        $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -SkillRoot (Join-Path $temp 'missing-library') -Json) -join "`n"
+        $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -RepoRoot $temp -SkillRoot (Join-Path $temp 'missing-library') -Json) -join "`n"
         Assert ($LASTEXITCODE -eq 0) 'Optional absence blocked inventory.'
         $rows = $json | ConvertFrom-Json
-        Assert ($rows.Count -eq 5 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 5) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+        Assert ($rows.Count -eq 6 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 6) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
     }
     Check 'OmO wrapper rejects missing hooks' {
         Remove-Item -LiteralPath (Join-Path $plugin 'hooks\test.json')
@@ -212,7 +213,7 @@ try {
         $claude = [IO.File]::ReadAllText((Join-Path $root 'CLAUDE.md'))
         foreach ($document in @($agents,$claude)) {
             Assert ($document.StartsWith('> Symmetry rule:')) 'Symmetry rule is not at the top.'
-            foreach ($name in @('Gajae-Code','Claw-Code','Claude-Red','OmO','gjc.ps1','claw.ps1','load-claude-skill.ps1','codex-load-skill.ps1','codex.ps1','check-external-tools.ps1','connect-claw.ps1','generate.ps1','Choosing a tool','tool: none')) {
+            foreach ($name in @('Gajae-Code','Claw-Code','Claude-Red','OmO','gjc.ps1','claw.ps1','load-claude-skill.ps1','codex-load-skill.ps1','codex.ps1','check-external-tools.ps1','connect-claw.ps1','generate.ps1','higgsfield.ps1','Choosing a tool','tool: none')) {
                 Assert ($document.Contains($name)) "Missing tool: $name"
             }
         }

@@ -238,6 +238,9 @@ function Ccx-Case([string]$name, [scriptblock]$ccxBody) {
 function Add-CcxTask([string]$id = 'T1', [string]$owns = 'owned.txt', [string]$owner = 'codex', [string]$type = 'implement', [string]$taskFile = 'TASK.md') {
   Check-Code (Run-Ccx @('task','add','-Id',$id,'-Title','Synthetic task','-Type',$type,'-Class','normal','-Risk','low','-Owner',$owner,'-Owns',$owns,'-TaskFile',$taskFile)) 0
 }
+function Add-MediaTask {
+  Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Synthetic media task','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','owned.txt,media-out/higgsfield/demo/','-CreditCap','60','-TaskFile','TASK.md')) 0
+}
 
 if (Test-Path -LiteralPath $scratch) {
   # Never delete a folder this run did not create (another run may be using it).
@@ -660,6 +663,44 @@ else {
     Check-Code $r 0
     Assert (Test-Path -LiteralPath $log) 'fake did not run after approval'
     Assert ((Read-CcxState).approvals.($pending[0].id).status -eq 'used') 'approval was not consumed'
+  }
+  Ccx-Case 'media implement requires and consumes paid-action approval' {
+    Add-MediaTask
+    $log = Join-Path $scratch 'media-paid.json'
+    $args = $common + @('-TaskId','T1')
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 10
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran without paid-action approval'
+    $pending = @((Read-CcxState).approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'paid-action' -and $_.target -eq 'T1' -and $_.status -eq 'pending' })
+    Assert ($pending.Count -eq 1) 'paid-action approval not requested for task'
+    Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic media dispatch')) 0
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    Assert (Test-Path -LiteralPath $log) 'fake did not run after paid-action approval'
+    Assert ((Read-CcxState).approvals.($pending[0].id).status -eq 'used') 'paid-action approval was not consumed'
+  }
+  Ccx-Case 'media full access checks all approvals before consuming either' {
+    Add-MediaTask
+    $log = Join-Path $scratch 'media-full.json'
+    $args = $common + @('-TaskId','T1','-Sandbox','danger-full-access')
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 10
+    $pending = @((Read-CcxState).approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'paid-action' -and $_.target -eq 'T1' -and $_.status -eq 'pending' })
+    Assert ($pending.Count -eq 1) 'paid-action approval not requested'
+    Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic media dispatch')) 0
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 10
+    Assert (-not (Test-Path -LiteralPath $log)) 'fake ran without full-access approval'
+    $state = Read-CcxState
+    Assert ($state.approvals.($pending[0].id).status -eq 'approved') 'paid-action approval consumed before full-access approval'
+    $full = @($state.approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'codex-full-access' -and $_.target -eq 'T1' -and $_.status -eq 'pending' })
+    Assert ($full.Count -eq 1) 'full-access approval not requested'
+    Check-Code (Run-Ccx @('approve','-Id',$full[0].id,'-Chat','-Quote','Approved synthetic full-access dispatch')) 0
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    Assert (Test-Path -LiteralPath $log) 'fake did not run after both approvals'
+    $state = Read-CcxState
+    Assert ($state.approvals.($pending[0].id).status -eq 'used' -and $state.approvals.($full[0].id).status -eq 'used') 'both approvals were not consumed'
   }
   Ccx-Case 'ready dispatch records state telemetry and event' {
     Add-CcxTask
