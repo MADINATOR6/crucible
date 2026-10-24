@@ -96,6 +96,7 @@ Routing priority, cheapest reliable route first:
 
 Inputs: task type (see `taskTypes` in the policy), class (routine, normal, complex, critical, exceptional), risk (low, medium, high), attempt, ambiguity, author (for reviews), and a mythos request.
 - High risk raises the class to at least complex and adds an independent verifier.
+- Gated types (`gates` in the policy, today `media-generate` with `paid-action`): the decision also lists the gates and the task's `creditCap`; the launcher consumes the approvals before dispatch (section 12).
 - Every decision is logged: `state.routingLog` and telemetry.
 
 **Adaptive routing** (bounded by `adaptive` in the policy) reads telemetry for the same type, agent and effort:
@@ -289,12 +290,14 @@ An unknown action counts as L4, so the gate fails closed.
    - Or, for L4 only, in chat. Claude then records `ccx approve -Id A-0003 -Chat -Quote "<the user's words>"`.
 3. An approval expires after `approvalTtlMinutes` and is single-use.
 
+**Gated task types:** `media-generate` (policy `gates: ["paid-action"]`, `ledger: "media-out/higgsfield/"`) needs `task add -CreditCap` and one owned `media-out/higgsfield/<project>/` folder. With `-TaskId`, the launcher checks every approval a run needs before consuming any: paid-action for an implement dispatch of a gated type, plus codex-full-access with `-Sandbox danger-full-access`, each targeting the task id. A missing one exits 10 and is left pending, and the approved ones stay unused.
+
 **What is technical and what is logical:**
 - *Technical:* Codex's sandbox cannot write the state, so it can neither request nor grant approvals.
   - Interactive approval needs a real console: agent shells have redirected stdin, and the CLI refuses them (exit 12).
-  - The launcher refuses full access without an approval.
+  - The launcher refuses full access, and a gated type's dispatch, without an approval.
   - Tick handlers are hard-limited to L2.
-- *Logical:* a process with unrestricted shell access could still edit the state file directly. That case is governed by AGENTS.md and by Claude Code's own permission prompts.
+- *Logical:* a process with unrestricted shell access could still edit the state file directly, or under-report a ledger it writes itself. That case is governed by AGENTS.md and by Claude Code's own permission prompts; a media review reconciles the ledger with the provider's transaction list.
 - *Rule:* broad machine access is never authorisation.
 
 ## 13. Verification pipeline
@@ -309,7 +312,7 @@ An unknown action counts as L4, so the gate fails closed.
 | scope | changed files outside the task's owns |
 | memory | memory lint |
 | format, lint | configured commands (none here: SKIP) |
-| tests-ccx, tests-ccx-ops, tests-dispatch, tests-mirror | the regression suites, run only when their `when` paths changed |
+| tests-ccx, tests-ccx-ops, tests-dispatch, tests-mirror, tests-higgsfield, tests-external-tools | the regression suites, run only when their `when` paths changed |
 
 - **Result values:** SKIP and N/A never count as failures, and are printed so they stay visible. A FAIL blocks.
 - **Recording:** `ccx verify -TaskId` records the result against a fingerprint of the task's owned files.
@@ -320,7 +323,8 @@ An unknown action counts as L4, so the gate fails closed.
   - a passing full verification whose fingerprint still matches;
   - a cross-model review, for normal work and above;
   - an independent verifier review, for complex work, high risk and above;
-  - a `task-accept` approval, for critical and exceptional work.
+  - a `task-accept` approval, for critical and exceptional work;
+  - for a type gated by `paid-action`: a paid-action approval for the task (approved or used) and the task's ledger rows within its `creditCap`.
 - **Launcher post-checks:** after every `-TaskId` implement dispatch, the launcher runs parse, json, secrets and scope. A violation turns exit 0 into 9.
 - **Baseline:** `ccx verify -Baseline` records a baseline (it never counts toward done).
 - **This upgrade:** the baseline at c2f515b was dispatch 23/23 and mirror 21/21 + 1 skip.
@@ -376,11 +380,12 @@ An unknown action counts as L4, so the gate fails closed.
 
 ## 17. MCP inventory and scopes
 
-Inventoried 2026-09-30 from this machine.
+Inventoried 2026-09-30 from this machine; Higgsfield added 2026-10-25.
 
 | Server or group | Purpose | External effect | Who may use it | Approval |
 |---|---|---|---|---|
 | Codex `node_repl` | Codex app browser and computer-use bridge | local | Codex (the dispatch sandbox keeps network off) | in policy `codexAllowedServers` |
+| Higgsfield: MCP `higgsfield` (`.mcp.json`, `.codex/config.toml`), CLI `higgsfield`, Codex Apps connector | image, video and audio generation | spends credits; prompts and uploads go to a third party | Codex in media tasks (CLI); Claude for quotes and read-only review | paid-action L4 with a credit cap; publishing L4 on its own request |
 | Built-in browser, Claude in Chrome | web pages; Chrome has the user's logged-in sessions | read, or act as the user | main Claude session, when the task needs it | L4 for any submit, post or account change |
 | Firecrawl | web, developer and paper search | sends queries to a third party | main session, research tasks | never put private data or secrets in queries |
 | Gmail, Google Calendar, Google Drive | the user's private data | read and write | main session, only on the user's explicit request | writes (send, create, update, share, trash) L4 |
@@ -392,9 +397,9 @@ Inventoried 2026-09-30 from this machine.
 
 - **Enforced scoping:**
   - `ccx-scout` and `ccx-reviewer` have no MCP tools. Their `tools` allowlists exclude every `mcp__*` tool, and `ccx health` fails a definition that adds one.
-  - Codex dispatches carry only the servers in `mcp.codexAllowedServers`. Health warns about any other server.
+  - Health warns about Codex servers in `~/.codex/config.toml` outside `mcp.codexAllowedServers`. The launcher does not strip servers: a trusted project's `.codex/config.toml` servers and the Codex Apps connectors also load in dispatches.
   - The user's `~/.claude/settings.json` denies `mcp__Figma__*`.
-- **Project scope:** there is no project-level `.mcp.json`. Adding one needs an entry in `mcp.projectAllowedServers`.
+- **Project scope:** `.mcp.json` declares `higgsfield`, listed in `mcp.projectAllowedServers`; health warns about any other project server.
 - **Codex app agent sync (seen 2026-10-01):** with "external agent import sync" on, the Codex desktop app turned `.claude/agents/ccx-scout.md` into `.codex/agents/ccx-scout.toml` inside a worktree. The conversion is lossy:
   - it drops the tool allowlist and the model;
   - it adds no `sandbox_mode = "read-only"`, so the copied "read-only" scout is not read-only in Codex;
