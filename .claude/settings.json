@@ -1,0 +1,28 @@
+{
+  "enabledMcpjsonServers": ["higgsfield"],
+  "permissions": {
+    "allow": [
+      "mcp__higgsfield__balance",
+      "mcp__higgsfield__show_plans_and_credits",
+      "mcp__higgsfield__transactions",
+      "mcp__higgsfield__list_workspaces",
+      "mcp__higgsfield__list_projects",
+      "mcp__higgsfield__get_project",
+      "mcp__higgsfield__list_project_assets",
+      "mcp__higgsfield__list_folders",
+      "mcp__higgsfield__get_folder",
+      "mcp__higgsfield__list_voices",
+      "mcp__higgsfield__models_explore",
+      "mcp__higgsfield__get_presets",
+      "mcp__higgsfield__get_preset_instructions",
+      "mcp__higgsfield__get_workflow_instructions",
+      "mcp__higgsfield__get_preferences",
+      "mcp__higgsfield__jobs_wait",
+      "mcp__higgsfield__job_display",
+      "mcp__higgsfield__show_generations",
+      "mcp__higgsfield__show_generation_by_ids",
+      "mcp__higgsfield__show_medias",
+      "mcp__higgsfield__show_result"
+    ]
+  }
+}

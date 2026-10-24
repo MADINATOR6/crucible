@@ -1,2 +1,6 @@
 # Project-local Codex settings. Codex applies them only once this folder is trusted.
 model_reasoning_effort = "medium"
+
+# Higgsfield image/video generation (same server as .mcp.json). One-time sign-in: codex.cmd mcp login higgsfield
+[mcp_servers.higgsfield]
+url = "https://mcp.higgsfield.ai/mcp"
