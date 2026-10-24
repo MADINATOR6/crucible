@@ -71,6 +71,14 @@ Defaults when the user has no preference: image `gpt_image_2` (high quality), vi
 
 Prompt writing, planning and iteration through Claude uses Claude tokens. The in-app Higgsfield assistant spends Higgsfield credits on every chat message. Keep planning, prompt drafting and story work in Claude and send only generation calls to Higgsfield.
 
+## Verified on the live MCP (2026-10-24 smoke test, 5 credits)
+
+- Hero `gpt_image_2` 16:9 (default 1k, low quality): 0.5 credits. Character sheet from the hero as a reference (`medias: [{value: <hero job id>, role: "image"}]`): 0.5 credits, came back as clean front/back/face panels on grey.
+- `manage_reference_elements` create from the sheet's `image_job` id and its url: status `completed` at once.
+- `seedance_2_0`, `mode: "fast"`, 480p, 4 s, `generate_audio: false`, prompt `<<<ELEMENT-UUID>>> walks ...` and NO start frame: 4 credits (`get_cost` quoted exactly 4). The keeper's hat, coat, beard and lantern all held in the clip.
+- `std` mode is needed for 1080p/4k; `fast` allows 480p/720p only. A 4 s fast clip took about 3 minutes; poll `jobs_wait` sparingly (`type` reads `image` for videos, ignore it).
+- Total matched the balance drop (574 to 569) and `higgsfield.ps1 summary` (5.0).
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.
