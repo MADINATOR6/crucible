@@ -93,6 +93,24 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 - Generate: `higgsfield generate create <model> --prompt "..." [--start-image|--image <path-or-id>] [--param value]... --wait --json`. Params use the model's schema names (`higgsfield model get <model> --json`), for example `--mode omni_reference --duration 5 --aspect_ratio 9:16 --resolution 480p --draft true --generate_audio true`.
 - A previous job id works as a media input, so a saved character frame is reused without a new upload.
 
+## Pilot media task (2026-10-25, HF-P1, 50 credits)
+
+- **The loop worked end to end:**
+  - Claude wrote the brief and quoted;
+  - the user set the cap (60);
+  - ccx gated each dispatch;
+  - Codex generated through the CLI, downloaded and logged;
+  - Claude reviewed and closed the task.
+
+  Quotes matched the charges exactly, and the ledger matched `higgsfield account transactions` and the balance drop to the credit.
+- **Deliverables:** `seedance_2_5` omni_reference from a saved frame (job id as start image, no upload).
+  - 480p draft: 15 credits, HEVC 480x854 with AAC.
+  - Fresh 720p final: 35 credits, H.264 720x1280 with AAC.
+- **Big physical actions land; subtle lead-ins get skipped.** The sneeze, the ears flaring and the popcorn burst all came through. The draft ignored "sniffs the kernel", and the final only leaned in for "lowers its nose to the rim and sniffs twice". Give a lead-in its own clear motion and time, or start from a frame already in that pose.
+- **Spell out where things go.** "Pops into popcorn" filled the pan; "shoots up out of the pan and scatters across the counter" sent it flying.
+- **Check sound sync locally.** `generate_audio` put the loudness peak on the sneeze both times. Check it with ffmpeg `astats` per half second before sending audio anywhere.
+- **Cost of the review loop:** one draft plus one round of fix notes fit a 60 cap (15 + 35). The final is a fresh render; finalizing the draft itself needs `draft_job_id` and the 1080p price.
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.

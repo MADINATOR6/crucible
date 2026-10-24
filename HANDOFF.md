@@ -147,7 +147,7 @@ Make the media the task file describes. Claude owns intake, approvals, review, c
 7. Generate with `--wait --json`. Download every result into the project folder (curl.exe -L -o media-out/higgsfield/<p>/<name> <url>); never overwrite a file.
 8. One ledger line per job, with the charged credits: scripts/higgsfield.ps1 log -Project <p> -Task <ID> -Kind image|video|audio|upscale|other -Model <m> -Credits <n> -Job <id> -File <path> -Prompt "<short>".
 9. Edits (cuts, sound mix, end cards): ffmpeg into new files in the project folder; never modify the source files.
-10. Never publish, post, share, deploy, delete Higgsfield assets, or change the workspace or plan. The CLI's higgsfield-* skills are reference material; this instruction wins where they differ.
+10. Never publish, post, share, deploy, delete Higgsfield assets, or change the workspace or plan. Never run `ccx` commands: the launcher already checked and consumed this dispatch's approvals, and with full access a stray `ccx gate` opens a request nobody asked for. The CLI's higgsfield-* skills are reference material; this instruction wins where they differ.
 11. ffprobe each deliverable (ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact <file>), check each beat against the task file, run `higgsfield account status` again (media-generate), and reply with the Media report format.
 ```
 
