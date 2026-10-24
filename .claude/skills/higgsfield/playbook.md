@@ -1,6 +1,6 @@
 # Higgsfield playbook
 
-Distilled from four public tutorials (Roboverse x2, Metics Media, Zinho Automates; see "Sources"). Model names and credit prices change weekly: confirm with `models_explore` and `get_cost:true`, never trust the numbers here. Affiliate links and paid "bonus packs" in those videos are ignored.
+Distilled from four public tutorials (Roboverse x2, Metics Media, Zinho Automates; see "Sources"). The tool-routing table in section 6 is where the Zinho video's feature tour landed. Model names and credit prices change weekly: confirm with `models_explore` and `get_cost:true`, never trust the numbers here. Affiliate links and paid "bonus packs" in those videos are ignored.
 
 Bookkeeping helper (no network, spends nothing): `scripts/higgsfield.ps1 new|element|log|summary -Project <name>`. State lives in gitignored `media-out/higgsfield/<project>/`.
 
@@ -39,6 +39,8 @@ Defaults when the user has no preference: image `gpt_image_2` (high quality), vi
 - Describe sound too, and check audio sync in the draft (a wrong beat before the action is a common defect).
 - Fix by regenerating ONLY the failed shot with a plain-English correction ("it looks like it runs on a treadmill"). Never regenerate a whole multi-clip set for one bad clip.
 - Batch size multiplies credits (1 image 6.5, 2 images 13 in one tutorial). Prefer `count: 1` for drafts.
+- **Draft mode** (web UI, pricey models like Seedance): render a cheap low-quality preview, then send that exact shot to the full-quality render. If `generate_video` / `models_explore` exposes no draft option, the equivalent is the lowest resolution at `count: 1`.
+- Model fit (one tutorial's opinion; confirm with `models_explore recommend`): image: Nano Banana = speed and reference work, GPT Image = clean edits and text, Soul = cinematic editorial look. Video: Kling 3.0 = affordable all-rounder, Seedance = best cinematic but costly, Veo 3.1 and Sora 2 = premium, with built-in sound.
 
 ## 5. Finishing
 
@@ -54,6 +56,15 @@ Defaults when the user has no preference: image `gpt_image_2` (high quality), vi
 | Many shorts from one take | Shorts Studio: a flat, well-lit 4-120 s source video, then a style preset does the restyle with no prompt; speech timing and audio are preserved. `shorts_studio_create` with `get_cost:true` first (720p only) |
 | Character generation | `soul_cast` / AI Cast for characters, a cinematic-locations model for environments, `ai_influencer_prepare` then `_generate` |
 | Voiceover | `generate_audio` with a plain-English voice description ("warm, calm, friendly"); or a voice sample for a specific voice |
+| Change an existing video, keep the rest | Genjutsu via `generate_video`: motion transfer = `hf_mult_motion_control`, object/product swap = `hf_mult_replace_object`, restyle (20+ styles) via presets. Film once, swap many products |
+| Motion-graphics edit from one product photo | Katana (`get_workflow_instructions` `katana`, `get_katana_config`); styles aura farming, motion, clipping. Runs well straight from Claude |
+| Product ad from a URL (UGC, unboxing, review, TV spot, try-on) | Marketing Studio: fetch the product page, pick format and avatar; script, video and lip-sync in one pass. For UGC load workflow `ugc-video` |
+| Other bundled workflows (load with `get_workflow_instructions`) | `character-sheet`, `product-photoshoot`, `thumbnail-generation`, `video-montage` (assemble clips, music, captions), `video-editing`, `narration`, `ads-studio`, `brand-asset-creation`, `website-builder-flow` |
+| 10 variants of an ad that works | Ad Multiplier (`get_workflow_instructions` `ad-multiplier`, one supplied 4-30 s video), then `reframe` for 9:16 |
+| Same video in another language | `dubbing` (about 18 languages, lip-synced) |
+| Whole faceless-channel episodes | Faceless Studio (theme, script, visuals, voice; saves style and voice). Load workflow `faceless-video` (only when a faceless channel is explicitly asked for) |
+| Recurring AI persona | `ai_influencer_prepare` then `_generate` (character builder, shuffle for ideas), saved as an element. Genjutsu can swap her into real footage |
+| Directed multi-character scene | Cinema Studio 4.0: up to 50 references, shots to 30 s, 30+ camera presets, per-character emotion setting, extend forward or back. Web UI features; the MCP route is `create_project` with surface `cinematic_studio` |
 | Project-style shot management | `create_project` (Cinema Studio surface `cinematic_studio`): keeps elements and generations in one place. Only on user request |
 
 ## 7. Claude MCP versus Higgsfield's built-in assistant
@@ -62,4 +73,4 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 
 ## Sources
 
-`Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). `ssviusnvaec` (Zinho Automates, beginner guide) could not be fetched when this was written (YouTube 429); re-run yt-dlp captions later and diff against this file.
+`Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.
