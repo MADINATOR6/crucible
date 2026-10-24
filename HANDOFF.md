@@ -102,9 +102,78 @@ Final git status --short: <output>
 
 READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it never means approved to commit.
 
+## Media task (Higgsfield)
+
+Dispatch mode for video, image and audio work. Codex makes and edits; Claude produces and reviews (AGENTS.md Roles). Types: `media-generate` spends Higgsfield credits (L4); `media-edit` is local ffmpeg on existing files (L2). The brief lives in the project folder, `media-out/higgsfield/<project>/<ID>.md`, which is gitignored and never committed, so prompts and references stay out of Git.
+
+### Claude checklist (media)
+1. [ ] Intake: one settings question (models, aspect, resolution, duration, audio), then `scripts/higgsfield.ps1 new -Project <p> -Budget <project cap> ...`. Save chat attachments the user named into the project folder; Codex gets file paths, never chat images.
+2. [ ] Write the brief from the template below. Quote each paid step (free: `higgsfield generate cost <model> ...` or MCP `get_cost: true`); the user approves the model and sets the credit cap in chat.
+3. [ ] `ccx task add -Id <ID> -Title <t> -Type media-generate -Class normal -Risk low -Owner codex -Owns media-out/higgsfield/<p>/ -CreditCap <cap> -TaskFile media-out/higgsfield/<p>/<ID>.md`
+4. [ ] `ccx gate -Action paid-action -Target <ID> -TaskId <ID> -Reason "<model>, cap <cap>"`, then `ccx approve -Id <A-n> -Chat -Quote "<the user's words naming the model and cap>"`. Record it right before the dispatch: approvals expire after `approvalTtlMinutes` (re-ask after that) and each dispatch consumes one.
+5. [ ] While Codex's sandbox cannot start processes (FRICTION.md), also `ccx gate -Action codex-full-access -Target <ID> -TaskId <ID>` with its own approval, and dispatch with `-Sandbox danger-full-access`.
+6. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> [-Sandbox danger-full-access]`, in the background. Exit 10 means an approval is missing; none was consumed.
+7. [ ] Draft and final are separate dispatches: the final runs only after the draft passes review, under a new paid-action approval within the same cap.
+
+A `media-edit` task skips the quote, step 4 and the cap: `-Type media-edit`, no `-CreditCap`.
+
+### Brief template
+```text
+# <ID>: <one-line goal>
+Follow HANDOFF.md, Media task: Media-maker instruction (it takes precedence over the Implementer instruction for this task).
+Goal: <what the clip shows and what it is for>
+Project: <slug> (the only write location: media-out/higgsfield/<slug>/)
+References: <file paths or Higgsfield job/upload ids; consent for any face>
+Settings: <model, mode, aspect, resolution, duration, audio; draft or final>
+Prompt: <verbatim, with timed beats: 0-2s: ...>
+Beats: <what must be on screen when>
+Sound: <cues, or none>
+Exclusions: <never show, never upload>
+Credit cap: <n> credits for this task; paid-action approval <A-n>
+Done When:
+- [Codex] <deliverables>, every job logged with -Task <ID>, Media report
+- [Claude] Media review; ccx verify; task review; task done
+```
+
+### Media-maker instruction (Codex)
+```text
+Make the media the task file describes. Claude owns intake, approvals, review, commits and delivery.
+1. Read AGENTS.md (the Higgsfield paragraphs), the task file and the playbook (powershell -NoProfile -ExecutionPolicy Bypass -File scripts/higgsfield.ps1 show). For media-generate, also run `higgsfield account status` and `scripts/higgsfield.ps1 summary -Project <p> -Budget <cap> -Task <ID>`, and note the starting credits; a media-edit task makes no Higgsfield calls.
+2. Stop with Status BLOCKED, before any paid call, when an input is missing or, for media-generate, the CLI is missing or not signed in, the network fails, or the task file has no credit cap or approval id. Never ask the user, never run `higgsfield auth` commands, never install anything.
+3. Before every paid call: quote it with `higgsfield generate cost <model> <same flags>` (free), then run `scripts/higgsfield.ps1 summary -Project <p> -Budget <cap> -Task <ID> -Next <quote>`. Exit 1 means the call would exceed the cap: stop and report. Never raise a cap or switch models to fit one.
+4. Drafts first: `--draft true` where the model offers it, else the lowest resolution, one output. Produce only what the task file asks for in this dispatch; a final needs its own dispatch.
+5. Regenerate only a failed shot, with a plain-English correction, at most once per dispatch.
+6. Pass job or upload ids for existing media. Upload only files the task file names; never private data or faces of people who have not agreed.
+7. Generate with `--wait --json`. Download every result into the project folder (curl.exe -L -o media-out/higgsfield/<p>/<name> <url>); never overwrite a file.
+8. One ledger line per job, with the charged credits: scripts/higgsfield.ps1 log -Project <p> -Task <ID> -Kind image|video|audio|upscale|other -Model <m> -Credits <n> -Job <id> -File <path> -Prompt "<short>".
+9. Edits (cuts, sound mix, end cards): ffmpeg into new files in the project folder; never modify the source files.
+10. Never publish, post, share, deploy, delete Higgsfield assets, or change the workspace or plan. The CLI's higgsfield-* skills are reference material; this instruction wins where they differ.
+11. ffprobe each deliverable (ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact <file>), check each beat against the task file, run `higgsfield account status` again (media-generate), and reply with the Media report format.
+```
+
+### Media report format
+```text
+Status: READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED
+Task / start HEAD: <ID> / <sha>
+Jobs: <job id> | <model> | <key settings> | <credits> | <file>   (one line per job)
+Credits: task total <n> of cap <cap>; account <start> -> <end>
+Deliverables: <file> | <ffprobe line>
+Beats: <beat> - PASS|FAIL - <what is on screen then>
+Decisions/deviations: <none or what and why>
+UNKNOWN / CHECKED / NEEDED: <or none>
+```
+
+### Media review (Claude, after return)
+1. Match the report to the brief and the ledger (`scripts/higgsfield.ps1 summary -Project <p> -Task <ID>`). Reconcile with `higgsfield account transactions` (or MCP `transactions`): every spend during the run must be in the ledger.
+2. `ffprobe` each deliverable: resolution, duration and audio as briefed.
+3. Contact sheet over the whole clip: `ffmpeg -v error -i <file> -vf "fps=12/<duration in s>,scale=320:-1,tile=4x3" -frames:v 1 <new png in the project folder>` (12 frames spread over the duration ffprobe reports); check beats in order, likeness to the reference and artefacts. The `video-expert` agent can do steps 2-4.
+4. When sound matters, `video_watch` (the audio goes to Google's Gemini API; never for private recordings).
+5. Accept: `ccx verify -TaskId <ID>`, `ccx task review -Id <ID> -Result pass -By claude`, `ccx task done -Id <ID>`, then give the user the file path. Otherwise write specific fix notes (shot, time, change) for a new dispatch under a new approval; at most two review cycles, then decide on evidence or ask the user.
+6. Record lessons in `.claude/skills/higgsfield/playbook.md` and friction in FRICTION.md.
+
 ## Optional external-tool trial
 
-Optional field in either agent's task/handoff: `tool: none|gjc|claw|claude-red|generate|omo`. Default `none`. Gajae-Code (`gjc`), Claw-Code (`claw`), Claude-Red and Generate (`generate`, paid: needs user approval of the quote) are shared; `omo` selects the Codex-only runtime (Claude may invoke the optional Codex wrapper within authorized dispatch scope). Select manually using the mirrored External Tools section of AGENTS.md and CLAUDE.md. This field is descriptive metadata, not a ccx parser option, approval, route or dependency. ccx alone approves done.
+Optional field in either agent's task/handoff: `tool: none|gjc|claw|claude-red|generate|higgsfield|omo`. Default `none`. Gajae-Code (`gjc`), Claw-Code (`claw`), Claude-Red, Generate (`generate`, paid: needs user approval of the quote) and Higgsfield (`higgsfield`, paid: needs the paid-action gate; see Media task) are shared; `omo` selects the Codex-only runtime (Claude may invoke the optional Codex wrapper within authorized dispatch scope). Select manually using the mirrored External Tools section of AGENTS.md and CLAUDE.md. This field is descriptive metadata, not a ccx parser option, approval, route or dependency. ccx alone approves done.
 
 Before selecting an enhancement, run the optional provider-free `scripts/check-external-tools.ps1 -Inventory` (or `-Json`) inventory; the existing default strict checker remains unchanged. Use [EXTERNAL-TOOLS.md's upcoming-task runbook and brief](EXTERNAL-TOOLS.md#using-tools-on-the-next-task) for the goal, worktree, file allowlist, time/cost limit, capture and fallback. An unavailable tool means use `tool: none`, not a blocked ccx task. One-time `scripts/connect-claw.ps1` private user-console setup saves a Windows-user-encrypted login outside Git; both agents load it through `scripts/claw.ps1`. The older temporary setup window does not provide credentials to other processes. Never read the saved credential file or put a key in a task, command argument, report or capture.
 

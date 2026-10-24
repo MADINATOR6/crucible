@@ -79,6 +79,20 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 - `std` mode is needed for 1080p/4k; `fast` allows 480p/720p only. A 4 s fast clip took about 3 minutes; poll `jobs_wait` sparingly (`type` reads `image` for videos, ignore it).
 - Total matched the balance drop (574 to 569) and `higgsfield.ps1 summary` (5.0).
 
+## Verified on the live account (2026-10-24 poodle test, 162.75 credits)
+
+- Character from a pet photo: `gpt_image_2_5` with the photo as `image_references` gave a 3D first frame that kept the likeness (2.75 credits; quality high, 2k, 9:16).
+- Video: `seedance_2_5` with `mode: omni_reference`, that frame as `start_image` and timed beats in the prompt (`0-2s: ...`) hit every beat; `generate_audio: true` produced a sound track. Quotes for 10 s 9:16: 1080p 160, 720p 70; `kling3_0` pro 25.
+- Higgsfield may answer a generate call with a preset suggestion instead of a job. Re-send with `declined_preset_id` when the preset does not fit the brief.
+- MCP upload: the presigned PUT needs the headers `Content-Type` and `If-None-Match: *`, then `media_confirm`. The CLI uploads local paths passed to media flags by itself.
+- Seedance 2.5 (checked 2026-10-25): `draft: true` renders 480p and can be finalized at 1080p with `draft_job_id` within seven days; duration 4-30 s; `generate_audio` defaults on. CLI quotes for 5 s 9:16 with audio: draft 15, 720p 35, 1080p 80.
+
+## CLI equivalents (Codex media tasks)
+
+- Quote: `higgsfield generate cost <model> <flags>` creates no job, but it uploads local paths given to media flags, so quote with job or upload ids. Balance: `higgsfield account status`. Spend history: `higgsfield account transactions`.
+- Generate: `higgsfield generate create <model> --prompt "..." [--start-image|--image <path-or-id>] [--param value]... --wait --json`. Params use the model's schema names (`higgsfield model get <model> --json`), for example `--mode omni_reference --duration 5 --aspect_ratio 9:16 --resolution 480p --draft true --generate_audio true`.
+- A previous job id works as a media input, so a saved character frame is reused without a new upload.
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.
