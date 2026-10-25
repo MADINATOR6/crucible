@@ -132,6 +132,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   unit: 'kg', theme: 'system', barByUnit: {}, customBar: {}, plateMode: 'calibrated', plateMeasured: { kg: {}, lb: {} }, collar: true, plateCounts: null, programmeStart: null, blockStarts: {},
   dayWeekdays: { 1: 1, 2: 2, 3: 4, 4: 5 },
   keepAwake: true, vibrate: true, lastBackupAt: null, backupSnoozeUntil: null,
+  meetDate: null, sex: null, // optional: projection to meet day, and the IPF GL category (male/female)
 });
 
 /** Whitelist and coerce settings (never trust stored or restored values). */
@@ -139,7 +140,8 @@ export function sanitizeSettings(s) {
   const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays } };
   if (!isObj(s)) return out;
   for (const k of ['keepAwake', 'vibrate']) if (typeof s[k] === 'boolean') out[k] = s[k];
-  for (const k of ['lastBackupAt', 'backupSnoozeUntil']) if (isStrictDate(s[k])) out[k] = s[k];
+  for (const k of ['lastBackupAt', 'backupSnoozeUntil', 'meetDate']) if (isStrictDate(s[k])) out[k] = s[k];
+  if (s.sex === 'male' || s.sex === 'female') out.sex = s.sex;
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;
   if (['system', 'dark', 'light'].includes(s.theme)) out.theme = s.theme;
   out.collar = s.collar !== false;

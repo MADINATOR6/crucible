@@ -14,7 +14,7 @@ lifting-tracker/
   index.html, manifest.webmanifest, sw.js      app shell (PWA)
   styles/                                      design tokens, components
   src/
-    core/      units.js e1rm.js prs.js sets.js weeks.js muscles.js schedule.js   pure logic, no DOM, no storage
+    core/      units.js e1rm.js prs.js sets.js weeks.js muscles.js schedule.js progress.js   pure logic, no DOM, no storage
     plates/    loading.js                                                         pure plate maths
     import/    xlsx.js programme.js report.js                                     workbook -> programme JSON
     store/     db.js backup.js                                                    IndexedDB + JSON backup/restore
@@ -25,6 +25,8 @@ lifting-tracker/
   test/        *.test.js, helpers/                                                node --test
   private/     (gitignored) real imported data, never committed
 ```
+Progress statistics (`core/progress.js`): a set's estimated max comes from the RPE chart when it has an RPE, Epley otherwise; a session's point is its best set; light days (top set under RPE 7, or no RPE and under 90% of the best of the previous six weeks) are drawn faded and left out of trends. The kg/week figure and the drawn line are both Theil-Sen (median of pairwise slopes), so one odd day cannot tilt them. The meet-day range is the trend plus a prediction interval from the median absolute deviation of residuals, roughly 90%. It is shown only when the meet is no further ahead than 1.5 times the trend's span (4 weeks minimum) and the range is within ±8%. IPF GL points use the IPF's 2020 classic coefficients.
+
 Dependency rule: `core` and `plates` import only `units.js` and `data/*.json` (passed in as arguments, not fetched). `import` imports `core/units.js` only. `ui` and `store` import everything else. Nothing in `core`, `plates` or `import` touches the DOM, `localStorage` or IndexedDB.
 
 ## 3D muscle map

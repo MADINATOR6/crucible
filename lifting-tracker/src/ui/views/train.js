@@ -149,7 +149,7 @@ export function trainView(app, ui) {
         sticky.classList.toggle('is-visible', !e.isIntersecting);
       });
       watch.observe(cardAction);
-    } else sticky?.classList.add('is-visible');
+    } else sticky?.classList?.add('is-visible');
     root.querySelector('#backup-now')?.addEventListener('click', (e) => guarded(e.currentTarget, () => saveBackup(app, true)));
     root.querySelector('#backup-later')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.saveSettings({ backupSnoozeUntil: addDays(todayIso(), 3) })));
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
