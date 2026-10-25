@@ -9,7 +9,8 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `h2`, `h3`: section and item headings, sentence case.
 - `.muted`, `.small`, `.num` (tabular digits), `.nowrap`, `.visually-hidden`.
 - `.figure` (big number, with an optional `<small>` unit). `.figure.series` inside an `.s-squat`/`.s-bench`/`.s-deadlift`/`.s-total`/`.s-bw` element takes that series colour.
-- `.tone-good`, `.tone-warn`, `.tone-muted`: colour for small signed values (for example RPE deltas).
+- `.tone-good`, `.tone-warn`, `.tone-bad`, `.tone-muted`: colour for small signed values (for example RPE deltas) and short warnings.
+- `.center` (centred text), `ul.bullets` (short bulleted list with a small indent), `.panel` (bordered box inside a card).
 
 ## Page structure
 - `.topbar`: page title row (title block on the left, actions on the right).
@@ -17,10 +18,12 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.card`, `.card-h` (card title row), `.empty` (empty state).
 - `.stack` (vertical gap 12 px), `.stack.tight` (8 px), `.stack.loose` (20 px).
 - `.grid`, `.grid.cols-2`, `.grid.cols-3` (stack on phones), `.grid-3` (three columns on phones too), `.row`, `.row.spread`.
-- Margins: `.mt-2`, `.mt-3`, `.mt-4`, `.mt-6`, `.mb-0`, `.mb-3`, `.mb-4`.
+- Margins: `.mt-2`, `.mt-3`, `.mt-4`, `.mt-6`, `.mb-0`, `.mb-2`, `.mb-3`, `.mb-4`.
 
 ## Controls
-- `.btn`, `.btn.primary`, `.btn.ghost`, `.btn.small`.
+- `.btn`, `.btn.primary`, `.btn.ghost`, `.btn.small`, `.btn.danger` (destructive: delete, wipe). A `label.btn` wrapping a hidden file input needs no extra style.
+- `.input-narrow`: a 92 px number input inside a table cell.
+- `.banner.block`: a banner whose content stacks (heading plus a list) instead of sitting in one row.
 - `.seg` with `<button aria-pressed>` children (segmented control).
 - `.chip` with `aria-pressed` inside `.chips` (sideways-scrolling choices).
 - `.filters`: one compact row of `.seg` and `<select>` controls; wraps onto a second line when narrow.
@@ -42,5 +45,5 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - 3D map: `.hm3d` (sized box for the canvas, made by `heatmap3d.js`), `.hm3d-status` (loading line), `.hm3d-tip` (the hint or the selected muscle's count, over the bottom of the canvas).
 - Charts: `figure.chart-wrap` (set its height with `style="--chart-h:Npx"`) > `.chart-y` (y labels: `<span style="top:N%">`), `svg.chart-plot` (`viewBox="0 0 100 100" preserveAspectRatio="none"`; children `.grid-line`, `.line`, `.area`, `.dot` drawn as a zero-length path `M x y h0`, all with `vector-effect="non-scaling-stroke"` except `.area`), `.chart-x` (x labels: `<span style="left:N%">`, first `.start`, last `.end`), then `.legend`. Series groups `.s-squat`, `.s-bench`, `.s-deadlift`, `.s-total`, `.s-bw`. These positional `top`/`left`/`--chart-h` styles are allowed in `charts.js` only. The older `.chart` class stays for any SVG chart not yet moved.
 - Barbell and plates: `.bb-*`, `.plate-*`, `.loading-text`. 3D bar: `.bb3d` (canvas box inside `.bb-stage`, made by `barbell3d.js`), `.bb3d-status`, `.bb3d-tip` (same look as the 3D map's).
-- Coach review: `.coach-headline`, `.coach-find`, `.sev-high`, `.sev-medium`, `.sev-good`.
+- Coach review: `.coach-headline`, `.coach-find`, `.sev-high`, `.sev-medium`, `.sev-good`. `details.coach-find` folds a finding to one line: `<summary>` holds the title and its `.pill`; the evidence, "Do this", confidence and action button follow inside the `details`.
 - Sheets and toasts: created by `openSheet()` and `toast()` in `src/ui/dom.js`; don't build them by hand.

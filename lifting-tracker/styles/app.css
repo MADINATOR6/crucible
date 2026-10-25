@@ -456,6 +456,25 @@ input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--accent)
 .hm3d canvas { display: block; cursor: grab; outline: none; }
 .hm3d canvas:active { cursor: grabbing; }
 .hm3d-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; }
+/* ---------- Plates, Data, Plan and meet planner (phase 4) ---------- */
+.tone-bad { color: var(--bad); }
+.center { text-align: center; }
+.mb-2 { margin-bottom: var(--s-2); }
+.btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 60%, var(--line)); background: transparent; }
+.btn.danger:hover { background: color-mix(in srgb, var(--bad) 10%, transparent); }
+ul.bullets { margin: var(--s-2) 0 0; padding-left: 18px; }
+ul.bullets li + li { margin-top: 2px; }
+.panel { margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: 12px; }
+.input-narrow { width: 92px; min-height: 38px; }
+.banner.block { display: block; }
+/* Coach findings fold to one line: title and severity pill; the details open underneath. */
+details.coach-find > summary { list-style: none; display: flex; align-items: center; gap: var(--s-2); min-height: 28px; cursor: pointer; font-weight: 650; }
+details.coach-find > summary::-webkit-details-marker { display: none; }
+details.coach-find > summary .pill { margin-left: auto; flex: none; }
+details.coach-find > summary::after { content: '▾'; color: var(--muted); transition: transform .15s ease; }
+details.coach-find[open] > summary { margin-bottom: var(--s-2); }
+details.coach-find[open] > summary::after { transform: rotate(180deg); }
+
 .bb3d { position: relative; height: clamp(320px, 52vh, 460px); margin: -14px -8px -8px; } /* fills the stage edge to edge */
 .bb3d canvas { display: block; cursor: grab; outline: none; }
 .bb3d canvas:active { cursor: grabbing; }
