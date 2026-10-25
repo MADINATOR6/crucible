@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bandFor, fmtSets, renderHeatmap, BANDS, MUSCLE_LABELS } from '../../src/ui/heatmap.js';
+import { bandFor, fmtSets, renderHeatmap, renderLegend, BANDS, MUSCLE_LABELS } from '../../src/ui/heatmap.js';
 import { lineChart, movingAverage } from '../../src/ui/charts.js';
 
 test('band boundaries', () => {
@@ -32,4 +32,33 @@ test('line chart handles empty, single-point and flat series', () => {
 test('moving average uses the previous N points', () => {
   const out = movingAverage([{ x: '2026-01-03', y: 30 }, { x: '2026-01-01', y: 10 }, { x: '2026-01-02', y: 20 }], 2);
   assert.deepEqual(out.map((p) => p.y), [10, 15, 25]);
+});
+
+test('heat map crops the body and keeps readable, separate pills on both views', () => {
+  const data = Object.fromEntries(Object.keys(MUSCLE_LABELS).map((id) => [id, 99.5]));
+  const html = renderHeatmap(data);
+  for (const svg of html.matchAll(/<svg\b[^>]*viewBox="([\d. ]+)"[^>]*>([\s\S]*?)<\/svg>/g)) {
+    const [x, y, width, height] = svg[1].split(' ').map(Number);
+    assert.ok(width <= 150 && x >= 38 && x <= 44 && x + width >= 176 && x + width <= 182);
+    assert.ok(y >= 2 && y <= 8 && y + height >= 472 && y + height <= 478);
+    const pills = [...svg[2].matchAll(/<g class="hm-pill"[\s\S]*?<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[\s\S]*?font-size="([\d.]+)"/g)].map((m) => m.slice(1).map(Number));
+    assert.ok(pills.length);
+    for (const [i, [px, py, w, h, font]] of pills.entries()) {
+      assert.ok(font * 300 / width >= 11, 'font at 300 CSS px wide');
+      for (const [qx, qy, qw, qh] of pills.slice(i + 1)) {
+        assert.ok(px + w <= qx || qx + qw <= px || py + h <= qy || qy + qh <= py, 'pills do not overlap');
+      }
+    }
+  }
+  assert.equal((html.match(/viewBox="38 2 144 476"/g) || []).length, 2);
+});
+
+test('legend keeps all six bands and their hints', () => {
+  const html = renderLegend();
+  assert.equal((html.match(/<li>/g) || []).length, 6);
+  for (const b of BANDS) {
+    assert.ok(html.includes(`band-${b.id}`));
+    assert.ok(html.includes(b.label));
+    assert.ok(html.includes(b.hint));
+  }
 });
