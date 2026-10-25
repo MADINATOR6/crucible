@@ -6,10 +6,40 @@ import { renderBarbell } from '../barbell.js';
 import { describeLoad, plateConfig } from './plates.js';
 import { warmupLadder } from '../../plates/loading.js';
 import { startRest, suggestedRest } from '../rest-timer.js';
+import { backupReminder } from '../../store/backup.js';
+import { addDays } from '../../core/weeks.js';
+import { saveBackup } from './data.js';
 
 const repsText = (s) => (s.repsMin == null ? (s.repsRaw ? esc(s.repsRaw) : '–') : s.repsMin === s.repsMax ? String(s.repsMin) : `${s.repsMin}–${s.repsMax}`);
 const sameDay = (a, b) => !!a && !!b && a.blockNumber === b.blockNumber && a.weekNumber === b.weekNumber && a.dayNumber === b.dayNumber;
 const shortDate = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+
+function keepScreenAwake(root, app) {
+  if (!app.settings.keepAwake || !navigator.wakeLock) return;
+  const header = root.querySelector('.train-top');
+  let lock = null, pending = false, left = false;
+  const active = () => !left && root.contains(header) && app.settings.keepAwake;
+  const release = () => { lock?.release().catch(() => {}); lock = null; };
+  const request = async () => {
+    if (!active() || document.visibilityState !== 'visible' || pending || (lock && !lock.released)) return;
+    pending = true;
+    try {
+      const acquired = await navigator.wakeLock.request('screen');
+      if (active() && document.visibilityState === 'visible') lock = acquired;
+      else await acquired.release();
+    } catch { /* unsupported or refused */ }
+    finally { pending = false; }
+  };
+  const observer = new MutationObserver(() => {
+    if (active()) return;
+    left = true; observer.disconnect();
+    document.removeEventListener('visibilitychange', request);
+    release();
+  });
+  observer.observe(root, { childList: true });
+  document.addEventListener('visibilitychange', request);
+  request();
+}
 
 function pickDefaults(app, ui) {
   const blocks = [...app.programme.blocks].sort((a, b) => a.number - b.number);
@@ -51,6 +81,8 @@ export function trainView(app, ui) {
   const next = app.nextSession?.();
   const label = sameDay(next, dayRef) ? (est === todayIso() ? 'Today' : 'Next up') : est && est < todayIso() ? 'Earlier session' : 'Session';
   const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+  const loggedSessionIds = new Set(app.sets.map((s) => s.sessionId));
+  const reminder = backupReminder({ ...app.settings, today: todayIso(), loggedDates: app.sessions.filter((s) => loggedSessionIds.has(s.id)).map((s) => s.date) });
 
   const header = `
     <div class="topbar train-top">
@@ -63,6 +95,7 @@ export function trainView(app, ui) {
       </div>
       <button class="btn small" id="quick" aria-label="Quick log a set outside the programme">+ Log</button>
     </div>
+    ${!app.usingExample && reminder.due ? `<div class="banner mb-4"><span>${reminder.sessions} sessions since your last backup${app.settings.lastBackupAt ? '.' : ', and no backup yet.'}</span><div class="actions"><button class="btn small primary" id="backup-now">Back up</button><button class="btn small ghost" id="backup-later">Later</button></div></div>` : ''}
     ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small primary" href="#data">Import</a></div>` : ''}
     ${day ? `<div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
@@ -91,6 +124,9 @@ export function trainView(app, ui) {
   body += `<a class="btn ghost plan-link mt-4" href="#plan">Plan the next block →</a>`;
 
   function bind(root, rerender) {
+    keepScreenAwake(root, app);
+    root.querySelector('#backup-now')?.addEventListener('click', (e) => guarded(e.currentTarget, () => saveBackup(app, true)));
+    root.querySelector('#backup-later')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.saveSettings({ backupSnoozeUntil: addDays(todayIso(), 3) })));
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
     root.querySelector('#pick')?.addEventListener('click', () => openDayPicker(app, ui, blocks, rerender));
     root.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', () => {
@@ -103,11 +139,12 @@ export function trainView(app, ui) {
       guarded(b, async () => {
         try {
           const r = await app.logAsPlanned({ programmeRef: dayRef, plannedRef: { entryIndex: ei, setIndex: si } });
+          try { if (app.settings.vibrate) navigator.vibrate?.(30); } catch { /* not supported */ }
           toast(r.newPRs.length ? `New PR! ${r.newPRs.map((x) => prLabel(x, unit)).join(', ')}` : `Set ${si + 1} done as planned`, 8000,
             { label: 'Undo', onClick: async () => {
               try { await app.deleteSet(r.set.id); toast(`Set ${si + 1} unmarked`); } catch (err) { toast(`Could not undo: ${err?.message || err}. Open the set to remove it.`, 5000); }
             } });
-          startRest(suggestedRest(app.exercise(day.entries[ei].exerciseId)));
+          startRest(suggestedRest(app.exercise(day.entries[ei].exerciseId)), { vibrate: app.settings.vibrate });
         } catch (err) {
           // No planned weight or reps: the set needs the full form.
           if (err instanceof RangeError) openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si }); else throw err;
@@ -233,7 +270,7 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     sheet.close();
     toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
-    startRest(suggestedRest(app.exercise(entry.exerciseId)));
+    startRest(suggestedRest(app.exercise(entry.exerciseId)), { vibrate: app.settings.vibrate });
   }));
 }
 
@@ -270,7 +307,7 @@ function openQuickLog(app) {
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     sheet.close();
     toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
-    if (!q('#wu')?.checked) startRest(suggestedRest(app.exercise(q('#ex')?.value)));
+    if (!q('#wu')?.checked) startRest(suggestedRest(app.exercise(q('#ex')?.value)), { vibrate: app.settings.vibrate });
   }));
 }
 

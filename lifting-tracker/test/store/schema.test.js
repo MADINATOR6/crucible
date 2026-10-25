@@ -74,6 +74,16 @@ test('non-programmes are rejected and oversized lists are capped', () => {
   assert.equal(sanitizeProgramme(big).blocks.length, 100);
 });
 
+test('training and backup settings default, validate and preserve valid values', () => {
+  const fields = (s) => [s.keepAwake, s.vibrate, s.lastBackupAt, s.backupSnoozeUntil];
+  assert.deepEqual(fields(sanitizeSettings({})), [true, true, null, null]);
+  assert.deepEqual(fields(sanitizeSettings({ keepAwake: false, vibrate: false, lastBackupAt: '2026-10-01', backupSnoozeUntil: '2026-10-04' })), [false, false, '2026-10-01', '2026-10-04']);
+  assert.deepEqual(fields(sanitizeSettings({ keepAwake: true, vibrate: true, lastBackupAt: null, backupSnoozeUntil: null })), [true, true, null, null]);
+  for (const value of ['false', 0, {}, '2026-02-30', '2026-10-01T00:00:00Z']) {
+    assert.deepEqual(fields(sanitizeSettings({ keepAwake: value, vibrate: value, lastBackupAt: value, backupSnoozeUntil: value })), [true, true, null, null]);
+  }
+});
+
 test('settings are whitelisted and coerced', () => {
   const s = sanitizeSettings({ unit: XSS, theme: 'neon', collar: 'yes', blockStarts: { 1: 'bad', 2: '2026-02-30', 3: '2026-03-02', x: '2026-03-02' }, dayWeekdays: { 1: 1.5, 2: 9, 3: 4 },
     programmeStart: '2026-13-01', barByUnit: { kg: XSS, lb: 'lb45' }, customBar: { kg: -5, lb: 12.5 }, plateCounts: { kg: { 25: 8, 20: -1, x: 4, 15: 1.5 } }, __proto__: { evil: 1 }, evil: 1 });
