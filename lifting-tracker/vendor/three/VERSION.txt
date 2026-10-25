@@ -1,0 +1,9 @@
+three 0.170.0
+Source: https://registry.npmjs.org/three/-/three-0.170.0.tgz
+Integrity: sha512-FQK+LEpYc0fBD+J8g6oSEyyNzjp+Q7Ks1C568WWaoMRLW+TkNNWmenWeGgJjV105Gd+p/2ql1ZcjYvNiPZBhuQ==
+Files:
+build/three.module.min.js
+examples/jsm/loaders/GLTFLoader.js
+examples/jsm/utils/BufferGeometryUtils.js
+examples/jsm/controls/OrbitControls.js
+LICENSE

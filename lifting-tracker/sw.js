@@ -1,6 +1,6 @@
 // Offline cache. Cache-first for the app shell and data catalogues; bump VERSION when files change.
 // Only same-origin GET requests are handled; nothing is ever sent to another site.
-const VERSION = 'lt-v1';
+const VERSION = 'lt-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'styles/app.css',
   'data/exercises.json', 'data/plates.json',
@@ -9,6 +9,11 @@ const SHELL = [
   'src/core/units.js', 'src/core/e1rm.js', 'src/core/sets.js', 'src/core/prs.js', 'src/core/weeks.js', 'src/core/muscles.js', 'src/core/schedule.js', 'src/core/lifts.js', 'src/core/rpe.js', 'src/core/attempts.js', 'src/core/rpe-chart.js',
   'src/plates/loading.js', 'src/plates/tolerance.js', 'src/core/coach.js', 'src/core/request.js', 'src/core/generator.js', 'src/core/athlete.js', 'src/core/template.js', 'src/import/xlsx.js', 'src/import/programme.js', 'src/store/db.js', 'src/store/backup.js', 'src/store/programme-schema.js',
   'src/core/session.js',
+  'src/ui/heatmap3d.js', 'assets/body.glb',
+  'vendor/three/build/three.module.min.js',
+  'vendor/three/examples/jsm/loaders/GLTFLoader.js',
+  'vendor/three/examples/jsm/utils/BufferGeometryUtils.js',
+  'vendor/three/examples/jsm/controls/OrbitControls.js',
 ];
 
 self.addEventListener('install', (e) => {
