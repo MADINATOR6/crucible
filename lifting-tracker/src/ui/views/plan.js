@@ -136,30 +136,35 @@ export function planView(app, ui) {
   const generatedBlocks = app.programme.blocks.filter((b) => b.generated);
   const focusInfo = FOCI.find((f) => f.id === p.focus);
 
+  const settingsSummary = [
+    p.weeks ? `${p.weeks} weeks` : '', p.days ? `${p.days} days/week` : '',
+    p.progression !== 'standard' ? p.progression : '',
+    p.rotate != null ? ({ 0: 'keep my exercises', 0.3: 'change a few', 0.7: 'change lots' })[p.rotate] : '',
+    p.stance !== 'auto' ? p.stance : '', p.deloadWeek !== 'auto' ? `deload: ${p.deloadWeek}` : '',
+    p.focus === 'specialise' ? p.emphasis : '', p.focus === 'return' ? `${p.layoffWeeks} weeks off` : '',
+    p.focus === 'maintenance' ? (p.checkIn ? 'heavy single check-in' : 'no check-in') : '',
+  ].filter(Boolean);
   const liftRows = LIFTS.map((f) => {
     const l = athlete.lifts[f] || {};
-    return `<tr><td><b>${f[0].toUpperCase() + f.slice(1)}</b>${f === 'deadlift' && l.stance ? ` <span class="muted small">(${l.stance})</span>` : ''}</td>
+    return `<tr><td><b>${f[0].toUpperCase() + f.slice(1)}</b>${f === 'deadlift' && l.stance ? ` <span class="muted small">(${l.stance})</span>` : ''}<br><small class="muted">${esc(l.basis || '')}</small></td>
       <td class="num">${l.e1rmKg != null ? formatWeight({ value: l.e1rmKg, unit: 'kg' }, unit) : '–'}</td>
       <td><span class="pill ${l.confidence === 'high' ? 'pr' : ''}">${esc(l.confidence || 'none')}</span></td>
-      <td class="small muted">${esc(l.basis || '')}</td>
-      <td><input type="number" inputmode="decimal" step="0.5" min="0" data-ovr="${f}" value="${p.overrides[f] ? round1(convert(p.overrides[f].value, p.overrides[f].unit, unit)) : ''}" placeholder="${l.e1rmKg != null ? round1(convert(l.e1rmKg, 'kg', unit)) : ''}" aria-label="Enter your own ${f} e1RM in ${unit}" style="min-height:38px;width:92px"></td></tr>`;
+      <td><input type="number" inputmode="decimal" step="0.5" min="0" data-ovr="${f}" value="${p.overrides[f] ? round1(convert(p.overrides[f].value, p.overrides[f].unit, unit)) : ''}" placeholder="${l.e1rmKg != null ? round1(convert(l.e1rmKg, 'kg', unit)) : ''}" aria-label="Enter your own ${f} e1RM in ${unit}" class="input-narrow"></td></tr>`;
   }).join('');
 
   const html = `
     <div class="topbar"><div><h1>Plan</h1><p class="muted small">Tell me what you need. I build the next block from your recent training: same shape as your last block, new numbers.</p></div></div>
 
     ${coachCard(review, p)}
-    <div class="card" style="margin-top:14px">
+    <div class="card mt-4">
       <div class="card-h"><h2>What do you need?</h2></div>
-      <form id="ask" class="row" style="align-items:end"><label class="field" style="flex:1;min-width:220px"><span>In your own words</span><input id="ask-text" value="${esc(p.text)}" placeholder='e.g. "maintenance block, 3 days a week for 4 weeks"' autocomplete="off"></label><button class="btn primary" type="submit">Understand</button></form>
-      ${p.understood ? `<div class="small" style="margin-top:10px"><b>${esc(p.understood.summary || 'Here is what I understood')}</b>${p.understood.understood.length ? '<ul style="margin:6px 0 0;padding-left:18px">' + p.understood.understood.map((u) => `<li>${esc(u.key)}: <b>${esc(String(u.value))}</b> <span class="muted">(${esc(u.because)})</span></li>`).join('') + '</ul>' : ''}${p.understood.unclear.map((u) => `<p style="color:var(--warn);margin:6px 0 0">${esc(u)}</p>`).join('')}</div>` : ''}
-      <div class="chips" style="margin-top:12px" role="group" aria-label="Quick goals">${FOCI.map((f) => `<button class="chip" data-focus="${f.id}" aria-pressed="${p.focus === f.id}" title="${esc(f.blurb)}">${esc(f.label)}</button>`).join('')}</div>
+      <form id="ask" class="row end"><label class="field grow"><span>In your own words</span><input id="ask-text" value="${esc(p.text)}" placeholder='e.g. "maintenance block, 3 days a week for 4 weeks"' autocomplete="off"></label><button class="btn primary" type="submit">Understand</button></form>
+      ${p.understood ? `<div class="small mt-3"><b>${esc(p.understood.summary || 'Here is what I understood')}</b>${p.understood.understood.length ? '<ul class="mt-2 bullets">' + p.understood.understood.map((u) => `<li>${esc(u.key)}: <b>${esc(String(u.value))}</b> <span class="muted">(${esc(u.because)})</span></li>`).join('') + '</ul>' : ''}${p.understood.unclear.map((u) => `<p class="tone-warn mt-2">${esc(u)}</p>`).join('')}</div>` : ''}
+      <div class="chips mt-3" role="group" aria-label="Quick goals">${FOCI.map((f) => `<button class="chip" data-focus="${f.id}" aria-pressed="${p.focus === f.id}" title="${esc(f.blurb)}">${esc(f.label)}</button>`).join('')}</div>
       <p class="small muted">${esc(focusInfo?.blurb || '')}</p>
-    </div>
-
-    <div class="card" style="margin-top:14px">
-      <div class="card-h"><h2>Settings</h2><span class="muted small">leave blank to let the app choose</span></div>
-      <div class="grid cols-3">
+      <details class="options mt-3"><summary>Settings · ${esc(settingsSummary.join(', ') || 'all automatic')}</summary><div class="options-body">
+      <span class="muted small">leave blank to let the app choose</span>
+      <div class="grid cols-2">
         <label class="field"><span>Weeks (3-8)</span><input id="p-weeks" type="number" min="3" max="8" step="1" value="${esc(p.weeks ?? '')}" placeholder="auto"></label>
         <label class="field"><span>Days per week</span><input id="p-days" type="number" min="1" max="7" step="1" value="${esc(p.days ?? '')}" placeholder="auto (${template.daysPerWeek} in your last block)"></label>
         <label class="field"><span>Progression</span><select id="p-prog">${['conservative', 'standard', 'aggressive'].map((x) => `<option ${p.progression === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
@@ -168,21 +173,21 @@ export function planView(app, ui) {
         <label class="field"><span>Deload week</span><select id="p-deload">${['auto', 'none', 'last', 'all'].map((x) => `<option ${p.deloadWeek === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
         ${p.focus === 'specialise' ? `<label class="field"><span>Lift to bring up</span><select id="p-emph">${LIFTS.map((x) => `<option ${p.emphasis === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>` : ''}
         ${p.focus === 'return' ? `<label class="field"><span>Weeks since proper training</span><input id="p-layoff" type="number" min="1" max="52" step="1" value="${esc(p.layoffWeeks)}"></label>` : ''}
-        ${p.focus === 'maintenance' ? `<label class="row" style="align-self:end"><input id="p-checkin" type="checkbox" ${p.checkIn ? 'checked' : ''} style="width:auto;min-height:0"> Heavy single check-in in the last week</label>` : ''}
-      </div>
+        ${p.focus === 'maintenance' ? `<label class="row"><input id="p-checkin" type="checkbox" ${p.checkIn ? 'checked' : ''}> Heavy single check-in in the last week</label>` : ''}
+      </div></div></details>
     </div>
 
-    <div class="card" style="margin-top:14px">
+    <div class="card mt-4">
       <div class="card-h"><h2>What I'm basing it on</h2><span class="muted small">Template: Block ${template.fromBlock} ${esc(template.blockName)}, ${template.daysPerWeek} days</span></div>
-      <div style="overflow-x:auto"><table class="plain"><thead><tr><th>Lift</th><th>Working e1RM</th><th>Confidence</th><th>From</th><th>Use ${esc(unit)}</th></tr></thead><tbody>${liftRows}</tbody></table></div>
-      <p class="small muted" style="margin-top:8px">Estimated from your RPE-rated sets in the last 8 weeks with the RPE chart. If a number looks wrong, type your own in the last column.</p>
-      <div style="margin-top:10px"><button class="btn primary" id="gen">Generate block ${nextBlockNumber(app.programme)}</button></div>
-      ${p.error ? `<p style="color:var(--bad);margin-top:10px">${esc(p.error)}</p>` : ''}
+      <div class="scroll-x"><table class="plain"><thead><tr><th>Lift</th><th>Working e1RM</th><th>Confidence</th><th>Your e1RM (${esc(unit)})</th></tr></thead><tbody>${liftRows}</tbody></table></div>
+      <p class="small muted mt-2">Estimated from your RPE-rated sets in the last 8 weeks with the RPE chart. If a number looks wrong, type your own in the last column.</p>
+      <div class="mt-3"><button class="btn primary" id="gen">Generate block ${nextBlockNumber(app.programme)}</button></div>
+      ${p.error ? `<p class="tone-bad mt-3">${esc(p.error)}</p>` : ''}
     </div>
 
     ${R ? previewHtml(app, p, R, wk, unit) : ''}
 
-    ${generatedBlocks.length ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Your generated blocks</h2></div>${generatedBlocks.map((b) => `<div class="row spread" style="padding:8px 0;border-top:1px solid var(--line)"><span><b>Block ${b.number}</b> ${esc(b.name)} <span class="muted small">${esc(b.generated.focus)}, ${b.weeks.length} weeks</span></span><span class="row"><button class="btn small" data-revise="${b.number}">Re-load remaining weeks</button><button class="btn small ghost" data-remove="${b.number}">Remove</button></span></div>`).join('')}${p.revise ? reviseHtml(p.revise, unit) : ''}</div>` : ''}`;
+    ${generatedBlocks.length ? `<div class="card mt-4"><div class="card-h"><h2>Your generated blocks</h2></div><ol class="list">${generatedBlocks.map((b) => `<li class="list-row"><span class="main"><b>Block ${b.number}</b> ${esc(b.name)} <small>${esc(b.generated.focus)}, ${b.weeks.length} weeks</small></span><span class="row"><button class="btn small" data-revise="${b.number}">Re-load remaining weeks</button><button class="btn small ghost" data-remove="${b.number}">Remove</button></span></li>`).join('')}</ol>${p.revise ? reviseHtml(p.revise, unit) : ''}</div>` : ''}`;
 
   function bind(root, rerender) {
     const set = (patch) => { Object.assign(p, patch); rerender(); };
@@ -306,15 +311,15 @@ export function planView(app, ui) {
 
 const SEV_LABEL = { high: 'Fix first', medium: 'Worth fixing', low: 'Note', good: 'Going well' };
 
-function findingHtml(f, p) {
+function findingHtml(f, p, open = false) {
   const applied = p.applied.includes(f.id);
-  return `<article class="coach-find sev-${f.severity}">
-    <div class="row spread"><b>${esc(f.title)}</b><span class="pill ${f.severity === 'good' ? 'pr' : f.severity === 'high' ? 'accent' : ''}">${esc(SEV_LABEL[f.severity])}</span></div>
-    ${f.because.length ? `<ul class="small muted" style="margin:6px 0 0;padding-left:18px">${f.because.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-    <p style="margin:8px 0 0"><b>Do this:</b> ${esc(f.suggestion)}</p>
-    <div class="row spread" style="margin-top:8px"><span class="small muted">Confidence: ${esc(f.confidence)}</span>
+  return `<details class="coach-find sev-${f.severity}" ${open ? 'open' : ''}>
+    <summary><b>${esc(f.title)}</b><span class="pill ${f.severity === 'good' ? 'pr' : f.severity === 'high' ? 'accent' : ''}">${esc(SEV_LABEL[f.severity])}</span></summary>
+    ${f.because.length ? `<ul class="small muted mt-2 bullets">${f.because.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    <p class="mt-2"><b>Do this:</b> ${esc(f.suggestion)}</p>
+    <div class="row spread mt-2"><span class="small muted">Confidence: ${esc(f.confidence)}</span>
       ${f.action ? `<button class="btn small ${applied ? '' : 'primary'}" data-coach="${esc(f.id)}" aria-pressed="${applied}">${applied ? '✓ In the plan (tap to undo)' : esc(f.action.label)}</button>` : ''}</div>
-  </article>`;
+  </details>`;
 }
 
 function coachCard(review, p) {
@@ -323,10 +328,10 @@ function coachCard(review, p) {
   return `<div class="card coach">
     <div class="card-h"><h2>Coach's review</h2><span class="muted small">${review.asOf ? 'from your training up to ' + esc(review.asOf) : ''}</span></div>
     <p class="coach-headline">${esc(review.headline)}</p>
-    ${priorities.length ? `<h3 style="margin:12px 0 6px">What to improve</h3>${priorities.map((f) => findingHtml(f, p)).join('')}` : ''}
-    ${strengths.length ? `<h3 style="margin:14px 0 6px">What is working</h3>${strengths.map((f) => findingHtml(f, p)).join('')}` : ''}
-    ${notes.length ? `<details class="fold" style="margin-top:10px"><summary>More notes (${notes.length})</summary>${notes.map((f) => findingHtml(f, p)).join('')}</details>` : ''}
-    <p class="small muted" style="margin-top:10px">These come from patterns in your own numbers, using common powerlifting practice. They are suggestions, not a diagnosis. Check anything that matters with your coach. Tap a button to build the fix into the next block.</p>
+    ${priorities.length ? `<h3>What to improve</h3>${priorities.map((f, i) => findingHtml(f, p, i === 0)).join('')}` : ''}
+    ${strengths.length ? `<h3>What is working</h3>${strengths.map((f) => findingHtml(f, p)).join('')}` : ''}
+    ${notes.length ? `<details class="fold mt-3"><summary>More notes (${notes.length})</summary>${notes.map((f) => findingHtml(f, p)).join('')}</details>` : ''}
+    <p class="small muted mt-3">These come from patterns in your own numbers, using common powerlifting practice. They are suggestions, not a diagnosis. Check anything that matters with your coach. Tap a button to build the fix into the next block.</p>
   </div>`;
 }
 
@@ -335,27 +340,27 @@ function previewHtml(app, p, R, wk, unit) {
   const vol = R.volume.perWeek.find((x) => x.week === wk.number)?.muscles || {};
   const typical = R.volume.typical || null;
   const view = p.view || 'front';
-  return `<div class="card" style="margin-top:14px">
+  return `<div class="card mt-4">
     <div class="card-h"><h2>${esc(b.name)}</h2><span class="pill accent">${esc(b.generated.focus)} · ${b.weeks.length} weeks · ${b.weeks[0].days.length} days</span></div>
     <p class="muted small">${esc(b.goal)}</p>
     <div class="chips" role="group" aria-label="Week">${b.weeks.map((w) => `<button class="chip" data-pweek="${w.number}" aria-pressed="${w.number === wk.number}">${esc(w.label.length > 26 ? 'Week ' + w.number : w.label)}</button>`).join('')}</div>
-    ${wk.days.map((d) => `<section class="entry"><h3>Day ${d.number}</h3>${d.entries.map((e) => `<div style="margin:6px 0 10px"><b>${esc(e.name)}</b>${e.supersetGroup ? ` <span class="pill">${esc(e.supersetGroup)}</span>` : ''}${e.tempo ? ` <span class="muted small">tempo ${esc(e.tempo)}</span>` : ''}
+    ${wk.days.map((d) => `<section class="entry"><h3>Day ${d.number}</h3>${d.entries.map((e) => `<div class="mt-2 mb-3"><b>${esc(e.name)}</b>${e.supersetGroup ? ` <span class="pill">${esc(e.supersetGroup)}</span>` : ''}${e.tempo ? ` <span class="muted small">tempo ${esc(e.tempo)}</span>` : ''}
       <table class="sets"><tbody>${e.sets.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.repsRaw ?? (s.repsMin === s.repsMax ? String(s.repsMin) : s.repsMin + '-' + s.repsMax))} reps${s.targetRpe != null ? ` @ ${s.targetRpe}` : ''}</td><td class="num">${s.load ? esc(formatWeight(s.load, unit)) : '<span class="muted">find a load</span>'}</td><td class="muted small">${s.gen?.kind === 'top' ? 'top set' : s.gen?.kind === 'backoff' ? 'back-off' : s.gen?.kind === 'single' ? 'single' : ''}</td></tr>`).join('')}</tbody></table>
       ${e.cues?.length ? `<p class="cue">${e.cues.map(esc).join(' · ')}</p>` : ''}</div>`).join('')}</section>`).join('')}
   </div>
-  <div class="card" style="margin-top:14px"><div class="card-h"><h2>Weekly volume, week ${wk.number}</h2><div class="seg hm-view-toggle" role="group" aria-label="Body view"><button data-pview="front" aria-pressed="${view === 'front'}">Front</button><button data-pview="back" aria-pressed="${view === 'back'}">Back</button></div></div>
+  <div class="card mt-4"><div class="card-h"><h2>Weekly volume, week ${wk.number}</h2><div class="seg hm-view-toggle" role="group" aria-label="Body view"><button data-pview="front" aria-pressed="${view === 'front'}">Front</button><button data-pview="back" aria-pressed="${view === 'back'}">Back</button></div></div>
     ${renderHeatmap(vol, { selected: p.sel || null, view, prev: typical })}${renderLegend()}
-    <p class="small muted" style="margin-top:8px">Arrows compare with the same week of your last block. Tap a muscle to highlight it.</p>
-    <div style="margin-top:12px">${renderMuscleList(vol, p.sel || null, typical)}</div></div>
-  <div class="card" style="margin-top:14px"><div class="card-h"><h2>Why it looks like this</h2></div>
-    <ul style="margin:0;padding-left:18px">${R.rationale.map((r) => `<li class="small">${esc(r.text)}</li>`).join('')}</ul>
-    ${R.warnings.length ? `<div class="banner" style="margin-top:12px;display:block"><b>Check these</b><ul style="margin:6px 0 0;padding-left:18px">${R.warnings.map((w) => `<li class="small">${esc(w)}</li>`).join('')}</ul></div>` : ''}
-    <div class="row" style="margin-top:14px"><button class="btn primary" id="add">Add to my programme</button><button class="btn" id="again">Another version</button><button class="btn ghost" id="copy">Copy as text</button></div>
-    <p class="small muted" style="margin-top:8px">These are suggestions built from your numbers. Change anything that does not fit when you log it, and tell your coach if you have one.</p></div>`;
+    <p class="small muted mt-2">Arrows compare with the same week of your last block. Tap a muscle to highlight it.</p>
+    <div class="mt-3">${renderMuscleList(vol, p.sel || null, typical)}</div></div>
+  <div class="card mt-4"><div class="card-h"><h2>Why it looks like this</h2></div>
+    <ul class="bullets">${R.rationale.map((r) => `<li class="small">${esc(r.text)}</li>`).join('')}</ul>
+    ${R.warnings.length ? `<div class="banner mt-3 block"><b>Check these</b><ul class="mt-2 bullets">${R.warnings.map((w) => `<li class="small">${esc(w)}</li>`).join('')}</ul></div>` : ''}
+    <div class="row mt-4"><button class="btn primary" id="add">Add to my programme</button><button class="btn" id="again">Another version</button><button class="btn ghost" id="copy">Copy as text</button></div>
+    <p class="small muted mt-2">These are suggestions built from your numbers. Change anything that does not fit when you log it, and tell your coach if you have one.</p></div>`;
 }
 
 function reviseHtml(r, unit) {
-  return `<div style="margin-top:12px;padding:12px;border:1px solid var(--line-strong);border-radius:12px"><b>Block ${r.number}: from week ${r.fromWeek}</b>
-    ${r.changes.length ? `<ul class="small" style="margin:6px 0;padding-left:18px">${r.changes.slice(0, 40).map((c) => `<li>Week ${c.week} day ${c.day}: ${esc(c.exerciseId)} set ${c.setIndex}: ${esc(formatWeight({ value: c.from, unit: 'kg' }, unit))} → <b>${esc(formatWeight({ value: c.to, unit: 'kg' }, unit))}</b></li>`).join('')}</ul>${r.changes.length > 40 ? `<p class="small muted">…and ${r.changes.length - 40} more</p>` : ''}` : '<p class="small muted">Your numbers have not moved enough to change any load.</p>'}
+  return `<div class="mt-3 panel"><b>Block ${r.number}: from week ${r.fromWeek}</b>
+    ${r.changes.length ? `<ul class="small bullets">${r.changes.slice(0, 40).map((c) => `<li>Week ${c.week} day ${c.day}: ${esc(c.exerciseId)} set ${c.setIndex}: ${esc(formatWeight({ value: c.from, unit: 'kg' }, unit))} → <b>${esc(formatWeight({ value: c.to, unit: 'kg' }, unit))}</b></li>`).join('')}</ul>${r.changes.length > 40 ? `<p class="small muted">…and ${r.changes.length - 40} more</p>` : ''}` : '<p class="small muted">Your numbers have not moved enough to change any load.</p>'}
     <div class="row"><button class="btn primary small" id="apply-revise" ${r.changes.length ? '' : 'disabled'}>Apply</button><button class="btn ghost small" id="cancel-revise">Cancel</button></div></div>`;
 }

@@ -24,16 +24,16 @@ export function meetCard(app, ui, cfg) {
     return { n: i + 1, k, kg, w, pct: pcts[k], text };
   }) : [];
 
-  const html = `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Meet planner</h2><span class="pill">suggestion only</span></div>
-    <div class="row" style="align-items:end">
+  const html = `<div class="card mt-4"><div class="card-h"><h2>Meet planner</h2><span class="pill">suggestion only</span></div>
+    <div class="row end">
       <div class="seg" role="group" aria-label="Lift">${LIFTS.map((l) => `<button data-meet-lift="${l}" aria-pressed="${m.lift === l}">${l}</button>`).join('')}</div>
-      <label class="field" style="flex:1;min-width:130px"><span>Projected best (${unit})</span><input id="meet-proj" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(m.projected !== '' ? m.projected : suggested)}" placeholder="${suggested === '' ? 'enter a number' : suggested}"></label>
+      <label class="field grow"><span>Projected best (${unit})</span><input id="meet-proj" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(m.projected !== '' ? m.projected : suggested)}" placeholder="${suggested === '' ? 'enter a number' : suggested}"></label>
     </div>
-    ${best != null ? `<p class="small muted" style="margin-top:6px">Prefilled from your best estimated 1RM (an approximation). Use what you and your coach trust.</p>` : '<p class="small muted" style="margin-top:6px">Enter your projected best to see attempts.</p>'}
-    ${rows.length ? `<ol class="feed" style="margin-top:10px">${rows.map((r) => `<li><span class="medal" style="background:var(--surface-3);color:var(--text)">${r.n}</span>
-      <span><b>${round1(r.w.value)} ${unit}</b> <span class="muted small">${Math.round(r.pct * 100)}% of projected</span><br><span class="muted small">${esc(r.text)}</span></span>
+    ${best != null ? `<p class="small muted mt-2">Prefilled from your best estimated 1RM (an approximation). Use what you and your coach trust.</p>` : '<p class="small muted mt-2">Enter your projected best to see attempts.</p>'}
+    ${rows.length ? `<ol class="list mt-3">${rows.map((r) => `<li class="list-row"><span class="lead"><span class="medal plain">${r.n}</span></span>
+      <span class="main"><b>${round1(r.w.value)} ${unit}</b> <small>${Math.round(r.pct * 100)}% of projected</small><small>${esc(r.text)}</small></span>
       <button class="btn small" data-meet-load="${r.n - 1}">Load</button></li>`).join('')}</ol>
-      <p class="small muted" style="margin-top:8px">Opener is a weight you could triple on a bad day; the third is the target. Attempts rise by at least 2.5 kg.</p>` : ''}
+      <p class="small muted mt-2">Opener is a weight you could triple on a bad day; the third is the target. Attempts rise by at least 2.5 kg.</p>` : ''}
   </div>`;
 
   function bind(root, rerender, loadOnBar) {

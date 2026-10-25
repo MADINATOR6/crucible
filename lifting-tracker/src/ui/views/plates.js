@@ -81,24 +81,24 @@ export function platesView(app, ui) {
   const nonPlateKg = convert(bar.weight.value, bar.weight.unit, 'kg') + (collar ? 2 * convert(collar.weight.value, collar.weight.unit, 'kg') * collar.perSide : 0);
   const showU = (kgVal, d = 2) => `${(Math.round(convert(kgVal, 'kg', unit) * 10 ** d) / 10 ** d).toFixed(d)} ${unit}`;
   const pctBand = tolr.nominalKg > 0 ? ((tolr.maxKg - tolr.nominalKg) / tolr.nominalKg) * 100 : 0;
-  const calibrationCard = `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Calibration</h2>
+  const calibrationCard = `<div class="card mt-4"><div class="card-h"><h2>Calibration</h2>
       ${unit === 'kg' ? `<div class="seg" role="group" aria-label="Plate type"><button data-pmode="calibrated" aria-pressed="${mode === 'calibrated'}">Calibrated</button><button data-pmode="gym" aria-pressed="${mode === 'gym'}">Gym plates</button></div>` : '<span class="pill">lb</span>'}</div>
     ${!side.length ? '<p class="muted small">Load some plates to see how far the weight can be from the number on the bar.</p>'
       : mode === 'calibrated' && tolr.bandKnown ? `<p><b>${showU(tolr.nominalKg)}</b> of plates. Competition-calibrated discs may read <b>${showU(tolr.minKg)}</b> to <b>${showU(tolr.maxKg)}</b> (about ±${pctBand.toFixed(2)}%).</p><p class="small muted">The IPF sets a minimum and maximum for every disc, so a calibrated set is accurate to a few hundred grams. Bar and collars have their own tolerance and are not included. ${esc(set.calibration?.source || '')}</p>`
       : `<p><b>${showU(tolr.nominalKg)}</b> of plates as stamped. ${unit === 'lb' ? 'There is no federation calibration table for lb plates.' : 'Uncalibrated gym plates have no guaranteed accuracy: a stamped plate can be a percent or more off.'} ${tolr.measuredKg == null ? 'Weigh a pair on a scale and enter it under My plates for exact numbers.' : ''}</p>`}
-    ${tolr.measuredKg != null && side.length ? `<p class="small" style="margin-top:6px">As you weighed them: <b>${showU(tolr.measuredKg)}</b> of plates${tolr.measuredComplete ? '' : ` (${tolr.weighedSizes} of ${tolr.sizes} sizes weighed; the rest use the stamped weight)`}, about <b>${showU(tolr.measuredKg + nonPlateKg)}</b> on the bar with bar and collars at their stated weights.</p>` : ''}
+    ${tolr.measuredKg != null && side.length ? `<p class="small mt-2">As you weighed them: <b>${showU(tolr.measuredKg)}</b> of plates${tolr.measuredComplete ? '' : ` (${tolr.weighedSizes} of ${tolr.sizes} sizes weighed; the rest use the stamped weight)`}, about <b>${showU(tolr.measuredKg + nonPlateKg)}</b> on the bar with bar and collars at their stated weights.</p>` : ''}
   </div>`;
 
   const html = `
     <div class="topbar"><div><h1>Plates</h1><p class="muted small">Tap plates to load the bar, or type a target. Heaviest plates sit innermost, as in competition.</p></div>
       <div class="seg" role="group" aria-label="Unit"><button data-unit="kg" aria-pressed="${unit === 'kg'}">kg</button><button data-unit="lb" aria-pressed="${unit === 'lb'}">lb</button></div></div>
     <div class="card">
-      <div class="row spread" style="margin-bottom:8px"><span class="small muted">${ui.plates.view === '3d' ? 'Drag to turn; tap a plate to remove it' : ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${!ui.plates.view || ui.plates.view === 'side'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button>${supports3d() ? `<button data-bview="3d" aria-pressed="${ui.plates.view === '3d'}">3D</button>` : ''}</div></div>
+      <div class="row spread mb-2"><span class="small muted">${ui.plates.view === '3d' ? 'Drag to turn; tap a plate to remove it' : ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${!ui.plates.view || ui.plates.view === 'side'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button>${supports3d() ? `<button data-bview="3d" aria-pressed="${ui.plates.view === '3d'}">3D</button>` : ''}</div></div>
       <div class="bb-stage">${ui.plates.view === '3d' ? `<div class="bb3d" role="img" aria-label="3D barbell: ${side.length} plates each side, ${round1(total)} ${unit} total"><p class="bb3d-status muted small">Loading 3D bar…</p></div>` : ui.plates.view === 'end' ? renderEndView({ plates: side, collar: !!collar }) : renderBarbell({ plates: side, collar: !!collar, justAdded })}</div>
       <div class="bb-total" aria-live="polite"><b>${round1(total)}</b><span>${unit}</span></div>
       <p class="loading-text">${esc(perSideText(grouped, unit))}</p>
-      ${mixed ? '<p class="small" style="color:var(--warn);text-align:center">Mixed units on the bar: kg and lb plates are not interchangeable.</p>' : ''}
-      <div class="plate-row" style="margin:12px 0" role="group" aria-label="Add a plate to each side">
+      ${mixed ? '<p class="small tone-warn center">Mixed units on the bar: kg and lb plates are not interchangeable.</p>' : ''}
+      <div class="plate-row mt-3 mb-3" role="group" aria-label="Add a plate to each side">
         ${plates.map((p) => {
           const left = Math.floor(p.count / 2) - (used.get(p.value) || 0);
           return `<button class="plate-btn" data-add="${p.value}" ${left <= 0 ? 'disabled' : ''} aria-label="Add ${p.value} ${p.unit} plate to each side, ${Math.max(0, left)} pairs left"><span class="disc" style="background:${p.colour};color:${lum(p.colour) < .35 ? '#fff' : '#101114'}">${p.value}</span><small>${Math.max(0, left)} left</small></button>`;
@@ -110,31 +110,31 @@ export function platesView(app, ui) {
       </div>
     </div>
     ${calibrationCard}
-    <div class="grid cols-2" style="margin-top:14px">
+    <div class="grid cols-2 mt-4">
       <div class="card">
         <div class="card-h"><h2>Load a weight</h2></div>
         <div class="field"><span>Target (${unit})</span><input id="target" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.target)}" placeholder="e.g. ${unit === 'kg' ? '142.5' : '315'}"></div>
-        <div id="target-result" class="small" style="margin:10px 0" aria-live="polite"></div>
+        <div id="target-result" class="small mt-3" aria-live="polite"></div>
         <button class="btn primary" data-act="load">Load it</button>
       </div>
       <div class="card">
         <div class="card-h"><h2>Bar &amp; collars</h2></div>
         <div class="field"><span>Bar</span><select id="bar">${set.bars.map((b) => `<option value="${b.id}" ${b.id === bar.id ? 'selected' : ''}>${esc(b.label)}</option>`).join('')}<option value="custom" ${bar.id === 'custom' || app.settings.barByUnit?.[unit] === 'custom' ? 'selected' : ''}>Custom weight…</option></select></div>
-        ${(app.settings.barByUnit?.[unit] === 'custom') ? `<label class="field" style="margin-top:10px"><span>Custom bar weight (${unit})</span><input id="custombar" type="number" step="0.5" min="1" inputmode="decimal" value="${esc(app.settings.customBar?.[unit] ?? '')}"></label>` : ''}
-        <label class="row" style="margin-top:12px"><input type="checkbox" id="collar" ${collar ? 'checked' : ''} style="width:auto;min-height:0"> Competition collars (${esc(String(set.collar.weight.value))} ${set.collar.weight.unit} each side)</label>
-        <p class="small muted" style="margin-top:8px">${esc(set.collar.source)}</p>
+        ${(app.settings.barByUnit?.[unit] === 'custom') ? `<label class="field mt-3"><span>Custom bar weight (${unit})</span><input id="custombar" type="number" step="0.5" min="1" inputmode="decimal" value="${esc(app.settings.customBar?.[unit] ?? '')}"></label>` : ''}
+        <label class="row mt-3"><input type="checkbox" id="collar" ${collar ? 'checked' : ''}> Competition collars (${esc(String(set.collar.weight.value))} ${set.collar.weight.unit} each side)</label>
+        <p class="small muted mt-2">${esc(set.collar.source)}</p>
       </div>
     </div>
-    <div class="card" style="margin-top:14px">
+    <div class="card mt-4">
       <div class="card-h"><h2>Warm-up ladder</h2></div>
-      <div class="row"><div class="field" style="flex:1;min-width:140px"><span>Top set (${unit})</span><input id="top" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.top)}"></div><button class="btn" data-act="ladder" style="align-self:end">Build</button></div>
-      ${ladder.length ? `<ol class="feed" style="margin-top:12px">${ladder.map((s, i) => `<li><span class="medal" style="background:var(--surface-3);color:var(--text)">${i + 1}</span><span><b>${round1(s.weight.value)} ${unit}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><button class="btn small" data-ladder="${i}">Load</button></li>`).join('')}</ol>` : '<p class="muted small" style="margin-top:10px">Enter your top set to get plate-friendly warm-up jumps.</p>'}
+      <div class="row end"><div class="field grow"><span>Top set (${unit})</span><input id="top" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.top)}"></div><button class="btn" data-act="ladder">Build</button></div>
+      ${ladder.length ? `<ol class="list mt-3">${ladder.map((s, i) => `<li class="list-row"><span class="lead"><span class="medal plain">${i + 1}</span></span><span class="main"><b>${round1(s.weight.value)} ${unit} × ${s.reps}</b><small>${esc(s.text)}</small></span><button class="btn small" data-ladder="${i}">Load</button></li>`).join('')}</ol>` : '<p class="muted small mt-3">Enter your top set to get plate-friendly warm-up jumps.</p>'}
     </div>
     ${meet.html}
-    <details class="card fold" style="margin-top:14px"><summary>My plates (how many your gym has)</summary>
+    <details class="card fold mt-4"><summary>My plates (how many your gym has)</summary>
       <p class="muted small">Counts are the total number of each plate, both sides. Colours follow the IPF rule for 25, 20 and 15 kg; the rest are convention and editable in <code>data/plates.json</code>.</p>
       <div class="grid cols-3">${plates.map((p) => `<label class="field"><span>${p.value} ${p.unit}</span><input type="number" min="0" step="2" inputmode="numeric" data-count="${p.value}" value="${p.count}"></label>`).join('')}</div>
-      <h3 style="margin-top:16px">Weighed on a scale (optional)</h3>
+      <h3 class="mt-4">Weighed on a scale (optional)</h3>
       <p class="muted small">Weigh one plate of each size, in ${unit}, and enter it here. The Calibration card then shows what your plates really add up to. Leave blank to use the stamped weight.</p>
       <div class="grid cols-3">${plates.map((p) => `<label class="field"><span>${p.value} ${p.unit} plate weighs</span><input type="number" min="0" step="0.01" inputmode="decimal" data-measured="${p.value}" value="${esc(measuredMap[String(p.value)] ?? '')}" placeholder="${p.value}"></label>`).join('')}</div>
     </details>`;
@@ -218,9 +218,9 @@ export function platesView(app, ui) {
       const out = root.querySelector('#target-result');
       if (!Number.isFinite(v) || v <= 0) { out.textContent = ''; return null; }
       const r = loadBar({ target: { value: v, unit }, bar: bar.weight, collar, plates });
-      out.innerHTML = r.exact ? `<b style="color:var(--good)">Exact:</b> ${esc(perSideText(r.perSide, unit))}`
-        : r.reason === 'below-bar' ? `<b style="color:var(--warn)">Below the bar.</b> Bar${collar ? ' and collars' : ''} alone is ${round1(r.loadedTotal.value)} ${unit}.`
-        : `<b style="color:var(--warn)">Not loadable exactly.</b> Nearest: ${r.below ? `${round1(r.below.loadedTotal.value)} ${unit} below` : ''}${r.below && r.above ? ' / ' : ''}${r.above ? `${round1(r.above.loadedTotal.value)} ${unit} above` : ''}.`;
+      out.innerHTML = r.exact ? `<b class="tone-good">Exact:</b> ${esc(perSideText(r.perSide, unit))}`
+        : r.reason === 'below-bar' ? `<b class="tone-warn">Below the bar.</b> Bar${collar ? ' and collars' : ''} alone is ${round1(r.loadedTotal.value)} ${unit}.`
+        : `<b class="tone-warn">Not loadable exactly.</b> Nearest: ${r.below ? `${round1(r.below.loadedTotal.value)} ${unit} below` : ''}${r.below && r.above ? ' / ' : ''}${r.above ? `${round1(r.above.loadedTotal.value)} ${unit} above` : ''}.`;
       return r;
     };
     target.addEventListener('input', preview); preview();
