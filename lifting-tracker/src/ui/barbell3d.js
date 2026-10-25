@@ -1,0 +1,187 @@
+import { convert } from '../core/units.js';
+
+export const BAR = Object.freeze({ length: 2.20, shaftDiameter: 0.029, sleeveDiameter: 0.050,
+  innerLength: 1.31, collarLength: 0.030, collarDiameter: 0.075, sleeveLength: 0.415,
+  centreKnurl: 0.075, outerKnurlStart: 0.21, outerKnurlEnd: 0.62, ring: 0.405, ringWidth: 0.005 });
+const SIZES = [[25,450,27],[20,450,22.5],[15,450,21],[10,450,21],[5,230,21.5],[2.5,190,16],[1.25,160,12],[1,145,10],[0.5,130,8],[0.25,110,6]];
+export function plateSize(plate) {
+  const kg = convert(plate.value, plate.unit, 'kg');
+  const fallback = SIZES.reduce((a, b) => Math.abs(b[0] - kg) < Math.abs(a[0] - kg) ? b : a);
+  return { diameter: (plate.drawHeightMm > 0 ? plate.drawHeightMm : fallback[1]) / 1000,
+    thickness: (plate.thicknessMm > 0 ? plate.thicknessMm : fallback[2]) / 1000 };
+}
+export function layout(plates, { collar = false } = {}) {
+  let x = BAR.innerLength / 2 + BAR.collarLength;
+  const placed = plates.map((plate, index) => {
+    const size = plateSize(plate), entry = { index, x, ...size };
+    x += size.thickness + 0.001;
+    return entry;
+  });
+  const collarX = collar ? x : null;
+  const end = collar ? x + 0.07 : x - (plates.length ? 0.001 : 0);
+  return { plates: placed, collarX, overflow: end > BAR.length / 2 + 1e-9 };
+}
+
+let viewer, pending;
+export async function mount3d(container, options) {
+  if (!viewer) {
+    pending ||= createViewer().finally(() => { pending = null; });
+    viewer = await pending;
+  }
+  try { viewer.attach(container, options); return viewer; }
+  catch (error) { viewer?.dispose(); throw error; }
+}
+
+async function createViewer() {
+  const [T, { OrbitControls }, { RoomEnvironment }] = await Promise.all([
+    import('../../vendor/three/build/three.module.min.js'),
+    import('../../vendor/three/examples/jsm/controls/OrbitControls.js'),
+    import('../../vendor/three/examples/jsm/environments/RoomEnvironment.js'),
+  ]);
+  const renderer = new T.WebGLRenderer({ alpha: true, antialias: true });
+  const canvas = renderer.domElement, scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(40, 0.6, 0.01, 30);
+  const controls = new OrbitControls(camera, canvas);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  controls.enablePan = false; controls.enableDamping = !reduced.matches;
+  controls.minPolarAngle = 0.15; controls.maxPolarAngle = Math.PI - 0.15;
+  controls.minDistance = 0.3; controls.maxDistance = 5;
+  controls.target.set(0.72, 0, 0); camera.position.set(1.65, 0.48, 0.85); controls.update();
+  const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment();
+  const environment = pmrem.fromScene(room, 0.04);
+  scene.environment = environment.texture; room.dispose(); pmrem.dispose();
+  scene.add(new T.HemisphereLight(0xffffff, 0x555566, 2));
+  const light = new T.DirectionalLight(0xffffff, 3); light.position.set(1, 3, 2); scene.add(light);
+  let host, tip, opts, frame = 0, dead = false, down, started = 0, slides = [];
+  let model = new T.Group(); scene.add(model);
+  const geometries = new Set(), materials = new Set(), textures = new Set();
+  const geometry = (g) => { geometries.add(g); return g; };
+  const material = (p) => { const m = new T.MeshStandardMaterial(p); materials.add(m); return m; };
+  const metal = () => material({ color: 0xcbd0d5, metalness: 1, roughness: 0.2 });
+  function mesh(g, m, parent = model) { const o = new T.Mesh(geometry(g), m); parent.add(o); return o; }
+  function cylinder(radius, length, x, m, parent = model) {
+    const o = mesh(new T.CylinderGeometry(radius, radius, length, 64), m, parent);
+    o.rotation.z = -Math.PI / 2; o.position.x = x; return o;
+  }
+  function texture(draw) {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    draw(c.getContext('2d'));
+    const t = new T.CanvasTexture(c); textures.add(t); return t;
+  }
+  function clearModel() {
+    scene.remove(model); geometries.forEach((g) => g.dispose()); materials.forEach((m) => m.dispose()); textures.forEach((t) => t.dispose());
+    geometries.clear(); materials.clear(); textures.clear();
+    model = new T.Group(); scene.add(model); slides = [];
+  }
+  function build() {
+    clearModel();
+    const chrome = metal();
+    cylinder(BAR.shaftDiameter / 2, BAR.innerLength, 0, material({ color: 0x9fa6ad, metalness: 1, roughness: 0.42 }));
+    const knurl = texture((ctx) => {
+      ctx.fillStyle = '#777'; ctx.fillRect(0,0,512,512); ctx.strokeStyle = '#ddd'; ctx.lineWidth = 3;
+      for (let i = -512; i < 1024; i += 32) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+512,512); ctx.moveTo(i,0); ctx.lineTo(i-512,512); ctx.stroke(); }
+    });
+    knurl.wrapS = knurl.wrapT = T.RepeatWrapping; knurl.repeat.set(2, 8);
+    const grip = material({ color: 0xa9afb5, metalness: 1, roughness: 0.5, bumpMap: knurl, bumpScale: 0.0003 });
+    cylinder(0.0146, BAR.centreKnurl * 2, 0, grip);
+    for (const sign of [-1, 1]) {
+      for (const [a,b] of [[BAR.outerKnurlStart, BAR.ring - BAR.ringWidth/2], [BAR.ring + BAR.ringWidth/2, BAR.outerKnurlEnd]]) cylinder(0.0146, b-a, sign*(a+b)/2, grip);
+      cylinder(0.01455, BAR.ringWidth, sign*BAR.ring, chrome);
+      cylinder(BAR.collarDiameter/2, BAR.collarLength, sign*(BAR.innerLength/2 + BAR.collarLength/2), chrome);
+      cylinder(BAR.sleeveDiameter/2, BAR.sleeveLength, sign*(BAR.length/2 - BAR.sleeveLength/2), chrome);
+    }
+    const placed = layout(opts.plates, { collar: opts.collar });
+    for (const entry of placed.plates) {
+      const p = opts.plates[entry.index], r = entry.diameter/2, h = entry.thickness/2, lip = 0.003 * Math.min(1, entry.diameter/0.45), width = 0.012 * Math.min(1, entry.diameter/0.45);
+      const paint = material({ color: p.colour || '#555555', roughness: 0.6, metalness: 0.05 });
+      const lipPaint = material({ color: p.colour || '#555555', roughness: 0.35, metalness: 0.1 }); // the raised rim, a little glossier
+      const label = texture((ctx) => {
+        const c = new T.Color(p.colour || '#555555');
+        ctx.fillStyle = 0.2126*c.r + 0.7152*c.g + 0.0722*c.b < 0.35 ? '#ffffff' : '#101114';
+        ctx.textAlign = 'center'; ctx.font = 'bold 94px sans-serif'; ctx.fillText(String(p.value),256,145);
+        ctx.font = 'bold 44px sans-serif'; ctx.fillText((p.unit || 'kg').toUpperCase(),256,395);
+      });
+      label.colorSpace = T.SRGBColorSpace;
+      const ink = material({ map: label, transparent: true, roughness: 0.6, depthWrite: false, side: T.DoubleSide });
+      for (const sign of [-1, 1]) {
+        const disc = new T.Group(); disc.position.x = sign*(entry.x+h); disc.userData.index = entry.index; model.add(disc);
+        // Face and rim are separate lathes that share no surface (a shared one would z-fight).
+        const profile = [[0.0252,-h],[r-width,-h],[r-width,h],[0.0252,h],[0.0252,-h]].map(([x,y])=>new T.Vector2(x,y));
+        const body = mesh(new T.LatheGeometry(profile,96), paint, disc); body.rotation.z = -Math.PI/2;
+        const rim = [[r-width,-h-lip],[r,-h-lip],[r,h+lip],[r-width,h+lip],[r-width,-h-lip]].map(([x,y])=>new T.Vector2(x,y));
+        const edge = mesh(new T.LatheGeometry(rim,96), lipPaint, disc); edge.rotation.z = -Math.PI/2;
+        const hub = mesh(new T.LatheGeometry([[0.0252,-h-0.0005],[0.045,-h-0.0005],[0.045,h+0.0005],[0.0252,h+0.0005]].map(([x,y])=>new T.Vector2(x,y)),64),chrome,disc); hub.rotation.z=-Math.PI/2;
+        for (const face of [-1,1]) {
+          const decal = mesh(new T.RingGeometry(0.046, r-width,96),ink,disc);
+          decal.rotation.y = face*Math.PI/2; decal.position.x = face*(h+0.0008);
+        }
+        if (entry.index === opts.justAdded && !reduced.matches) slides.push({ disc, x: disc.position.x, from: sign*(BAR.length/2 + h + 0.12) });
+      }
+    }
+    if (opts.collar) for (const sign of [-1,1]) {
+      cylinder(0.04,0.07,sign*(placed.collarX+0.035),chrome);
+      const lever = mesh(new T.BoxGeometry(0.015,0.07,0.014),chrome); lever.position.set(sign*(placed.collarX+0.04),0.055,0);
+    }
+    started = performance.now();
+    tip.textContent = opts.plates.length ? 'Drag to turn · pinch to zoom · tap a plate to remove it' : 'Empty bar';
+    if (placed.overflow) tip.textContent += ' · Stack exceeds sleeve';
+    requestDraw();
+  }
+  function draw(now) {
+    frame = 0; if (dead) return;
+    const t = Math.min(1,(now-started)/250);
+    for (const s of slides) s.disc.position.x = s.from + (s.x-s.from)*(1-(1-t)**3);
+    if (t === 1) slides = [];
+    controls.update(); renderer.render(scene,camera);
+    if (slides.length) requestDraw();
+  }
+  function requestDraw() { if (!dead && !frame) frame=requestAnimationFrame(draw); }
+  function resize() {
+    if (!host || dead) return;
+    const w=Math.max(1,host.clientWidth), h=Math.max(1,host.clientHeight || 420);
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1,2)); renderer.setSize(w,h);
+    camera.aspect=w/h; camera.updateProjectionMatrix(); requestDraw();
+  }
+  const observer = new ResizeObserver(resize), scheme=matchMedia('(prefers-color-scheme: dark)');
+  function theme() { light.intensity=scheme.matches ? 3 : 2; requestDraw(); }
+  scheme.addEventListener('change',theme); controls.addEventListener('change',requestDraw);
+  const raycaster=new T.Raycaster();
+  const pointers = new Set();
+  function pointerdown(e) {
+    pointers.add(e.pointerId);
+    down = pointers.size === 1 && (e.pointerType !== 'mouse' || e.button === 0) ? {x:e.clientX,y:e.clientY,id:e.pointerId} : null;
+  }
+  function pointermove(e) {
+    if (down && e.pointerId === down.id && Math.hypot(e.clientX-down.x,e.clientY-down.y)>=6) down=null;
+  }
+  function pointercancel(e) { pointers.delete(e.pointerId); down=null; }
+  function pointerup(e) {
+    pointers.delete(e.pointerId);
+    const start=down; down=null;
+    if (!start || start.id!==e.pointerId || Math.hypot(e.clientX-start.x,e.clientY-start.y)>=6) return;
+    const r=canvas.getBoundingClientRect();
+    raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
+    let hit=raycaster.intersectObject(model,true)[0]?.object;
+    while (hit && hit.userData.index === undefined) hit=hit.parent;
+    if (hit) opts.onRemove?.(hit.userData.index);
+  }
+  function lost(e) { e.preventDefault(); const fail=opts?.onError; dispose(); fail?.(new Error('WebGL context lost')); }
+  canvas.addEventListener('pointerdown',pointerdown); canvas.addEventListener('pointermove',pointermove);
+  canvas.addEventListener('pointercancel',pointercancel); canvas.addEventListener('pointerup',pointerup); canvas.addEventListener('webglcontextlost',lost);
+  function update(options) { opts={...opts,...options}; build(); }
+  function dispose() {
+    if (dead) return; dead=true; cancelAnimationFrame(frame); observer.disconnect();
+    scheme.removeEventListener('change',theme); controls.dispose();
+    canvas.removeEventListener('pointerdown',pointerdown); canvas.removeEventListener('pointerup',pointerup); canvas.removeEventListener('webglcontextlost',lost);
+    canvas.removeEventListener('pointermove',pointermove); canvas.removeEventListener('pointercancel',pointercancel);
+    clearModel(); environment.dispose(); renderer.dispose(); canvas.remove(); tip?.remove();
+    if (viewer===api) viewer=null;
+  }
+  const api={update,dispose,attach(container,options) {
+    if (dead) throw new Error('3D viewer disposed');
+    observer.disconnect(); host=container; host.querySelector('.bb3d-status')?.remove();
+    tip ||= Object.assign(document.createElement('p'),{className:'bb3d-tip'});
+    host.append(canvas,tip); observer.observe(host); resize(); theme(); update(options);
+  }};
+  return api;
+}
