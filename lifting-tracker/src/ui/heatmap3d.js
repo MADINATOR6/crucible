@@ -49,6 +49,9 @@ async function createViewer() {
   const light = new T.DirectionalLight(0xffffff, 3);
   light.position.set(2, 3, 4);
   scene.add(light);
+  const back = new T.DirectionalLight(0xffffff, 2); // so the back muscles read as well as the front ones
+  back.position.set(-2, 2, -4);
+  scene.add(back);
   let host, tip, onPick, onError, frame = 0, dead = false, down;
   const meshes = [];
   const geometries = new Set(), materials = new Set(), textures = new Set();
@@ -111,7 +114,7 @@ async function createViewer() {
   function update({ data, selected }) {
     const css = getComputedStyle(document.documentElement);
     const palette = Object.fromEntries([0, 1, 2, 3, 4, 5].map((n) => [n, css.getPropertyValue(`--b${n}`).trim()]));
-    const neutral = css.getPropertyValue('--surface-2').trim();
+    const neutral = css.getPropertyValue('--line-strong').trim(); // lighter than the card in dark mode, darker in light
     for (const mesh of meshes) {
       const id = meshMuscleId(mesh.name);
       mesh.material.color.set(id && id !== 'body' ? colourFor(data[id] ?? 0, palette) : neutral);
@@ -119,7 +122,7 @@ async function createViewer() {
       mesh.material.emissiveIntensity = 0.35;
     }
     tip.textContent = selected && MUSCLE_LABELS[selected]
-      ? `${MUSCLE_LABELS[selected]} · ${fmtSets(data[selected] ?? 0)} sets · ${bandFor(data[selected] ?? 0).label}` : 'Drag to rotate · Pinch or scroll to zoom · Tap a muscle';
+      ? `${MUSCLE_LABELS[selected]} · ${fmtSets(data[selected] ?? 0)} sets · ${bandFor(data[selected] ?? 0).label}` : 'Drag to turn · pinch to zoom · tap a muscle';
     requestDraw();
   }
   const api = { update, dispose, attach(container, options) {
@@ -150,9 +153,11 @@ async function createViewer() {
     scene.add(gltf.scene);
     const box = new T.Box3().setFromObject(gltf.scene);
     const centre = box.getCenter(new T.Vector3());
-    const radius = box.getBoundingSphere(new T.Sphere()).radius;
+    const size = box.getSize(new T.Vector3());
+    centre.y -= size.y * 0.05; // aim a little low so the feet clear the hint pill at the bottom
     controls.target.copy(centre);
-    const distance = radius / Math.sin(T.MathUtils.degToRad(20)) * 1.25;
+    // Fit the body's height with a little headroom; the canvas is portrait, so height is the limit.
+    const distance = (size.y / 2) / Math.tan(T.MathUtils.degToRad(camera.fov / 2)) * 1.1 + size.z / 2;
     camera.position.copy(centre).add(new T.Vector3(0, 0, distance));
     controls.minDistance = distance * 0.4; // close enough to see a single muscle
     controls.maxDistance = distance * 1.6;

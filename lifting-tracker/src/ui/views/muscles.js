@@ -104,7 +104,7 @@ export function musclesView(app, ui) {
     </div>
     <div class="card">
       <div class="card-h"><h2>${esc(label)}</h2><span class="muted small">${total} working sets${m.mode === 'programme' && !estimated ? ' · dates unknown' : ''}</span></div>
-      <div class="seg hm-view-toggle mb-3" role="group" aria-label="Body view"><button data-view="front" aria-pressed="${m.view === 'front'}">Front</button><button data-view="back" aria-pressed="${m.view === 'back'}">Back</button>${supports3d() ? `<button data-view="3d" aria-pressed="${m.view === '3d'}">3D</button>` : ''}</div>
+      <div class="seg hm-view-toggle mb-3" role="group" aria-label="Body view"><button data-view="front" aria-pressed="${m.view === 'front'}"><span class="hm-narrow">Front</span><span class="hm-wide">2D</span></button><button data-view="back" aria-pressed="${m.view === 'back'}">Back</button>${supports3d() ? `<button data-view="3d" aria-pressed="${m.view === '3d'}">3D</button>` : ''}</div>
       ${m.view === '3d' ? '<div class="hm3d" role="img" aria-label="3D muscle map. The list below has every muscle\'s count."><p class="hm3d-status muted small">Loading 3D model…</p></div>' : renderHeatmap(data, { selected: sel, view: m.view, prev })}
       ${renderLegend()}
       ${res.unknownExerciseIds?.length ? `<p class="small tone-warn mt-3">Not counted (not in the exercise catalogue): ${res.unknownExerciseIds.map((x) => esc(String(x).replace('custom:', ''))).join(', ')}</p>` : ''}

@@ -38,7 +38,8 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `table.plain`, `table.sets`.
 
 ## Feature-specific (owned by their modules)
-- Heat map: `.hm`, `.hm-figures`, `.hm-fig`, `.hm-svg`, `.hm-region`, `.hm-pill`, `.hm-legend`, `.hm-list`, `.hm-row`, `.hm-bar`, `.hm-delta`, `.band-0` … `.band-5`.
+- Heat map: `.hm`, `.hm-figures`, `.hm-fig`, `.hm-svg`, `.hm-region`, `.hm-pill`, `.hm-legend`, `.hm-list`, `.hm-row`, `.hm-bar`, `.hm-delta`, `.band-0` … `.band-5`. `.hm-view-toggle` is Front / Back / 3D on phones and 2D / 3D on wide screens (`.hm-narrow` and `.hm-wide` spans swap the first label).
+- 3D map: `.hm3d` (sized box for the canvas, made by `heatmap3d.js`), `.hm3d-status` (loading line), `.hm3d-tip` (the hint or the selected muscle's count, over the bottom of the canvas).
 - Charts: `figure.chart-wrap` (set its height with `style="--chart-h:Npx"`) > `.chart-y` (y labels: `<span style="top:N%">`), `svg.chart-plot` (`viewBox="0 0 100 100" preserveAspectRatio="none"`; children `.grid-line`, `.line`, `.area`, `.dot` drawn as a zero-length path `M x y h0`, all with `vector-effect="non-scaling-stroke"` except `.area`), `.chart-x` (x labels: `<span style="left:N%">`, first `.start`, last `.end`), then `.legend`. Series groups `.s-squat`, `.s-bench`, `.s-deadlift`, `.s-total`, `.s-bw`. These positional `top`/`left`/`--chart-h` styles are allowed in `charts.js` only. The older `.chart` class stays for any SVG chart not yet moved.
 - Barbell and plates: `.bb-*`, `.plate-*`, `.loading-text`.
 - Coach review: `.coach-headline`, `.coach-find`, `.sev-high`, `.sev-medium`, `.sev-good`.

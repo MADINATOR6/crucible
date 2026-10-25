@@ -1,6 +1,6 @@
 # Lifting Tracker: architecture note
 
-Personal powerlifting tracker. Offline-first PWA, plain JavaScript ES modules, no build step, no runtime dependencies. All data stays on the device. Node 24 is installed here (FACT: `node --version` = v24.21.0); tests use `node:test`, so Node 18+ is required.
+Personal powerlifting tracker. Offline-first PWA, plain JavaScript ES modules, no build step, one vendored runtime dependency (three.js, for the 3D map only; see "3D muscle map"). All data stays on the device. Node 24 is installed here (FACT: `node --version` = v24.21.0); tests use `node:test`, so Node 18+ is required.
 
 ## Privacy (hard rules)
 - The athlete's real workbook and anything derived from it (parsed programme JSON, logs, bodyweight) is **never committed**. `.gitignore` blocks `*.xlsx`, `lifting-tracker/private/` and `lifting-tracker/data/private/`.
@@ -18,12 +18,20 @@ lifting-tracker/
     plates/    loading.js                                                         pure plate maths
     import/    xlsx.js programme.js report.js                                     workbook -> programme JSON
     store/     db.js backup.js                                                    IndexedDB + JSON backup/restore
-    ui/        app.js views/*.js heatmap.js barbell.js charts.js                  DOM only
+    ui/        app.js views/*.js heatmap.js heatmap3d.js barbell.js charts.js     DOM only
+  assets/      body.glb build_body.py                                             3D body and the Blender script that builds it
+  vendor/      three/                                                             three.js 0.170.0, pinned (3D map only)
   data/        exercises.json                                                     editable exercise + muscle catalogue
   test/        *.test.js, helpers/                                                node --test
   private/     (gitignored) real imported data, never committed
 ```
 Dependency rule: `core` and `plates` import only `units.js` and `data/*.json` (passed in as arguments, not fetched). `import` imports `core/units.js` only. `ui` and `store` import everything else. Nothing in `core`, `plates` or `import` touches the DOM, `localStorage` or IndexedDB.
+
+## 3D muscle map
+- **Why three.js.** WebGL by hand (loading glTF, orbit controls, picking) would be several hundred lines that three.js already does well, and it is the established library for it. It is the app's only runtime dependency: version 0.170.0, pinned, copied into `vendor/three/` (five files, about 850 KB, MIT licence, integrity hash in `VERSION.txt`), never loaded from a CDN, and precached by `sw.js`. `heatmap3d.js` imports it with `import()` only when 3D is first shown, so startup and the 2D map don't load it.
+- **Import map.** The addons import the bare name `three`, so `index.html` carries an inline import map. The CSP still forbids inline scripts; it allows that one script by its SHA-256 hash, and a test fails if the two drift.
+- **The model.** `assets/body.glb` (about 470 KB, 35 meshes, about 20k triangles, no Draco, so no decoder to vendor) is built by `assets/build_body.py` in Blender: `blender --background --factory-startup --python assets/build_body.py -- assets/body.glb`. Mesh names are muscle ids from `data/exercises.json` with `_L`/`_R`; the fused skin is `body_skin`. glTF axes: Y up, facing +Z, metres, feet on 0. A test reads the GLB and fails on any mesh name that isn't a muscle or `body_`.
+- **Fallback.** The 3D button appears only when WebGL works. If the model fails to load or the context is lost, the view returns to the 2D map with a toast. The 2D map and the sorted muscle list stay the accessible, colour-independent views.
 
 ## Units
 Weights are stored exactly as entered: `{ value: number, unit: 'kg' | 'lb' }`. Maths is done in kg with `1 lb = 0.45359237 kg` (`core/units.js`). Display is in the user's chosen unit to 1 decimal place. A bare number with no unit in the coach's workbook is **assumed kg** (ASSUMPTION: the overview total reads "480kg"); a load with a unit word ("235 pounds") keeps that unit.

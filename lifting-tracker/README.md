@@ -1,11 +1,11 @@
 # Lifting Tracker
 
-A personal powerlifting tracker that follows your coach's programme. It works offline, runs on a phone and a PC, and keeps every byte of your data on your device: no accounts, no server, no analytics, no third-party scripts, system fonts only.
+A personal powerlifting tracker that follows your coach's programme. It works offline, runs on a phone and a PC, and keeps every byte of your data on your device: no accounts, no server, no analytics, nothing loaded from other sites, system fonts only.
 
 ## What it does
 
 - **Train.** Your coach's blocks as Block → Week → Day → Exercise → Set, with the plan (reps or rep range, target RPE, load) next to what you actually did. Tap a set to log weight, reps and RPE, see the bar loaded, and get a PR callout. **+ Quick log** records anything outside the programme.
-- **Muscles.** A front/back body map coloured by weekly hard sets per muscle, with the number on every region (colour is only a guide). Tap a region to see which exercises contributed. Programme week or calendar week, done or planned.
+- **Muscles.** A front/back body map coloured by weekly hard sets per muscle, with the number on every region (colour is only a guide). Tap a region to see which exercises contributed. Programme week or calendar week, done or planned. **3D** shows the same colours on a body you can turn and zoom; tap a muscle for its number and exercises. It falls back to the flat map where 3D isn't available.
 - **Progress.** Estimated 1RM per lift, total over time, PR feed, bodyweight with a moving average, and planned vs actual RPE.
 - **Plates.** An interactive barbell: tap or drag plates on, type a target, or build a warm-up ladder. kg and lb never mix silently. Includes a meet attempt planner (a suggestion, not advice).
 - **Data.** Import the coach's workbook, switch units and theme, export or restore a JSON backup, export sets as CSV.
@@ -14,7 +14,7 @@ The first time you open it, it shows clearly labelled **example data** so you ca
 
 ## Run it
 
-Requires Node 18 or later (checked here on Node 24). No install step: there are no dependencies.
+Requires Node 18 or later (checked here on Node 24). No install step: the one library, three.js for the 3D map, is already stored in `vendor/three/`.
 
 ```bash
 node lifting-tracker/dev-server.mjs
@@ -87,8 +87,10 @@ src/core/    pure logic (units, e1RM, PRs, weeks, muscles, schedule, lifts, RPE 
 src/plates/  plate loading and warm-up ladders
 src/import/  workbook reader (zip + XML, no dependencies) and programme importer
 src/store/   IndexedDB storage, JSON backup/restore, CSV
-src/ui/      views, heat map, barbell, charts, state
+src/ui/      views, heat map (2D and 3D), barbell, charts, state
 data/        exercises.json (editable), plates.json (editable)
+assets/      body.glb (3D body) and build_body.py, the Blender script that makes it
+vendor/      three.js 0.170.0 (pinned; see vendor/three/VERSION.txt)
 test/        node:test suites
 ```
 
