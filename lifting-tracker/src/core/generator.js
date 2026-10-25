@@ -306,7 +306,9 @@ function backoffSet(top, index, reps, drop, c) {
 function styledSets(s, w, c) {
   const deload = c.isDeload(w), primary = s.primary && !s.addedLight;
   const e = c.E(s.family, primary ? (deload ? Math.max(1, w - 1) : w) : 1);
-  const k = Number.isFinite(s.k) ? s.k : 1, current = c.e1rmStart[s.family];
+  // k = 1: the chosen style sets the effort, so the old slot's load offset from the template (a day that ran lighter
+  // or heavier than its RPE) no longer applies. The athlete's RPE bias still does.
+  const k = 1, current = c.e1rmStart[s.family];
   const topStyle = ['top-single', 'top-set', 'heavy-light'].includes(c.style);
   let reps, rpe, count, kind = 'straight';
   if (s.addedLight) { reps = 4; rpe = 6.5; count = 3; }

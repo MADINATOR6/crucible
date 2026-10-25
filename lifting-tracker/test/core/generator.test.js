@@ -81,6 +81,17 @@ for (const [style, reps, count, kind] of [['top-single', 1, 4, 'top'], ['top-set
   });
 }
 
+test('LT-GEN-1 a styled top single ignores the old slot load factor: it is the RPE 8 single at the e1RM', () => {
+  // The template's heavy day ran 8% light (k 0.92) and its light day 3% heavy (k 1.03): neither carries over.
+  const t = template([[main('d1s1', 'low_bar_squat', { reps: 5, k: 1.03 })], [main('d2s1', 'low_bar_squat', { reps: 4, rpe: 7.5, k: 0.92 })]]);
+  const r = run({ template: t, style: 'top-single', weeks: 4, deloadWeek: 'none', rotate: 0 });
+  const top = entry(r, 1, 2).sets[0], light = entry(r, 1, 1).sets[0];
+  assert.equal(top.gen.kind, 'top');
+  assert.equal(top.load.value, 165); // 180 * .922 = 165.96 -> nearest 2.5 kg is 165 (with k 0.92 it was 152.5)
+  assert.equal(light.load.value, 145); // 180 * 4@7 .811 = 145.98 -> 145
+  assert.ok(top.load.value > light.load.value);
+});
+
 test('LT-GEN-1 back-off counts, reps, exact drop, custom top RPE and a peak', () => {
   const r = run({ ...A_OPTS, style: 'top-set', topReps: 4, topRpe: 7.5, backoff: { sets: 5, reps: 6, drop: 0.15 } });
   assert.deepEqual(entry(r, 1).sets.map((s) => s.repsMin), [4, 6, 6, 6, 6, 6]);

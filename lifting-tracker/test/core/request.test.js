@@ -451,6 +451,7 @@ test('powerlifting phrases set the requested options (synthetic requests)', () =
     ['10x12', { focus: 'strength', style: 'sets-across', setsAcross: { sets: 10, reps: 12 } }],
     ['3 sets of 6', { focus: 'strength', style: 'sets-across', setsAcross: { sets: 3, reps: 6 } }],
     ['volume sets of 8', { focus: 'volume', style: 'sets-across', setsAcross: { sets: 4, reps: 8 } }],
+    ['straight sets of 3', { focus: 'strength', style: 'sets-across', setsAcross: { sets: 4, reps: 3 } }],
     ['5x5 volume block 6 weeks', { focus: 'volume', weeks: 6, style: 'sets-across', setsAcross: { sets: 5, reps: 5 } }],
     ['singles', { focus: 'strength', style: 'singles' }],
     ['EMOM singles', { focus: 'strength', style: 'singles' }],

@@ -545,6 +545,9 @@ function interpret(text) {
     if (across) parameter('setsAcross', { sets: Number(across[1]), reps: Number(across[2]) }, h);
     const volume = h.text.match(/volume sets of (1[0-2]|[1-9])\b/);
     if (volume) parameter('setsAcross', { sets: 4, reps: Number(volume[1]) }, h);
+    // "straight sets of 3" / "sets across of 5": the reps follow the phrase.
+    const following = /^(?:sets across|straight sets)$/.test(h.text) && s.slice(h.end, h.end + 8).match(/^ of (1[0-2]|[1-9])\b/);
+    if (following) parameter('setsAcross', { sets: 4, reps: Number(following[1]) }, h);
     if (h.def.value === 'top-single') {
       const nearby = h.text.match(/rpe ([7-9](?:\.5)?)\b/) || s.slice(h.end, h.end + 22).match(/^ (?:at )?rpe ([7-9](?:\.5)?)\b/);
       if (nearby) parameter('topRpe', Number(nearby[1]), { text: `${h.text} ${nearby[0].trim()}` });
