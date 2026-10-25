@@ -46,8 +46,8 @@
 :root[data-theme="light"] {
   --bg: #f1ede3; --bg-2: #ebe6d9; --surface: #fbf9f3; --surface-2: #f4f0e6; --surface-3: #e8e2d3;
   --line: #ddd5c3; --line-strong: #c9bfa8; --text: #17181b; --text-2: #3b3a36; --muted: #6a665d;
-  --accent: #d93a17; --accent-ink: #fff6f2; --accent-soft: rgba(217, 58, 23, .1); --chalk: #17181b;
-  --good: #0d8f5a; --warn: #a86b00; --bad: #c62828; --focus: #0369a1;
+  --accent: #c2300f; --accent-ink: #fff6f2; --accent-soft: rgba(217, 58, 23, .1); --chalk: #17181b;
+  --good: #0d8f5a; --warn: #956000; --bad: #c62828; --focus: #0369a1;
   --shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 24px -14px rgba(60,45,20,.35);
   --b0: #e6e0d1; --b1: #c9c3ea; --b2: #b57cc6; --b3: #e0698a; --b4: #f2924f; --b5: #f5c13a; --b0-edge: #d6cfbd;
   color-scheme: light;
@@ -56,8 +56,8 @@
   :root:not([data-theme="dark"]) {
     --bg: #f1ede3; --bg-2: #ebe6d9; --surface: #fbf9f3; --surface-2: #f4f0e6; --surface-3: #e8e2d3;
     --line: #ddd5c3; --line-strong: #c9bfa8; --text: #17181b; --text-2: #3b3a36; --muted: #6a665d;
-    --accent: #d93a17; --accent-ink: #fff6f2; --accent-soft: rgba(217, 58, 23, .1); --chalk: #17181b;
-    --good: #0d8f5a; --warn: #a86b00; --bad: #c62828; --focus: #0369a1;
+    --accent: #c2300f; --accent-ink: #fff6f2; --accent-soft: rgba(217, 58, 23, .1); --chalk: #17181b;
+    --good: #0d8f5a; --warn: #956000; --bad: #c62828; --focus: #0369a1;
     --shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 24px -14px rgba(60,45,20,.35);
     --b0: #e6e0d1; --b1: #c9c3ea; --b2: #b57cc6; --b3: #e0698a; --b4: #f2924f; --b5: #f5c13a; --b0-edge: #d6cfbd;
     color-scheme: light;
@@ -256,7 +256,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 table.plain { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.plain th, table.plain td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 table.plain th { font-size: var(--t-xs); color: var(--muted); }
-details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
+details.fold summary { cursor: pointer; font-weight: 650; padding: 11px 0; min-height: var(--tap); box-sizing: border-box; }
 .warnlist { max-height: 260px; overflow: auto; font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -349,8 +349,8 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .filters { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; padding: 2px 0 var(--s-3); }
 .filters > * { flex: none; }
 .filters select { flex: 1 1 120px; min-width: 0; text-overflow: ellipsis; }
-.filters select { width: auto; min-height: 38px; padding: 4px 10px; font-size: var(--t-sm); }
-.filters .seg button { min-height: 34px; padding: 0 12px; font-size: var(--t-sm); }
+.filters select { width: auto; min-height: var(--tap); padding: 4px 10px; font-size: var(--t-sm); }
+.filters .seg button { min-height: 38px; padding: 0 12px; font-size: var(--t-sm); }
 
 /* Folded options: settings that matter less than the content sit closed under the content. */
 details.options { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
@@ -376,7 +376,7 @@ details.options > .options-body { padding: 0 var(--s-4) var(--s-4); display: gri
 .train-title { display: grid; gap: 2px; min-width: 0; }
 .eyebrow { font-size: var(--t-sm); font-weight: 650; color: var(--accent); display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 .eyebrow .pill { font-size: 10px; padding: 1px 8px; }
-.day-switch { display: inline-flex; align-items: center; gap: var(--s-2); background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left; color: var(--text); border-radius: var(--r-sm); }
+.day-switch { display: inline-flex; align-items: center; gap: var(--s-2); background: none; border: 0; padding: 2px 0; min-height: var(--tap); cursor: pointer; text-align: left; color: var(--text); border-radius: var(--r-sm); }
 .day-switch h1 { font-size: clamp(26px, 7vw, 34px); }
 .day-switch .caret { color: var(--muted); font-size: 18px; transition: transform .15s ease; }
 .day-switch:hover .caret { color: var(--accent); transform: translateY(2px); }
@@ -471,6 +471,12 @@ ul.bullets li + li { margin-top: 2px; }
 .list-row .medal { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-family: var(--font-display); font-size: var(--t-sm); }
 .banner.block { display: block; }
 .card > h3 { margin: var(--s-4) 0 var(--s-2); }
+/* 44 px touch targets without bulkier controls: a 38 px segment button inside its 3 px-padded track, and a 36 px
+   small button, get an invisible hit area that reaches 44 px. */
+.seg button, .btn.small { position: relative; }
+.seg button::after { content: ''; position: absolute; inset: -3px -1px; }
+.btn.small::after { content: ''; position: absolute; inset: -4px 0; }
+.toast-action { min-height: var(--tap); }
 label.row:has(> input[type="checkbox"]) { flex-wrap: nowrap; align-items: center; } /* long labels wrap beside the box */
 .stepper { display: inline-flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
 .stepper b { min-width: 6.5em; text-align: center; }

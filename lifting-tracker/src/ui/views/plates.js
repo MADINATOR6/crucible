@@ -113,7 +113,7 @@ export function platesView(app, ui) {
     <div class="grid cols-2 mt-4">
       <div class="card">
         <div class="card-h"><h2>Load a weight</h2></div>
-        <div class="field"><span>Target (${unit})</span><input id="target" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.target)}" placeholder="e.g. ${unit === 'kg' ? '142.5' : '315'}"></div>
+        <label class="field"><span>Target (${unit})</span><input id="target" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.target)}" placeholder="e.g. ${unit === 'kg' ? '142.5' : '315'}"></label>
         <div id="target-result" class="small mt-3" aria-live="polite"></div>
         <button class="btn primary" data-act="load">Load it</button>
       </div>
@@ -127,7 +127,7 @@ export function platesView(app, ui) {
     </div>
     <div class="card mt-4">
       <div class="card-h"><h2>Warm-up ladder</h2></div>
-      <div class="row end"><div class="field grow"><span>Top set (${unit})</span><input id="top" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.top)}"></div><button class="btn" data-act="ladder">Build</button></div>
+      <div class="row end"><label class="field grow"><span>Top set (${unit})</span><input id="top" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.top)}"></label><button class="btn" data-act="ladder">Build</button></div>
       ${ladder.length ? `<ol class="list mt-3">${ladder.map((s, i) => `<li class="list-row two-line"><span class="lead"><span class="medal plain">${i + 1}</span></span><span class="main"><b>${round1(s.weight.value)} ${unit} × ${s.reps}</b><small>${esc(s.text)}</small></span><button class="btn small" data-ladder="${i}">Load</button></li>`).join('')}</ol>` : '<p class="muted small mt-3">Enter your top set to get plate-friendly warm-up jumps.</p>'}
     </div>
     ${meet.html}
