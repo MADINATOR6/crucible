@@ -457,7 +457,7 @@ function findingHtml(f, p, open = false, lead = false) {
     ${f.because.length ? `<ul class="small muted mt-2 bullets">${f.because.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     <p class="mt-2"><b>Do this:</b> ${esc(f.suggestion)}</p>
     <div class="row spread mt-2"><span class="small muted">Confidence: ${esc(f.confidence)}</span>
-      ${f.action ? `<button class="btn small ${applied ? '' : 'primary'}" data-coach="${esc(f.id)}" aria-pressed="${applied}">${applied ? 'Undo for draft' : lead ? 'Apply to draft' : esc(f.action.label)}</button>` : ''}</div>
+      ${f.action ? `<button class="btn small" data-coach="${esc(f.id)}" aria-pressed="${applied}">${applied ? 'Undo for draft' : lead ? 'Apply to draft' : esc(f.action.label)}</button>` : ''}</div>
   </details>`;
 }
 

@@ -102,7 +102,7 @@ export function trainView(app, ui) {
       <button class="btn small" id="quick" aria-label="Quick log a set outside the programme">+ Log</button>
     </div>
     ${!app.usingExample && reminder.due ? `<div class="banner mb-4"><span>${reminder.sessions} sessions since your last backup${app.settings.lastBackupAt ? '.' : ', and no backup yet.'}</span><div class="actions"><button class="btn small primary" id="backup-now">Back up</button><button class="btn small ghost" id="backup-later">Later</button></div></div>` : ''}
-    ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small primary" href="#data">Import</a></div>` : ''}
+    ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small" href="#data">Import</a></div>` : ''}
     ${day ? `<div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
   const focus = current ? `<section class="card train-focus" aria-label="Current set">
@@ -141,6 +141,15 @@ export function trainView(app, ui) {
 
   function bind(root, rerender) {
     keepScreenAwake(root, app);
+    // The sticky Log set bar repeats the card's button, so it only shows once that button has scrolled out of view.
+    const sticky = root.querySelector('.train-sticky-action'), cardAction = root.querySelector('.train-focus-actions');
+    if (sticky && cardAction && globalThis.IntersectionObserver) {
+      const watch = new IntersectionObserver(([e]) => {
+        if (!cardAction.isConnected) { watch.disconnect(); return; }
+        sticky.classList.toggle('is-visible', !e.isIntersecting);
+      });
+      watch.observe(cardAction);
+    } else sticky?.classList.add('is-visible');
     root.querySelector('#backup-now')?.addEventListener('click', (e) => guarded(e.currentTarget, () => saveBackup(app, true)));
     root.querySelector('#backup-later')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.saveSettings({ backupSnoozeUntil: addDays(todayIso(), 3) })));
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));

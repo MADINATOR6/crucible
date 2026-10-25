@@ -101,7 +101,7 @@ function coachSummary(app, unit) {
   try { r = coachReview({ events: app.events(), programme: app.programmeMerged(), catalogue: app.catalogue, athlete: app.athlete(), bodyweight: app.bodyweightPoints(), unit }); } catch { return ''; }
   if (!r?.asOf) return '';
   const top = r.priorities.slice(0, 2);
-  return `<div class="card mb-4"><div class="card-h"><h2>Coach's notes</h2><a class="btn small primary" href="#plan">Plan the next block</a></div>
+  return `<div class="card mb-4"><div class="card-h"><h2>Coach's notes</h2><a class="btn small" href="#plan">Plan the next block</a></div>
     <p class="coach-headline">${esc(r.headline)}</p>
     ${top.map((f) => `<p class="small mt-2 mb-0"><b>${esc(f.title)}.</b> <span class="muted">${esc(f.suggestion)}</span></p>`).join('')}</div>`;
 }
