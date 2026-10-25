@@ -394,6 +394,29 @@ details.options > .options-body { padding: 0 var(--s-4) var(--s-4); display: gri
 body:has(.rest-timer) .toast { bottom: calc(var(--nav-h) + 78px + env(safe-area-inset-bottom)); }
 @media (min-width: 900px) { body:has(.rest-timer) .toast { bottom: 84px; } }
 
-/* Big number readout used for headline figures (e1RM, totals). */
+/* Big number readout used for headline figures (e1RM, totals). Inside an .s-* element, .series takes that colour. */
 .figure { font-family: var(--font-display); font-size: var(--t-2xl); line-height: 1; font-variant-numeric: tabular-nums; }
 .figure small { font-size: .5em; color: var(--muted); margin-left: 2px; }
+.figure.series { color: var(--c); }
+.stats3 .figure { font-size: clamp(22px, 6.4vw, 34px); }
+
+/* Tones for small signed values (RPE deltas and the like). */
+.tone-good { color: var(--good); } .tone-warn { color: var(--warn); } .tone-muted { color: var(--text-2); }
+
+/* Form rows: .grow fields share the space; .row.end lines buttons up with the inputs. */
+.grow { flex: 1 1 120px; min-width: 120px; }
+.row.end { align-items: end; }
+
+/* ---------- Charts (phase 2): the plot stretches, labels stay real-size HTML ---------- */
+.chart-wrap { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s-2); --chart-h: 200px; }
+.chart-y { position: relative; height: var(--chart-h); min-width: 3ch; font-size: var(--t-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-y > span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; line-height: 1; }
+.chart-plot { display: block; width: 100%; height: var(--chart-h); overflow: visible; }
+.chart-x { grid-column: 2; position: relative; height: 20px; margin-top: 4px; font-size: var(--t-xs); color: var(--muted); }
+.chart-x > span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.chart-x > span.start { transform: none; } .chart-x > span.end { transform: translateX(-100%); }
+.chart-wrap .legend { grid-column: 1 / -1; margin-top: var(--s-2); }
+.chart-plot .grid-line { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart-plot .line { fill: none; stroke: var(--c); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.chart-plot .dot { fill: none; stroke: var(--c); stroke-width: 7; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.chart-plot .area { fill: var(--c); opacity: .12; }

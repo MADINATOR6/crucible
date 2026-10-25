@@ -8,7 +8,8 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `h1`: page title, the only all-caps heading. One per view.
 - `h2`, `h3`: section and item headings, sentence case.
 - `.muted`, `.small`, `.num` (tabular digits), `.nowrap`, `.visually-hidden`.
-- `.figure` (big number, with an optional `<small>` unit).
+- `.figure` (big number, with an optional `<small>` unit). `.figure.series` inside an `.s-squat`/`.s-bench`/`.s-deadlift`/`.s-total`/`.s-bw` element takes that series colour.
+- `.tone-good`, `.tone-warn`, `.tone-muted`: colour for small signed values (for example RPE deltas).
 
 ## Page structure
 - `.topbar`: page title row (title block on the left, actions on the right).
@@ -24,7 +25,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.chip` with `aria-pressed` inside `.chips` (sideways-scrolling choices).
 - `.filters`: one compact row of `.seg` and `<select>` controls; scrolls sideways when narrow.
 - `details.options` > `summary` + `.options-body`: settings folded under the content they change.
-- `.field` > `<span>` label + input/select.
+- `.field` > `<span>` label + input/select. In a `.row`, add `.grow` to fields that share the width; `.row.end` lines a button up with the inputs.
 - `.check-btn` with `aria-pressed` and an `aria-label`: round one-tap action (log as planned).
 
 ## Lists and status
@@ -37,7 +38,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 
 ## Feature-specific (owned by their modules)
 - Heat map: `.hm`, `.hm-figures`, `.hm-fig`, `.hm-svg`, `.hm-region`, `.hm-pill`, `.hm-legend`, `.hm-list`, `.hm-row`, `.hm-bar`, `.hm-delta`, `.band-0` … `.band-5`.
-- Charts: `.chart`, `.legend`, series `.s-squat`, `.s-bench`, `.s-deadlift`, `.s-total`, `.s-bw`.
+- Charts: `figure.chart-wrap` (set its height with `style="--chart-h:Npx"`) > `.chart-y` (y labels: `<span style="top:N%">`), `svg.chart-plot` (`viewBox="0 0 100 100" preserveAspectRatio="none"`; children `.grid-line`, `.line`, `.area`, `.dot` drawn as a zero-length path `M x y h0`, all with `vector-effect="non-scaling-stroke"` except `.area`), `.chart-x` (x labels: `<span style="left:N%">`, first `.start`, last `.end`), then `.legend`. Series groups `.s-squat`, `.s-bench`, `.s-deadlift`, `.s-total`, `.s-bw`. These positional `top`/`left`/`--chart-h` styles are allowed in `charts.js` only. The older `.chart` class stays for any SVG chart not yet moved.
 - Barbell and plates: `.bb-*`, `.plate-*`, `.loading-text`.
 - Coach review: `.coach-headline`, `.coach-find`, `.sev-high`, `.sev-medium`, `.sev-good`.
 - Sheets and toasts: created by `openSheet()` and `toast()` in `src/ui/dom.js`; don't build them by hand.
