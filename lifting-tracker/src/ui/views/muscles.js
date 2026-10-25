@@ -5,6 +5,7 @@ import { mondayOf, addDays } from '../../core/weeks.js';
 import { renderHeatmap, renderLegend, renderMuscleList, MUSCLE_LABELS, bandFor, fmtSets, BANDS, RECOVERY_BANDS } from '../heatmap.js';
 import { esc, todayIso, toast } from '../dom.js';
 import { mount3d } from '../heatmap3d.js';
+import { shareHeatmapImage } from '../share-heatmap.js';
 import { longDate, shortDate } from '../charts.js';
 
 const DUMMY_MONDAY = '2000-01-03';
@@ -122,6 +123,7 @@ export function musclesView(app, ui) {
       ${m.view === '3d' ? '<div class="hm3d" role="img" aria-label="3D muscle map. The list below has every muscle\'s count."><p class="hm3d-status muted small">Loading 3D model…</p></div>' : renderHeatmap(data, { selected: sel, view: m.view, prev, bands })}
       ${recovery ? `<p class="small muted">Recent sets count more: yesterday ${Math.round(100 * Math.exp(-res.factor))}%, 3 days ago ${Math.round(100 * Math.exp(-res.factor * 3))}%, 6 days ago ${Math.round(100 * Math.exp(-res.factor * 6))}%.</p>` : ''}
       ${renderLegend(bands)}
+      <div class="mt-3"><button class="btn ghost small" data-share-map ${total ? '' : 'disabled'}>Share image</button></div>
       ${res.unknownExerciseIds?.length ? `<p class="small tone-warn mt-3">Not counted (not in the exercise catalogue): ${res.unknownExerciseIds.map((x) => esc(String(x).replace('custom:', ''))).join(', ')}</p>` : ''}
     </div>
     ${detail}
@@ -139,6 +141,8 @@ export function musclesView(app, ui) {
     root.querySelector('[data-week]')?.addEventListener('change', (e) => set({ week: Number(e.target.value) }));
     root.querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => set({ calWeek: addDays(m.calWeek, Number(b.dataset.cal)) })));
     root.querySelectorAll('.hm-view-toggle [data-view]').forEach((b) => b.addEventListener('click', () => set({ view: b.dataset.view })));
+    root.querySelector('[data-share-map]')?.addEventListener('click', () => shareHeatmapImage({ data, bands, title: label, subtitle: `${total} ${recovery ? 'weighted' : 'working'} sets` })
+      .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); }));
     const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: `smooth` })); };
     const id = ++mountId;
     leaveObserver?.disconnect();
