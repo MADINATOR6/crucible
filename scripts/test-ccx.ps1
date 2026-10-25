@@ -107,9 +107,10 @@ function Run-Git([string[]]$Arguments) {
     Assert ($p.ExitCode -eq 0) ("git fixture command failed: " + $err.Result)
   } finally { if (-not $p.HasExited) { $p.Kill() }; $p.Dispose() }
 }
-function New-Fixture {
+function New-Fixture([switch]$PlainPath) {
   $fixture = Join-Path $scratch ('case-' + $script:total)
   $script:repo = Join-Path $fixture "repo & (test) [1]'s"
+  if ($PlainPath) { $script:repo = Join-Path $fixture 'repo-file' }
   [void][IO.Directory]::CreateDirectory($script:repo)
   $env:CCX_STATE_DIR = Join-Path $fixture 'state'
   $env:CCX_POLICY = Join-Path $fixture 'policy.json'
@@ -133,10 +134,10 @@ function New-Fixture {
   Run-Git @('add', 'src/one.txt', '.gitignore')
   Run-Git @('-c', 'core.hooksPath=NUL', 'commit', '-qm', 'synthetic fixture')
 }
-function Case([string]$Name, [scriptblock]$Body) {
+function Case([string]$Name, [scriptblock]$Body, [switch]$PlainPath) {
   $script:total++
   try {
-    New-Fixture
+    New-Fixture -PlainPath:$PlainPath
     & $Body
     $script:passed++
     Write-Output "PASS $Name"
@@ -195,7 +196,20 @@ try {
     $null = Cli-Json @('task', 'list')
     Check-Code (Run-Cli @('task', 'add', '-Id', 'T1', '-Title', 'Duplicate', '-Type', 'implement', '-Class', 'normal', '-Risk', 'low', '-Owner', 'codex', '-Owns', 'other/')) 2
   }
-  Case 'real File invocation splits comma arguments and escalates complex attempt two' {
+  Case 'task add normalizes existing folders only' {
+    [void][IO.Directory]::CreateDirectory((Join-Path $repo 'folder[1]'))
+    Write-Utf8File (Join-Path $repo 'file.txt') 'synthetic file'
+    $r = Run-Cli @('task','add','-Id','T1','-Title','Folders','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','folder[1],missing,file.txt')
+    Check-Code $r 0
+    Assert ($r.Stdout.Contains("Owns: treated folder 'folder[1]' as 'folder[1]/'")) 'folder normalization message missing'
+    $task = Get-TestTask
+    Assert ($task.owns -contains 'folder[1]/') 'existing directory lacks slash'
+    Assert ($task.owns -contains 'missing' -and $task.owns -contains 'file.txt') 'missing path or file changed'
+    Assert (Test-CcxPathOwned -Path 'folder[1]/child.txt' -Owns $task.owns) 'directory child is not owned'
+    Assert (-not (Test-CcxPathOwned -Path 'missing/child.txt' -Owns $task.owns)) 'missing path unexpectedly owns descendants'
+  }
+  # PS 5.1 -File startup cannot establish a location containing brackets.
+  Case -PlainPath 'real File invocation splits comma arguments and escalates complex attempt two' {
     $r = Finish-Child (Start-Child -FileArguments @('route','-Type','implement','-Class','complex','-Attempt','2','-Json'))
     Check-Code $r 0
     $route = $json.DeserializeObject($r.Stdout)

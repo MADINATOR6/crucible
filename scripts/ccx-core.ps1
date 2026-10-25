@@ -970,7 +970,14 @@ function Invoke-CcxCmdTask {
                 if (-not $Parameters[$name]) { throw (New-CcxError "task add requires $name." 2) }
             }
             if (-not $policy.taskTypes.ContainsKey($Parameters.Type) -or -not $policy.classes.ContainsKey($Parameters.Class) -or $Parameters.Risk -notin $policy.risk.levels -or $Parameters.Owner -notin @('claude','codex')) { throw (New-CcxError 'Unknown task type, class, risk or owner.' 2) }
-            $owns = @(Split-CcxList $Parameters.Owns | ForEach-Object { ConvertTo-CcxOwnedPath $_ } | Select-Object -Unique)
+            $owns = @(Split-CcxList $Parameters.Owns | ForEach-Object {
+                $owned = ConvertTo-CcxOwnedPath $_
+                if (-not $owned.EndsWith('/') -and (Test-Path -LiteralPath (Join-Path (Get-CcxRepoRoot) $owned) -PathType Container)) {
+                    Write-Host "Owns: treated folder '$owned' as '$owned/'"
+                    $owned += '/'
+                }
+                $owned
+            } | Select-Object -Unique)
             if (-not $owns.Count) { throw (New-CcxError 'Task must own at least one path.' 2) }
             $typePolicy = $policy.taskTypes[$Parameters.Type]
             $creditCap = $null

@@ -424,9 +424,8 @@ else {
     # Under -File a binding failure exits 1; this harness calls the script with &, so check the refusal itself.
     $log = Join-Path $scratch 'badmodel.json'
     $r = Run-Launcher $repo ($common + @('-Model', 'gpt 6 & x')) 'success' 'fake' $false 25 $log
-    # Hosts wrap long error lines; compare with whitespace collapsed.
-    # Hosts wrap long error lines, and CLIXML encodes each break as _x000D__x000A_; remove both.
-    Assert ((($r.Stderr -replace '_x000D__x000A_', '') -replace '\s+', '') -match "Cannotvalidateargumentonparameter'Model'") 'model validation message absent'
+    # Error prose can wrap across CLIXML records; the binding error ID stays intact.
+    Assert ($r.Stderr -match 'ParameterArgumentValidationError,codex-dispatch.ps1') 'model validation error absent'
     Assert (-not (Test-Path -LiteralPath $log)) 'fake codex ran with an unsafe model'
   }
   Case 'research requires task file' {
@@ -743,14 +742,19 @@ else {
   }
   Ccx-Case 'verify run does not consume implementation cap' {
     Add-CcxTask 'T1' 'owned.txt' 'claude'
+    Write-Utf8File (Join-Path $repo 'stray.txt') 'existing synthetic edit'
     $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','verify')) 'success'
     Check-Code $r 0
+    Assert ((Read-CcxState).tasks.T1.status -eq 'active') 'verify did not start planned task'
+    Assert ((Read-CcxState).tasks.T1.baselineDirty -contains 'stray.txt') 'verify baseline omitted existing edit'
+    Check-Code (Run-Ccx @('verify','-TaskId','T1')) 0
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'verify consumed implementation dispatch'
   }
   Ccx-Case 'research run does not consume implementation cap' {
     Add-CcxTask 'T1' 'owned.txt' 'claude'
     $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','research')) 'success'
     Check-Code $r 0
+    Assert ((Read-CcxState).tasks.T1.status -eq 'active') 'research did not start planned task'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'research consumed implementation dispatch'
   }
   Case 'legacy dispatch argv unchanged' {

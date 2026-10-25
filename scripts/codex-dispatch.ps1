@@ -165,9 +165,9 @@ try {
       }
       if ($Role -eq 'implement') {
         if ($task.owner -ne 'codex') { throw (New-CcxError 'Role implement requires task.owner = codex.' 7) }
-        if ($task.status -eq 'planned') { Start-CcxTaskInState -State $state -Task $task }
-        else { Assert-CcxTaskOwnership -State $state -Task $task }
       }
+      if ($task.status -eq 'planned') { Start-CcxTaskInState -State $state -Task $task }
+      elseif ($Role -eq 'implement') { Assert-CcxTaskOwnership -State $state -Task $task }
       $task
     }
     if (-not $PSBoundParameters.ContainsKey('TaskFile') -and $task.taskFile) {
