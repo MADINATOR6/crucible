@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import { interpretRequest } from '../../src/core/request.js';
 
 const NO_GOAL = 'I did not recognise a goal; pick one below.';
+
+test('style parameters report conflicts and a separate cap does not set starting RPE', () => {
+  for (const text of ['5x5 and 3x3', 'top double and top triple']) assert.ok(interpretRequest(text).unclear.some((u) => /conflict/i.test(u)), text);
+  assert.deepEqual(interpretRequest('5x5 and 3x3').options.setsAcross, { sets: 5, reps: 5 });
+  assert.equal(interpretRequest('top single, cap rpe 8.5').options.topRpe, undefined);
+  assert.equal(interpretRequest('heavy single @ rpe 8.5').options.topRpe, 8.5);
+  assert.ok(interpretRequest('top single, no back-offs').unclear.some((u) => /negated/.test(u)));
+  for (const percent of [60, 69, 98, 99]) {
+    const r = interpretRequest(`top single, back-offs at ${percent}%`);
+    assert.equal(r.options.backoff?.drop, undefined);
+    assert.ok(r.unclear.length, String(percent));
+  }
+  for (const text of ['3 back-offs and 5 back-offs', 'drop 10%, drop 15%', 'cap rpe 8, cap rpe 9']) assert.ok(interpretRequest(text).unclear.some((u) => /conflict|both/i.test(u)), text);
+  assert.equal(interpretRequest('test week in 3 weeks').options.focus, 'peak');
+});
 const opts = (text) => interpretRequest(text).options;
 const entry = (r, key) => r.understood.find((u) => u.key === key);
 
@@ -412,4 +427,91 @@ test('a deload block cannot also carry a deload-week option (it is a deload ever
   assert.equal(r.options.deloadWeek, undefined);
   assert.ok(r.unclear.some((u) => /deload every week/.test(u)), r.unclear.join('|'));
   assert.equal(interpretRequest('strength block, no deload').options.deloadWeek, 'none');
+});
+
+test('powerlifting phrases set the requested options (synthetic requests)', () => {
+  const cases = [
+    ['top single block 4 days a week', { focus: 'strength', daysPerWeek: 4, style: 'top-single' }],
+    ['top singles', { focus: 'strength', style: 'top-single' }],
+    ['heavy singles', { focus: 'strength', style: 'top-single' }],
+    ['daily single', { focus: 'strength', style: 'top-single' }],
+    ['work up to a single', { focus: 'strength', style: 'top-single' }],
+    ['single at rpe 8.5', { focus: 'strength', style: 'top-single', topRpe: 8.5 }],
+    ['heavy single @ rpe 8 then back-offs of 3', { focus: 'strength', style: 'top-single', topRpe: 8, backoff: { reps: 3 } }],
+    ['top set', { focus: 'strength', style: 'top-set' }],
+    ['top sets', { focus: 'strength', style: 'top-set' }],
+    ['top triple', { focus: 'strength', style: 'top-set', topReps: 3 }],
+    ['top double', { focus: 'strength', style: 'top-set', topReps: 2 }],
+    ['top set of 4', { focus: 'strength', style: 'top-set', topReps: 4 }],
+    ['top 6', { focus: 'strength', style: 'top-set', topReps: 6 }],
+    ['top triple and 3 back-offs at 90%', { focus: 'strength', style: 'top-set', topReps: 3, backoff: { sets: 3, drop: 0.1 } }],
+    ['sets across', { focus: 'strength', style: 'sets-across' }],
+    ['straight sets', { focus: 'strength', style: 'sets-across' }],
+    ['4x5', { focus: 'strength', style: 'sets-across', setsAcross: { sets: 4, reps: 5 } }],
+    ['10x12', { focus: 'strength', style: 'sets-across', setsAcross: { sets: 10, reps: 12 } }],
+    ['3 sets of 6', { focus: 'strength', style: 'sets-across', setsAcross: { sets: 3, reps: 6 } }],
+    ['volume sets of 8', { focus: 'volume', style: 'sets-across', setsAcross: { sets: 4, reps: 8 } }],
+    ['5x5 volume block 6 weeks', { focus: 'volume', weeks: 6, style: 'sets-across', setsAcross: { sets: 5, reps: 5 } }],
+    ['singles', { focus: 'strength', style: 'singles' }],
+    ['EMOM singles', { focus: 'strength', style: 'singles' }],
+    ['cluster singles', { focus: 'strength', style: 'singles' }],
+    ['heavy and light', { focus: 'strength', style: 'heavy-light' }],
+    ['heavy/light', { focus: 'strength', style: 'heavy-light' }],
+    ['dup', { focus: 'strength', style: 'heavy-light' }],
+    ['daily undulating', { focus: 'strength', style: 'heavy-light' }],
+    ['undulating', { focus: 'strength', style: 'heavy-light' }],
+    ['4 backoff sets', { backoff: { sets: 4 } }],
+    ['backoffs of 5', { backoff: { reps: 5 } }],
+    ['back-off sets of 6', { backoff: { reps: 6 } }],
+    ['90% back-offs', { backoff: { drop: 0.1 } }],
+    ['drop 10%', { backoff: { drop: 0.1 } }],
+    ['minus 15%', { backoff: { drop: 0.15 } }],
+    ['cap at rpe 8', { rpeCap: 8 }],
+    ['dup, cap rpe at 8.5', { focus: 'strength', style: 'heavy-light', rpeCap: 8.5 }],
+    ['rpe 9 cap', { rpeCap: 9 }],
+    ['max rpe 8.5', { rpeCap: 8.5 }],
+    ['rpe 8 max', { rpeCap: 8 }],
+    ['nothing above rpe 8', { rpeCap: 8 }],
+    ['no more than rpe 9', { rpeCap: 9 }],
+    ['keep everything under rpe 8.5', { rpeCap: 8.5 }],
+    ['no grinders', { rpeCap: 8.5 }],
+    ['no grinding', { rpeCap: 8.5 }],
+    ['no accessories', { accessories: 'none' }],
+    ['minimal accessories', { accessories: 'minimal' }],
+    ['few accessories', { accessories: 'minimal' }],
+    ['just the main lifts', { accessories: 'minimal' }],
+    ['more accessories', { accessories: 'more' }],
+    ['more accessory work', { accessories: 'more' }],
+    ['comp lifts only', { variations: 'competition-only' }],
+    ['competition lifts only', { variations: 'competition-only' }],
+    ['only sbd', { variations: 'competition-only' }],
+    ['just the big three', { variations: 'competition-only' }],
+    ['no variations', { variations: 'competition-only' }],
+    ['mock meet in 3 weeks', { focus: 'peak', weeks: 3 }],
+    ['accumulation block', { focus: 'volume' }],
+    ['intensification', { focus: 'strength' }],
+    ['realization block', { focus: 'strength' }],
+    ['off season', { focus: 'volume' }],
+    ['gpp', { focus: 'volume' }],
+    ['pivot block', { focus: 'maintenance' }],
+    ['meet prep', { focus: 'peak' }],
+    ['bring up my pulls', { focus: 'specialise', emphasis: 'deadlift' }],
+  ];
+  assert.ok(cases.length >= 30);
+  for (const [phrase, expected] of cases) {
+    const result = interpretRequest(phrase);
+    assert.deepEqual(result.options, expected, phrase);
+    for (const item of result.understood) assert.ok(item.because.includes('you said "'), phrase);
+  }
+});
+
+test('negated and unsupported powerlifting terms are unclear, not guessed', () => {
+  for (const phrase of ['no top singles', 'not 5x5', 'bench 3x a week', 'bench 3 times a week', 'bench 3x/week', 'bench press three times a week', 'squat twice a week', 'AMRAP', 'wave loading', 'pyramid loading', '5/3/1', '531', 'Sheiko', 'Smolov']) {
+    const result = interpretRequest(phrase);
+    assert.equal(result.options.style, undefined, phrase);
+    assert.equal(result.options.daysPerWeek, undefined, phrase);
+    assert.ok(result.unclear.length > 0, phrase);
+  }
+  assert.match(interpretRequest('top single block 4 days a week').summary, /Strength block.*top single.*3 back-offs of 3.*4 days a week/);
+  assert.deepEqual(interpretRequest('top single block 4 days a week').understood.map((item) => item.key), ['focus', 'daysPerWeek', 'style']);
 });

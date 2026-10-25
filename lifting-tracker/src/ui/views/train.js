@@ -77,7 +77,13 @@ export function trainView(app, ui) {
   const est = !app.datesKnown() || !week ? '' : app.dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day?.number || 1 });
   const fmtLoad = (l) => (l ? formatWeight(l, unit) : '');
   const prog = { done: 0, total: 0 };
-  day?.entries.forEach((e, ei) => e.sets.forEach((s, si) => { prog.total++; if (s.completed || app.loggedFor({ ...dayRef, entryIndex: ei, setIndex: si })) prog.done++; }));
+  const openSets = [];
+  day?.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
+    prog.total++;
+    if (s.completed || app.loggedFor({ ...dayRef, entryIndex: ei, setIndex: si })) prog.done++;
+    else openSets.push({ entry: e, set: s, entryIndex: ei, setIndex: si });
+  }));
+  const current = openSets[0];
   const next = app.nextSession?.();
   const label = sameDay(next, dayRef) ? (est === todayIso() ? 'Today' : 'Next up') : est && est < todayIso() ? 'Earlier session' : 'Session';
   const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
@@ -99,10 +105,19 @@ export function trainView(app, ui) {
     ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small primary" href="#data">Import</a></div>` : ''}
     ${day ? `<div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
-  let body = '';
+  const focus = current ? `<section class="card train-focus" aria-label="Current set">
+    <span class="eyebrow train-focus-kicker">Current set · ${prog.total - prog.done} remaining</span>
+    <h2 class="train-focus-lift">${esc(ex(app, current.entry))} · Set ${current.setIndex + 1}</h2>
+    <p class="train-focus-prescription">${current.set.load ? formatWeight(current.set.load, unit) : current.set.loadRange ? esc(`${current.set.loadRange.min}–${current.set.loadRange.max} ${current.set.loadRange.unit}`) : 'Weight not set'} × ${current.set.repsMin == null && !current.set.repsRaw ? 'Reps not set' : `${repsText(current.set)} reps`}${current.set.targetRpe != null ? `<small>RPE ${esc(current.set.targetRpe)}</small>` : ''}</p>
+    <p class="muted small train-focus-context">${openSets[1] ? `Next: ${esc(ex(app, openSets[1].entry))}, set ${openSets[1].setIndex + 1}` : 'Last set of this session'}</p>
+    <div class="train-focus-actions"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set</button></div>
+  </section><div class="train-sticky-action"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set · ${esc(ex(app, current.entry))}</button></div>`
+    : day ? `<section class="card train-focus"><h2>${prog.total ? 'Session complete' : 'No sets planned'}</h2><p class="muted">${prog.total ? `All ${prog.total} planned sets are done.` : 'Choose another day or use Quick log.'}</p></section>` : '';
+
+  let body = focus;
   if (!week) body += `<div class="empty card"><p>No weeks were found for this block.</p></div>`;
   if (day) {
-    body += day.entries.map((e, ei) => {
+    const workout = day.entries.map((e, ei) => {
       const name = esc(ex(app, e));
       const notes = e.sets.map((s, si) => (s.athleteComment ? `<p class="cue">Set ${si + 1}: ${esc(s.athleteComment)}</p>` : '')).join('');
       return `<section class="card exercise">
@@ -113,6 +128,7 @@ export function trainView(app, ui) {
         ${notes}
       </section>`;
     }).join('') || '<div class="empty card"><p>No exercises on this day.</p></div>';
+    body += `<details class="train-overview" ${current ? '' : 'open'}><summary>Full workout · ${prog.done} of ${prog.total} sets done</summary>${workout}</details>`;
     const t = week.target;
     body += `<details class="options mt-4"><summary>Week ${week.number} details</summary><div class="options-body">
       <div class="grid-3">
@@ -129,6 +145,10 @@ export function trainView(app, ui) {
     root.querySelector('#backup-later')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.saveSettings({ backupSnoozeUntil: addDays(todayIso(), 3) })));
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
     root.querySelector('#pick')?.addEventListener('click', () => openDayPicker(app, ui, blocks, rerender));
+    root.querySelectorAll('[data-focus-log]').forEach((b) => b.addEventListener('click', () => {
+      const [entryIndex, setIndex] = b.dataset.focusLog.split(':').map(Number);
+      openLogSheet(app, ui, { block, week, day, entryIndex, setIndex });
+    }));
     root.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', () => {
       const [ei, si] = b.dataset.set.split(':').map(Number);
       openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si });

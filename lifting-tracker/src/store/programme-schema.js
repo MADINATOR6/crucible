@@ -50,9 +50,16 @@ function genReps(v) {
   return int(v);
 }
 function cleanGen(g) {
+  const b = g.backoff;
+  const backoff = isObj(b) && num(b.drop) !== null && b.drop >= 0.03 && b.drop <= 0.30
+    && int(b.topReps) !== null && b.topReps >= 1 && b.topReps <= 12
+    && num(b.topRpe) !== null && b.topRpe >= 6 && b.topRpe <= 10
+    && (b.rpeCap == null || (num(b.rpeCap) !== null && b.rpeCap >= 6 && b.rpeCap <= 10))
+    ? { drop: b.drop, topReps: b.topReps, topRpe: b.topRpe, rpeCap: b.rpeCap ?? null } : null;
   return { slotId: text(g.slotId, 20), kind: text(g.kind, 20), family: ['squat', 'bench', 'deadlift'].includes(g.family) ? g.family : null,
     reps: genReps(g.reps), rpe: num(g.rpe), e1rmRef: num(g.e1rmRef), k: num(g.k), week: int(g.week),
-    exposure: g.exposure === 'primary' || g.exposure === 'secondary' ? g.exposure : null };
+    exposure: g.exposure === 'primary' || g.exposure === 'secondary' ? g.exposure : null,
+    ...(g.kind === 'backoff' && backoff ? { backoff } : {}) };
 }
 
 const FAMILIES = ['squat', 'bench', 'deadlift'];

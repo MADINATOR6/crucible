@@ -4,11 +4,12 @@ A personal powerlifting tracker that follows your coach's programme. It works of
 
 ## What it does
 
-- **Train.** Your coach's blocks as Block → Week → Day → Exercise → Set, with the plan (reps or rep range, target RPE, load) next to what you actually did. Tap a set to log weight, reps and RPE, see the bar loaded, and get a PR callout. **+ Quick log** records anything outside the programme.
+- **Train.** The next unfinished set is shown first with large weight, reps and target RPE, plus a Log set button above the mobile navigation. Logging advances the focus and starts the rest timer. Expand Full workout to see every exercise, edit a set or open warm-ups. **+ Log** records anything outside the programme.
+- **Coach.** A primary tab for the training review and block builder: describe a request, review an unsaved draft, then add it to the programme. Editable choice chips and a comparison with the learned template show exactly what will change.
 - **Muscles.** A front/back body map coloured by weekly hard sets per muscle, with the number on every region (colour is only a guide). Tap a region to see which exercises contributed. Programme week or calendar week, done or planned. **3D** shows the same colours on a body you can turn and zoom; tap a muscle for its number and exercises. It falls back to the flat map where 3D isn't available.
 - **Progress.** Estimated 1RM per lift, total over time, PR feed, bodyweight with a moving average, and planned vs actual RPE.
 - **Plates.** An interactive barbell: tap or drag plates on, type a target, or build a warm-up ladder. The side view shows one end of a power bar to scale (real plate diameters and thicknesses, printed weights, collar); **3D** shows the whole loaded bar to turn and zoom. kg and lb never mix silently. Includes a meet attempt planner (a suggestion, not advice).
-- **Data.** Import the coach's workbook, switch units and theme, export or restore a JSON backup, export sets as CSV.
+- **Data and settings.** The persistent gear button opens workbook import, units/theme, JSON backup/restore and CSV export.
 
 The first time you open it, it shows clearly labelled **example data** so you can explore. Import your workbook in **Data** to replace it.
 
@@ -26,13 +27,13 @@ Open `http://127.0.0.1:5173/`. Tests (from the `lifting-tracker` folder):
 cd lifting-tracker && node --test
 ```
 
-## Plan: the block generator and the coach's review
+## Coach: the block generator and training review
 
-Open **Plan** from Train ("Plan next block") or Progress. It does three things.
+Open **Coach** from the main navigation. It does three things.
 
 1. **Coach's review.** It reads your history and says what is working and what to improve, in order of priority, with the numbers behind each point: stalled or falling lifts (weekly best e1RM trend), a lift lagging the other two (strength ratios), effort running above or below the plan (your RPE against the coach's), effort creeping up week on week, missed sessions and which day gets skipped, muscles with very little or very high volume, no heavy work lately, possible weak spots from variation numbers (paused bench, tempo deadlifts, high bar vs low bar), cues your coach keeps repeating, bodyweight trend, and deload timing. Most points come with a button that builds the fix into the next block. It is a set of rules from common powerlifting practice, not a diagnosis, and every point shows its confidence.
-2. **Tell it what you need.** Type it ("maintenance block, 3 days a week for 4 weeks", "back from the flu, off for 3 weeks", "bring up my bench") or tap a goal: **Maintain**, **Build strength**, **Build size**, **Back from a break**, **Peak for a meet**, **Bring up a lift**, **Deload**. It shows what it understood and fills in the settings, which you can change.
-3. **Generate.** It learns the shape of your last block (days, main-lift scheme, accessories, set and rep style) and your current e1RMs from RPE-rated sets with the RPE chart, then builds a new block: loads rounded to 2.5 kg, a weekly wave, deload and check-in weeks where they make sense, accessories rotated within the same movement pattern, and a volume heat map with arrows against your last block. It explains every choice and warns where its numbers are shaky. Type your own e1RM for any lift if you disagree with the estimate. **Add to my programme** puts it in Train, ready to log; **Re-load remaining weeks** recalculates unfinished weeks later from your latest numbers.
+2. **Describe.** Type a request (for example, "top single block, 4 days a week, 6 weeks" or "top triple and 3 back-offs at 90%, cap RPE at 8.5") or tap a goal, then **Build draft**. Choice chips show what was understood; tap one to edit its setting. Advanced settings and e1RM overrides stay folded until needed. Unsupported or conflicting wording stays visible for review.
+3. **Review and add.** The draft compares days, weekly sets, main-lift style and maximum main-lift/variation RPE with the learned template. Loads use your history, rounded to 2.5 kg; weekly progression, deloads, accessory rotation, volume maps and explanations remain available. Building or applying a coach suggestion never saves a block. **Add to programme** is the separate save step; changing settings or source data requires rebuilding the draft. **Re-load remaining weeks** recalculates unfinished weeks later from your latest numbers.
 
 What each goal does: *maintenance* keeps intensity but cuts main-lift sets by about a third and accessories by one set, holds loads flat and ends with a heavy single check-in; *return* starts at about 94% (more for longer breaks, down to 80%) and climbs to 100%; *specialise* adds a set to one lift's work and trims the others' variations; *volume* adds sets; *peak* sharpens towards singles; *deload* is an easy block. Details: `GENERATOR.md`.
 

@@ -6,6 +6,18 @@ import { buildExampleProgramme } from '../../src/ui/example-data.js';
 
 const XSS = '<img src=x onerror=alert(1)>';
 
+test('back-off revision metadata is bounded, whitelisted and survives restore', () => {
+  const p = buildExampleProgramme(), set = p.blocks[0].weeks[0].days[0].entries[0].sets[0];
+  const clean = () => sanitizeProgramme(p).blocks[0].weeks[0].days[0].entries[0].sets[0].gen;
+  set.gen = { kind: 'backoff', backoff: { drop: 0.1, topReps: 1, topRpe: 8, rpeCap: 8.5, injected: 'discard' } };
+  assert.deepEqual(clean().backoff, { drop: 0.1, topReps: 1, topRpe: 8, rpeCap: 8.5 });
+  assert.deepEqual(sanitizeProgramme(sanitizeProgramme(p)), sanitizeProgramme(p));
+  for (const backoff of [null, [], { drop: 0.4, topReps: 1, topRpe: 8 }, { drop: 0.1, topReps: -1, topRpe: 8 }, { drop: 0.1, topReps: 1, topRpe: Infinity }, { drop: 0.1, topReps: 1, topRpe: 8, rpeCap: '8' }]) {
+    set.gen.backoff = backoff;
+    assert.equal(clean().backoff, undefined);
+  }
+});
+
 function leafStrings(v, out = []) {
   if (typeof v === 'string') out.push(v);
   else if (v && typeof v === 'object') for (const x of Object.values(v)) leafStrings(x, out);

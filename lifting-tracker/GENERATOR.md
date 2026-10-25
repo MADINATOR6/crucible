@@ -96,7 +96,11 @@ generateBlock({
   emphasis = null,                         // 'squat' | 'bench' | 'deadlift' (focus 'specialise' only; required there)
   layoffWeeks = 4,                         // integer 1..52, focus 'return' only: weeks since last proper training
   checkIn = true,                          // focus 'maintenance': last week's top sets become a heavy single at RPE 8
-  daysPerWeek = default by focus (maintenance 3, else template.daysPerWeek),   // fewer than the template drops days; more is not supported
+  daysPerWeek = default by focus (maintenance 3, else template.daysPerWeek),   // fewer drops days; more adds light days
+  style = 'auto',                         // 'auto' | 'top-single' | 'top-set' | 'sets-across' | 'singles' | 'heavy-light'
+  topReps = 3, topRpe = 8,                // top-set reps 1..6; starting top RPE 7..9.5
+  backoff = null, setsAcross = null,      // { sets, reps, drop } and { sets, reps }; see table below
+  rpeCap = null, accessories = 'normal', variations = 'keep',
   progression = 'standard',                // 'conservative' | 'standard' | 'aggressive'
   rotate = 0.3 (maintenance 0.5),          // 0..1 share of accessory slots to swap for a same-pattern alternative
   deloadWeek = focus === 'deload' ? 'all' : (['maintenance','return'].includes(focus) ? 'none' : (weeks >= 6 ? 'last' : 'none')),   // 'none' | 'last' | 'all'
@@ -106,6 +110,31 @@ generateBlock({
 ```
 
 `block` follows the Programme model (see ARCHITECTURE.md) plus: block `generated: { at, focus, weeks, daysPerWeek, progression, rotate, seed, deloadWeek, fromBlock, athleteAsOf, e1rmStart: {squat,bench,deadlift}, confidence: {squat,bench,deadlift} }`; per planned set `gen: { slotId, kind: 'top'|'backoff'|'single'|'straight'|'accessory', family, reps, rpe, e1rmRef, k, week }`. A generated set is `completed: false`, `actualRpe/actualReps/actualLoad: null`, `source: { sheet: 'generated', row: 0, col: 0 }`, `warnings: []`, load `{ value, unit: 'kg', raw: String(value) }` or `null`.
+
+## Block styles and powerlifting terms
+
+Plan's request box and Settings choose the same options. These styles change competition-lift main slots; `auto` keeps the learned template's scheme. A family with a second exposure uses the lighter scheme shown below.
+
+| Phrase family in a request | Option | What the generator builds |
+| --- | --- | --- |
+| top single, heavy single, daily single, work up to a single | `style: 'top-single'` | Primary: one single starting at RPE 8, rising to 8.5 in week 3 and 9 from week 5; then 3 × 3 back-offs about 10% lighter. Secondary: 4 × 4 at RPE 7. |
+| top set, top triple, top double, top set of N | `style: 'top-set'`, `topReps` | Primary: one top set (3 reps by default) with the same RPE rise, then 3 back-offs of the same reps about 8% lighter. Secondary: 4 × 4 at RPE 7. |
+| sets across, straight sets, N x M, N sets of M, volume sets of M | `style: 'sets-across'`, `setsAcross: { sets, reps }` | Every main exposure at one load; default 4 × 5. Primary starts at RPE 7.5 and rises every two weeks to 8.5; secondary stays at RPE 7. |
+| singles, EMOM singles, cluster singles | `style: 'singles'` | Primary: 5 singles by default; secondary: 3 × 4 at RPE 7. |
+| heavy and light, heavy/light, DUP, daily undulating | `style: 'heavy-light'` | Primary: top double rising from RPE 8 to 9, plus 3 × 3 back-offs about 10% lighter. Secondary: 4 × 6 at RPE 6.5. |
+| single at RPE N, heavy single @ RPE N | `topRpe: N` | Starts the top set at RPE 7–9.5, then adds 0.5 every two weeks up to 9.5. |
+| N back-off sets, back-offs of M, back-offs at P%, drop P% | `backoff: { sets, reps, drop }` | Overrides back-off count (1–6), reps (1–10), and fraction lighter (3–30%). A load stated as “at 90%” means 10% lighter. |
+| cap RPE N, nothing above RPE N, no grinders | `rpeCap: N` | Caps competition and variation set targets and recomputes their loads; “no grinders” means 8.5. Accessories keep their targets. |
+| more accessories, minimal accessories, no accessories | `accessories: 'more'|'minimal'|'none'` | Adds one set each (up to 5), keeps at most two needed accessories a day with one fewer set, or removes them. |
+| comp lifts only, only SBD, no variations | `variations: 'competition-only'` | Drops variation slots and adds a back-off set to the primary competition exposure (up to 6). |
+| N days a week above the learned template | `daysPerWeek: N` | Adds light two-lift days, choosing the least exposed lifts first, plus up to two accessories. |
+| accumulation, hypertrophy block, off season, GPP; intensification, intensity block, heavy block; meet prep, mock meet; pivot, low fatigue | `focus: 'volume'|'strength'|'peak'|'maintenance'` | Chooses the matching block goal; a style alone implies strength. |
+
+The RPE cap accepts 6–10. Settings also offer a custom cap, top-set reps, starting top RPE, back-off details, sets across and accessory/variation choices. The understood list quotes the words that set each option; unsupported per-lift frequency, AMRAP, wave/pyramid loading and named percentage programmes go to “unclear” rather than changing the plan.
+
+An explicit style sets main-lift reps, sets and effort, overriding the focus's default main-lift scheme. The focus still controls projected e1RM, variation/accessory adjustments and deloads. For example, a return block with top singles uses the return load ramp but the top-single RPE progression; an RPE cap can lower that effort. Auto keeps all existing focus rules.
+
+Back-off loads use the rounded top-set load and the requested drop, with the all-out ceiling applied for the back-off reps. Each back-off stores `gen.backoff: { drop, topReps, topRpe, rpeCap }`; this small, validated field survives backup/restore so re-loading remaining weeks preserves the chosen percentage. Legacy blocks retain their original position-based back-offs. The interpreter reports percentages outside 70–97% as unclear because the generator supports drops of 3–30%.
 
 ### Progression ("the wave")
 Let `w` be the 1-based week, `n = weeks`, `g` = weekly e1RM drift: conservative 0.002, standard 0.004, aggressive 0.006 (focus `peak`: x1.0; `volume`: x0.75). Projected e1RM of family f in week w: `E(f, w) = e1rmStart(f) * (1 + g)^(w-1)` where `e1rmStart(f)` is `athlete.lifts[f].e1rmKg`. If it is `null`, loads for that family are `null` and a warning explains (accessories still get loads).
@@ -125,7 +154,7 @@ Singles scheme (`singles`) uses the template reps (1) and `rpe(w)`: weeks 1-2 ->
 
 **Deload.** Week is a deload when `deloadWeek === 'all'`, or `'last'` and `w === n`. Focus `deload` is a deload every week, so it rejects any `deloadWeek` other than `'all'` (RangeError); the request interpreter drops a stray "no deload" / "deload at the end" from a deload request and says so in `unclear`. Deload weeks: main/variation sets = `max(1, round(sets * 0.6))`, `rpe = max(6, rpe - 1)` (singles stay singles with rpe 7), accessories `max(1, sets - 1)` sets and rpe 11 -> 9, 9 -> 8. Week label `Deload`. Deload weeks use `E(f, w-1)` for the family (no further drift).
 
-**Dropping days (daysPerWeek < template).** Repeat until the day count matches: score each day by `3 * (main slots) + 2 * (variation slots) + (accessory slots)`; remove the lowest score (ties: highest day number). Each removed accessory slot whose `pattern` (catalogue `pattern`) is absent from the surviving days is appended to the surviving day with the fewest slots (max 7 slots per day), else discarded. Re-number the days from 1. Add a rationale line per removed day and per moved/discarded accessory. If `daysPerWeek > template.daysPerWeek`, keep the template's days and add a warning.
+**Changing days.** For fewer days, repeat until the day count matches: score each day by `3 * (main slots) + 2 * (variation slots) + (accessory slots)`; remove the lowest score (ties: highest day number). Each removed accessory slot whose `pattern` (catalogue `pattern`) is absent from the surviving days is appended to the surviving day with the fewest slots (max 7 slots per day), else discarded. Re-number the days from 1. Add a rationale line per removed day and per moved/discarded accessory. For more days, add light days as described in the style table and explain each one in the rationale.
 
 **Deadlift stance.** If `deadliftStance` is `sumo` or `conventional` and a deadlift-family slot's exercise is the other stance, swap it to the equivalent: `conventional_deadlift` <-> `sumo_deadlift`, `deadlift` -> stance exercise, `tempo_to_knee_deadlift` <-> `tempo_to_knee_sumo_deadlift`, `cluster_sumo_deadlift` has no conventional equivalent (leave it). Rationale line per swap.
 
