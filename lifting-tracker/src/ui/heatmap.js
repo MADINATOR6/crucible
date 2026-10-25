@@ -37,7 +37,7 @@ const rr = (x, y, w, h, r = 3) => `M${x + r} ${y} H${x + w - r} Q${x + w} ${y} $
 // `label` is where the number pill sits ([x, y]); centred muscles use x >= 104 and are drawn once on the midline.
 const FRONT = {
   traps: { d: ['M107 58 C100 63 88 69 73 79 C82 84 94 80 102 74 C106 70 108 65 107 58 Z'], label: [92, 72], tiny: true },
-  front_delts: { d: ['M74 84 C66 86 60 92 58 102 C57 112 58 122 60 132 C65 126 68 114 70 104 C72 96 76 90 82 87 C79 85 77 84 74 84 Z'], label: [67, 100], tiny: true },
+  front_delts: { d: ['M74 84 C66 86 60 92 58 102 C57 112 58 122 60 132 C65 126 68 114 70 104 C72 96 76 90 82 87 C79 85 77 84 74 84 Z'], label: [64, 94], tiny: true },
   side_delts: { d: ['M74 84 C62 84 52 91 49 103 C47 113 49 125 54 136 L60 132 C58 122 57 112 58 102 C60 92 66 86 74 84 Z'], label: [47, 116], tiny: true },
   chest: { d: ['M108 92 C100 88 90 88 82 92 C74 96 70 104 70 113 C70 123 76 131 86 133 C96 135 105 131 108 127 Z'], label: [88, 112] },
   biceps: { d: ['M50 138 C54 133 60 133 64 138 C66 150 64 162 62 174 L49 174 C46 162 47 148 50 138 Z'], label: [56, 154] },
@@ -71,9 +71,9 @@ const FRONT_NEUTRAL = [
 const BACK = {
   traps: { d: ['M107 58 C97 63 85 69 73 79 C81 94 95 110 107 130 Z'], label: [94, 92] },
   upper_back: { d: ['M73 82 C80 92 94 108 107 130 L107 144 C97 144 86 140 77 132 C69 122 68 104 73 82 Z'], label: [88, 126], tiny: true },
-  rear_delts: { d: ['M74 82 C64 84 55 91 52 101 C51 109 53 116 58 121 C62 112 67 101 71 93 C73 89 75 85 74 82 Z'], label: [60, 104], tiny: true },
+  rear_delts: { d: ['M74 82 C64 84 55 91 52 101 C51 109 53 116 58 121 C62 112 67 101 71 93 C73 89 75 85 74 82 Z'], label: [60, 98], tiny: true },
   side_delts: { d: ['M52 101 C48 110 47 121 50 132 C54 128 57 124 58 121 C54 116 51 109 52 101 Z'], label: [50, 118], tiny: true },
-  lats: { d: ['M77 133 C87 140 96 144 101 148 C95 162 93 186 95 210 C88 202 82 190 78 176 C72 160 72 144 77 133 Z'], label: [84, 168] },
+  lats: { d: ['M77 133 C87 140 96 144 101 148 C95 162 93 186 95 210 C88 202 82 190 78 176 C72 160 72 144 77 133 Z'], label: [84, 170] },
   lower_back: { d: ['M101 148 L107 146 L107 214 C101 216 97 214 94 210 C93 186 95 162 101 148 Z'], label: [102, 184], tiny: true },
   triceps: { d: ['M50 136 C55 130 62 131 66 138 C68 150 66 164 63 176 L49 176 C45 162 46 148 50 136 Z'], label: [57, 154] },
   forearms: { d: ['M49 180 L62 180 C64 194 62 216 58 238 L48 240 C44 218 44 194 49 180 Z'], label: [53, 208], tiny: true },
@@ -110,11 +110,12 @@ function figure(view, geo, neutral, data, selected, prev, baseShapes) {
     const n = data[id] ?? 0;
     const [x, y] = g.label;
     const t = fmtSets(n);
+    // At 300 CSS px wide, the smallest font is 8 * 300 / 144 = 16.7 CSS px (at least 11).
     const w = Math.max(g.tiny ? 13 : 16, 7 + t.length * 5.4), h = g.tiny ? 13 : 15;
     const cx = x >= 104 ? 110 : x;
     return `<g class="hm-pill" data-muscle="${id}" pointer-events="none"><rect x="${cx - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${h / 2}"/><text x="${cx}" y="${y + 0.5}" font-size="${g.tiny ? 8 : 9.2}">${t}</text></g>`;
   }).join('');
-  return `<svg class="hm-svg" viewBox="0 0 220 480" role="group" aria-label="${view} view muscle heat map" data-view="${view}"><defs>${defs}</defs>${base}${head}${paths}${labels}</svg>`;
+  return `<svg class="hm-svg" viewBox="38 2 144 476" role="group" aria-label="${view} view muscle heat map" data-view="${view}"><defs>${defs}</defs>${base}${head}${paths}${labels}</svg>`;
 }
 
 /**
