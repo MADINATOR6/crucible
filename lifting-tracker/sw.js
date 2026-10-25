@@ -1,8 +1,8 @@
 // Offline cache. Cache-first for the app shell and data catalogues; bump VERSION when files change.
 // Only same-origin GET requests are handled; nothing is ever sent to another site.
-// The 3D library (vendor/three) and body model (assets/body.glb), about 2.3 MB, are not installed up front: the fetch
+// The 3D library (vendor/three) and body model (assets/body.glb), about 3.3 MB, are not installed up front: the fetch
 // handler caches them the first time a 3D view opens, and they work offline from then on.
-const VERSION = 'lt-v9';
+const VERSION = 'lt-v10';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'styles/app.css',
   'data/exercises.json', 'data/plates.json',

@@ -1,139 +1,72 @@
-# Builds assets/body.glb: a smooth anatomical figure whose muscles are separate meshes cut from one surface.
-# Run: blender --background --factory-startup --python assets/build_body.py -- assets/body.glb [preview_dir]
-# Mesh names are the muscle ids in data/exercises.json plus _L/_R; the rest of the surface (and the grooves
-# between muscles) is body_skin. Blender is Z-up with the figure facing -Y; the glTF exporter turns that into
-# Y-up facing +Z. Metres, feet on 0.
+# Builds assets/body.glb: a sculpted anatomical figure whose muscles are separate meshes cut from one surface.
+# Run: blender --background --factory-startup --python assets/build_body.py -- <source.glb> assets/body.glb [preview_dir]
+# The source is a sculpted figure in A-pose (generated with Higgsfield image_to_3d from a generic mannequin image;
+# kept out of the repo under media-out/higgsfield/body3d/meshy-raw.glb). Any Z-up figure facing -Y works if the
+# joint and patch positions below are re-measured. Mesh names are the muscle ids in data/exercises.json plus _L/_R;
+# the rest of the surface is body_skin and the outlines between muscles are body_groove. Blender is Z-up with the
+# figure facing -Y; the glTF exporter turns that into Y-up facing +Z. Metres, feet on 0, 1.80 m tall.
 #
-# How it works: the body is a union of ellipsoids, voxel-remeshed and smoothed into one surface. Each muscle is
-# one or more "patch" volumes (superellipsoids, so a block of the abs can be a rounded box). The surface inside a
-# patch belongs to that muscle, minus a thin groove where two patch groups meet. Vertices on a muscle's edge are
-# moved onto its exact outline, so edges are smooth curves rather than the voxel grid's stair steps, and the muscle
-# is raised a few mm, falling to zero at its edge.
+# How it works: the source is scaled to 1.80 m, voxel-remeshed into one closed quad surface and lightly smoothed.
+# Each muscle is one or more "patch" volumes (superellipsoids, so a block of the abs can be a rounded box) centred
+# where a ray from inside the body meets the skin, so patches sit on the sculpted forms. The surface inside a patch
+# belongs to that muscle, minus a thin groove where two patch groups meet. Vertices on a muscle's edge are moved
+# onto its exact outline, so edges are smooth curves rather than the voxel grid's stair steps, and the muscle is
+# raised slightly, falling to zero at its edge.
 import bpy, sys, math
 import numpy as np
 from mathutils import Vector, Euler, Matrix
+from mathutils.bvhtree import BVHTree
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-VOXEL = 0.0085          # surface resolution in metres; smaller is smoother and bigger (0.0085 keeps the GLB near 1.3 MB)
+HEIGHT = 1.80
+VOXEL = 0.0072          # surface resolution in metres; smaller keeps more sculpt detail and makes a bigger GLB
 GAP = 0.1               # groove between two patch groups, in patch-radius units
 RISE = 0.3              # how far in from the edge a muscle reaches its full relief, in the same units
 
-SKIN = []     # (centre, radii, rotation)
-PATCHES = []  # (mesh label, groove group, centre, radii, rotation, relief in metres, superellipse power)
+PATCHES = []  # (mesh label, groove group, ray origin, ray direction, radii, rotation, relief in metres, power)
 MIRROR = Matrix.Diagonal((-1, 1, 1))
 
 
 def rot(along=None, tilt=0.0, lean=0.0):
-    """Rotation whose columns are the ellipsoid's local axes. `along` aligns local Z with a segment;
-    `tilt` turns about Y (in the frontal plane), `lean` about X (forwards/backwards)."""
+    """Rotation whose columns are the patch's local axes. `along` aligns local Z with a segment and keeps local Y
+    facing front/back; `tilt` turns about Y (in the frontal plane), `lean` about X (forwards/backwards)."""
     if along:
-        return (Vector(along[1]) - Vector(along[0])).to_track_quat('Z', 'Y').to_matrix()
+        z = (Vector(along[1]) - Vector(along[0])).normalized()
+        y = Vector((0, 1, 0)); y = (y - z * y.dot(z)).normalized()
+        return Matrix((y.cross(z), y, z)).transposed()
     return Euler((lean, tilt, 0)).to_matrix()
 
 
-def skin(c, r, R=None):
-    """Body volume. Off-centre parts are given for the left side (+X) and mirrored."""
-    R = R or Matrix.Identity(3)
-    SKIN.append((Vector(c), Vector(r), R))
-    if abs(c[0]) > 1e-6:
-        SKIN.append((Vector((-c[0], c[1], c[2])), Vector(r), MIRROR @ R @ MIRROR))
-
-
-def patch(muscle, group, c, r, relief, R=None, p=2.0):
-    """Muscle region on the left side; the right side is mirrored. Patches sharing a group merge without a groove.
-    `p` is the superellipse power: 2 is an ellipsoid, higher is boxier."""
-    R = R or Matrix.Identity(3)
-    PATCHES.append((muscle + '_L', group + '_L', Vector(c), Vector(r), R, relief, p))
-    PATCHES.append((muscle + '_R', group + '_R', Vector((-c[0], c[1], c[2])), Vector(r), MIRROR @ R @ MIRROR, relief, p))
+def patch(muscle, group, origin, direction, r, relief, R=None, p=2.0):
+    """Muscle region on the left side, centred where a ray from `origin` (inside the body) along `direction` first
+    meets the skin; the right side is mirrored. Patches sharing a group merge without a groove. `p` is the
+    superellipse power: 2 is an ellipsoid, higher is boxier."""
+    PATCHES.append((muscle, group, Vector(origin), Vector(direction).normalized(), Vector(r), R or Matrix.Identity(3), relief, p))
 
 
 def lerp(a, b, t):
     return Vector(a).lerp(Vector(b), t)
 
 
-def at(p, dx=0.0, dy=0.0, dz=0.0):
-    return Vector(p) + Vector((dx, dy, dz))
-
-
-# ---------- Body volumes (left side; +X is the figure's left, front is -Y) ----------
-SH, EL, WR = (0.205, 0.0, 1.405), (0.258, 0.012, 1.13), (0.285, -0.005, 0.885)
-HP, KN, AN = (0.088, 0.0, 0.905), (0.098, -0.004, 0.50), (0.098, 0.012, 0.085)
-
-skin((0, -0.008, 1.675), (0.077, 0.094, 0.108))               # cranium
-skin((0, -0.04, 1.618), (0.056, 0.055, 0.052))                # jaw
-skin((0, 0.006, 1.535), (0.058, 0.06, 0.085))                 # neck
-skin((0.045, 0.018, 1.49), (0.07, 0.045, 0.04), rot(tilt=0.45))  # trapezius slope
-skin((0, 0, 1.33), (0.158, 0.114, 0.165))                     # ribcage
-skin((0, 0.004, 1.435), (0.175, 0.08, 0.055))                 # shoulder girdle
-skin((0, 0.002, 1.13), (0.128, 0.095, 0.15))                  # waist
-skin((0, 0.006, 0.955), (0.138, 0.1, 0.1))                    # pelvis
-skin(at(SH, 0.006, 0, 0.01), (0.06, 0.064, 0.074))            # deltoid
-skin((0.082, -0.058, 1.352), (0.088, 0.05, 0.072), rot(tilt=-0.22))  # pectoral
-skin((0.118, 0.035, 1.225), (0.058, 0.068, 0.13), rot(tilt=0.25))    # lat flare
-skin((0.07, 0.056, 0.93), (0.078, 0.053, 0.09))               # glute
-skin(lerp(SH, EL, 0.5), (0.046, 0.049, 0.16), rot(along=(SH, EL)))   # upper arm
-skin(at(lerp(SH, EL, 0.52), 0, -0.016), (0.038, 0.036, 0.1), rot(along=(SH, EL)))  # biceps bulk
-skin(at(lerp(SH, EL, 0.42), 0, 0.016), (0.042, 0.038, 0.11), rot(along=(SH, EL)))  # triceps bulk
-skin(EL, (0.037, 0.038, 0.042))                               # elbow
-skin(lerp(EL, WR, 0.3), (0.043, 0.04, 0.095), rot(along=(EL, WR)))   # forearm, thick end
-skin(lerp(EL, WR, 0.72), (0.031, 0.027, 0.09), rot(along=(EL, WR)))  # forearm, thin end
-skin(WR, (0.026, 0.02, 0.02))                                 # wrist
-skin(at(WR, 0.004, -0.006, -0.07), (0.022, 0.048, 0.075))     # hand
-skin(lerp(HP, KN, 0.3), (0.086, 0.095, 0.17), rot(along=(HP, KN)))   # thigh, upper
-skin(lerp(HP, KN, 0.72), (0.062, 0.066, 0.14), rot(along=(HP, KN)))  # thigh, lower
-skin(at(KN, 0, -0.006), (0.047, 0.05, 0.056))                 # knee
-skin(lerp(KN, AN, 0.5), (0.042, 0.046, 0.225), rot(along=(KN, AN)))  # shin
-skin(at(lerp(KN, AN, 0.3), 0, 0.024), (0.05, 0.054, 0.11), rot(along=(KN, AN)))  # calf bulk
-skin(AN, (0.03, 0.032, 0.036))                                # ankle
-skin((0.102, -0.045, 0.036), (0.045, 0.115, 0.037))           # foot
-
-# ---------- Muscle patches: (muscle, groove group, centre, radii, relief) ----------
-arm, fore, thigh, shin = rot(along=(SH, EL)), rot(along=(EL, WR)), rot(along=(HP, KN)), rot(along=(KN, AN))
-
-# Patches overlap on purpose: where two overlap, the surface splits between them along a groove, so the muscles
-# tile the body like an anatomy chart. Head, neck, hands, knees, shins and feet stay skin.
-patch('chest', 'chest', (0.088, -0.105, 1.352), (0.112, 0.08, 0.09), 0.006, rot(tilt=-0.2), p=2.4)
-patch('front_delts', 'front_delts', at(SH, -0.012, -0.052, 0.0), (0.05, 0.055, 0.088), 0.005)
-patch('side_delts', 'side_delts', at(SH, 0.056, 0.0, -0.01), (0.042, 0.062, 0.095), 0.005)
-patch('rear_delts', 'rear_delts', at(SH, -0.012, 0.052, 0.0), (0.05, 0.055, 0.088), 0.005)
-patch('traps', 'traps', (0.07, 0.03, 1.49), (0.1, 0.07, 0.055), 0.005, rot(tilt=0.42))
-patch('traps', 'traps', (0.05, 0.095, 1.38), (0.08, 0.06, 0.08), 0.005)
-patch('traps', 'traps', (0.024, 0.1, 1.27), (0.05, 0.06, 0.1), 0.004)
-patch('upper_back', 'upper_back', (0.112, 0.105, 1.33), (0.065, 0.06, 0.07), 0.004)
-patch('lats', 'lats', (0.127, 0.06, 1.225), (0.078, 0.075, 0.145), 0.006, rot(tilt=0.3))
-patch('lats', 'lats', (0.08, 0.09, 1.12), (0.06, 0.05, 0.08), 0.005)
-patch('lower_back', 'lower_back', (0.036, 0.095, 1.055), (0.036, 0.06, 0.14), 0.004)
-for i, (z, h) in enumerate(((1.238, 0.034), (1.168, 0.034), (1.098, 0.034), (1.012, 0.046))):
-    patch('abs', f'abs{i}', (0.04, -0.09, z), (0.036, 0.06, h), 0.004, p=3.5)
-patch('abs', 'obliques', (0.11, -0.055, 1.09), (0.05, 0.075, 0.105), 0.004, rot(tilt=-0.12))
-patch('biceps', 'biceps', at(lerp(SH, EL, 0.56), 0, -0.04), (0.044, 0.042, 0.125), 0.006, arm)
-patch('triceps', 'triceps', at(lerp(SH, EL, 0.45), 0, 0.044), (0.05, 0.042, 0.135), 0.005, arm)
-patch('forearms', 'forearm_flexors', at(lerp(EL, WR, 0.4), -0.012, -0.03), (0.04, 0.042, 0.135), 0.004, fore)
-patch('forearms', 'forearm_extensors', at(lerp(EL, WR, 0.4), 0.025, 0.02), (0.038, 0.042, 0.135), 0.004, fore)
-patch('glutes', 'glutes', (0.074, 0.105, 0.93), (0.095, 0.08, 0.105), 0.004)
-patch('quads', 'rectus_femoris', at(lerp(HP, KN, 0.45), -0.004, -0.08), (0.04, 0.06, 0.19), 0.006, thigh)
-patch('quads', 'vastus_lateralis', at(lerp(HP, KN, 0.5), 0.066, -0.03), (0.046, 0.07, 0.19), 0.006, thigh)
-patch('quads', 'vastus_medialis', at(lerp(HP, KN, 0.78), -0.036, -0.05), (0.038, 0.05, 0.085), 0.006, thigh)
-patch('hamstrings', 'biceps_femoris', at(lerp(HP, KN, 0.55), 0.026, 0.075), (0.038, 0.06, 0.18), 0.005, thigh)
-patch('hamstrings', 'semitendinosus', at(lerp(HP, KN, 0.55), -0.026, 0.075), (0.038, 0.06, 0.18), 0.005, thigh)
-patch('adductors', 'adductors', at(lerp(HP, KN, 0.3), -0.072, -0.012), (0.05, 0.06, 0.14), 0.004, thigh)
-patch('calves', 'gastroc_lateral', at(lerp(KN, AN, 0.32), 0.022, 0.06), (0.032, 0.055, 0.11), 0.006, shin)
-patch('calves', 'gastroc_medial', at(lerp(KN, AN, 0.32), -0.022, 0.06), (0.032, 0.055, 0.115), 0.006, shin)
-
-# ---------- One smooth surface ----------
-parts = []
-for c, r, R in SKIN:
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=14, radius=1)
-    ob = bpy.context.object
-    ob.matrix_world = Matrix.Translation(c) @ R.to_4x4() @ Matrix.Diagonal((r.x, r.y, r.z, 1))
-    parts.append(ob)
+# ---------- Source surface ----------
+args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+bpy.ops.import_scene.gltf(filepath=args[0])
+parts = [o for o in bpy.data.objects if o.type == 'MESH']
 bpy.ops.object.select_all(action='DESELECT')
 for ob in parts:
     ob.select_set(True)
 bpy.context.view_layer.objects.active = parts[0]
-bpy.ops.object.join()
+if len(parts) > 1:
+    bpy.ops.object.join()
 body = bpy.context.object
+bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+for ob in [o for o in bpy.data.objects if o is not body]:
+    bpy.data.objects.remove(ob)
+body.data.materials.clear()
+lo = np.min([v.co[:] for v in body.data.vertices], axis=0); hi = np.max([v.co[:] for v in body.data.vertices], axis=0)
+k = HEIGHT / (hi[2] - lo[2])
+body.data.transform(Matrix.Diagonal((k, k, k, 1)) @ Matrix.Translation((-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -lo[2])))
 
 
 def apply(ob, kind, **opts):
@@ -144,7 +77,55 @@ def apply(ob, kind, **opts):
 
 
 apply(body, 'REMESH', mode='VOXEL', voxel_size=VOXEL)
-apply(body, 'SMOOTH', factor=0.7, iterations=8)
+apply(body, 'SMOOTH', factor=0.5, iterations=3)
+
+# ---------- Muscle patches (left side; +X is the figure's left, front is -Y) ----------
+# Joint centres measured on the scaled source.
+SH, EL, WR = (0.215, 0.01, 1.42), (0.315, 0.03, 1.17), (0.378, -0.02, 0.95)
+HP, KN, AN = (0.10, 0.0, 0.88), (0.135, 0.02, 0.52), (0.155, 0.055, 0.10)
+arm, fore, thigh, shin = rot(along=(SH, EL)), rot(along=(EL, WR)), rot(along=(HP, KN)), rot(along=(KN, AN))
+F, B, L = (0, -1, 0), (0, 1, 0), (1, 0, 0)
+
+# Patches overlap on purpose: where two overlap, the surface splits between them along a groove, so the muscles
+# tile the body like an anatomy chart. Head, neck, hands, knees, shins and feet stay skin.
+patch('chest', 'chest', (0.1, 0, 1.37), F, (0.125, 0.08, 0.095), 0.002, rot(tilt=-0.15), p=2.4)
+patch('front_delts', 'front_delts', SH, (0.35, -1, 0), (0.06, 0.06, 0.1), 0.002)
+patch('side_delts', 'side_delts', SH, L, (0.06, 0.07, 0.105), 0.002)
+patch('rear_delts', 'rear_delts', SH, (0.35, 1, 0), (0.06, 0.06, 0.1), 0.002)
+patch('traps', 'traps', (0.09, 0.02, 1.45), (0, 0.4, 1), (0.12, 0.08, 0.07), 0.002, rot(tilt=0.42))
+patch('traps', 'traps', (0.06, 0, 1.38), B, (0.09, 0.07, 0.1), 0.002)
+patch('traps', 'traps', (0.03, 0, 1.24), B, (0.06, 0.07, 0.11), 0.002)
+patch('upper_back', 'upper_back', (0.13, 0, 1.34), B, (0.08, 0.07, 0.08), 0.002)
+patch('lats', 'lats', (0.1, 0, 1.21), (0.6, 1, 0), (0.1, 0.09, 0.16), 0.002, rot(tilt=0.3))
+patch('lats', 'lats', (0.08, 0, 1.11), B, (0.075, 0.06, 0.08), 0.002)
+patch('lats', 'lats', (0.05, 0.01, 1.24), L, (0.06, 0.06, 0.1), 0.002)
+patch('lower_back', 'lower_back', (0.04, 0, 1.1), B, (0.05, 0.07, 0.12), 0.002)
+for i, (z, h) in enumerate(((1.278, 0.036), (1.213, 0.034), (1.148, 0.036), (1.035, 0.07))):
+    patch('abs', f'abs{i}', (0.045, 0, z), F, (0.046, 0.07, h), 0.002, p=3.5)
+patch('abs', 'obliques', (0.05, 0, 1.12), (0.65, -0.75, 0), (0.07, 0.07, 0.14), 0.002)
+patch('biceps', 'biceps', lerp(SH, EL, 0.6), (-0.2, -1, 0), (0.055, 0.05, 0.15), 0.002, arm)
+patch('triceps', 'triceps', lerp(SH, EL, 0.5), (0.2, 1, 0), (0.06, 0.05, 0.17), 0.002, arm)
+patch('forearms', 'forearm_flexors', lerp(EL, WR, 0.3), (-0.7, -0.7, 0), (0.05, 0.05, 0.14), 0.002, fore)
+patch('forearms', 'forearm_extensors', lerp(EL, WR, 0.3), (0.7, 0.4, 0), (0.05, 0.05, 0.14), 0.002, fore)
+patch('glutes', 'glutes', (0.09, 0, 1.0), B, (0.11, 0.09, 0.12), 0.002)
+patch('quads', 'rectus_femoris', lerp(HP, KN, 0.42), F, (0.055, 0.06, 0.21), 0.002, thigh)
+patch('quads', 'vastus_lateralis', lerp(HP, KN, 0.5), (0.85, -0.5, 0), (0.06, 0.07, 0.21), 0.002, thigh)
+patch('quads', 'vastus_medialis', lerp(HP, KN, 0.8), (-0.6, -0.8, 0), (0.05, 0.055, 0.1), 0.002, thigh)
+patch('hamstrings', 'biceps_femoris', lerp(HP, KN, 0.55), (0.45, 1, 0), (0.05, 0.06, 0.2), 0.002, thigh)
+patch('hamstrings', 'semitendinosus', lerp(HP, KN, 0.55), (-0.45, 1, 0), (0.05, 0.06, 0.2), 0.002, thigh)
+patch('adductors', 'adductors', lerp(HP, KN, 0.3), (-1, -0.3, 0), (0.06, 0.07, 0.15), 0.002, thigh)
+patch('calves', 'gastroc_lateral', lerp(KN, AN, 0.27), (0.55, 1, 0), (0.042, 0.06, 0.13), 0.002, shin)
+patch('calves', 'gastroc_medial', lerp(KN, AN, 0.27), (-0.55, 1, 0), (0.045, 0.06, 0.135), 0.002, shin)
+
+# Centre each patch on the skin, then mirror it to the right side.
+bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+resolved = []
+for muscle, group, o, d, r, R, relief, p in PATCHES:
+    hit = bvh.ray_cast(o, d)[0]
+    assert hit is not None, f'{group}: ray from {tuple(o)} misses the body'
+    resolved.append((muscle + '_L', group + '_L', hit, r, R, relief, p))
+    resolved.append((muscle + '_R', group + '_R', Vector((-hit.x, hit.y, hit.z)), r, MIRROR @ R @ MIRROR, relief, p))
+PATCHES = resolved
 
 # ---------- Assign the surface to muscles and raise them ----------
 me = body.data
@@ -244,12 +225,10 @@ for ob in [o for o in bpy.data.objects if o.type == 'MESH']:
 missing = sorted(set(labels) - set(made))
 print('MISSING', missing)
 
-args = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-out = args[0] if args else 'body.glb'
-bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_yup=True, export_apply=True,
+bpy.ops.export_scene.gltf(filepath=args[1], export_format='GLB', export_yup=True, export_apply=True,
                           export_materials='NONE', export_normals=True)
 
-if len(args) > 1:  # optional preview renders for review
+if len(args) > 2:  # optional preview renders for review
     scene = bpy.context.scene
     scene.render.engine = 'BLENDER_WORKBENCH'
     scene.render.resolution_x, scene.render.resolution_y = 700, 1000
@@ -266,7 +245,7 @@ if len(args) > 1:  # optional preview renders for review
                             ('side', (4, 0, 0.9), (math.pi / 2, 0, math.pi / 2)),
                             ('three-quarter', (2.6, -3.1, 1.0), (math.pi / 2, 0, math.radians(40)))]:
         cam.location, cam.rotation_euler = loc, rotn
-        scene.render.filepath = f'{args[1]}/body-{name}.png'
+        scene.render.filepath = f'{args[2]}/body-{name}.png'
         bpy.ops.render.render(write_still=True)
     tris = sum(len(p.vertices) - 2 for o in bpy.data.objects if o.type == 'MESH' for p in o.data.polygons)
     print('MESHES', len(made), 'TRIS', tris)
