@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createApp } from '../../src/ui/state.js';
 import { buildBackup } from '../../src/store/backup.js';
+import { todayIso } from '../../src/ui/dom.js';
+import { addDays } from '../../src/core/weeks.js';
 
 // The app state runs against the in-memory store here (no IndexedDB in Node), with the data catalogues
 // read from disk through a stubbed fetch.
@@ -14,6 +16,93 @@ globalThis.fetch = async (path) => {
 const ref = { blockNumber: 1, weekNumber: 1, dayNumber: 1 };
 const planned = { entryIndex: 0, setIndex: 0 };
 const log = (app, over = {}) => app.logSet({ date: '2026-10-01', programmeRef: ref, plannedRef: planned, exerciseId: 'low_bar_squat', weight: { value: 140, unit: 'kg' }, reps: 5, rpe: 7, ...over });
+
+async function plannedApp() {
+  const app = await createApp();
+  await app.setProgramme({ blocks: [{ number: 1, weeks: [{ number: 1, days: [
+    { number: 1, entries: [{ exerciseId: 'low_bar_squat', name: 'Squat', sets: [
+      { load: { value: 100, unit: 'kg' }, repsMin: 5, repsMax: 8, targetRpe: 7 },
+      { completed: true, load: { value: 90, unit: 'kg' }, repsMin: 5 },
+    ] }] },
+    { number: 2, entries: [{ name: 'Custom lift', sets: [{ loadRange: { min: 120, max: 130, unit: 'lb' }, repsMin: 3 }] }] },
+  ] }] }] });
+  return app;
+}
+const logPlanned = (app, over = {}) => app.logAsPlanned({ programmeRef: ref, plannedRef: planned, ...over });
+
+test('log-as-planned writes minimum reps, advances past completed sets, and delete undoes it', async () => {
+  const app = await plannedApp();
+  assert.deepEqual(app.nextSession(), ref);
+  const beforePRs = app.prs();
+  const result = await logPlanned(app);
+  assert.deepEqual(result.set.weight, app.programme.blocks[0].weeks[0].days[0].entries[0].sets[0].load);
+  assert.equal(result.set.reps, 5);
+  assert.equal(result.set.rpe, 7);
+  assert.equal(result.set.exerciseId, 'low_bar_squat');
+  assert.deepEqual(await app.store.getAll('sets'), [result.set]);
+  assert.deepEqual(app.nextSession(), { ...ref, dayNumber: 2 });
+  await app.deleteSet(result.set.id);
+  assert.deepEqual(app.nextSession(), ref);
+  assert.deepEqual(app.prs(), beforePRs);
+  for (const table of ['sets', 'sessions']) {
+    assert.deepEqual(app[table], []);
+    assert.deepEqual(await app.store.getAll(table), []);
+  }
+});
+
+test('log-as-planned rejects missing values and invalid refs without writing', async () => {
+  const app = await plannedApp();
+  const set = app.programme.blocks[0].weeks[0].days[0].entries[0].sets[0];
+  const load = set.load;
+  for (const patch of [{ load: null }, { load, repsMin: null }]) {
+    Object.assign(set, patch);
+    await assert.rejects(() => logPlanned(app), { name: 'RangeError', message: 'This set has no planned weight or reps: open it to log.' });
+  }
+  for (const over of [
+    { programmeRef: null }, { plannedRef: null },
+    { programmeRef: { ...ref, blockNumber: 99 } }, { programmeRef: { ...ref, weekNumber: 99 } },
+    { programmeRef: { ...ref, dayNumber: 99 } },
+    { plannedRef: { ...planned, entryIndex: 99 } }, { plannedRef: { ...planned, setIndex: 99 } },
+  ]) await assert.rejects(() => logPlanned(app, over), RangeError);
+  for (const table of ['sets', 'sessions']) {
+    assert.deepEqual(app[table], []);
+    assert.deepEqual(await app.store.getAll(table), []);
+  }
+});
+
+test('log-as-planned reports only new PRs and overwrites an existing planned log', async () => {
+  const app = await plannedApp();
+  await log(app, { programmeRef: null, plannedRef: null, weight: { value: 50, unit: 'kg' }, date: addDays(todayIso(), -2) });
+  const before = app.prs();
+  const { set, newPRs } = await logPlanned(app);
+  assert.ok(newPRs.some((p) => p.type === 'e1rm' && p.exerciseId === 'low_bar_squat'));
+  assert.deepEqual(newPRs, app.prs().filter((p) => !before.includes(p)));
+  const again = await logPlanned(app);
+  assert.equal(again.set.id, set.id);
+  assert.deepEqual(again.newPRs, []);
+  assert.equal(app.sets.length, 2);
+});
+
+test('log-as-planned uses custom exercise names and the minimum load range', async () => {
+  const app = await plannedApp();
+  const { set } = await logPlanned(app, { programmeRef: { ...ref, dayNumber: 2 } });
+  assert.equal(set.exerciseId, 'custom:Custom lift');
+  assert.deepEqual(set.weight, { value: 120, unit: 'lb' });
+  assert.equal(set.reps, 3);
+  assert.equal(set.rpe, null);
+});
+
+test('log-as-planned defaults to an estimated past/today date, otherwise today; explicit date wins', async () => {
+  const app = await plannedApp();
+  const today = todayIso();
+  for (const estimated of [null, addDays(today, -10), today, addDays(today, 10)]) {
+    app.dateFor = () => estimated;
+    const { set } = await logPlanned(app);
+    assert.equal(app.sessions.find((s) => s.id === set.sessionId).date, estimated && estimated <= today ? estimated : today);
+  }
+  const { set } = await logPlanned(app, { date: '2026-01-01' });
+  assert.equal(app.sessions.find((s) => s.id === set.sessionId).date, '2026-01-01');
+});
 
 test('a double tap on Save logs one set, not two', async () => {
   const app = await createApp();

@@ -5,6 +5,7 @@ import { isStrictDate, sanitizeProgramme, sanitizeSettings } from '../store/prog
 import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
+import { nextSession, plannedValues } from '../core/session.js';
 import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
 import { buildExampleProgramme } from './example-data.js';
@@ -159,6 +160,13 @@ export async function createApp() {
     return m;
   }).get(refKey(ref)) || null;
 
+  app.nextSession = () => nextSession(app.programme, (ref) => {
+    const set = app.programme.blocks.find((b) => b.number === ref.blockNumber)
+      .weeks.find((w) => w.number === ref.weekNumber)
+      .days.find((d) => d.number === ref.dayNumber).entries[ref.entryIndex].sets[ref.setIndex];
+    return !!(set.completed || app.loggedFor(ref));
+  });
+
   /** Programme with logged-over sets switched to "not completed" so they are not double counted. */
   app.programmeForEvents = () => memo('progForEvents', () => {
     const p = structuredClone(app.programme);
@@ -210,6 +218,26 @@ export async function createApp() {
   });
 
   // ---- logging ----
+  app.logAsPlanned = async ({ programmeRef, plannedRef, date }) => {
+    const day = app.programme?.blocks.find((b) => b.number === programmeRef?.blockNumber)
+      ?.weeks.find((w) => w.number === programmeRef?.weekNumber)
+      ?.days.find((d) => d.number === programmeRef?.dayNumber);
+    const entry = day?.entries[plannedRef?.entryIndex];
+    const planned = entry?.sets[plannedRef?.setIndex];
+    if (!planned) throw new RangeError('Choose a valid planned set.');
+    const values = plannedValues(planned);
+    if (!values) throw new RangeError('This set has no planned weight or reps: open it to log.');
+    const today = todayIso();
+    const estimated = app.dateFor(programmeRef);
+    const prKey = (x) => `${x.exerciseId}|${x.type}|${x.date}|${x.order}|${x.value}`;
+    const before = new Set(app.prs().map(prKey));
+    const set = await app.logSet({
+      programmeRef, plannedRef, date: date ?? (estimated && estimated <= today ? estimated : today),
+      exerciseId: entry.exerciseId || 'custom:' + entry.name, ...values,
+    });
+    return { set, newPRs: app.prs().filter((x) => !before.has(prKey(x))) };
+  };
+
   app.logSet = (input) => enqueue(async () => {
     const { date, programmeRef = null, plannedRef = null, exerciseId, weight, reps, rpe = null, isWarmup = false, note = '' } = input;
     if (!isStrictDate(date)) throw new RangeError('Choose a valid date.');
