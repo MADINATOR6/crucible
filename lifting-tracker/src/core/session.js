@@ -7,19 +7,23 @@ export function sessionProgress(day, ref, isDone) {
   return { done, total };
 }
 
+// The first unfinished day at or after the last day with any work done. Skipped sets in older blocks are history,
+// not the next session; a partly done latest day stays next so it can be finished.
 export function nextSession(programme, isDone) {
   const ordered = (items) => [...items].sort((a, b) => a.number - b.number);
-  let last = null;
+  const days = [];
+  let last = null; // the programme's final day, even an empty one: the answer when everything is done
   for (const block of ordered(programme?.blocks || [])) {
     for (const week of ordered(block.weeks)) {
       for (const day of ordered(week.days)) {
         last = { blockNumber: block.number, weekNumber: week.number, dayNumber: day.number };
         const { done, total } = sessionProgress(day, last, isDone);
-        if (done < total) return last;
+        if (total) days.push({ ref: last, done, total });
       }
     }
   }
-  return last;
+  const lastTouched = days.findLastIndex((d) => d.done > 0);
+  return days.slice(Math.max(0, lastTouched)).find((d) => d.done < d.total)?.ref ?? last;
 }
 
 export function plannedValues(set) {

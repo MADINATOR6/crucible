@@ -167,7 +167,8 @@ function setRow(app, unit, ref, s, name, fmtLoad) {
   const rpe = (v) => (v != null ? `<small>@${esc(v)}</small>` : '');
   const text = logged
     ? `${logged.reps} × ${formatWeight(logged.weight, unit)} ${rpe(logged.rpe)}`
-    : s.completed ? `${s.actualReps != null ? s.actualReps + ' reps' : 'Done'} ${rpe(s.actualRpe)}<small>workbook</small>`
+    // The coach's sheet records the actual RPE against the planned load and reps unless the athlete wrote others in.
+    : s.completed ? `${s.actualReps ?? repsText(s)}${s.actualLoad ? ` × ${fmtLoad(s.actualLoad)}` : load ? ` × ${load}` : ' reps'} ${rpe(s.actualRpe)}<small>workbook</small>`
     : `${plan} ${rpe(s.targetRpe)}`;
   const n = ref.setIndex + 1;
   return `<li class="list-row set-row${done ? ' is-done' : ''}">

@@ -26,10 +26,23 @@ test('next session sorts blocks, weeks and days without changing array order', (
 test('a partly logged day stays selected and progress passes the original set indices', () => {
   const d = { number: 1, entries: [{ sets: [{}] }, { sets: [{}, {}] }] };
   const seen = [];
-  const isDone = (r) => { seen.push(r); return r.entryIndex === 0 || r.setIndex === 0; };
+  const isDone = (r) => { seen.push(r); return r.dayNumber === 1 && (r.entryIndex === 0 || r.setIndex === 0); }; // day 2 untouched
   assert.deepEqual(sessionProgress(d, ref, isDone), { done: 2, total: 3 });
   assert.deepEqual(seen, [{ ...ref, entryIndex: 0, setIndex: 0 }, { ...ref, entryIndex: 1, setIndex: 0 }, { ...ref, entryIndex: 1, setIndex: 1 }]);
   assert.deepEqual(nextSession({ blocks: [{ number: 1, weeks: [{ number: 1, days: [d, day(2)] }] }] }, isDone), ref);
+});
+
+test('gaps in older training are history: next is the first unfinished day from the last one trained', () => {
+  const w = (number, sets) => ({ number, days: [day(1, sets), day(2, sets)] });
+  const programme = { blocks: [{ number: 1, weeks: [w(1, [{}, {}]), w(2, [{}, {}]), w(3, [{}, {}])] }] };
+  const done = (pattern) => (r) => pattern[`${r.weekNumber}.${r.dayNumber}`]?.[r.setIndex] ?? false;
+  // Week 1 day 2 was cut short long ago; week 2 is complete; nothing since.
+  const skipped = { '1.1': [true, true], '1.2': [true, false], '2.1': [true, true], '2.2': [true, true] };
+  assert.deepEqual(nextSession(programme, done(skipped)), { ...ref, weekNumber: 3, dayNumber: 1 });
+  // The latest day trained is only partly done: it stays next so it can be finished.
+  assert.deepEqual(nextSession(programme, done({ ...skipped, '3.1': [true, false] })), { ...ref, weekNumber: 3, dayNumber: 1 });
+  // A day skipped entirely between trained days is passed over.
+  assert.deepEqual(nextSession(programme, done({ '1.1': [true, true], '2.1': [true, true] })), { ...ref, weekNumber: 2, dayNumber: 2 });
 });
 
 test('empty programmes return null, empty days are skipped, and all-done uses the last day', () => {
