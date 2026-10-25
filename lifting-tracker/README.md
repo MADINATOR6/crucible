@@ -43,6 +43,8 @@ The Plates screen has a **Calibration** card. In Calibrated mode (kg) it shows h
 
 The app is plain static files with nothing private in them, so it is safe to host anywhere that serves HTTPS (GitHub Pages, Netlify, Cloudflare Pages, your own server). Your training data never goes there: it lives in your browser's storage on each device.
 
+**Live copy: https://madinator6.github.io/crucible/** — `.github/workflows/pages.yml` runs the tests and publishes only the app's runtime files there on every push to `main` that changes `lifting-tracker/`.
+
 1. Host the `lifting-tracker` folder as a static site over HTTPS.
 2. Open the site on your phone. iPhone: Share → Add to Home Screen. Android: menu → Install app.
 3. Open it once while online so it can cache itself; after that it works offline.
