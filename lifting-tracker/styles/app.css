@@ -185,7 +185,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 .hm-fig figcaption { text-align: center; font-family: var(--font-display); letter-spacing: .18em; text-transform: uppercase; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .hm-svg { width: 100%; height: auto; display: block; overflow: visible; }
 .hm[data-active-view="front"] .hm-fig[data-view="back"], .hm[data-active-view="back"] .hm-fig[data-view="front"] { display: none; }
-@media (min-width: 720px) { .hm-figures { grid-template-columns: 1fr 1fr; } .hm[data-active-view] .hm-fig { display: block !important; } .hm-view-toggle:not(:has([data-view="3d"])) { display: none; } }
+@media (min-width: 720px) { .hm-figures { grid-template-columns: 1fr 1fr; } .hm[data-active-view] .hm-fig { display: block !important; } .hm-view-toggle:not(.has-3d) { display: none; } }
 .hm-neutral { fill: var(--b0); stroke: var(--b0-edge); stroke-width: 1; stroke-linejoin: round; opacity: .55; }
 .hm-region { stroke: var(--bg); stroke-width: 1.4; stroke-linejoin: round; cursor: pointer; transition: filter .15s ease; }
 .hm-region:hover, .hm-region:focus-visible { filter: brightness(1.18); }
@@ -448,7 +448,6 @@ input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--accent)
 @media (min-width: 720px) {
   .hm-narrow, .hm-view-toggle [data-view="back"] { display: none; }
   .hm-wide { display: inline; }
-  .hm-view-toggle:has([data-view="back"][aria-pressed="true"]) [data-view="front"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 1px 4px rgba(0,0,0,.25); }
 }
 .hm3d { position: relative; height: clamp(440px, 64vh, 600px); border-radius: var(--r-lg); overflow: hidden; background: radial-gradient(90% 70% at 50% 35%, color-mix(in srgb, var(--accent) 7%, var(--surface-2)) 0%, var(--surface) 75%); }
 .hm3d canvas { display: block; cursor: grab; outline: none; }

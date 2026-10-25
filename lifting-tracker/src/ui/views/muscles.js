@@ -7,7 +7,11 @@ import { mount3d } from '../heatmap3d.js';
 import { longDate } from '../charts.js';
 
 const DUMMY_MONDAY = '2000-01-03';
-let webgl, active3d, mountId = 0, leaveObserver;
+let webgl, active3d, mountId = 0, leaveObserver, redraw;
+// Wide screens show both 2D figures, so the switch is 2D / 3D there; re-render when the width crosses over so
+// aria-pressed matches the button that is visible.
+const wide = matchMedia('(min-width: 720px)');
+wide.addEventListener('change', () => redraw?.());
 function supports3d() {
   if (webgl === undefined) {
     const canvas = document.createElement('canvas');
@@ -104,7 +108,7 @@ export function musclesView(app, ui) {
     </div>
     <div class="card">
       <div class="card-h"><h2>${esc(label)}</h2><span class="muted small">${total} working sets${m.mode === 'programme' && !estimated ? ' · dates unknown' : ''}</span></div>
-      <div class="seg hm-view-toggle mb-3" role="group" aria-label="Body view"><button data-view="front" aria-pressed="${m.view === 'front'}"><span class="hm-narrow">Front</span><span class="hm-wide">2D</span></button><button data-view="back" aria-pressed="${m.view === 'back'}">Back</button>${supports3d() ? `<button data-view="3d" aria-pressed="${m.view === '3d'}">3D</button>` : ''}</div>
+      <div class="seg hm-view-toggle mb-3${supports3d() ? ' has-3d' : ''}" role="group" aria-label="Body view"><button data-view="front" aria-pressed="${m.view === 'front' || (wide.matches && m.view === 'back')}"><span class="hm-narrow">Front</span><span class="hm-wide">2D</span></button><button data-view="back" aria-pressed="${!wide.matches && m.view === 'back'}">Back</button>${supports3d() ? `<button data-view="3d" aria-pressed="${m.view === '3d'}">3D</button>` : ''}</div>
       ${m.view === '3d' ? '<div class="hm3d" role="img" aria-label="3D muscle map. The list below has every muscle\'s count."><p class="hm3d-status muted small">Loading 3D model…</p></div>' : renderHeatmap(data, { selected: sel, view: m.view, prev })}
       ${renderLegend()}
       ${res.unknownExerciseIds?.length ? `<p class="small tone-warn mt-3">Not counted (not in the exercise catalogue): ${res.unknownExerciseIds.map((x) => esc(String(x).replace('custom:', ''))).join(', ')}</p>` : ''}
@@ -113,6 +117,7 @@ export function musclesView(app, ui) {
     <div class="card mt-4"><div class="section-h"><h2>All muscles</h2><p class="note">The green zone marks 10 to 20 hard sets a week, a common range for building muscle. ▲ ▼ show the change on the previous week.</p></div>${renderMuscleList(data, sel, prev)}</div>`;
 
   function bind(root, rerender) {
+    redraw = () => root.querySelector('.hm-view-toggle') && rerender();
     const set = (patch) => { Object.assign(m, patch); rerender(); };
     root.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => set({ mode: b.dataset.mode, selected: null })));
     root.querySelectorAll('[data-what]').forEach((b) => b.addEventListener('click', () => set({ what: b.dataset.what })));

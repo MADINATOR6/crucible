@@ -52,7 +52,11 @@ async function createViewer() {
   const back = new T.DirectionalLight(0xffffff, 2); // so the back muscles read as well as the front ones
   back.position.set(-2, 2, -4);
   scene.add(back);
-  let host, tip, onPick, onError, frame = 0, dead = false, down;
+  let host, tip, onPick, onError, frame = 0, dead = false, down, last;
+  // The palette comes from CSS, so recolour when the system theme flips (the page itself doesn't re-render).
+  const scheme = matchMedia('(prefers-color-scheme: dark)');
+  const retheme = () => last && update(last);
+  scheme.addEventListener('change', retheme);
   const meshes = [];
   const geometries = new Set(), materials = new Set(), textures = new Set();
   function dispose() {
@@ -60,6 +64,7 @@ async function createViewer() {
     dead = true;
     cancelAnimationFrame(frame);
     observer.disconnect();
+    scheme.removeEventListener('change', retheme);
     controls.dispose();
     canvas.removeEventListener('pointerdown', pointerdown);
     canvas.removeEventListener('pointerup', pointerup);
@@ -112,12 +117,14 @@ async function createViewer() {
   canvas.addEventListener('pointerup', pointerup);
   canvas.addEventListener('webglcontextlost', lost);
   function update({ data, selected }) {
+    last = { data, selected };
     const css = getComputedStyle(document.documentElement);
     const palette = Object.fromEntries([0, 1, 2, 3, 4, 5].map((n) => [n, css.getPropertyValue(`--b${n}`).trim()]));
-    const neutral = css.getPropertyValue('--line-strong').trim(); // lighter than the card in dark mode, darker in light
+    // Skin follows the theme; the grooves between muscles are near-black in both, like an anatomy chart's outlines.
+    const skin = css.getPropertyValue('--surface-3').trim() || '#808080', groove = '#0b0c0e';
     for (const mesh of meshes) {
       const id = meshMuscleId(mesh.name);
-      mesh.material.color.set(id && id !== 'body' ? colourFor(data[id] ?? 0, palette) : neutral);
+      mesh.material.color.set(id && id !== 'body' ? colourFor(data[id] ?? 0, palette) : mesh.name.startsWith('body_groove') ? groove : skin);
       mesh.material.emissive.set(id && id === selected ? palette[3] : 0x000000);
       mesh.material.emissiveIntensity = 0.35;
     }
@@ -156,8 +163,11 @@ async function createViewer() {
     const size = box.getSize(new T.Vector3());
     centre.y -= size.y * 0.05; // aim a little low so the feet clear the hint pill at the bottom
     controls.target.copy(centre);
-    // Fit the body's height with a little headroom; the canvas is portrait, so height is the limit.
-    const distance = (size.y / 2) / Math.tan(T.MathUtils.degToRad(camera.fov / 2)) * 1.1 + size.z / 2;
+    // Fit the height, and the widest horizontal extent (so turning never clips) in the narrowest box we draw in,
+    // a phone in portrait (aspect about 0.6), with a little headroom.
+    const tanV = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+    const fit = Math.max(size.y / 2 / tanV, Math.max(size.x, size.z) / 2 / (tanV * 0.6));
+    const distance = fit * 1.1 + Math.max(size.x, size.z) / 2;
     camera.position.copy(centre).add(new T.Vector3(0, 0, distance));
     controls.minDistance = distance * 0.4; // close enough to see a single muscle
     controls.maxDistance = distance * 1.6;
