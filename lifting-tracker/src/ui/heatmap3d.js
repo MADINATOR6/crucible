@@ -1,4 +1,4 @@
-import { MUSCLE_LABELS, bandFor, fmtSets } from './heatmap.js';
+import { BANDS, MUSCLE_LABELS, bandFor, fmtSets } from './heatmap.js';
 
 export function meshMuscleId(name) {
   if (name.startsWith('body_')) return 'body';
@@ -17,7 +17,7 @@ export function matchMeshes(names) {
   return { byMuscle, body, unknown, missing: Object.keys(MUSCLE_LABELS).filter((id) => !byMuscle[id]) };
 }
 
-export const colourFor = (sets, palette) => palette[bandFor(sets).id];
+export const colourFor = (sets, palette, bands = BANDS) => palette[bandFor(sets, bands).id];
 
 let viewer, pending;
 
@@ -116,20 +116,20 @@ async function createViewer() {
   canvas.addEventListener('pointerdown', pointerdown);
   canvas.addEventListener('pointerup', pointerup);
   canvas.addEventListener('webglcontextlost', lost);
-  function update({ data, selected }) {
-    last = { data, selected };
+  function update({ data, selected, bands = BANDS }) {
+    last = { data, selected, bands };
     const css = getComputedStyle(document.documentElement);
     const palette = Object.fromEntries([0, 1, 2, 3, 4, 5].map((n) => [n, css.getPropertyValue(`--b${n}`).trim()]));
     // Skin follows the theme; the grooves between muscles are near-black in both, like an anatomy chart's outlines.
     const skin = css.getPropertyValue('--surface-3').trim() || '#808080', groove = '#0b0c0e';
     for (const mesh of meshes) {
       const id = meshMuscleId(mesh.name);
-      mesh.material.color.set(id && id !== 'body' ? colourFor(data[id] ?? 0, palette) : mesh.name.startsWith('body_groove') ? groove : skin);
+      mesh.material.color.set(id && id !== 'body' ? colourFor(data[id] ?? 0, palette, bands) : mesh.name.startsWith('body_groove') ? groove : skin);
       mesh.material.emissive.set(id && id === selected ? palette[3] : 0x000000);
       mesh.material.emissiveIntensity = 0.35;
     }
     tip.textContent = selected && MUSCLE_LABELS[selected]
-      ? `${MUSCLE_LABELS[selected]} · ${fmtSets(data[selected] ?? 0)} sets · ${bandFor(data[selected] ?? 0).label}` : 'Drag to turn · pinch to zoom · tap a muscle';
+      ? `${MUSCLE_LABELS[selected]} · ${fmtSets(data[selected] ?? 0)}${bands === BANDS ? ' sets' : ''} · ${bandFor(data[selected] ?? 0, bands).label}` : 'Drag to turn · pinch to zoom · tap a muscle';
     requestDraw();
   }
   const api = { update, dispose, attach(container, options) {

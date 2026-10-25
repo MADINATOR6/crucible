@@ -1,12 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bandFor, fmtSets, renderHeatmap, renderLegend, BANDS, MUSCLE_LABELS } from '../../src/ui/heatmap.js';
+import { bandFor, fmtSets, renderHeatmap, renderLegend, renderMuscleList, BANDS, RECOVERY_BANDS, MUSCLE_LABELS } from '../../src/ui/heatmap.js';
 import { lineChart, movingAverage } from '../../src/ui/charts.js';
 
 test('band boundaries', () => {
   const id = (n) => bandFor(n).id;
   assert.deepEqual([0, 0.5, 5.9, 6, 9.5, 10, 15.5, 16, 20.5, 21, 40].map(id), [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
   assert.equal(BANDS.length, 6);
+});
+
+test('recovery bands use weighted set boundaries and labels', () => {
+  assert.deepEqual([0, 0.05, 1.9, 2, 4, 6.9, 7, 10].map((n) => bandFor(n, RECOVERY_BANDS).id), [0, 1, 1, 2, 3, 3, 4, 5]);
+  const legend = renderLegend(RECOVERY_BANDS);
+  for (const band of RECOVERY_BANDS) {
+    assert.ok(legend.includes(`<b>${band.label}</b><span>${band.hint}</span>`));
+    assert.match(band.hint, /weighted sets/);
+  }
+  const map = renderHeatmap({ chest: 4.7 }, { bands: RECOVERY_BANDS });
+  assert.match(map, /Chest: 4\.7 weighted sets, Worked/);
+  const list = renderMuscleList({ chest: 4.7 }, 'chest', null, { bands: RECOVERY_BANDS, zone: false });
+  assert.doesNotMatch(list, /class="zone"/);
+  assert.match(list, /<span class="hm-row-n">4\.7<\/span>/);
+  assert.match(list, /<span class="hm-row-band">Worked<\/span>/);
 });
 
 test('set counts are printed without float noise', () => {
