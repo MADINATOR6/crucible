@@ -128,7 +128,7 @@ export function platesView(app, ui) {
     <div class="card mt-4">
       <div class="card-h"><h2>Warm-up ladder</h2></div>
       <div class="row end"><div class="field grow"><span>Top set (${unit})</span><input id="top" inputmode="decimal" type="number" step="any" min="0" value="${esc(ui.plates.top)}"></div><button class="btn" data-act="ladder">Build</button></div>
-      ${ladder.length ? `<ol class="list mt-3">${ladder.map((s, i) => `<li class="list-row"><span class="lead"><span class="medal plain">${i + 1}</span></span><span class="main"><b>${round1(s.weight.value)} ${unit} × ${s.reps}</b><small>${esc(s.text)}</small></span><button class="btn small" data-ladder="${i}">Load</button></li>`).join('')}</ol>` : '<p class="muted small mt-3">Enter your top set to get plate-friendly warm-up jumps.</p>'}
+      ${ladder.length ? `<ol class="list mt-3">${ladder.map((s, i) => `<li class="list-row two-line"><span class="lead"><span class="medal plain">${i + 1}</span></span><span class="main"><b>${round1(s.weight.value)} ${unit} × ${s.reps}</b><small>${esc(s.text)}</small></span><button class="btn small" data-ladder="${i}">Load</button></li>`).join('')}</ol>` : '<p class="muted small mt-3">Enter your top set to get plate-friendly warm-up jumps.</p>'}
     </div>
     ${meet.html}
     <details class="card fold mt-4"><summary>My plates (how many your gym has)</summary>

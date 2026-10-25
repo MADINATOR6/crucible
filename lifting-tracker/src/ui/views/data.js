@@ -39,7 +39,7 @@ export function dataView(app, ui) {
       <label class="btn primary">Choose .xlsx<input id="xlsx" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="visually-hidden"></label>
       <div id="import-status" class="small mt-3" aria-live="polite"></div>
       ${rep && !p.isExample ? `<details class="fold mt-3" open><summary>Last import report</summary>
-        <div class="grid cols-3"><div class="stat"><b>${rep.blocks}</b><span>blocks</span></div><div class="stat"><b>${rep.weeks}</b><span>weeks</span></div><div class="stat"><b>${rep.sets}</b><span>sets (${rep.completedSets} completed)</span></div></div>
+        <div class="grid-3"><div class="stat"><b>${rep.blocks}</b><span>blocks</span></div><div class="stat"><b>${rep.weeks}</b><span>weeks</span></div><div class="stat"><b>${rep.sets}</b><span>sets (${rep.completedSets} completed)</span></div></div>
         <p class="small muted mt-2">${rep.dateRepsConverted} date-cells converted to rep ranges · ${rep.placeholders} placeholder cells ignored · ${rep.assumedKgLoads} loads assumed kg · ${rep.unparsedCells.length} cells not understood.</p>
         ${warnTypes.length ? `<table class="plain"><thead><tr><th>Warning</th><th>Count</th></tr></thead><tbody>${warnTypes.map(([k, v]) => `<tr><td><b>${esc(k)}</b><br><span class="muted small">${esc(WARNING_HELP[k] || '')}</span></td><td>${v}</td></tr>`).join('')}</tbody></table>` : ''}
         ${rep.unparsedCells.length ? `<details class="fold"><summary>Cells not understood (${rep.unparsedCells.length})</summary><div class="warnlist"><table class="plain"><tbody>${rep.unparsedCells.slice(0, 200).map((c) => `<tr><td>${esc(c.sheet)} ${esc(c.ref)}</td><td>${esc(c.reason)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
@@ -62,7 +62,7 @@ export function dataView(app, ui) {
 
     <div class="card"><div class="card-h"><h2>Backup</h2></div>
       <p class="muted small">A backup is one JSON file with your programme, logged sets and bodyweights. Keep a copy somewhere safe: browsers can clear site data.</p>
-      <div class="row"><button class="btn" id="export-json">Export backup (JSON)</button><button class="btn" id="export-csv">Export sets (CSV)</button>
+      <div class="actions"><button class="btn" id="export-json">Export backup (JSON)</button><button class="btn" id="export-csv">Export sets (CSV)</button>
         <label class="btn">Restore backup<input id="import-json" type="file" accept="application/json,.json" class="visually-hidden"></label></div>
       <p class="small muted mt-3">Storage: ${app.store.persistent ? 'saved on this device' : '<b class="tone-warn">not saved (private window or blocked storage)</b>'}${app.persisted === true ? ' · protected from automatic clearing' : app.persisted === false ? ' · the browser may clear it under storage pressure; export backups' : ''}.</p>
     </div>

@@ -44,7 +44,8 @@ test('every module the app imports is precached', async () => {
 
 test('3D assets are precached in the updated cache', async () => {
   const src = await readFile(new URL('../../sw.js', import.meta.url), 'utf8');
-  assert.match(src, /const VERSION = 'lt-v3'/);
+  // The cache name must move past lt-v3 (the release that added these files); later releases bump it again.
+  assert.ok(Number(/const VERSION = 'lt-v(\d+)'/.exec(src)?.[1]) >= 3, 'VERSION is lt-v3 or later');
   for (const path of ['src/ui/barbell3d.js', 'vendor/three/examples/jsm/environments/RoomEnvironment.js']) assert.ok(src.includes(`'${path}'`), path);
   for (const path of ['assets/body.glb', 'src/ui/heatmap3d.js', 'vendor/three/build/three.module.min.js', 'vendor/three/examples/jsm/loaders/GLTFLoader.js', 'vendor/three/examples/jsm/utils/BufferGeometryUtils.js', 'vendor/three/examples/jsm/controls/OrbitControls.js']) assert.ok(src.includes(`'${path}'`), path);
 });

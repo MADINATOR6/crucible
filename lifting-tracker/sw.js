@@ -1,6 +1,6 @@
 // Offline cache. Cache-first for the app shell and data catalogues; bump VERSION when files change.
 // Only same-origin GET requests are handled; nothing is ever sent to another site.
-const VERSION = 'lt-v3';
+const VERSION = 'lt-v4';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'styles/app.css',
   'data/exercises.json', 'data/plates.json',

@@ -23,6 +23,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 ## Controls
 - `.btn`, `.btn.primary`, `.btn.ghost`, `.btn.small`, `.btn.danger` (destructive: delete, wipe). A `label.btn` wrapping a hidden file input needs no extra style.
 - `.input-narrow`: a 92 px number input inside a table cell.
+- `.actions`: a group of related buttons, a full-width column on phones and one row on wide screens.
 - `.banner.block`: a banner whose content stacks (heading plus a list) instead of sitting in one row.
 - `.seg` with `<button aria-pressed>` children (segmented control).
 - `.chip` with `aria-pressed` inside `.chips` (sideways-scrolling choices).
@@ -32,7 +33,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.check-btn` with `aria-pressed` and an `aria-label`: round one-tap action (log as planned).
 
 ## Lists and status
-- `.list` (ul/ol) > `li.list-row` (add `.is-done` when complete). Children in order: `.lead` (number or badge), `.main` (text that truncates; a `<small>` inside is a muted suffix; may be a `<button class="main">`), `.trail` (value), then an optional `.btn small` or `.check-btn`.
+- `.list` (ul/ol) > `li.list-row` (add `.is-done` when complete; add `.two-line` when the `<small>` must be read in full, such as a plate breakdown: it wraps onto a second line instead of truncating). Children in order: `.lead` (number or badge), `.main` (text that truncates; a `<small>` inside is a muted suffix; may be a `<button class="main">`), `.trail` (value), then an optional `.btn small` or `.check-btn`.
 - `.progress` > `.progress-track` > `<i style="width:N%">` plus a text label. The width is the one allowed inline style.
 - `.pill`, `.pill.accent`, `.pill.pr`, `.pill.example`, `.banner`.
 - `.scroll-x`: wrapper that lets a wide table scroll sideways.

@@ -336,7 +336,7 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
 
 /* One-line list row: lead (number or badge), main text that truncates, trailing value, optional action. */
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); } /* minmax(0) lets .main truncate instead of widening the row */
 .list-row { display: flex; align-items: center; gap: var(--s-3); min-height: var(--tap); padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 1px solid transparent; border-radius: 12px; }
 .list-row.is-done { background: color-mix(in srgb, var(--good) 11%, var(--surface-2)); }
 .list-row .lead { flex: none; min-width: 24px; color: var(--muted); font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
@@ -466,7 +466,14 @@ ul.bullets { margin: var(--s-2) 0 0; padding-left: 18px; }
 ul.bullets li + li { margin-top: 2px; }
 .panel { margin-top: var(--s-3); padding: var(--s-3); border: 1px solid var(--line-strong); border-radius: 12px; }
 .input-narrow { width: 92px; min-height: 38px; }
+.list-row.two-line .main { white-space: normal; }
+.list-row.two-line .main small { display: block; margin-left: 0; }
+.list-row .medal { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-family: var(--font-display); font-size: var(--t-sm); }
 .banner.block { display: block; }
+.card > h3 { margin: var(--s-4) 0 var(--s-2); }
+/* A set of related buttons: one full-width column on phones, one row on wide screens. */
+.actions { display: grid; gap: var(--s-2); }
+@media (min-width: 720px) { .actions { grid-auto-flow: column; justify-content: start; } }
 /* Coach findings fold to one line: title and severity pill; the details open underneath. */
 details.coach-find > summary { list-style: none; display: flex; align-items: center; gap: var(--s-2); min-height: 28px; cursor: pointer; font-weight: 650; }
 details.coach-find > summary::-webkit-details-marker { display: none; }

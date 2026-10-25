@@ -30,7 +30,7 @@ export function meetCard(app, ui, cfg) {
       <label class="field grow"><span>Projected best (${unit})</span><input id="meet-proj" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(m.projected !== '' ? m.projected : suggested)}" placeholder="${suggested === '' ? 'enter a number' : suggested}"></label>
     </div>
     ${best != null ? `<p class="small muted mt-2">Prefilled from your best estimated 1RM (an approximation). Use what you and your coach trust.</p>` : '<p class="small muted mt-2">Enter your projected best to see attempts.</p>'}
-    ${rows.length ? `<ol class="list mt-3">${rows.map((r) => `<li class="list-row"><span class="lead"><span class="medal plain">${r.n}</span></span>
+    ${rows.length ? `<ol class="list mt-3">${rows.map((r) => `<li class="list-row two-line"><span class="lead"><span class="medal plain">${r.n}</span></span>
       <span class="main"><b>${round1(r.w.value)} ${unit}</b> <small>${Math.round(r.pct * 100)}% of projected</small><small>${esc(r.text)}</small></span>
       <button class="btn small" data-meet-load="${r.n - 1}">Load</button></li>`).join('')}</ol>
       <p class="small muted mt-2">Opener is a weight you could triple on a bad day; the third is the target. Attempts rise by at least 2.5 kg.</p>` : ''}
