@@ -73,8 +73,8 @@ const BACK = {
   upper_back: { d: ['M73 82 C80 92 94 108 107 130 L107 144 C97 144 86 140 77 132 C69 122 68 104 73 82 Z'], label: [88, 126], tiny: true },
   rear_delts: { d: ['M74 82 C64 84 55 91 52 101 C51 109 53 116 58 121 C62 112 67 101 71 93 C73 89 75 85 74 82 Z'], label: [60, 98], tiny: true },
   side_delts: { d: ['M52 101 C48 110 47 121 50 132 C54 128 57 124 58 121 C54 116 51 109 52 101 Z'], label: [50, 118], tiny: true },
-  lats: { d: ['M77 133 C87 140 96 144 101 148 C95 162 93 186 95 210 C88 202 82 190 78 176 C72 160 72 144 77 133 Z'], label: [84, 170] },
-  lower_back: { d: ['M101 148 L107 146 L107 214 C101 216 97 214 94 210 C93 186 95 162 101 148 Z'], label: [102, 184], tiny: true },
+  lats: { d: ['M77 133 C87 140 96 144 101 148 C95 162 93 186 95 210 C88 202 82 190 78 176 C72 160 72 144 77 133 Z'], label: [84, 172] },
+  lower_back: { d: ['M101 148 L107 146 L107 214 C101 216 97 214 94 210 C93 186 95 162 101 148 Z'], label: [108, 200], tiny: true },
   triceps: { d: ['M50 136 C55 130 62 131 66 138 C68 150 66 164 63 176 L49 176 C45 162 46 148 50 136 Z'], label: [57, 154] },
   forearms: { d: ['M49 180 L62 180 C64 194 62 216 58 238 L48 240 C44 218 44 194 49 180 Z'], label: [53, 208], tiny: true },
   glutes: { d: ['M107 210 C97 206 84 208 76 218 C70 228 72 246 82 256 C92 262 102 260 107 254 Z'], label: [88, 234] },
@@ -110,10 +110,10 @@ function figure(view, geo, neutral, data, selected, prev, baseShapes) {
     const n = data[id] ?? 0;
     const [x, y] = g.label;
     const t = fmtSets(n);
-    // At 300 CSS px wide, the smallest font is 8 * 300 / 144 = 16.7 CSS px (at least 11).
-    const w = Math.max(g.tiny ? 13 : 16, 7 + t.length * 5.4), h = g.tiny ? 13 : 15;
+    // The CSS gives the figure at least 560 px of height for its 476 units, so the smallest number is 9.4 * 560 / 476 = 11.06 px.
+    const w = Math.max(g.tiny ? 14.5 : 17, 7 + t.length * 6), h = g.tiny ? 14.5 : 16.5;
     const cx = x >= 104 ? 110 : x;
-    return `<g class="hm-pill" data-muscle="${id}" pointer-events="none"><rect x="${cx - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${h / 2}"/><text x="${cx}" y="${y + 0.5}" font-size="${g.tiny ? 8 : 9.2}">${t}</text></g>`;
+    return `<g class="hm-pill" data-muscle="${id}" pointer-events="none"><rect x="${cx - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${h / 2}"/><text x="${cx}" y="${y + 0.5}" font-size="${g.tiny ? 9.4 : 10.4}">${t}</text></g>`;
   }).join('');
   return `<svg class="hm-svg" viewBox="38 2 144 476" role="group" aria-label="${view} view muscle heat map" data-view="${view}"><defs>${defs}</defs>${base}${head}${paths}${labels}</svg>`;
 }

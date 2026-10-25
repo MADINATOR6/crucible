@@ -44,7 +44,7 @@ test('heat map crops the body and keeps readable, separate pills on both views',
     const pills = [...svg[2].matchAll(/<g class="hm-pill"[\s\S]*?<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[\s\S]*?font-size="([\d.]+)"/g)].map((m) => m.slice(1).map(Number));
     assert.ok(pills.length);
     for (const [i, [px, py, w, h, font]] of pills.entries()) {
-      assert.ok(font * 300 / width >= 11, 'font at 300 CSS px wide');
+      assert.ok(font * 560 / height >= 11, 'font at the 560 px minimum figure height (styles/app.css .hm-svg)');
       for (const [qx, qy, qw, qh] of pills.slice(i + 1)) {
         assert.ok(px + w <= qx || qx + qw <= px || py + h <= qy || qy + qh <= py, 'pills do not overlap');
       }

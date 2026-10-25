@@ -88,7 +88,7 @@ button { font: inherit; color: inherit; }
 /* ---------- Shell ---------- */
 .shell { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100dvh; }
 .rail { display: none; }
-.main { padding: 20px var(--gutter) calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); max-width: 1100px; width: 100%; margin: 0 auto; }
+main.main { padding: 20px var(--gutter) calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); max-width: 1100px; width: 100%; margin: 0 auto; } /* element-scoped: .list-row uses .main too */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
 .brand svg { width: 28px; height: 28px; }
@@ -108,7 +108,7 @@ button { font: inherit; color: inherit; }
   .shell { grid-template-columns: 220px minmax(0, 1fr); }
   .rail { display: flex; flex-direction: column; gap: 6px; padding: 24px 14px; border-right: 1px solid var(--line); position: sticky; top: 0; height: 100dvh; background: var(--bg-2); }
   .tabbar { display: none; }
-  .main { padding: 28px 36px 60px; }
+  main.main { padding: 28px 36px 60px; }
   .rail .tab { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--r-sm); font-size: 13px; }
   .rail .tab[aria-current="page"] { background: var(--accent-soft); }
   .rail .brand { padding: 4px 8px 20px; }
@@ -151,6 +151,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 .stat { display: grid; gap: 2px; }
 .stat b { font-family: var(--font-display); font-size: 34px; line-height: 1; letter-spacing: .01em; }
 .stat span { font-size: var(--t-xs); color: var(--muted); font-weight: 650; }
+.stat > span::first-letter { text-transform: uppercase; }
 .stat small { color: var(--muted); }
 
 /* ---------- Programme view ---------- */
@@ -341,10 +342,10 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 .list-row .trail { flex: none; color: var(--muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .list-row > button.main { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; min-height: var(--tap); }
 
-/* Compact filter row: segmented controls and selects on one line that scrolls sideways if it must. */
-.filters { display: flex; gap: var(--s-2); align-items: center; overflow-x: auto; scrollbar-width: none; padding: 2px 0 var(--s-3); }
-.filters::-webkit-scrollbar { display: none; }
+/* Compact filter row: segmented controls and selects, wrapping onto a second line on narrow screens so nothing hides. */
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; padding: 2px 0 var(--s-3); }
 .filters > * { flex: none; }
+.filters select { flex: 1 1 120px; min-width: 0; text-overflow: ellipsis; }
 .filters select { width: auto; min-height: 38px; padding: 4px 10px; font-size: var(--t-sm); }
 .filters .seg button { min-height: 34px; padding: 0 12px; font-size: var(--t-sm); }
 
@@ -420,3 +421,23 @@ body:has(.rest-timer) .toast { bottom: calc(var(--nav-h) + 78px + env(safe-area-
 .chart-plot .line { fill: none; stroke: var(--c); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .chart-plot .dot { fill: none; stroke: var(--c); stroke-width: 7; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .chart-plot .area { fill: var(--c); opacity: .12; }
+
+/* ---------- Muscles and Progress (phase 2) ---------- */
+/* The figure is sized by height so the body is large and its number pills stay readable (about 1.25 px per map unit). */
+.hm-fig { width: auto; }
+@media (max-width: 719px) { .hm-fig figcaption { display: none; } } /* the Front/Back toggle already names the view */
+.hm-svg { height: clamp(560px, 72vh, 620px); width: auto; max-width: 100%; margin: 0 auto; } /* 560 px minimum keeps pill numbers at 11 px or more (heatmap.js) */
+.hm-pill rect { fill: rgba(8, 9, 11, .84); stroke: rgba(255,255,255,.22); stroke-width: .6; }
+:root[data-theme="light"] .hm-pill rect { fill: rgba(23, 24, 27, .86); }
+.hm-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin: var(--s-3) 0 0; font-size: var(--t-xs); }
+@media (min-width: 720px) { .hm-legend { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.hm-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr); column-gap: 8px; align-items: center; min-width: 0; }
+.hm-legend .sw { grid-row: span 2; width: 12px; height: 12px; border-radius: 3px; }
+.hm-legend b { font-weight: 650; line-height: 1.2; white-space: nowrap; }
+.hm-legend span { font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.filters b { font-family: var(--font-display); font-weight: 650; font-size: var(--t-sm); white-space: nowrap; }
+.list-row .lead .pill { padding: 2px 8px; font-size: 11px; }
+.sheet .loading-text { font-size: 18px; }
+input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--accent); }
+.medal.plain { background: var(--surface-3); color: var(--text); }

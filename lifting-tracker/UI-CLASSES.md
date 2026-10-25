@@ -23,7 +23,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.btn`, `.btn.primary`, `.btn.ghost`, `.btn.small`.
 - `.seg` with `<button aria-pressed>` children (segmented control).
 - `.chip` with `aria-pressed` inside `.chips` (sideways-scrolling choices).
-- `.filters`: one compact row of `.seg` and `<select>` controls; scrolls sideways when narrow.
+- `.filters`: one compact row of `.seg` and `<select>` controls; wraps onto a second line when narrow.
 - `details.options` > `summary` + `.options-body`: settings folded under the content they change.
 - `.field` > `<span>` label + input/select. In a `.row`, add `.grow` to fields that share the width; `.row.end` lines a button up with the inputs.
 - `.check-btn` with `aria-pressed` and an `aria-label`: round one-tap action (log as planned).
@@ -32,8 +32,9 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.list` (ul/ol) > `li.list-row` (add `.is-done` when complete). Children in order: `.lead` (number or badge), `.main` (text that truncates; a `<small>` inside is a muted suffix; may be a `<button class="main">`), `.trail` (value), then an optional `.btn small` or `.check-btn`.
 - `.progress` > `.progress-track` > `<i style="width:N%">` plus a text label. The width is the one allowed inline style.
 - `.pill`, `.pill.accent`, `.pill.pr`, `.pill.example`, `.banner`.
+- `.scroll-x`: wrapper that lets a wide table scroll sideways.
 - `.stat` (inside `.card`), `.stats3`.
-- `.feed` (PR feed and warm-up ladder), `.medal`.
+- `.feed` (warm-up ladder and similar), `.medal`, `.medal.plain` (neutral number badge).
 - `table.plain`, `table.sets`.
 
 ## Feature-specific (owned by their modules)

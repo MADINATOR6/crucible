@@ -104,7 +104,9 @@ export function trainView(app, ui) {
         try {
           const r = await app.logAsPlanned({ programmeRef: dayRef, plannedRef: { entryIndex: ei, setIndex: si } });
           toast(r.newPRs.length ? `New PR! ${r.newPRs.map((x) => prLabel(x, unit)).join(', ')}` : `Set ${si + 1} done as planned`, 8000,
-            { label: 'Undo', onClick: () => app.deleteSet(r.set.id) });
+            { label: 'Undo', onClick: async () => {
+              try { await app.deleteSet(r.set.id); toast(`Set ${si + 1} unmarked`); } catch (err) { toast(`Could not undo: ${err?.message || err}. Open the set to remove it.`, 5000); }
+            } });
           startRest(suggestedRest(app.exercise(day.entries[ei].exerciseId)));
         } catch (err) {
           // No planned weight or reps: the set needs the full form.
@@ -165,6 +167,8 @@ function openDayPicker(app, ui, blocks, rerender) {
     });
   };
   draw();
+  // openSheet focused an empty dialog; move focus to the current day (or the first choice) once the picker is drawn.
+  (host.querySelector('[data-d][aria-pressed="true"]') || host.querySelector('button'))?.focus();
 }
 
 function suggestedWeight(app, entry, set, unit) {
@@ -188,15 +192,15 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
   const sheet = openSheet(`
     <div class="card-h"><h2>${esc(exName)}</h2><span class="pill">Set ${setIndex + 1}</span></div>
     <p class="muted small">Plan: ${repsText(set)} reps${set.targetRpe != null ? ` @ RPE ${set.targetRpe}` : ''}${set.load ? ` · ${formatWeight(set.load, unit)}` : ''}</p>
-    <div id="bb" class="bb-stage" style="margin:10px 0"></div><p id="bb-text" class="loading-text" style="font-size:18px"></p>
-    <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
+    <div id="bb" class="bb-stage mt-3 mb-3"></div><p id="bb-text" class="loading-text"></p>
+    <div class="grid-3 mt-3">
       <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"></label>
       <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="0" inputmode="numeric" value="${esc(defReps)}"></label>
       <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(defRpe)}"></label>
     </div>
-    <p id="est" class="small muted" style="margin-top:8px"></p>
-    <label class="field" style="margin-top:10px"><span>Date</span><input id="d" type="date" value="${esc(date)}"></label>
-    <div class="row spread" style="margin-top:16px">
+    <p id="est" class="small muted mt-2"></p>
+    <label class="field mt-3"><span>Date</span><input id="d" type="date" value="${esc(date)}"></label>
+    <div class="row spread mt-4">
       <div class="row">${logged ? '<button class="btn ghost" id="del">Remove</button>' : ''}<button class="btn ghost" id="onbar">Open in Plates</button></div>
       <div class="row"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>
     </div>`);
@@ -247,14 +251,14 @@ function openQuickLog(app) {
   const sheet = openSheet(`
     <div class="card-h"><h2>Quick log</h2><span class="pill">outside the programme</span></div>
     <label class="field"><span>Exercise</span><select id="ex">${options.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</select></label>
-    <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
+    <div class="grid-3 mt-3">
       <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal"></label>
       <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="1" inputmode="numeric"></label>
       <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal"></label>
     </div>
-    <label class="row" style="margin-top:10px"><input id="wu" type="checkbox" style="width:auto;min-height:0"> Warm-up set (not counted for PRs or volume)</label>
-    <label class="field" style="margin-top:10px"><span>Date</span><input id="d" type="date" value="${todayIso()}"></label>
-    <div class="row spread" style="margin-top:16px"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>`);
+    <label class="row mt-3"><input id="wu" type="checkbox"> Warm-up set (not counted for PRs or volume)</label>
+    <label class="field mt-3"><span>Date</span><input id="d" type="date" value="${todayIso()}"></label>
+    <div class="row spread mt-4"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>`);
   const q = (s) => sheet.el.querySelector(s);
   q('#cancel').addEventListener('click', sheet.close);
   q('#save').addEventListener('click', () => guarded(q('#save'), async () => {
@@ -286,5 +290,5 @@ function openWarmups(app, entry, week) {
   try { ladder = warmupLadder({ top: topW, bar: bar.weight, collar, plates }); } catch { /* ignore */ }
   openSheet(`<div class="card-h"><h2>Warm-up</h2><span class="pill">${esc(app.exerciseName(entry.exerciseId, entry.name))}</span></div>
     <p class="muted small">Toward ${round1(topW.value)} ${esc(unit)}. Jumps are rounded to plates you own.</p>
-    <ol class="feed">${ladder.map((s, i) => `<li><span class="medal" style="background:var(--surface-3);color:var(--text)">${i + 1}</span><span><b>${round1(s.weight.value)} ${esc(unit)}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><span></span></li>`).join('') || '<li class="muted">Nothing to show.</li>'}</ol>`);
+    <ol class="feed">${ladder.map((s, i) => `<li><span class="medal plain">${i + 1}</span><span><b>${round1(s.weight.value)} ${esc(unit)}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><span></span></li>`).join('') || '<li class="muted">Nothing to show.</li>'}</ol>`);
 }
