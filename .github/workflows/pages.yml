@@ -1,0 +1,45 @@
+# Publishes the lifting tracker to GitHub Pages: only the files the app runs from (no specs, scripts, tests or
+# anything else in the repo). Runs the app's tests first, so a failing build is never published.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['lifting-tracker/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Test
+        working-directory: lifting-tracker
+        run: node --test
+      - name: Collect the app's runtime files
+        working-directory: lifting-tracker
+        run: |
+          mkdir -p ../_site/assets
+          cp -r index.html manifest.webmanifest sw.js icons styles src data vendor ../_site/
+          cp assets/body.glb ../_site/assets/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
