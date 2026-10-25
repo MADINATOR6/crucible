@@ -2,9 +2,23 @@
 import { convert, round1 } from '../../core/units.js';
 import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
 import { renderBarbell, renderEndView } from '../barbell.js';
+import { mount3d } from '../barbell3d.js';
 import { esc, toast } from '../dom.js';
 import { meetCard } from './meet.js';
 import { platesTolerance } from '../../plates/tolerance.js';
+
+let webgl, active3d, mountId = 0, leaveObserver;
+function supports3d() {
+  if (webgl === undefined) {
+    const canvas = document.createElement('canvas');
+    try {
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      webgl = !!gl;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    } catch { webgl = false; }
+  }
+  return webgl;
+}
 
 export function barsFor(app, unit) { return app.platesData[unit].bars; }
 
@@ -33,7 +47,7 @@ export function describeLoad(app, weight) {
 /** Expand [{plate, count}] to one drawable entry per physical plate, innermost (heaviest) first. */
 export function drawable(perSide) {
   const out = [];
-  for (const { plate, count } of perSide) for (let i = 0; i < count; i++) out.push({ value: plate.value, unit: plate.unit, colour: plate.colour, drawHeightMm: plate.drawHeightMm });
+  for (const { plate, count } of perSide) for (let i = 0; i < count; i++) out.push({ value: plate.value, unit: plate.unit, colour: plate.colour, drawHeightMm: plate.drawHeightMm, thicknessMm: plate.thicknessMm });
   return out;
 }
 
@@ -48,7 +62,8 @@ export function platesView(app, ui) {
   const { plates, bar, collar, set } = plateConfig(app, unit);
   ui.plates ||= { side: [], target: '', top: '' };
   if (ui.plates.side.some((p) => p.unit !== unit)) ui.plates.side = []; // the unit changed elsewhere: plates of the other unit cannot stay on the bar
-  const side = ui.plates.side; // [{value, unit, colour, drawHeightMm}] heaviest first
+  if (ui.plates.view === '3d' && !supports3d()) ui.plates.view = 'side';
+  const side = ui.plates.side; // [{value, unit, colour, drawHeightMm, thicknessMm}] heaviest first
   const justAdded = ui.plates.justAdded ?? -1; ui.plates.justAdded = -1;
   const total = totalOf(side, bar, collar, unit);
   const used = new Map();
@@ -78,8 +93,8 @@ export function platesView(app, ui) {
     <div class="topbar"><div><h1>Plates</h1><p class="muted small">Tap plates to load the bar, or type a target. Heaviest plates sit innermost, as in competition.</p></div>
       <div class="seg" role="group" aria-label="Unit"><button data-unit="kg" aria-pressed="${unit === 'kg'}">kg</button><button data-unit="lb" aria-pressed="${unit === 'lb'}">lb</button></div></div>
     <div class="card">
-      <div class="row spread" style="margin-bottom:8px"><span class="small muted">${ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${ui.plates.view !== 'end'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button></div></div>
-      <div class="bb-stage">${ui.plates.view === 'end' ? renderEndView({ plates: side, collar: !!collar }) : renderBarbell({ plates: side, collar: !!collar, justAdded })}</div>
+      <div class="row spread" style="margin-bottom:8px"><span class="small muted">${ui.plates.view === '3d' ? 'Drag to turn; tap a plate to remove it' : ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${!ui.plates.view || ui.plates.view === 'side'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button>${supports3d() ? `<button data-bview="3d" aria-pressed="${ui.plates.view === '3d'}">3D</button>` : ''}</div></div>
+      <div class="bb-stage">${ui.plates.view === '3d' ? `<div class="bb3d" role="img" aria-label="3D barbell: ${side.length} plates each side, ${round1(total)} ${unit} total"><p class="bb3d-status muted small">Loading 3D bar…</p></div>` : ui.plates.view === 'end' ? renderEndView({ plates: side, collar: !!collar }) : renderBarbell({ plates: side, collar: !!collar, justAdded })}</div>
       <div class="bb-total" aria-live="polite"><b>${round1(total)}</b><span>${unit}</span></div>
       <p class="loading-text">${esc(perSideText(grouped, unit))}</p>
       ${mixed ? '<p class="small" style="color:var(--warn);text-align:center">Mixed units on the bar: kg and lb plates are not interchangeable.</p>' : ''}
@@ -126,10 +141,34 @@ export function platesView(app, ui) {
 
   function bind(root, rerender) {
     const keepSide = (fn) => { fn(); rerender(); };
+    const removePlate = (i) => keepSide(() => side.splice(i, 1));
+    const id = ++mountId;
+    leaveObserver?.disconnect();
+    if (ui.plates.view === '3d') {
+      const container = root.querySelector('.bb3d');
+      const fallback = () => {
+        if (id !== mountId || !container.isConnected) return;
+        active3d?.dispose(); active3d = null;
+        ui.plates.view = 'side'; rerender();
+        toast('3D view unavailable here; showing the side view');
+      };
+      mount3d(container, { plates: side, collar: !!collar, justAdded, onRemove: removePlate, onError: fallback }).then((v) => {
+        if (id === mountId && container.isConnected) active3d = v;
+        else if (!root.querySelector('.bb3d')) v.dispose();
+      }).catch(fallback);
+      leaveObserver = new MutationObserver(() => {
+        if (!root.querySelector('.bb3d')) {
+          ++mountId;
+          active3d?.dispose(); active3d = null;
+          leaveObserver.disconnect();
+        }
+      });
+      leaveObserver.observe(root, { childList: true });
+    } else { active3d?.dispose(); active3d = null; }
     root.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', async () => { ui.plates.side = []; await app.saveSettings({ unit: b.dataset.unit }); }));
     const addPlate = (b) => keepSide(() => {
       const p = plates.find((q) => String(q.value) === b.dataset.add);
-      side.push({ value: p.value, unit: p.unit, colour: p.colour, drawHeightMm: p.drawHeightMm });
+      side.push({ value: p.value, unit: p.unit, colour: p.colour, drawHeightMm: p.drawHeightMm, thicknessMm: p.thicknessMm });
       side.sort((a, c) => convert(c.value, c.unit, 'kg') - convert(a.value, a.unit, 'kg'));
       ui.plates.justAdded = side.map((q) => q.value).lastIndexOf(p.value); // animate the new outermost plate of that size
     });
@@ -158,7 +197,7 @@ export function platesView(app, ui) {
       });
     });
     root.querySelectorAll('.bb-plate').forEach((el) => {
-      const rm = () => keepSide(() => side.splice(Number(el.dataset.index), 1));
+      const rm = () => removePlate(Number(el.dataset.index));
       el.addEventListener('click', rm);
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rm(); } });
     });
