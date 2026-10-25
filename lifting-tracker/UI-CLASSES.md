@@ -27,7 +27,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.banner.block`: a banner whose content stacks (heading plus a list) instead of sitting in one row.
 - `.seg` with `<button aria-pressed>` children (segmented control).
 - `.chip` with `aria-pressed` inside `.chips` (sideways-scrolling choices).
-- `.filters`: one compact row of `.seg` and `<select>` controls; wraps onto a second line when narrow.
+- `.filters`: one compact row of `.seg` and `<select>` controls; wraps onto a second line when narrow. Inside it, `.stepper` keeps a ‹ label › group together on one line.
 - `details.options` > `summary` + `.options-body`: settings folded under the content they change.
 - `.field` > `<span>` label + input/select. In a `.row`, add `.grow` to fields that share the width; `.row.end` lines a button up with the inputs.
 - `.check-btn` with `aria-pressed` and an `aria-label`: round one-tap action (log as planned).

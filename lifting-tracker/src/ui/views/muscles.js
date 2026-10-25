@@ -112,8 +112,8 @@ export function musclesView(app, ui) {
       ${m.mode === 'programme' ? `<div class="seg" role="group" aria-label="Counting"><button data-what="done" aria-pressed="${m.what === 'done'}">Done</button><button data-what="planned" aria-pressed="${m.what === 'planned'}">Planned</button></div>` : ''}
       ${m.mode === 'programme' ? `<select data-block aria-label="Block">${blocks.map((b) => `<option value="${b.number}"${b.number === m.block ? ' selected' : ''}>Block ${b.number} · ${esc(b.name)}</option>`).join('')}</select>
         <select data-week aria-label="Week">${(block?.weeks || []).map((w) => `<option value="${w.number}"${w.number === m.week ? ' selected' : ''}>Week ${w.number}</option>`).join('')}</select>`
-        : recovery ? `<button class="btn small" data-day="-1" aria-label="Previous day">‹</button><b>To ${shortDate(m.asOf)}</b><button class="btn small" data-day="1" aria-label="Next day">›</button>${m.asOf !== todayIso() ? '<button class="btn small" data-today>Today</button>' : ''}`
-        : `<button class="btn small" data-cal="-7" aria-label="Previous week">‹</button><b>${esc(label)}</b><button class="btn small" data-cal="7" aria-label="Next week">›</button>`}
+        : recovery ? `<span class="stepper"><button class="btn small" data-day="-1" aria-label="Previous day">‹</button><b>To ${shortDate(m.asOf)}</b><button class="btn small" data-day="1" aria-label="Next day">›</button></span>${m.asOf !== todayIso() ? '<button class="btn small" data-today>Today</button>' : ''}`
+        : `<span class="stepper"><button class="btn small" data-cal="-7" aria-label="Previous week">‹</button><b>${esc(label)}</b><button class="btn small" data-cal="7" aria-label="Next week">›</button></span>`}
     </div>
     <div class="card">
       <div class="card-h"><h2>${esc(label)}</h2><span class="muted small">${recovery ? `${longDate(weekStart)} – ${longDate(m.asOf)} · ` : ''}${total} working sets${m.mode === 'programme' && !estimated ? ' · dates unknown' : ''}</span></div>

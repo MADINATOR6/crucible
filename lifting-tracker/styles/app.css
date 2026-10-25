@@ -471,6 +471,10 @@ ul.bullets li + li { margin-top: 2px; }
 .list-row .medal { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-family: var(--font-display); font-size: var(--t-sm); }
 .banner.block { display: block; }
 .card > h3 { margin: var(--s-4) 0 var(--s-2); }
+label.row:has(> input[type="checkbox"]) { flex-wrap: nowrap; align-items: center; } /* long labels wrap beside the box */
+.stepper { display: inline-flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
+.stepper b { min-width: 6.5em; text-align: center; }
+.banner .actions { margin-top: var(--s-2); width: 100%; grid-auto-flow: column; justify-content: start; } /* a banner's buttons stay small and side by side */
 /* A set of related buttons: one full-width column on phones, one row on wide screens. */
 .actions { display: grid; gap: var(--s-2); }
 @media (min-width: 720px) { .actions { grid-auto-flow: column; justify-content: start; } }
