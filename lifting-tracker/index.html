@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Defence in depth: no inline scripts or handlers, nothing from other sites, no plugins, no form posts. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-FX6iI0cS83FRWAnqQvuRF/hXQhNJLAL51d3CKBcLjg0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0c0d0f" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f1ede3" media="(prefers-color-scheme: light)">
@@ -18,6 +18,7 @@
 <body>
   <div id="app"><main class="main"><p class="muted">Loading…</p></main></div>
   <noscript><main class="main"><p>This app needs JavaScript. Nothing is sent anywhere; all data stays on your device.</p></main></noscript>
+  <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js"}}</script>
   <script type="module" src="src/ui/app.js"></script>
 </body>
 </html>

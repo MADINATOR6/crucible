@@ -2,10 +2,23 @@
 import { weeklyHardSets } from '../../core/muscles.js';
 import { mondayOf, addDays } from '../../core/weeks.js';
 import { renderHeatmap, renderLegend, renderMuscleList, MUSCLE_LABELS, bandFor, fmtSets } from '../heatmap.js';
-import { esc, todayIso } from '../dom.js';
+import { esc, todayIso, toast } from '../dom.js';
+import { mount3d } from '../heatmap3d.js';
 import { longDate } from '../charts.js';
 
 const DUMMY_MONDAY = '2000-01-03';
+let webgl, active3d, mountId = 0, leaveObserver;
+function supports3d() {
+  if (webgl === undefined) {
+    const canvas = document.createElement('canvas');
+    try {
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      webgl = !!gl;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    } catch { webgl = false; }
+  }
+  return webgl;
+}
 
 function programmeWeekEvents(app, blockNumber, weekNumber, mode) {
   const block = app.programme.blocks.find((b) => b.number === blockNumber);
@@ -91,8 +104,8 @@ export function musclesView(app, ui) {
     </div>
     <div class="card">
       <div class="card-h"><h2>${esc(label)}</h2><span class="muted small">${total} working sets${m.mode === 'programme' && !estimated ? ' · dates unknown' : ''}</span></div>
-      <div class="seg hm-view-toggle mb-3" role="group" aria-label="Body view"><button data-view="front" aria-pressed="${m.view === 'front'}">Front</button><button data-view="back" aria-pressed="${m.view === 'back'}">Back</button></div>
-      ${renderHeatmap(data, { selected: sel, view: m.view, prev })}
+      <div class="seg hm-view-toggle mb-3" role="group" aria-label="Body view"><button data-view="front" aria-pressed="${m.view === 'front'}">Front</button><button data-view="back" aria-pressed="${m.view === 'back'}">Back</button>${supports3d() ? `<button data-view="3d" aria-pressed="${m.view === '3d'}">3D</button>` : ''}</div>
+      ${m.view === '3d' ? '<div class="hm3d" role="img" aria-label="3D muscle map. The list below has every muscle\'s count."><p class="hm3d-status muted small">Loading 3D model…</p></div>' : renderHeatmap(data, { selected: sel, view: m.view, prev })}
       ${renderLegend()}
       ${res.unknownExerciseIds?.length ? `<p class="small tone-warn mt-3">Not counted (not in the exercise catalogue): ${res.unknownExerciseIds.map((x) => esc(String(x).replace('custom:', ''))).join(', ')}</p>` : ''}
     </div>
@@ -108,6 +121,30 @@ export function musclesView(app, ui) {
     root.querySelectorAll('[data-cal]').forEach((b) => b.addEventListener('click', () => set({ calWeek: addDays(m.calWeek, Number(b.dataset.cal)) })));
     root.querySelectorAll('.hm-view-toggle [data-view]').forEach((b) => b.addEventListener('click', () => set({ view: b.dataset.view })));
     const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: `smooth` })); };
+    const id = ++mountId;
+    leaveObserver?.disconnect();
+    if (m.view === '3d') {
+      const container = root.querySelector('.hm3d');
+      const fallback = () => {
+        if (id !== mountId || !container.isConnected) return;
+        active3d?.dispose(); active3d = null;
+        set({ view: 'front' });
+        toast('3D view unavailable here; showing the 2D map');
+      };
+      mount3d(container, { data, selected: sel, onPick: pick, onError: fallback }).then((v) => {
+        if (id === mountId && container.isConnected) active3d = v;
+        else if (!root.querySelector('.hm3d')) v.dispose();
+      }).catch(fallback);
+      // Observe the existing router's DOM replacement without adding a new app lifecycle API.
+      leaveObserver = new MutationObserver(() => {
+        if (!root.querySelector('.hm3d')) {
+          ++mountId;
+          active3d?.dispose(); active3d = null;
+          leaveObserver.disconnect();
+        }
+      });
+      leaveObserver.observe(root, { childList: true });
+    } else { active3d?.dispose(); active3d = null; }
     root.querySelectorAll('.hm-region').forEach((el) => {
       el.addEventListener('click', () => pick(el.dataset.muscle));
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(el.dataset.muscle); } });

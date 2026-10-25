@@ -26,5 +26,24 @@ test('every module the app imports is precached', async () => {
     }
     return out;
   }
-  for (const f of await walk(root + 'src/')) assert.ok(shell.has('src/' + f), 'not precached: src/' + f);
+  for (const folder of ['src/', 'vendor/']) {
+    for (const f of await walk(root + folder)) {
+      const path = folder + f;
+      assert.ok(shell.has(path), 'not precached: ' + path);
+      const module = await readFile(root + path, 'utf8');
+      // Static imports must start a line, so prose like `from "srgb-linear"` in a vendored warning string doesn't count.
+      for (const match of module.matchAll(/^\s*(?:import|export)\b[^;'"`]*?\bfrom\s*['"]([\w./-]+)['"]|\bimport\s*\(\s*['"]([\w./-]+)['"]/gm)) {
+        const specifier = match[1] ?? match[2];
+        const target = specifier === 'three' ? 'vendor/three/build/three.module.min.js'
+          : specifier.startsWith('.') ? new URL(specifier, new URL(path, 'https://offline.test/')).pathname.slice(1) : null;
+        assert.ok(target && shell.has(target), `${path} import not precached: ${specifier}`);
+      }
+    }
+  }
+});
+
+test('3D assets are precached in the updated cache', async () => {
+  const src = await readFile(new URL('../../sw.js', import.meta.url), 'utf8');
+  assert.match(src, /const VERSION = 'lt-v2'/);
+  for (const path of ['assets/body.glb', 'src/ui/heatmap3d.js', 'vendor/three/build/three.module.min.js', 'vendor/three/examples/jsm/loaders/GLTFLoader.js', 'vendor/three/examples/jsm/utils/BufferGeometryUtils.js', 'vendor/three/examples/jsm/controls/OrbitControls.js']) assert.ok(src.includes(`'${path}'`), path);
 });
