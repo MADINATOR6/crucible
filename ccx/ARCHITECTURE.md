@@ -193,7 +193,9 @@ Add an agent only when parallelism or real specialist value justifies it: no rev
 - **Writes:** every write holds `state.lock`, then replaces `state.json` atomically and keeps `state.json.bak`.
 - **Contents:** tasks (owner, owns, status, worktree, branch, budget, dispatches, tokens, verification, reviews), approvals, the event queue and dedup keys, notifications, the routing log, and the runtime flag.
 - **Ownership:** `task start`, `worktree add` and the launcher refuse (exit 7) when two active tasks own overlapping paths.
+  `task add` appends `/` to an owned path naming an existing repo directory and prints a notice; paths that do not exist yet stay as supplied.
 - **Baseline:** pre-existing unrelated changes are recorded once per worktree, the first time a task starts there. Restarts, resets to `planned`, naming the same worktree again, and moving away and back never re-take it, so stray edits cannot be laundered into the baseline (CCX-4/4b findings).
+  Every dispatch role with `-TaskId` starts a planned task before running the agent; verify and research runs do not consume implementation retries.
 - **Never stored:** secrets, file contents or prompts. Strings pass through redaction.
 - **Private data:** paths in `privacy.excludePaths` are never listed, owned, scanned or fingerprinted. Here that is `nursing-a2/`, the study-material project on its own branch. Clear the list when copying the template.
 
