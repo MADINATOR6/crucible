@@ -1,10 +1,17 @@
 // Small DOM helpers shared by the views.
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export function toast(message, ms = 2600) {
+/** Short message at the bottom of the screen. `action` ({ label, onClick }) adds one button, for example Undo. */
+export function toast(message, ms = 2600, action = null) {
   document.querySelector('.toast')?.remove();
   const el = document.createElement('div');
-  el.className = 'toast'; el.setAttribute('role', 'status'); el.textContent = message;
+  el.className = 'toast'; el.setAttribute('role', 'status');
+  el.append(Object.assign(document.createElement('span'), { textContent: message }));
+  if (action) {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'toast-action', textContent: action.label });
+    b.addEventListener('click', () => { el.remove(); action.onClick(); }, { once: true });
+    el.append(b);
+  }
   document.body.append(el);
   setTimeout(() => el.remove(), ms);
 }

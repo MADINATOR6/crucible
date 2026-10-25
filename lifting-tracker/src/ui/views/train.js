@@ -1,4 +1,4 @@
-// Train view: Block -> Week -> Day -> Exercise -> Set, planned values beside what was actually done.
+// Train view: today's session first. One header picks the day; each set is one line with a one-tap "done as planned" check.
 import { convert, formatWeight, round1, toKg } from '../../core/units.js';
 import { estimate1RM } from '../../core/e1rm.js';
 import { esc, openSheet, toast, todayIso } from '../dom.js';
@@ -8,11 +8,16 @@ import { warmupLadder } from '../../plates/loading.js';
 import { startRest, suggestedRest } from '../rest-timer.js';
 
 const repsText = (s) => (s.repsMin == null ? (s.repsRaw ? esc(s.repsRaw) : '–') : s.repsMin === s.repsMax ? String(s.repsMin) : `${s.repsMin}–${s.repsMax}`);
-const rpeText = (v) => (v == null ? '–' : String(v));
+const sameDay = (a, b) => !!a && !!b && a.blockNumber === b.blockNumber && a.weekNumber === b.weekNumber && a.dayNumber === b.dayNumber;
+const shortDate = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 
 function pickDefaults(app, ui) {
   const blocks = [...app.programme.blocks].sort((a, b) => a.number - b.number);
   if (!blocks.length) return;
+  if (!ui.train.block && app.nextSession) {
+    const next = app.nextSession();
+    if (next) Object.assign(ui.train, { block: next.blockNumber, week: next.weekNumber, day: next.dayNumber });
+  }
   if (!ui.train.block || !blocks.some((b) => b.number === ui.train.block)) ui.train.block = blocks.at(-1).number;
   const block = blocks.find((b) => b.number === ui.train.block);
   if (!block.weeks.length) return;
@@ -38,71 +43,128 @@ export function trainView(app, ui) {
   const block = blocks.find((b) => b.number === ui.train.block);
   const week = block.weeks.find((w) => w.number === ui.train.week);
   const day = week?.days.find((d) => d.number === ui.train.day);
-  const est = !app.datesKnown() ? '' : app.dateFor({ blockNumber: block.number, weekNumber: week?.number, dayNumber: day?.number || 1 });
-  const fmtLoad = (l) => (l ? formatWeight(l, unit) : '–');
-
-  const weekStats = (w) => {
-    let done = 0, total = 0;
-    for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => { total++; if (s.completed || app.loggedFor({ blockNumber: block.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si })) done++; }));
-    return { done, total };
-  };
+  const dayRef = day && { blockNumber: block.number, weekNumber: week.number, dayNumber: day.number };
+  const est = !app.datesKnown() || !week ? '' : app.dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day?.number || 1 });
+  const fmtLoad = (l) => (l ? formatWeight(l, unit) : '');
+  const prog = { done: 0, total: 0 };
+  day?.entries.forEach((e, ei) => e.sets.forEach((s, si) => { prog.total++; if (s.completed || app.loggedFor({ ...dayRef, entryIndex: ei, setIndex: si })) prog.done++; }));
+  const next = app.nextSession?.();
+  const label = sameDay(next, dayRef) ? (est === todayIso() ? 'Today' : 'Next up') : est && est < todayIso() ? 'Earlier session' : 'Session';
+  const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
 
   const header = `
-    <div class="topbar"><div>
-      <h1>${esc(block.name)}</h1>
-      <p class="muted small">Block ${block.number}${block.goal ? ' · ' + esc(block.goal) : ''}</p></div>
-      <div class="row">${app.usingExample ? '<span class="pill example">Example data</span>' : ''}<a class="btn small" href="#plan" style="white-space:nowrap">Plan next block</a><button class="btn small" id="quick" style="white-space:nowrap" aria-label="Quick log a set outside the programme">+ Log</button></div></div>
-    ${app.usingExample ? `<div class="banner" style="margin-bottom:14px"><span>You're looking at <b>example data</b>, not yours. Import your coach's workbook to replace it.</span><a class="btn small primary" href="#data">Import workbook</a></div>` : ''}
-    <div class="chips" role="group" aria-label="Block">${blocks.map((b) => `<button class="chip" data-block="${b.number}" aria-pressed="${b.number === block.number}">${b.number}<small>${esc(b.name)}</small></button>`).join('')}</div>
-    <div class="chips" role="group" aria-label="Week">${block.weeks.map((w) => { const st = weekStats(w); return `<button class="chip" data-week="${w.number}" aria-pressed="${w.number === week?.number}">Week ${w.number}<small>${st.done}/${st.total}</small></button>`; }).join('') || '<span class="muted small">No weeks parsed for this block.</span>'}</div>
-    ${week ? `<div class="chips" role="group" aria-label="Day">${week.days.map((d) => `<button class="chip" data-day="${d.number}" aria-pressed="${d.number === day?.number}">Day ${d.number}</button>`).join('')}</div>` : ''}`;
+    <div class="topbar train-top">
+      <div class="train-title">
+        <span class="eyebrow">${label}${est ? ` · ${esc(shortDate(est))}` : ''}${app.usingExample ? ' · <span class="pill example">Example</span>' : ''}</span>
+        <button class="day-switch" id="pick" aria-haspopup="dialog" aria-label="Choose another day. Showing block ${block.number}, week ${week?.number ?? '–'}, day ${day?.number ?? '–'}">
+          <h1>${week ? `Week ${week.number} · Day ${day?.number ?? '–'}` : `Block ${block.number}`}</h1><span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <span class="muted small">Block ${block.number} · ${esc(block.name)}</span>
+      </div>
+      <button class="btn small" id="quick" aria-label="Quick log a set outside the programme">+ Log</button>
+    </div>
+    ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small primary" href="#data">Import</a></div>` : ''}
+    ${day ? `<div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
   let body = '';
-  if (week) {
-    const t = week.target;
-    body += `<div class="stats3">
-      <div class="card stat"><span>Week target</span><b>${t && t.total != null ? t.total + ' kg' : '–'}</b><small>${t ? [t.squat, t.bench, t.deadlift].map((v) => v ?? '–').join(' / ') : 'not set by coach'}${t && [t.squat, t.bench, t.deadlift].some((v) => v == null) ? ' (total of the known lifts)' : ''}</small></div>
-      <div class="card stat"><span>Avg bodyweight</span><b>${week.avgBodyweightKg ? week.avgBodyweightKg + ' kg' : '–'}</b><small>${week.avgCalories ? week.avgCalories + ' kcal' : 'no calories noted'}</small></div>
-      <div class="card stat"><span>${est ? 'Estimated date' : 'Date'}</span><b>${est ? est.slice(8) + '/' + est.slice(5, 7) : '–'}</b><small>${est ? 'estimate: set the start date in Data' : 'set a start date in Data'}</small></div>
-    </div>`;
-  }
+  if (!week) body += `<div class="empty card"><p>No weeks were found for this block.</p></div>`;
   if (day) {
-    body += `<div class="card">${day.entries.map((e, ei) => {
-      const ex = app.exercise(e.exerciseId);
-      return `<section class="entry">
-        <div class="entry-h"><h3>${e.supersetGroup ? `<span class="pill">${esc(e.supersetGroup)}</span> ` : ''}${esc(ex?.name || e.name)}</h3>
-          <button class="btn small ghost" data-warm="${ei}" aria-label="Warm-up ladder for ${esc(ex?.name || e.name)}">Warm-up</button></div>
+    body += day.entries.map((e, ei) => {
+      const name = esc(ex(app, e));
+      const notes = e.sets.map((s, si) => (s.athleteComment ? `<p class="cue">Set ${si + 1}: ${esc(s.athleteComment)}</p>` : '')).join('');
+      return `<section class="card exercise">
+        <div class="card-h"><h3>${e.supersetGroup ? `<span class="pill">${esc(e.supersetGroup)}</span> ` : ''}${name}</h3>
+          <button class="btn small ghost" data-warm="${ei}" aria-label="Warm-up ladder for ${name}">Warm-up</button></div>
         ${e.tempo ? `<p class="cue">Tempo ${esc(e.tempo)}</p>` : ''}${e.cues?.length ? `<p class="cue">${e.cues.map(esc).join(' · ')}</p>` : ''}${[...new Set(e.sets.map((x) => x.coachComment).filter(Boolean))].map((t) => `<p class="cue coach">${esc(t)}</p>`).join('')}
-        <table class="sets"><thead><tr><th>#</th><th>Plan</th><th>Load</th><th>Actual</th><th></th></tr></thead><tbody>
-        ${e.sets.map((s, si) => {
-          const logged = app.loggedFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day.number, entryIndex: ei, setIndex: si });
-          const done = !!logged || s.completed;
-          const planned = `${repsText(s)} reps${s.targetRpe != null ? ` @ ${rpeText(s.targetRpe)}` : ''}`;
-          const actual = logged
-            ? `<span class="actual">${formatWeight(logged.weight, unit)} × ${logged.reps}${logged.rpe != null ? ` @ ${logged.rpe}` : ''}</span><span class="sub">logged</span>`
-            : s.completed ? `<span class="actual">${s.actualReps != null ? s.actualReps + ' reps ' : ''}${s.actualRpe != null ? '@ ' + s.actualRpe : 'done'}</span><span class="sub">from workbook</span>` : '<span class="muted">–</span>';
-          return `<tr class="${done ? 'done' : ''}"><td>${si + 1}</td>
-            <td><button class="set-btn" data-set="${ei}:${si}"><span class="planned">${planned}</span></button></td>
-            <td class="num">${s.load ? fmtLoad(s.load) : s.loadRange ? esc(`${s.loadRange.min}–${s.loadRange.max} ${s.loadRange.unit}`) : '–'}</td>
-            <td>${actual}${s.athleteComment ? `<span class="note">${esc(s.athleteComment)}</span>` : ``}</td>
-            <td><button class="btn small ${done ? 'ghost' : ''}" data-set="${ei}:${si}" aria-label="${done ? 'Edit' : 'Log'} set ${si + 1} of ${esc(ex?.name || e.name)}">${done ? 'Edit' : 'Log'}</button></td></tr>`;
-        }).join('')}
-        </tbody></table></section>`;
-    }).join('') || '<p class="muted">No exercises on this day.</p>'}</div>`;
+        <ol class="list mt-3">${e.sets.map((s, si) => setRow(app, unit, { ...dayRef, entryIndex: ei, setIndex: si }, s, name, fmtLoad)).join('')}</ol>
+        ${notes}
+      </section>`;
+    }).join('') || '<div class="empty card"><p>No exercises on this day.</p></div>';
+    const t = week.target;
+    body += `<details class="options mt-4"><summary>Week ${week.number} details</summary><div class="options-body">
+      <div class="grid-3">
+        <div class="stat"><span>Week target</span><b class="figure">${t && t.total != null ? `${t.total}<small>kg</small>` : '–'}</b><small>${t ? [t.squat, t.bench, t.deadlift].map((v) => v ?? '–').join(' / ') : 'not set by coach'}</small></div>
+        <div class="stat"><span>Avg bodyweight</span><b class="figure">${week.avgBodyweightKg ? `${week.avgBodyweightKg}<small>kg</small>` : '–'}</b><small>${week.avgCalories ? week.avgCalories + ' kcal' : 'no calories noted'}</small></div>
+        <div class="stat"><span>Date</span><b class="figure">${est ? est.slice(8) + '/' + est.slice(5, 7) : '–'}</b><small>${est ? 'an estimate (Data)' : 'set a start date in Data'}</small></div>
+      </div></div></details>`;
   }
+  body += `<a class="btn ghost plan-link mt-4" href="#plan">Plan the next block →</a>`;
 
   function bind(root, rerender) {
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
-    root.querySelectorAll('[data-block]').forEach((b) => b.addEventListener('click', () => { ui.train.block = Number(b.dataset.block); ui.train.week = null; ui.train.day = null; rerender(); }));
-    root.querySelectorAll('[data-week]').forEach((b) => b.addEventListener('click', () => { ui.train.week = Number(b.dataset.week); ui.train.day = null; rerender(); }));
-    root.querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => { ui.train.day = Number(b.dataset.day); rerender(); }));
+    root.querySelector('#pick')?.addEventListener('click', () => openDayPicker(app, ui, blocks, rerender));
     root.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', () => {
       const [ei, si] = b.dataset.set.split(':').map(Number);
       openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si });
     }));
+    root.querySelectorAll('[data-done]').forEach((b) => b.addEventListener('click', () => {
+      const [ei, si] = b.dataset.done.split(':').map(Number);
+      if (b.getAttribute('aria-pressed') === 'true' || !app.logAsPlanned) { openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si }); return; }
+      guarded(b, async () => {
+        try {
+          const r = await app.logAsPlanned({ programmeRef: dayRef, plannedRef: { entryIndex: ei, setIndex: si } });
+          toast(r.newPRs.length ? `New PR! ${r.newPRs.map((x) => prLabel(x, unit)).join(', ')}` : `Set ${si + 1} done as planned`, 8000,
+            { label: 'Undo', onClick: () => app.deleteSet(r.set.id) });
+          startRest(suggestedRest(app.exercise(day.entries[ei].exerciseId)));
+        } catch (err) {
+          // No planned weight or reps: the set needs the full form.
+          if (err instanceof RangeError) openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si }); else throw err;
+        }
+      });
+    }));
     root.querySelectorAll('[data-warm]').forEach((b) => b.addEventListener('click', () => openWarmups(app, day.entries[Number(b.dataset.warm)], week)));
   }
   return { html: header + body, bind };
+}
+
+const ex = (app, e) => app.exercise(e.exerciseId)?.name || e.name;
+
+/** One set as one line: number, what to do (or what was done), and a check that logs it as planned. */
+function setRow(app, unit, ref, s, name, fmtLoad) {
+  const logged = app.loggedFor(ref);
+  const done = !!logged || !!s.completed;
+  const load = s.load ? fmtLoad(s.load) : s.loadRange ? esc(`${s.loadRange.min}–${s.loadRange.max} ${s.loadRange.unit}`) : '';
+  const plan = `${repsText(s)}${load ? ` × ${load}` : ' reps'}`;
+  const rpe = (v) => (v != null ? `<small>@${esc(v)}</small>` : '');
+  const text = logged
+    ? `${logged.reps} × ${formatWeight(logged.weight, unit)} ${rpe(logged.rpe)}`
+    : s.completed ? `${s.actualReps != null ? s.actualReps + ' reps' : 'Done'} ${rpe(s.actualRpe)}<small>workbook</small>`
+    : `${plan} ${rpe(s.targetRpe)}`;
+  const n = ref.setIndex + 1;
+  return `<li class="list-row set-row${done ? ' is-done' : ''}">
+    <span class="lead">${n}</span>
+    <button class="main" data-set="${ref.entryIndex}:${ref.setIndex}" aria-label="Set ${n} of ${name}: ${done ? 'edit what you did' : 'log different numbers'}">${text}</button>
+    ${logged && s.load && (logged.reps !== s.repsMin || Math.abs(toKg(logged.weight) - toKg(s.load)) > 0.01) ? `<span class="trail">plan ${plan}</span>` : ''}
+    <button class="check-btn" data-done="${ref.entryIndex}:${ref.setIndex}" aria-pressed="${done}" aria-label="${done ? `Set ${n} done. Edit it` : `Mark set ${n} of ${name} done as planned`}">✓</button>
+  </li>`;
+}
+
+/** Block, week and day in one sheet, with how much of each week is done. */
+function openDayPicker(app, ui, blocks, rerender) {
+  let blockNo = ui.train.block;
+  const sheet = openSheet('<div id="picker"></div>');
+  const host = sheet.el.querySelector('#picker');
+  const draw = () => {
+    const block = blocks.find((b) => b.number === blockNo);
+    const done = (w, d) => d.entries.every((e, ei) => e.sets.every((s, si) => s.completed || app.loggedFor({ blockNumber: block.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si })));
+    host.innerHTML = `<div class="card-h"><h2>Choose a day</h2>${app.nextSession ? '<button class="btn small" id="go-next">Next session</button>' : ''}</div>
+      ${blocks.length > 1 ? `<div class="chips" role="group" aria-label="Block">${blocks.map((b) => `<button class="chip" data-b="${b.number}" aria-pressed="${b.number === blockNo}">Block ${b.number}<small>${esc(b.name)}</small></button>`).join('')}</div>` : ''}
+      <div class="stack">${block.weeks.map((w) => `<div><h3 class="mb-3">Week ${w.number}</h3><div class="picker-days">${w.days.map((d) => {
+        const current = block.number === ui.train.block && w.number === ui.train.week && d.number === ui.train.day;
+        return `<button class="chip" data-w="${w.number}" data-d="${d.number}" aria-pressed="${current}">Day ${d.number}${done(w, d) ? '<small>✓</small>' : ''}</button>`;
+      }).join('') || '<span class="muted small">No days</span>'}</div></div>`).join('') || '<p class="muted">No weeks were found for this block.</p>'}</div>`;
+    host.querySelectorAll('[data-b]').forEach((b) => b.addEventListener('click', () => { blockNo = Number(b.dataset.b); draw(); }));
+    host.querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', () => {
+      Object.assign(ui.train, { block: blockNo, week: Number(b.dataset.w), day: Number(b.dataset.d) });
+      sheet.close(); rerender();
+    }));
+    host.querySelector('#go-next')?.addEventListener('click', () => {
+      const n = app.nextSession();
+      if (n) Object.assign(ui.train, { block: n.blockNumber, week: n.weekNumber, day: n.dayNumber });
+      sheet.close(); rerender();
+    });
+  };
+  draw();
 }
 
 function suggestedWeight(app, entry, set, unit) {
