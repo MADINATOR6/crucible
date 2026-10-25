@@ -1,6 +1,65 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateBackup, setsToCsv } from '../../src/store/backup.js';
+import { validateBackup, setsToCsv, backupReminder } from '../../src/store/backup.js';
+import { canShareBackup, saveBackup } from '../../src/ui/views/data.js';
+import { todayIso } from '../../src/ui/dom.js';
+
+test('backup sharing, cancellation and download fallback record only completed actions', async (t) => {
+  let downloads = 0, shares = 0, patch = null;
+  const element = () => ({ setAttribute() {}, append() {}, remove() {}, click() { downloads++; } });
+  t.mock.method(globalThis, 'setTimeout', () => 0);
+  globalThis.document = { querySelector() { return null; }, createElement: element, body: { append() {} } };
+  navigator.canShare = () => true;
+  navigator.share = async () => {};
+  t.after(() => { delete globalThis.document; delete navigator.canShare; delete navigator.share; });
+  t.mock.method(URL, 'createObjectURL', () => 'blob:backup');
+  t.mock.method(navigator, 'canShare', () => true);
+  t.mock.method(navigator, 'share', async ({ files, title }) => {
+    shares++;
+    assert.equal(title, 'Lifting Tracker backup');
+    assert.equal(JSON.parse(await files[0].text()).app, 'lifting-tracker');
+  });
+  const app = { exportBackup: async () => good(), saveSettings: async (p) => { patch = p; } };
+  await saveBackup(app, true);
+  assert.deepEqual(patch, { lastBackupAt: todayIso(), backupSnoozeUntil: null });
+  assert.equal(shares, 1); assert.equal(downloads, 0);
+  patch = null;
+  navigator.share.mock.mockImplementation(async () => { throw Object.assign(new Error(), { name: 'AbortError' }); });
+  await saveBackup(app, true);
+  assert.equal(patch, null); assert.equal(downloads, 0);
+  navigator.share.mock.mockImplementation(async () => { throw new Error('refused'); });
+  await saveBackup(app, true);
+  assert.equal(downloads, 1); assert.equal(patch.lastBackupAt, todayIso());
+  navigator.canShare.mock.mockImplementation(() => false);
+  assert.equal(canShareBackup(), false);
+  await saveBackup(app, true);
+  assert.equal(downloads, 2);
+});
+
+test('backup reminder session, age and snooze boundaries', () => {
+  const dates = ['2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06'];
+  const cases = [
+    [null, 2, '2026-10-15', null, false],
+    [null, 3, '2026-10-15', null, true],
+    ['2026-10-01', 4, '2026-10-14', null, false],
+    ['2026-10-01', 5, '2026-10-14', null, true],
+    ['2026-10-01', 1, '2026-10-14', null, false],
+    ['2026-10-01', 1, '2026-10-15', null, true],
+    ['2026-10-01', 5, '2026-10-15', '2026-10-16', false],
+    ['2026-10-01', 5, '2026-10-15', '2026-10-15', true],
+    ['2026-10-01', 0, '2026-10-25', null, false],
+  ];
+  for (const [lastBackupAt, sessions, today, backupSnoozeUntil, due] of cases) {
+    assert.deepEqual(backupReminder({ lastBackupAt, backupSnoozeUntil, today, loggedDates: dates.slice(0, sessions) }), { due, sessions });
+  }
+  assert.deepEqual(backupReminder({ lastBackupAt: '2026-10-02', backupSnoozeUntil: null, today: '2026-10-03', loggedDates: ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-03'] }), { due: false, sessions: 1 });
+});
+
+test('older backups receive the new settings defaults', () => {
+  const r = validateBackup(JSON.stringify(good()));
+  const s = r.snapshot.meta.find((m) => m.key === 'settings').value;
+  assert.deepEqual([s.keepAwake, s.vibrate, s.lastBackupAt, s.backupSnoozeUntil], [true, true, null, null]);
+});
 
 const good = () => ({
   app: 'lifting-tracker', schemaVersion: 1, exportedAt: '2026-10-04T00:00:00.000Z', settings: { unit: 'kg' }, programme: null,

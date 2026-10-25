@@ -24,6 +24,27 @@ const WARNING_HELP = {
   redacted_number: 'A long digit run in free text was removed (could be a phone number).',
 };
 
+export function canShareBackup() {
+  try { return !!navigator.canShare?.({ files: [new File(['{}'], 'b.json', { type: 'application/json' })] }); }
+  catch { return false; }
+}
+
+export async function saveBackup(app, share = false) {
+  const data = await app.exportBackup();
+  const name = `lifting-tracker-backup-${todayIso()}.json`;
+  const text = JSON.stringify(data, null, 2);
+  let shared = false;
+  if (share && canShareBackup()) {
+    try {
+      await navigator.share({ files: [new File([text], name, { type: 'application/json' })], title: 'Lifting Tracker backup' });
+      shared = true;
+    } catch (err) { if (err?.name === 'AbortError') return; }
+  }
+  if (!shared) download(name, text);
+  await app.saveSettings({ lastBackupAt: todayIso(), backupSnoozeUntil: null });
+  toast(shared ? 'Backup shared' : 'Backup downloaded');
+}
+
 export function dataView(app, ui) {
   const p = app.programme;
   const rep = p?.report;
@@ -57,12 +78,15 @@ export function dataView(app, ui) {
         <p class="small muted">Leave blank to follow on from the previous block. Set a date when a block really began (for example after a break); later blocks then follow it.</p>
         <div class="grid cols-2">${(p?.blocks || []).map((b) => `<label class="field"><span>Block ${b.number} · ${esc(b.name)}</span><input type="date" data-block-start="${b.number}" value="${esc((s.blockStarts || {})[b.number] || '')}"></label>`).join('')}</div>
       </details>
+      <label class="row mt-3"><input type="checkbox" data-setting="keepAwake" ${s.keepAwake ? 'checked' : ''}> Keep the screen on while training</label>
+      <label class="row mt-3"><input type="checkbox" data-setting="vibrate" ${s.vibrate ? 'checked' : ''}> Vibrate on one-tap logs and when rest ends</label>
       <p class="small muted mt-2">The workbook has no dates, so charts place sets using this start date and the assumption that blocks follow each other week by week. Treat dates as estimates. A start on any day is moved to that week's Monday.</p>
     </div>
 
     <div class="card"><div class="card-h"><h2>Backup</h2></div>
       <p class="muted small">A backup is one JSON file with your programme, logged sets and bodyweights. Keep a copy somewhere safe: browsers can clear site data.</p>
-      <div class="actions"><button class="btn" id="export-json">Export backup (JSON)</button><button class="btn" id="export-csv">Export sets (CSV)</button>
+      <p class="small muted">${s.lastBackupAt ? `Last backup: ${esc(new Date(s.lastBackupAt + 'T12:00:00').toLocaleDateString(undefined, { dateStyle: 'long' }))}` : 'No backup yet'}</p>
+      <div class="actions">${canShareBackup() ? '<button class="btn primary" id="share-backup">Share backup</button>' : ''}<button class="btn" id="export-json">Export backup (JSON)</button><button class="btn" id="export-csv">Export sets (CSV)</button>
         <label class="btn">Restore backup<input id="import-json" type="file" accept="application/json,.json" class="visually-hidden"></label></div>
       <p class="small muted mt-3">Storage: ${app.store.persistent ? 'saved on this device' : '<b class="tone-warn">not saved (private window or blocked storage)</b>'}${app.persisted === true ? ' · protected from automatic clearing' : app.persisted === false ? ' · the browser may clear it under storage pressure; export backups' : ''}.</p>
     </div>
@@ -99,11 +123,9 @@ export function dataView(app, ui) {
       app.saveSettings({ blockStarts: cur });
     }));
     root.querySelector('#start').addEventListener('change', (e) => app.saveSettings({ programmeStart: e.target.value ? mondayOf(e.target.value) : null }));
-    root.querySelector('#export-json').addEventListener('click', async () => {
-      const data = await app.exportBackup();
-      download(`lifting-tracker-backup-${todayIso()}.json`, JSON.stringify(data, null, 2));
-      toast('Backup downloaded');
-    });
+    root.querySelectorAll('[data-setting]').forEach((input) => input.addEventListener('change', () => app.saveSettings({ [input.dataset.setting]: input.checked })));
+    root.querySelector('#export-json').addEventListener('click', () => saveBackup(app));
+    root.querySelector('#share-backup')?.addEventListener('click', () => saveBackup(app, true));
     root.querySelector('#export-csv').addEventListener('click', () => {
       const byId = new Map(app.sessions.map((x) => [x.id, x]));
       download(`lifting-tracker-sets-${todayIso()}.csv`, setsToCsv(app.sets, byId), 'text/csv');

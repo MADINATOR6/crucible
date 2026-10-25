@@ -7,6 +7,14 @@ const APP = 'lifting-tracker';
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_RECORDS = 200000;
 
+export function backupReminder({ lastBackupAt, backupSnoozeUntil, loggedDates, today }) {
+  const sessions = new Set(loggedDates.filter((d) => !lastBackupAt || d > lastBackupAt)).size;
+  const days = lastBackupAt ? (Date.parse(today) - Date.parse(lastBackupAt)) / 86400000 : 0;
+  const due = (!backupSnoozeUntil || today >= backupSnoozeUntil)
+    && ((!lastBackupAt && sessions >= 3) || sessions >= 5 || (sessions >= 1 && days >= 14));
+  return { due, sessions };
+}
+
 export async function buildBackup(store) {
   const [settings, programme, sessions, sets, bodyweights] = await Promise.all([
     store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'),

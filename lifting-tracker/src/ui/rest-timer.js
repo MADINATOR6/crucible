@@ -28,17 +28,17 @@ function tick() {
   el.querySelector('.rt-time').textContent = fmt(left);
   if (left === 0 && !state.done) {
     state.done = true; el.classList.add('done'); el.querySelector('.rt-label').textContent = 'Go';
-    try { navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
+    try { if (state.vibrate) navigator.vibrate?.([200, 100, 200]); } catch { /* not supported */ }
     setTimeout(() => { if (state?.done) stopRest(); }, 15000);
   }
 }
 
-export function startRest(seconds) {
+export function startRest(seconds, { vibrate = true } = {}) {
   if (!(seconds > 0)) return;
   stopRest();
   const el = ensureEl();
   el.classList.remove('done'); el.querySelector('.rt-label').textContent = 'Rest';
-  state = { end: Date.now() + seconds * 1000, done: false, timer: setInterval(tick, 500) };
+  state = { end: Date.now() + seconds * 1000, done: false, vibrate, timer: setInterval(tick, 500) };
   tick();
 }
 
