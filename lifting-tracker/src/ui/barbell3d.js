@@ -105,15 +105,17 @@ async function createViewer() {
       const ink = material({ map: label, transparent: true, roughness: 0.6, depthWrite: false, side: T.DoubleSide });
       for (const sign of [-1, 1]) {
         const disc = new T.Group(); disc.position.x = sign*(entry.x+h); disc.userData.index = entry.index; model.add(disc);
-        // Face and rim are separate lathes that share no surface (a shared one would z-fight).
-        const profile = [[0.0252,-h],[r-width,-h],[r-width,h],[0.0252,h],[0.0252,-h]].map(([x,y])=>new T.Vector2(x,y));
+        // A plate's stated thickness is across its rim; the painted face sits `lip` inside that on each side, so
+        // neighbouring plates touch rim to rim. Face and rim are separate lathes that share no surface (no z-fighting).
+        const f = h - lip;
+        const profile = [[0.0252,-f],[r-width,-f],[r-width,f],[0.0252,f],[0.0252,-f]].map(([x,y])=>new T.Vector2(x,y));
         const body = mesh(new T.LatheGeometry(profile,96), paint, disc); body.rotation.z = -Math.PI/2;
-        const rim = [[r-width,-h-lip],[r,-h-lip],[r,h+lip],[r-width,h+lip],[r-width,-h-lip]].map(([x,y])=>new T.Vector2(x,y));
+        const rim = [[r-width,-h],[r,-h],[r,h],[r-width,h],[r-width,-h]].map(([x,y])=>new T.Vector2(x,y));
         const edge = mesh(new T.LatheGeometry(rim,96), lipPaint, disc); edge.rotation.z = -Math.PI/2;
-        const hub = mesh(new T.LatheGeometry([[0.0252,-h-0.0005],[0.045,-h-0.0005],[0.045,h+0.0005],[0.0252,h+0.0005]].map(([x,y])=>new T.Vector2(x,y)),64),chrome,disc); hub.rotation.z=-Math.PI/2;
+        const hub = mesh(new T.LatheGeometry([[0.0252,-f-0.0005],[0.045,-f-0.0005],[0.045,f+0.0005],[0.0252,f+0.0005]].map(([x,y])=>new T.Vector2(x,y)),64),chrome,disc); hub.rotation.z=-Math.PI/2;
         for (const face of [-1,1]) {
           const decal = mesh(new T.RingGeometry(0.046, r-width,96),ink,disc);
-          decal.rotation.y = face*Math.PI/2; decal.position.x = face*(h+0.0008);
+          decal.rotation.y = face*Math.PI/2; decal.position.x = face*(f+0.0008);
         }
         if (entry.index === opts.justAdded && !reduced.matches) slides.push({ disc, x: disc.position.x, from: sign*(BAR.length/2 + h + 0.12) });
       }
@@ -123,7 +125,7 @@ async function createViewer() {
       const lever = mesh(new T.BoxGeometry(0.015,0.07,0.014),chrome); lever.position.set(sign*(placed.collarX+0.04),0.055,0);
     }
     started = performance.now();
-    tip.textContent = opts.plates.length ? 'Drag to turn · pinch to zoom · tap a plate to remove it' : 'Empty bar';
+    tip.textContent = opts.plates.length ? 'Drag to turn · tap a plate to remove it' : 'Empty bar';
     if (placed.overflow) tip.textContent += ' · Stack exceeds sleeve';
     requestDraw();
   }

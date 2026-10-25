@@ -307,7 +307,10 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 8px 0; }
 @keyframes bb-pop { from { transform: translateY(-46px) scaleY(.55); opacity: 0; } to { transform: none; opacity: 1; } }
 .plate-btn { position: relative; }
 .plate-btn small { font-variant-numeric: tabular-nums; }
-.plate-btn .disc { color: inherit; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.plate-btn .disc { color: inherit; text-shadow: 0 1px 0 rgba(0,0,0,.35); position: relative;
+  /* a competition disc seen face-on: raised rim, lit from the top left */
+  box-shadow: inset 0 0 0 3px rgba(255,255,255,.16), inset 0 0 0 4.5px rgba(0,0,0,.32), inset 0 3px 6px rgba(255,255,255,.2), inset 0 -4px 8px rgba(0,0,0,.32), 0 3px 8px rgba(0,0,0,.4); }
+.plate-btn .disc::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.22), transparent 58%); pointer-events: none; }
 /* Coach's review */
 .coach-headline { font-size: 17px; line-height: 1.4; margin: 0 0 4px; font-weight: 600; }
 .coach-find { border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface-2); }
@@ -453,4 +456,8 @@ input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--accent)
 .hm3d canvas { display: block; cursor: grab; outline: none; }
 .hm3d canvas:active { cursor: grabbing; }
 .hm3d-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; }
-.hm3d-tip { position: absolute; left: 50%; bottom: var(--s-3); transform: translateX(-50%); max-width: calc(100% - 2 * var(--s-3)); margin: 0; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: var(--t-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.bb3d { position: relative; height: clamp(320px, 52vh, 460px); margin: -14px -8px -8px; } /* fills the stage edge to edge */
+.bb3d canvas { display: block; cursor: grab; outline: none; }
+.bb3d canvas:active { cursor: grabbing; }
+.bb3d-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; }
+.bb3d-tip, .hm3d-tip { position: absolute; left: 50%; bottom: var(--s-3); transform: translateX(-50%); max-width: calc(100% - 2 * var(--s-3)); margin: 0; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--surface) 88%, transparent); font-size: var(--t-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }

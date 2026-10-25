@@ -18,7 +18,7 @@ lifting-tracker/
     plates/    loading.js                                                         pure plate maths
     import/    xlsx.js programme.js report.js                                     workbook -> programme JSON
     store/     db.js backup.js                                                    IndexedDB + JSON backup/restore
-    ui/        app.js views/*.js heatmap.js heatmap3d.js barbell.js charts.js     DOM only
+    ui/        app.js views/*.js heatmap.js heatmap3d.js barbell.js barbell3d.js charts.js   DOM only
   assets/      body.glb build_body.py                                             3D body and the Blender script that builds it
   vendor/      three/                                                             three.js 0.170.0, pinned (3D map only)
   data/        exercises.json                                                     editable exercise + muscle catalogue
@@ -31,6 +31,7 @@ Dependency rule: `core` and `plates` import only `units.js` and `data/*.json` (p
 - **Why three.js.** WebGL by hand (loading glTF, orbit controls, picking) would be several hundred lines that three.js already does well, and it is the established library for it. It is the app's only runtime dependency: version 0.170.0, pinned, copied into `vendor/three/` (five files, about 850 KB, MIT licence, integrity hash in `VERSION.txt`), never loaded from a CDN, and precached by `sw.js`. `heatmap3d.js` imports it with `import()` only when 3D is first shown, so startup and the 2D map don't load it.
 - **Import map.** The addons import the bare name `three`, so `index.html` carries an inline import map. The CSP still forbids inline scripts; it allows that one script by its SHA-256 hash, and a test fails if the two drift.
 - **The model.** `assets/body.glb` (about 1.4 MB, 35 meshes, about 68k triangles, no Draco, so no decoder to vendor) is built by `assets/build_body.py` in Blender: `blender --background --factory-startup --python assets/build_body.py -- assets/body.glb`. The body is a union of ellipsoids remeshed into one smooth surface; each muscle is the part of that surface inside its "patch" volumes, with its outline snapped onto the patch shape, raised a few mm, and separated from its neighbours by a thin skin-coloured groove, so the muscles tile the body like an anatomy chart. Mesh names are muscle ids from `data/exercises.json` with `_L`/`_R`; the rest of the surface, grooves included, is `body_skin`. glTF axes: Y up, facing +Z, metres, feet on 0. A test reads the GLB and fails on any mesh name that isn't a muscle or `body_`.
+- **3D barbell.** `barbell3d.js` builds the bar and plates in code (lathe profiles, so no model file): IPF power-bar dimensions, plate sizes from `data/plates.json` (`drawHeightMm`, `thicknessMm`), weights printed with canvas textures, chrome from `RoomEnvironment` (vendored from the same three.js tarball). `barbell.js` draws the 2D side view from the same sizes.
 - **Fallback.** The 3D button appears only when WebGL works. If the model fails to load or the context is lost, the view returns to the 2D map with a toast. The 2D map and the sorted muscle list stay the accessible, colour-independent views.
 
 ## Units
