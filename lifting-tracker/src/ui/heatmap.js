@@ -11,10 +11,19 @@ export const BANDS = [
   { id: 5, min: 21, max: Infinity, label: 'Very high', hint: '21+ hard sets' },
 ];
 
-export function bandFor(sets) {
+export const RECOVERY_BANDS = [
+  { id: 0, min: 0, max: 0, label: 'Fresh', hint: '0 weighted sets' },
+  { id: 1, min: 0, max: 2, label: 'Light', hint: 'under 2 weighted sets' },
+  { id: 2, min: 2, max: 4, label: 'Some', hint: '2 to 4 weighted sets' },
+  { id: 3, min: 4, max: 7, label: 'Worked', hint: '4 to 7 weighted sets' },
+  { id: 4, min: 7, max: 10, label: 'Heavy', hint: '7 to 10 weighted sets' },
+  { id: 5, min: 10, max: Infinity, label: 'Very heavy', hint: '10+ weighted sets' },
+];
+
+export function bandFor(sets, bands = BANDS) {
   const n = Number(sets) || 0;
-  if (n <= 0) return BANDS[0];
-  return BANDS.find((b) => n >= b.min && n <= b.max) || BANDS[5];
+  if (n <= 0) return bands[0];
+  return bands.find((b, i) => n >= b.min && n <= b.max && (i === bands.length - 1 || n < bands[i + 1].min)) || bands[5];
 }
 
 export function fmtSets(n) {
@@ -90,16 +99,16 @@ const BACK_NEUTRAL = [
 
 const mirror = 'translate(220 0) scale(-1 1)';
 
-function figure(view, geo, neutral, data, selected, prev, baseShapes) {
+function figure(view, geo, neutral, data, selected, prev, baseShapes, bands) {
   const regions = Object.entries(geo);
-  const defs = BANDS.map((b) => `<linearGradient id="hmg-${view}-${b.id}" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb, var(--b${b.id}) 78%, #fff)"/><stop offset="0.55" style="stop-color:var(--b${b.id})"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--b${b.id}) 82%, #000)"/></linearGradient>`).join('');
+  const defs = bands.map((b) => `<linearGradient id="hmg-${view}-${b.id}" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb, var(--b${b.id}) 78%, #fff)"/><stop offset="0.55" style="stop-color:var(--b${b.id})"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--b${b.id}) 82%, #000)"/></linearGradient>`).join('');
   const paths = regions.map(([id, g]) => {
     const n = data[id] ?? 0;
-    const band = bandFor(n);
+    const band = bandFor(n, bands);
     const sel = selected === id ? ' is-selected' : '';
     const delta = prev ? n - (prev[id] ?? 0) : null;
     const dtxt = delta == null || delta === 0 ? '' : `, ${delta > 0 ? 'up' : 'down'} ${fmtSets(Math.abs(delta))} on the previous week`;
-    const aria = `${MUSCLE_LABELS[id]}: ${fmtSets(n)} hard sets, ${band.label}${dtxt}`;
+    const aria = `${MUSCLE_LABELS[id]}: ${fmtSets(n)} ${bands === BANDS ? 'hard sets' : 'weighted sets'}, ${band.label}${dtxt}`;
     const common = `class="hm-region band-${band.id}${sel}" data-muscle="${id}" style="fill:url(#hmg-${view}-${band.id})" tabindex="0" role="button" aria-label="${esc(aria)}"`;
     return `<g class="hm-muscle" data-muscle="${id}"><title>${esc(aria)}</title>${g.d.map((d) => `<path ${common} d="${d}"/><path ${common} d="${d}" transform="${mirror}"/>`).join('')}</g>`;
   }).join('');
@@ -122,33 +131,33 @@ function figure(view, geo, neutral, data, selected, prev, baseShapes) {
  * @param {Record<string, number>} data  weekly hard sets per muscle id (missing = 0)
  * @param {{ selected?: string|null, view?: 'front'|'back', prev?: Record<string, number>|null }} opts
  */
-export function renderHeatmap(data, { selected = null, view = 'front', prev = null } = {}) {
+export function renderHeatmap(data, { selected = null, view = 'front', prev = null, bands = BANDS } = {}) {
   return `<div class="hm" data-active-view="${view}">
     <div class="hm-figures">
-      <figure class="hm-fig" data-view="front"><figcaption>Front</figcaption>${figure('front', FRONT, FRONT_NEUTRAL, data, selected, prev, FRONT_BASE)}</figure>
-      <figure class="hm-fig" data-view="back"><figcaption>Back</figcaption>${figure('back', BACK, BACK_NEUTRAL, data, selected, prev, BACK_BASE)}</figure>
+      <figure class="hm-fig" data-view="front"><figcaption>Front</figcaption>${figure('front', FRONT, FRONT_NEUTRAL, data, selected, prev, FRONT_BASE, bands)}</figure>
+      <figure class="hm-fig" data-view="back"><figcaption>Back</figcaption>${figure('back', BACK, BACK_NEUTRAL, data, selected, prev, BACK_BASE, bands)}</figure>
     </div>
   </div>`;
 }
 
-export function renderLegend() {
-  return `<ul class="hm-legend" aria-label="Heat map scale">${BANDS.map((b) => `<li><i class="sw band-${b.id}"></i><b>${b.label}</b><span>${b.hint}</span></li>`).join('')}</ul>`;
+export function renderLegend(bands = BANDS) {
+  return `<ul class="hm-legend" aria-label="Heat map scale">${bands.map((b) => `<li><i class="sw band-${b.id}"></i><b>${b.label}</b><span>${b.hint}</span></li>`).join('')}</ul>`;
 }
 
 /** Sorted list (also the accessible, colour-independent view). Bars show a 10-20 set target zone and the change on `prev`. */
-export function renderMuscleList(data, selected, prev = null) {
+export function renderMuscleList(data, selected, prev = null, { bands = BANDS, zone = true } = {}) {
   const ids = Object.keys(MUSCLE_LABELS);
   const rows = ids.map((id) => ({ id, n: data[id] ?? 0 })).sort((a, b) => b.n - a.n || a.id.localeCompare(b.id));
   const max = Math.max(24, ...rows.map((r) => r.n));
   const pct = (v) => `${Math.min(100, (v / max) * 100).toFixed(2)}%`;
   return `<ol class="hm-list">${rows.map(({ id, n }) => {
-    const band = bandFor(n);
+    const band = bandFor(n, bands);
     const delta = prev ? Math.round((n - (prev[id] ?? 0)) * 10) / 10 : null;
     const dhtml = delta == null ? '' : delta === 0 ? '<span class="hm-delta flat" title="No change on the previous week">·</span>'
       : `<span class="hm-delta ${delta > 0 ? 'up' : 'down'}" title="${delta > 0 ? '+' : ''}${fmtSets(delta)} on the previous week">${delta > 0 ? '▲' : '▼'} ${fmtSets(Math.abs(delta))}</span>`;
     return `<li><button class="hm-row${selected === id ? ' is-selected' : ''}" data-muscle="${id}" type="button">
       <span class="hm-row-name">${MUSCLE_LABELS[id]}</span>
-      <span class="hm-bar"><i class="zone" style="left:${pct(10)};width:calc(${pct(20)} - ${pct(10)})"></i><i class="fill band-${band.id}" style="width:${pct(n)}"></i></span>
+      <span class="hm-bar">${zone ? `<i class="zone" style="left:${pct(10)};width:calc(${pct(20)} - ${pct(10)})"></i>` : ''}<i class="fill band-${band.id}" style="width:${pct(n)}"></i></span>
       <span class="hm-row-n">${fmtSets(n)}</span>${dhtml || '<span></span>'}<span class="hm-row-band">${band.label}</span>
     </button></li>`;
   }).join('')}</ol>`;

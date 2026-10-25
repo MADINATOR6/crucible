@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { meshMuscleId, matchMeshes, colourFor } from '../../src/ui/heatmap3d.js';
-import { MUSCLE_LABELS } from '../../src/ui/heatmap.js';
+import { MUSCLE_LABELS, RECOVERY_BANDS } from '../../src/ui/heatmap.js';
 
 const read = (path) => readFile(new URL('../../' + path, import.meta.url), 'utf8');
 
@@ -25,6 +25,7 @@ test('mesh matching reports unknown and missing muscles', () => {
 test('colours follow the shared band edges', () => {
   const palette = { 0: '#000', 1: '#111', 2: '#222', 3: '#333', 4: '#444', 5: '#555' };
   for (const [sets, band] of [[0, 0], [0.1, 1], [5.9, 1], [6, 2], [21, 5]]) assert.equal(colourFor(sets, palette), palette[band]);
+  for (const [sets, band] of [[0, 0], [1.9, 1], [2, 2], [6.9, 3], [7, 4], [10, 5]]) assert.equal(colourFor(sets, palette, RECOVERY_BANDS), palette[band]);
 });
 
 test('every body GLB mesh has a known name', async () => {
@@ -53,6 +54,6 @@ test('import map is allowed by its exact CSP hash and precedes app startup', asy
 test('three is loaded lazily with no top-level three imports', async () => {
   const source = await read('src/ui/heatmap3d.js');
   const imports = source.match(/^import\s.+$/gm);
-  assert.deepEqual(imports, ["import { MUSCLE_LABELS, bandFor, fmtSets } from './heatmap.js';"]);
+  assert.deepEqual(imports, ["import { BANDS, MUSCLE_LABELS, bandFor, fmtSets } from './heatmap.js';"]);
   assert.ok(source.includes("import('../../vendor/three/build/three.module.min.js')"));
 });
