@@ -134,23 +134,34 @@ export function renderEndView({ plates = [], collar = false } = {}) {
   const R = 150, cx = 170, cy = 170; // outer radius used for the largest standard disc (450 mm)
   const maxMm = Math.max(450, ...plates.map((p) => plateSize(p).d));
   const scale = R / (maxMm / 2);
-  // Looking down the bar, the outermost plate is nearest. Each plate outward is drawn a little smaller than the
-  // one inside it so every plate shows as a ring; the order and colours are right, the exact diameters are not.
+  // Looking down the bar, the outermost plate is nearest. A plate as big as the one inside it is drawn a little
+  // smaller so every plate shows as a ring; smaller plates keep their true size. Order and colours are exact.
+  // Only the nearest plate's face is in view, so only it carries print (weight on top, unit below), as on a real plate.
+  const step = Math.min(9, 90 / Math.max(1, plates.length));
+  let prev = Infinity;
   const discs = plates.map((p, i) => {
-    const base = (plateSize(p).d / 2) * scale;
-    const r = Math.max(22, base - i * Math.min(9, 90 / Math.max(1, plates.length)));
-    const dark = luminance(p.colour) < 0.35;
-    const txt = dark ? '#fff' : '#101114';
+    const r = prev = Math.max(34, Math.min((plateSize(p).d / 2) * scale, prev - step));
+    const txt = luminance(p.colour) < 0.35 ? '#fff' : '#101114';
     const ringW = Math.min(16, Math.max(9, r * 0.14));
+    const print = i === plates.length - 1 && r >= 50
+      ? `<g fill="${txt}" font-family="Bahnschrift, 'Arial Narrow', system-ui, sans-serif" font-weight="800" text-anchor="middle" dominant-baseline="central">
+          <text x="${cx}" y="${cy - r * 0.6}" font-size="${r * 0.3}">${fmt(p.value)}</text>
+          <text x="${cx}" y="${cy + r * 0.64}" font-size="${r * 0.13}" letter-spacing="${r * 0.02}">${p.unit.toUpperCase()}</text></g>
+        <circle cx="${cx}" cy="${cy}" r="${r * 0.86}" fill="none" stroke="${txt}" stroke-opacity=".28" stroke-width="1"/>`
+      : '';
     return `<g><circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.colour}" stroke="rgba(0,0,0,.55)" stroke-width="1.6"/>
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-rim)"/>
-      <circle cx="${cx}" cy="${cy}" r="${Math.max(6, r - ringW)}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"/>
-      <text x="${cx}" y="${cy - r + ringW / 2 + 0.5}" text-anchor="middle" dominant-baseline="central" font-size="${Math.min(12, ringW)}" font-weight="700" fill="${txt}" font-family="Bahnschrift, 'Arial Narrow', system-ui, sans-serif">${fmt(p.value)}</text></g>`;
-  }).join('');  return `<svg class="bb-svg" viewBox="0 0 340 340" role="img" aria-label="End view of the loaded bar">
+      <circle cx="${cx}" cy="${cy}" r="${Math.max(6, r - ringW)}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"/>${print}</g>`;
+  }).join('');
+  return `<svg class="bb-svg" viewBox="0 0 340 340" role="img" aria-label="End view of the loaded bar">
     <defs><radialGradient id="${id}-rim" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient>
       <radialGradient id="${id}-hub" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#f4f6fa"/><stop offset=".6" stop-color="#8f98a8"/><stop offset="1" stop-color="#4b5363"/></radialGradient></defs>
     <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(150,160,175,.35)" stroke-width="1" stroke-dasharray="3 5"/>
     ${discs}
+    ${plates.length ? `<circle cx="${cx}" cy="${cy}" r="30" fill="url(#${id}-hub)" stroke="rgba(0,0,0,.5)"/>${[0, 1, 2, 3, 4, 5].map((k) => {
+      const a = (k * Math.PI) / 3 + Math.PI / 6;
+      return `<circle cx="${(cx + 22 * Math.cos(a)).toFixed(1)}" cy="${(cy + 22 * Math.sin(a)).toFixed(1)}" r="2.6" fill="#7d8594" stroke="rgba(0,0,0,.45)" stroke-width=".6"/>`;
+    }).join('')}` : ''}
     ${collar ? `<circle cx="${cx}" cy="${cy}" r="17" fill="url(#${id}-hub)" stroke="rgba(0,0,0,.6)"/>` : ''}
     <circle cx="${cx}" cy="${cy}" r="${collar ? 8 : 12}" fill="url(#${id}-hub)" stroke="rgba(0,0,0,.6)"/>
     <circle cx="${cx}" cy="${cy}" r="3" fill="rgba(0,0,0,.45)"/>

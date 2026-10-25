@@ -22,6 +22,17 @@ export function layout(plates, { collar = false } = {}) {
   return { plates: placed, collarX, overflow: end > BAR.length / 2 + 1e-9 };
 }
 
+const FONT = "Bahnschrift, 'Arial Narrow', system-ui, sans-serif"; // the same lettering as the 2D bar
+
+// Lathe cross-section of a plate rim: the rectangle [x0, x1] x [-h, h] with its two outer corners rounded by b.
+function rounded(x0, x1, h, b) {
+  const arc = (cy, from, to) => Array.from({ length: 7 }, (_, i) => {
+    const a = from + ((to - from) * i) / 6;
+    return [x1 - b + b * Math.cos(a), cy + b * Math.sin(a)];
+  });
+  return [[x0, -h], ...arc(-h + b, -Math.PI / 2, 0), ...arc(h - b, 0, Math.PI / 2), [x0, h], [x0, -h]];
+}
+
 let viewer, pending;
 export async function mount3d(container, options) {
   if (!viewer) {
@@ -46,7 +57,15 @@ async function createViewer() {
   controls.enablePan = false; controls.enableDamping = !reduced.matches;
   controls.minPolarAngle = 0.15; controls.maxPolarAngle = Math.PI - 0.15;
   controls.minDistance = 0.3; controls.maxDistance = 5;
-  controls.target.set(0.72, 0, 0); camera.position.set(1.65, 0.48, 0.85); controls.update();
+  // Frame one loaded end (inner collar to sleeve tip, full plate height) from a three-quarter angle; resize() refits
+  // the distance to the canvas shape so the stack never runs off a narrow phone screen.
+  const FRAME = { target: new T.Vector3(0.84, -0.01, 0), dir: new T.Vector3(0.93, 0.42, 0.85).normalize(), radius: 0.29 };
+  function fit() {
+    const v = T.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect);
+    controls.target.copy(FRAME.target);
+    camera.position.copy(FRAME.target).addScaledVector(FRAME.dir, (FRAME.radius / Math.sin(Math.min(v, h))) * 1.04);
+    controls.update();
+  }
   const pmrem = new T.PMREMGenerator(renderer), room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, 0.04);
   scene.environment = environment.texture; room.dispose(); pmrem.dispose();
@@ -91,6 +110,7 @@ async function createViewer() {
       cylinder(BAR.sleeveDiameter/2, BAR.sleeveLength, sign*(BAR.length/2 - BAR.sleeveLength/2), chrome);
     }
     const placed = layout(opts.plates, { collar: opts.collar });
+    const boltMetal = material({ color: 0x8d949c, metalness: 1, roughness: 0.3 });
     for (const entry of placed.plates) {
       const p = opts.plates[entry.index], r = entry.diameter/2, h = entry.thickness/2, lip = 0.003 * Math.min(1, entry.diameter/0.45), width = 0.012 * Math.min(1, entry.diameter/0.45);
       const paint = material({ color: p.colour || '#555555', roughness: 0.6, metalness: 0.05 });
@@ -98,8 +118,10 @@ async function createViewer() {
       const label = texture((ctx) => {
         const c = new T.Color(p.colour || '#555555');
         ctx.fillStyle = 0.2126*c.r + 0.7152*c.g + 0.0722*c.b < 0.35 ? '#ffffff' : '#101114';
-        ctx.textAlign = 'center'; ctx.font = 'bold 94px sans-serif'; ctx.fillText(String(p.value),256,145);
-        ctx.font = 'bold 44px sans-serif'; ctx.fillText((p.unit || 'kg').toUpperCase(),256,395);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = `800 ${String(p.value).length > 3 ? 78 : 96}px ${FONT}`; ctx.fillText(String(p.value),256,118);
+        ctx.font = `800 40px ${FONT}`; ctx.fillText((p.unit || 'kg').toUpperCase(),256,402);
+        ctx.globalAlpha = 0.28; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(256,256,226,0,Math.PI*2); ctx.stroke(); // printed ring
       });
       label.colorSpace = T.SRGBColorSpace;
       const ink = material({ map: label, transparent: true, roughness: 0.6, depthWrite: false, side: T.DoubleSide });
@@ -110,16 +132,35 @@ async function createViewer() {
         const f = h - lip;
         const profile = [[0.0252,-f],[r-width,-f],[r-width,f],[0.0252,f],[0.0252,-f]].map(([x,y])=>new T.Vector2(x,y));
         const body = mesh(new T.LatheGeometry(profile,96), paint, disc); body.rotation.z = -Math.PI/2;
-        const rim = [[r-width,-h],[r,-h],[r,h],[r-width,h],[r-width,-h]].map(([x,y])=>new T.Vector2(x,y));
+        const rim = rounded(r-width, r, h, Math.min(0.004, h*0.45, width*0.45)).map(([x,y])=>new T.Vector2(x,y));
         const edge = mesh(new T.LatheGeometry(rim,96), lipPaint, disc); edge.rotation.z = -Math.PI/2;
-        const hub = mesh(new T.LatheGeometry([[0.0252,-f-0.0005],[0.045,-f-0.0005],[0.045,f+0.0005],[0.0252,f+0.0005]].map(([x,y])=>new T.Vector2(x,y)),64),chrome,disc); hub.rotation.z=-Math.PI/2;
+        // Chrome hub insert standing 1.5 mm proud of the face, with six bolt heads on each side.
+        const hubR = Math.min(Math.max(0.032, r*0.42), 0.068, r-width-0.004), hubH = f+0.0015;
+        const hub = mesh(new T.LatheGeometry(rounded(0.0252, hubR, hubH, 0.0012).map(([x,y])=>new T.Vector2(x,y)),64),chrome,disc); hub.rotation.z=-Math.PI/2;
+        const bolts = new T.InstancedMesh(geometry(new T.CylinderGeometry(0.0042, 0.0046, 0.002, 16)), boltMetal, 12);
+        bolts.raycast = () => {}; // taps go to the plate behind
+        const m4 = new T.Matrix4(), q = new T.Quaternion().setFromAxisAngle(new T.Vector3(0,0,1), Math.PI/2);
+        for (let k = 0; k < 12; k++) {
+          const face = k < 6 ? -1 : 1, a = (k % 6) * Math.PI / 3 + Math.PI / 6, br = (0.0252 + hubR) / 2;
+          bolts.setMatrixAt(k, m4.compose(new T.Vector3(face*(hubH+0.001), br*Math.cos(a), br*Math.sin(a)), q, new T.Vector3(1,1,1)));
+        }
+        disc.add(bolts);
         for (const face of [-1,1]) {
-          const decal = mesh(new T.RingGeometry(0.046, r-width,96),ink,disc);
+          const decal = mesh(new T.RingGeometry(hubR+0.001, r-width,96),ink,disc);
           decal.rotation.y = face*Math.PI/2; decal.position.x = face*(f+0.0008);
         }
         if (entry.index === opts.justAdded && !reduced.matches) slides.push({ disc, x: disc.position.x, from: sign*(BAR.length/2 + h + 0.12) });
       }
     }
+    // Soft contact shadow under the loaded end (seen from above only).
+    const floorR = Math.max(0.025, ...placed.plates.map((e) => e.diameter / 2));
+    const shade = texture((ctx) => {
+      const g = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+      g.addColorStop(0, 'rgba(0,0,0,.34)'); g.addColorStop(.55, 'rgba(0,0,0,.12)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 512);
+    });
+    const floor = mesh(new T.PlaneGeometry(0.62, 0.34),material({ map: shade, transparent: true, depthWrite: false, roughness: 1, metalness: 0 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(0.8, -floorR - 0.004, 0);
     if (opts.collar) for (const sign of [-1,1]) {
       cylinder(0.04,0.07,sign*(placed.collarX+0.035),chrome);
       const lever = mesh(new T.BoxGeometry(0.015,0.07,0.014),chrome); lever.position.set(sign*(placed.collarX+0.04),0.055,0);
@@ -142,7 +183,7 @@ async function createViewer() {
     if (!host || dead) return;
     const w=Math.max(1,host.clientWidth), h=Math.max(1,host.clientHeight || 420);
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1,2)); renderer.setSize(w,h);
-    camera.aspect=w/h; camera.updateProjectionMatrix(); requestDraw();
+    camera.aspect=w/h; camera.updateProjectionMatrix(); fit(); requestDraw();
   }
   const observer = new ResizeObserver(resize), scheme=matchMedia('(prefers-color-scheme: dark)');
   function theme() { light.intensity=scheme.matches ? 3 : 2; requestDraw(); }

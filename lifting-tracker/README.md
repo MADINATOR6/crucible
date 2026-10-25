@@ -92,7 +92,7 @@ src/import/  workbook reader (zip + XML, no dependencies) and programme importer
 src/store/   IndexedDB storage, JSON backup/restore, CSV
 src/ui/      views, heat map (2D and 3D), barbell, charts, state
 data/        exercises.json (editable), plates.json (editable)
-assets/      body.glb (3D body) and build_body.py, the Blender script that makes it
+assets/      body.glb (3D body), the 2D shading images, and the Blender scripts that make them
 vendor/      three.js 0.170.0 (pinned; see vendor/three/VERSION.txt)
 test/        node:test suites
 ```
