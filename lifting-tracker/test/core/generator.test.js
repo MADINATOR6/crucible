@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { generateBlock, reviseBlock, fnv1a, projectedE1rm } from '../../src/core/generator.js';
+import { pctSmooth } from '../../src/core/rpe-chart.js';
+import { sanitizeProgramme } from '../../src/store/programme-schema.js';
 
 // Every expected number below is worked out by hand from GENERATOR.md / tasks/LT-9b.md (comments show the sums).
 // Chart values used (pctSmooth = printed chart at half steps): 3@6 .811, 3@6.5 .824, 3@7 .837, 3@7.5 .85, 3@8 .863,
@@ -54,6 +56,139 @@ const field = (r, w, key, d, e) => entry(r, w, d, e).sets.map((s) => s[key]);
 const kinds = (r, w, d, e) => entry(r, w, d, e).sets.map((s) => s.gen.kind);
 const ids = (r, w = 1, d = 1) => r.block.weeks[w - 1].days[d - 1].entries.map((e) => e.exerciseId);
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} != ${b}`);
+
+for (const [style, reps, count, kind] of [['top-single', 1, 4, 'top'], ['top-set', 3, 4, 'top'], ['sets-across', 5, 4, 'straight'], ['singles', 1, 5, 'single'], ['heavy-light', 2, 4, 'top']]) {
+  test(`LT-GEN-1 ${style}: primary structure, progression, secondary exposures and determinism`, () => {
+    const t = template([[main('d1s1', 'low_bar_squat', { reps: 1 })], [main('d2s1', 'low_bar_squat', { reps: 5 })]]);
+    const options = { template: t, style, weeks: 6, deloadWeek: 'none', rotate: 0 };
+    const r = run(options), first = entry(r, 1).sets;
+    assert.equal(first.length, count);
+    assert.equal(first[0].repsMin, reps);
+    assert.equal(first[0].gen.kind, kind);
+    const expectedRpes = style === 'sets-across' ? [7.5, 7.5, 8, 8, 8.5, 8.5] : [8, 8, 8.5, 8.5, 9, 9];
+    assert.deepEqual(r.block.weeks.map((w) => w.days[0].entries[0].sets[0].targetRpe), expectedRpes);
+    const secondary = entry(r, 1, 2).sets;
+    assert.equal(secondary.length, style === 'singles' ? 3 : 4);
+    assert.equal(secondary[0].repsMin, style === 'heavy-light' ? 6 : style === 'sets-across' ? 5 : 4);
+    assert.ok(secondary.every((s) => s.targetRpe === (style === 'heavy-light' ? 6.5 : 7) && s.gen.kind === 'straight'));
+    assert.ok(secondary.every((s) => s.load.value === secondary[0].load.value));
+    assert.deepEqual(r, run(options));
+    assert.match(r.block.name, /block$/);
+    assert.ok(r.rationale.some((l) => l.text.startsWith(r.block.name.replace(/ block$/, '') + ':')));
+    for (const week of r.block.weeks) for (const day of week.days) for (const e of day.entries) for (const s of e.sets) {
+      assert.ok(s.load.value <= ATHLETE.lifts[s.gen.family].e1rmKg * pctSmooth(s.repsMin, 10) + 1e-9);
+    }
+  });
+}
+
+test('LT-GEN-1 a styled top single ignores the old slot load factor: it is the RPE 8 single at the e1RM', () => {
+  // The template's heavy day ran 8% light (k 0.92) and its light day 3% heavy (k 1.03): neither carries over.
+  const t = template([[main('d1s1', 'low_bar_squat', { reps: 5, k: 1.03 })], [main('d2s1', 'low_bar_squat', { reps: 4, rpe: 7.5, k: 0.92 })]]);
+  const r = run({ template: t, style: 'top-single', weeks: 4, deloadWeek: 'none', rotate: 0 });
+  const top = entry(r, 1, 2).sets[0], light = entry(r, 1, 1).sets[0];
+  assert.equal(top.gen.kind, 'top');
+  assert.equal(top.load.value, 165); // 180 * .922 = 165.96 -> nearest 2.5 kg is 165 (with k 0.92 it was 152.5)
+  assert.equal(light.load.value, 145); // 180 * 4@7 .811 = 145.98 -> 145
+  assert.ok(top.load.value > light.load.value);
+});
+
+test('LT-GEN-1 back-off counts, reps, exact drop, custom top RPE and a peak', () => {
+  const r = run({ ...A_OPTS, style: 'top-set', topReps: 4, topRpe: 7.5, backoff: { sets: 5, reps: 6, drop: 0.15 } });
+  assert.deepEqual(entry(r, 1).sets.map((s) => s.repsMin), [4, 6, 6, 6, 6, 6]);
+  const top = entry(r, 1).sets[0];
+  for (const s of entry(r, 1).sets.slice(1)) {
+    assert.equal(s.gen.kind, 'backoff');
+    assert.equal(s.load.value, Math.floor(top.load.value * 0.85 / 2.5 + 0.5) * 2.5);
+    assert.ok(s.targetRpe <= top.targetRpe && Number.isInteger(s.targetRpe * 2));
+  }
+  assert.deepEqual(r.block.weeks.map((w) => w.days[0].entries[0].sets[0].targetRpe), [7.5, 7.5, 8, 8, 8.5]);
+  const peak = run({ ...A_OPTS, focus: 'peak', weeks: 4, style: 'top-single', deloadWeek: 'last' });
+  assert.equal(entry(peak, 3).sets[0].targetRpe, 9);
+  const deload = entry(peak, 4).sets;
+  assert.equal(deload[0].targetRpe, 7);
+  assert.ok(deload.length >= 2 && deload.length <= 3);
+  assert.ok(run({ ...A_OPTS, style: 'heavy-light' }).rationale.some((l) => /Squat has only one weekly exposure/.test(l.text)));
+});
+
+test('LT-GEN-1 RPE cap reaches main lifts, variations, check-ins and deloads but leaves accessories', () => {
+  for (const style of ['auto', 'top-single', 'top-set', 'sets-across', 'singles', 'heavy-light']) {
+    const r = run({ template: T12, style, weeks: 6, rpeCap: 6.5, rotate: 0, deloadWeek: 'last' });
+    for (const w of r.block.weeks) for (const d of w.days) for (const e of d.entries) for (const s of e.sets) {
+      if (s.gen.kind !== 'accessory') assert.ok(s.targetRpe <= 6.5, `${style}: ${e.name}`);
+    }
+    assert.equal(entry(r, 1, 1, 2).sets[0].targetRpe, 9);
+    assert.ok(r.rationale.some((l) => /RPE cap 6.5/.test(l.text)));
+  }
+  const maintenance = run({ ...A_OPTS, focus: 'maintenance', weeks: 4, rpeCap: 6 });
+  assert.equal(entry(maintenance, 4).sets[0].targetRpe, 6);
+});
+
+test('LT-GEN-1 accessory amounts and selection by muscle need', () => {
+  const t = template([[main('d1s1', 'low_bar_squat'), acc('d1s2', 'seated_leg_extension', { sets: 5 }), acc('d1s3', 'seated_hamstring_curl'), acc('d1s4', 'cable_tricep_pushdown')]]);
+  assert.deepEqual(run({ template: t, accessories: 'normal', rotate: 0 }).block, run({ template: t, rotate: 0 }).block);
+  assert.deepEqual(run({ template: t, accessories: 'more', rotate: 0 }).block.weeks[0].days[0].entries.map((e) => e.sets.length), [3, 5, 4, 4]);
+  const minimal = run({ template: t, accessories: 'minimal', rotate: 0 });
+  assert.equal(entry(minimal, 1).sets.length, 3);
+  assert.equal(minimal.block.weeks[0].days[0].entries.length, 3);
+  assert.ok(ids(minimal).includes('cable_tricep_pushdown'), 'a muscle absent from main lifts gets priority');
+  assert.ok(minimal.block.weeks[0].days[0].entries.slice(1).every((e) => e.sets.length >= 1 && e.sets.length <= 4));
+  assert.deepEqual(ids(run({ template: t, accessories: 'none' })), ['low_bar_squat']);
+});
+
+test('LT-GEN-1 competition-only removes variations and adds one primary back-off, up to six', () => {
+  for (const style of ['auto', 'top-single', 'top-set', 'sets-across', 'singles', 'heavy-light']) {
+    const base = run({ template: T12, style, rotate: 0 });
+    const r = run({ template: T12, style, rotate: 0, variations: 'competition-only' });
+    assert.ok(!r.block.weeks[0].days.flatMap((d) => d.entries).some((e) => ['high_bar_squat', 'paused_bench', 'tempo_to_knee_deadlift'].includes(e.exerciseId)));
+    assert.equal(entry(r, 1).sets.length, entry(base, 1).sets.length + 1);
+    assert.equal(entry(r, 1).sets.at(-1).gen.kind, 'backoff');
+  }
+  const six = run({ ...A_OPTS, style: 'top-single', variations: 'competition-only', backoff: { sets: 6 } });
+  assert.equal(entry(six, 1).sets.length, 7);
+});
+
+test('LT-GEN-1 adds light days using least frequent lifts, including with no explicit style', () => {
+  const t = template([[main('d1s1', 'low_bar_squat'), acc('d1s2', 'lat_pulldown')], [main('d2s1', 'comp_bench')], [main('d3s1', 'conventional_deadlift')]]);
+  for (const style of ['auto', 'top-single']) {
+    const r = run({ template: t, daysPerWeek: 5, style, weeks: 3, rotate: 0 });
+    assert.equal(r.block.weeks[0].days.length, 5);
+    const added = r.block.weeks[0].days.slice(3);
+    assert.deepEqual(added[0].entries.slice(0, 2).map((e) => e.sets[0].gen.family), ['bench', 'squat']);
+    assert.deepEqual(added[1].entries.slice(0, 2).map((e) => e.sets[0].gen.family), ['deadlift', 'bench']);
+    for (const d of added) for (const e of d.entries.slice(0, 2)) {
+      assert.equal(e.sets.length, 3);
+      assert.ok(e.sets.every((s) => s.repsMin === 4 && s.targetRpe === 6.5 && s.gen.kind === 'straight'));
+    }
+    assert.ok(r.rationale.some((l) => /Added day 4: light bench and squat.*5 days.*3/.test(l.text)));
+  }
+});
+
+test('LT-GEN-1 save, restore and revision keep the chosen back-off drop with new reps', () => {
+  const r = run({ ...A_OPTS, style: 'top-single', backoff: { sets: 4, reps: 5, drop: 0.15 }, rpeCap: 8 });
+  const saved = sanitizeProgramme({ blocks: [r.block] }).blocks[0];
+  assert.deepEqual(saved.weeks[0].days[0].entries[0].sets[1].gen.backoff, { topReps: 1, topRpe: 8, drop: 0.15, rpeCap: 8 });
+  const revised = reviseBlock({ block: saved, athlete: athlete({ squat: 200 }), fromWeek: 1 }).block;
+  for (const w of revised.weeks) {
+    const [top, ...backs] = w.days[0].entries[0].sets;
+    assert.ok(backs.every((s) => s.load.value === Math.floor(top.load.value * 0.85 / 2.5 + 0.5) * 2.5));
+    assert.ok(backs.every((s) => s.repsMin === 5 && s.gen.backoff.drop === 0.15));
+  }
+});
+
+test('LT-GEN-1 rejects invalid new options at the generator boundary', () => {
+  for (const options of [{ style: 'waves' }, { topReps: 0 }, { topReps: 7 }, { topRpe: 10 }, { topRpe: NaN }, { rpeCap: 5 }, { rpeCap: '8' }, { backoff: null }, { backoff: [] }, { backoff: { sets: 0 } }, { backoff: { reps: 11 } }, { backoff: { drop: 0.4 } }, { setsAcross: { sets: 11 } }, { setsAcross: { reps: 13 } }, { accessories: 'all' }, { variations: 'none' }]) {
+    assert.throws(() => run({ ...A_OPTS, ...options }), RangeError, JSON.stringify(options));
+  }
+});
+
+test('LT-GEN-1 explicit styles explain their precedence over default focus schemes', () => {
+  for (const focus of ['maintenance', 'return', 'volume', 'specialise', 'peak']) {
+    const r = run({ ...A_OPTS, focus, emphasis: focus === 'specialise' ? 'squat' : null, style: 'sets-across' });
+    const rationale = r.rationale.map((l) => l.text).join(' ');
+    assert.match(rationale, /selected.*style/);
+    assert.doesNotMatch(rationale, /singles at 9|top sets at RPE 7.5|at most 8; weeks/);
+  }
+});
 
 test('examples 1-3: the primary squat slot follows the strength wave', () => {
   const r = run(A_OPTS);
@@ -251,8 +386,8 @@ test('example 12: dropping a day keeps the highest-priority days and rehomes a l
   assert.equal(entry(r, 2, 2, 0).sets[0].targetRpe, 8.5);
 
   const more = run({ template: T12, weeks: 4, daysPerWeek: 5, rotate: 0 });
-  assert.equal(more.block.weeks[0].days.length, 4);
-  assert.ok(more.warnings.some((x) => /5 days a week/.test(x)));
+  assert.equal(more.block.weeks[0].days.length, 5);
+  assert.ok(more.rationale.some((x) => /Added day 5/.test(x.text)));
 });
 
 test('example 13: deadlift stance swaps', () => {

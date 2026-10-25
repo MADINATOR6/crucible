@@ -15,9 +15,9 @@ const ICON = {
   muscles: '<circle cx="12" cy="5" r="2.2"/><path d="M6 9.5l6-1.5 6 1.5M8 10l-2 5M16 10l2 5M10 20l1-7h2l1 7"/>',
   progress: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',
   plates: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/>',
-  data: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+  plan: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h3"/>',
 };
-const TABS = [['train', 'Train', trainView], ['muscles', 'Muscles', musclesView], ['progress', 'Progress', progressView], ['plates', 'Plates', platesView], ['data', 'Data', dataView]];
+const TABS = [['train', 'Train', trainView], ['plan', 'Coach', planView], ['progress', 'Progress', progressView], ['muscles', 'Muscles', musclesView], ['plates', 'Plates', platesView]];
 
 const brandMark = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="var(--accent)"/><path d="M6 12v8M9.5 9v14M22.5 9v14M26 12v8M9.5 16h13" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>';
 
@@ -48,18 +48,18 @@ async function main() {
   const nav = (cls) => TABS.map(([id, label]) => `<a class="tab" href="#${id}" data-tab="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[id]}</svg><span>${label}</span></a>`).join('');
   mount.innerHTML = `<div class="shell">
     <nav class="rail" aria-label="Main"><div class="brand">${brandMark}<span>Lifting<small>Tracker</small></span></div>${nav()}</nav>
-    <div><main class="main" id="view" tabindex="-1"></main></div>
+    <div class="app-content"><header class="app-toolbar"><a class="brand" href="#train" aria-label="Lifting Tracker home">${brandMark}<span>Lifting Tracker</span></a><a class="icon-btn" href="#data" data-tab="data" aria-label="Data and settings" title="Data and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.5 2-2 1L4.5 5.5l-2 3 1.5 1.5v3L2.5 14.5l2 3L6.5 17l2 1L9 21h6l.5-3 2-1 2 .5 2-3L20 13v-3l1.5-1.5-2-3-2 .5-2-1L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></a></header><main class="main" id="view" tabindex="-1"></main></div>
     <nav class="tabbar" aria-label="Main">${nav()}</nav></div>`;
   const view = document.getElementById('view');
 
-  const EXTRA = [['plan', 'Plan', planView]]; // reachable from Train and Progress, not a tab of its own
+  const EXTRA = [['data', 'Data and settings', dataView]];
   const current = () => { const id = location.hash.replace('#', ''); return TABS.find((t) => t[0] === id) || EXTRA.find((t) => t[0] === id) || TABS[0]; };
   let skip = false;
   function render({ keepScroll = true } = {}) {
     if (skip) return;
     const [id, label, fn] = current();
     document.title = `${label} · Lifting Tracker`;
-    document.querySelectorAll('[data-tab]').forEach((a) => (a.dataset.tab === (id === 'plan' ? 'train' : id) ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+    document.querySelectorAll('[data-tab]').forEach((a) => (a.dataset.tab === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
     const y = window.scrollY;
     let out;
     try { out = fn(app, ui); } catch (err) { console.error(err); out = { html: `<div class="card"><h2>Something went wrong</h2><p class="muted">${esc(err.message || err)}</p></div>${emergencyHtml()}`, bind: bindEmergency }; }

@@ -36,7 +36,7 @@ test('the style guard rejects static styling and exceptions on the wrong element
   assert.deepEqual(offendingStyles('<div class="progress-track"><i style="width:${pct}%">'), []);
 });
 
-test('Plan folds settings and findings while retaining the planner controls', async () => {
+test('Coach folds settings and secondary findings while leading with one actionable recommendation', async () => {
   const { createApp } = await import('../../src/ui/state.js');
   const { planView } = await import('../../src/ui/views/plan.js');
   const originalFetch = globalThis.fetch;
@@ -55,17 +55,21 @@ test('Plan folds settings and findings while retaining the planner controls', as
       assert.ok(html.includes(`id="${id}"`), id);
     }
     const finding = { id: 'test', severity: 'medium', title: '<Title>', because: ['<Evidence>'], suggestion: '<Suggestion>', confidence: 'high', action: { label: 'Apply' } };
-    ui.plan._rev.review = { headline: 'Review', priorities: [finding, finding], strengths: [finding], notes: [finding] };
+    const strength = { ...finding, id: 'strength', severity: 'good', action: null };
+    const note = { ...finding, id: 'note', severity: 'low', action: null };
+    ui.plan._rev.review = { headline: 'Review', priorities: [finding, finding], strengths: [strength], notes: [note] };
     Object.assign(ui.plan, { weeks: 4, days: 3, progression: 'conservative', rotate: 0, stance: 'sumo', deloadWeek: 'last' });
     html = planView(app, ui).html;
     assert.match(html, /Settings · 4 weeks, 3 days\/week, conservative, keep my exercises, sumo, deload: last/);
     const findings = [...html.matchAll(/<details class="coach-find[^>]+>/g)].map((m) => m[0]);
-    assert.equal(findings.length, 4);
+    assert.equal(findings.length, 3, 'the repeated recommendation is shown once');
     assert.equal(findings.filter((tag) => /\bopen\b/.test(tag)).length, 1);
     assert.match(findings[0], /\bopen\b/);
     assert.match(html, /&lt;Title&gt;/);
     assert.match(html, /data-coach="test"/);
-    assert.match(html, /More notes \(1\)/);
+    assert.match(html, /Start here/);
+    assert.match(html, /Apply to draft/);
+    assert.match(html, /Other findings \(2\)/);
   } finally {
     globalThis.fetch = originalFetch;
   }

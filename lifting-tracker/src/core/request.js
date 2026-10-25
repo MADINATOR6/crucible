@@ -40,8 +40,13 @@ function normalise(text) {
     .toLowerCase()
     .replace(/[‘’ʼ'`]/g, '')
     .replace(/×/g, 'x')
-    .replace(/[^a-z0-9]+/g, (run) => (/^[ \t_\/-]+$/.test(run) ? ' ' : ' | '))
+    .replace(/@/g, ' at ')
+    .replace(/(\d)\.(\d)/g, '$1~$2')
+    .replace(/%/g, ' percent')
+    .replace(/[^a-z0-9~]+/g, (run) => (/^[ \t_\/-]+$/.test(run) ? ' ' : ' | '))
+    .replace(/~/g, '.')
     .replace(/([0-9])([a-z])/g, '$1 $2')
+    .replace(/([a-z])([0-9])/g, '$1 $2')
     .replace(/ +/g, ' ')
     .trim();
 }
@@ -114,7 +119,7 @@ const CHECKIN_NO = [
 const CHECKIN_YES = [
   def(/\btest(?:ing)?(?: (?:my|your|the|our))? (?:strength|maxes|maxs|max|maximums?|1 rm|rms?|lifts|singles|e1rm|numbers)\b/g, { value: true }),
   def(/\bcheck ?ins?\b/g, { value: true }),
-  def(/\b(?:test|testing|retest) weeks?\b/g, { value: true }),
+  def(/\b(?:testing|retest) weeks?\b/g, { value: true }),
 ];
 
 const ROTATE_SAME = [
@@ -147,6 +152,33 @@ const STANCE = withNegationGuard([
   def(/\b(?:conventional|conv)\b/g, { value: 'conventional' }),
 ]);
 
+const STYLE = [
+  def(/\b(?:top|heavy|daily) singles?\b|\bwork up to a single\b|\bsingle (?:at |\| )?rpe (?:[7-9](?:\.5)?)\b/g, { value: 'top-single' }),
+  def(/\btop (?:sets?(?: of [2-6])?|triples?|doubles?|[2-6])\b/g, { value: 'top-set' }),
+  def(/\b(?:sets across|straight sets|[2-9] x (?:[1-9]|1[0-2])\b|10 x (?:[1-9]|1[0-2])\b|(?:[2-9]|10) sets of (?:[1-9]|1[0-2])\b|volume sets of (?:[1-9]|1[0-2])\b)/g, { value: 'sets-across' }),
+  def(/\b(?:emom |cluster )?singles\b/g, { value: 'singles' }),
+  def(/\b(?:heavy (?:and |\/ )?light|dup|daily undulating|undulating)\b/g, { value: 'heavy-light' }),
+];
+const BACKOFF = [
+  def(/\b(?:[1-6] back ?offs?(?: sets?)?(?: (?:of (?:10|[1-9])|at (?:[6-9][0-9]) percent))?|back ?offs? (?:sets? )?(?:of (?:10|[1-9])|at (?:[6-9][0-9]) percent)|(?:[6-9][0-9]) percent back ?offs?|(?:drop|minus) (?:[3-9]|[12][0-9]|30) percent)\b/g),
+];
+const RPE_CAP = [
+  def(/\b(?:cap (?:at )?rpe (?:at )?(?:10|[6-9](?:\.5)?)|rpe (?:10|[6-9](?:\.5)?) cap|max rpe (?:10|[6-9](?:\.5)?)|rpe (?:10|[6-9](?:\.5)?) max|nothing above rpe (?:10|[6-9](?:\.5)?)|no more than rpe (?:10|[6-9](?:\.5)?)|keep (?:it|everything) under rpe (?:10|[6-9](?:\.5)?))\b/g),
+  def(/\bno grind(?:ers|ing)?\b/g),
+];
+const ACCESSORIES = [
+  def(/\bno accessories\b/g, { value: 'none' }),
+  def(/\b(?:minimal|few|light|less|fewer) accessories\b|\bjust the main lifts\b/g, { value: 'minimal' }),
+  def(/\b(?:more|extra) accessories\b|\bmore accessory work\b/g, { value: 'more' }),
+];
+const VARIATIONS = [
+  def(/\b(?:comp(?:etition)? lifts only|just the comp lifts|only sbd|just the big three|no variations)\b/g, { value: 'competition-only' }),
+];
+const UNSUPPORTED = [
+  /\b(?:squats?|bench(?: press)?|benching|deadlifts?|deads?|dl|pulls?) (?:(?:[1-7]|one|two|three|four|five|six|seven) (?:x|times?|days?) (?:(?:a|per) )?week|(?:once|twice) a week)\b/g,
+  /\b(?:amrap|wave|pyramid|5 3 1|531|sheiko|smolov)\b/g,
+];
+
 // ---------------------------------------------------------------------------------------------------------------
 // Goals (focus)
 // ---------------------------------------------------------------------------------------------------------------
@@ -167,7 +199,7 @@ const pastEvent = (s, start) => /\b(?:after|post|from|following|since)(?: (?:my|
 const PLAN_NOUNS = new Set(['block', 'plan', 'programme', 'program', 'cycle', 'phase', 'template', 'routine', 'schedule']);
 const buildGuard = (s, start, end) => !s.slice(end + 1, end + 60).split(' ').slice(0, 5).some((w) => PLAN_NOUNS.has(w));
 
-const LIFT = '(?<lift>squats?|bench(?: press)?|benching|deadlifts?|deads?|dl)';
+const LIFT = '(?<lift>squats?|bench(?: press)?|benching|deadlifts?|deads?|dl|pulls?)';
 const SPECIALISE_TRIGGER = 'bring(?:ing)? up|specialis(?:e|ing)|specializ(?:e|ing)|focus(?:ing)? on|emphasi[sz](?:e|ing)|emphasis on|prioriti[sz](?:e|ing)|concentrat(?:e|ing) on|weak(?:est)?|lagging';
 const SPECIALISE_FILL = 'my|the|a|an|our|your|up|in|on|is|are|of|for|sumo|conventional|conv|weak|weakest|lagging|point|spot|lift';
 
@@ -194,6 +226,7 @@ const FOCUS_DEFS = {
     def(/\bmeets?\b/g, { guard: (s, a, b) => meetGuard(s, a, b) && !pastEvent(s, a) }),
     def(/\b(?:comp|competition|competitions|competing|compete|contest|nationals|regionals)\b/g, { guard: (s, a) => !pastEvent(s, a) }),
     def(/\btaper(?:s|ed|ing)?\b/g),
+    def(/\b(?:meet prep|comp prep|mock meet|test week|max out|maxing out|openers)\b/g),
   ],
   deload: [
     def(/\bde ?load(?:s|ed|ing)?\b/g),
@@ -218,6 +251,7 @@ const FOCUS_DEFS = {
     def(/\bmaintenance (?:of|for) (?:my |the )?(?:strength|gains|lifts)\b/g),
     def(/\bstay(?:ing)? (?:strong|where i am)\b/g),
     def(/\blow fatigue\b/g),
+    def(/\bpivot block\b/g),
     def(/\b(?:busy|hectic|swamped|slammed)\b/g),
     def(/\btime poor\b/g),
     def(/\b(?:life|work|things) (?:is|are|gets|has been|have been) (?:crazy|mad|insane|hectic|busy)\b/g),
@@ -226,6 +260,7 @@ const FOCUS_DEFS = {
   ],
   volume: [
     def(/\b(?:volume|size|hypertrophy|bodybuilding|bigger|mass|bulk|bulking)\b/g),
+    def(/\b(?:accumulation|off season|offseason|gpp)\b/g),
     def(/\bmuscles?\b/g),
     def(/\bbuild(?:ing)? (?:(?:up|some|more|my|me) ){0,3}(?:muscle|size|mass|bulk)\b/g),
     def(/\bgrow(?:ing)? (?:(?:my|the) )?(?:muscle|size)\b/g),
@@ -234,6 +269,7 @@ const FOCUS_DEFS = {
     def(/\bstrength\b/g),
     def(/\bstrong(?:er|est)?\b/g),
     def(/\bheav(?:y|ier|iest)\b/g),
+    def(/\b(?:intensification|intensity block|realisation block|realization block)\b/g),
     def(/\bbuild(?:ing|s)?\b/g, { guard: buildGuard }),
     def(/\bprogress(?:ing)?\b/g),
   ],
@@ -413,17 +449,33 @@ const quote = (text) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const liftName = (text) => (/^squat/.test(text) ? 'squat' : /^bench/.test(text) ? 'bench' : 'deadlift');
 
-function buildSummary(options) {
+function buildSummary(options, inferredFocus = false) {
   if (!Object.keys(options).length) return '';
   const parts = [];
   if (options.focus) {
     let title = TITLES[options.focus];
     if (options.focus === 'specialise' && options.emphasis) title = `${options.emphasis[0].toUpperCase()}${options.emphasis.slice(1)} specialisation block`;
     if (options.focus === 'return' && options.layoffWeeks) title += ` after ${plural(options.layoffWeeks, 'week')} off`;
+    if (inferredFocus) title += ` (${options.style.replace('-', ' ')} implies a strength focus)`;
     parts.push(title);
   }
+  if (options.style) {
+    const names = { 'top-single': 'top single', 'top-set': 'top set', 'sets-across': 'sets across', singles: 'singles', 'heavy-light': 'heavy and light' };
+    let style = names[options.style];
+    if (options.topReps) style += ` of ${options.topReps}`;
+    if (options.topRpe) style += ` at RPE ${options.topRpe}`;
+    if (options.setsAcross) style += ` ${options.setsAcross.sets} × ${options.setsAcross.reps}`;
+    if (['top-single', 'top-set', 'heavy-light'].includes(options.style)) {
+      style += ` then ${options.backoff?.sets || 3} back-offs of ${options.backoff?.reps || (options.style === 'top-set' ? options.topReps || 3 : 3)}`;
+    }
+    parts.push(style);
+  }
+  if (options.backoff && !options.style) parts.push(`${options.backoff.sets || 3} back-offs${options.backoff.reps ? ` of ${options.backoff.reps}` : ''}`);
   if (options.weeks) parts.push(`${options.weeks} weeks`);
   if (options.daysPerWeek) parts.push(`${plural(options.daysPerWeek, 'day')} a week`);
+  if (options.rpeCap) parts.push(`RPE cap ${options.rpeCap}`);
+  if (options.accessories) parts.push(`${options.accessories} accessories`);
+  if (options.variations) parts.push('competition lifts only');
   if (options.deadliftStance) parts.push(`${options.deadliftStance} deadlift`);
   if (options.progression) parts.push(`${options.progression} progression`);
   if (options.rotate !== undefined) parts.push(options.rotate === 0 ? 'same exercises' : 'more variety');
@@ -449,7 +501,7 @@ function interpret(text) {
     if (!hits.length) return;
     const first = hits[0];
     found.set(key, { value: first.def.value, because: quote(first.text) });
-    const other = hits.find((h) => h.def.value !== first.def.value);
+    const other = hits.find((h) => JSON.stringify(h.def.value) !== JSON.stringify(first.def.value));
     if (other) unclear.push(`Both ${show(key, first.def.value)} and ${show(key, other.def.value)} were mentioned; using ${show(key, first.def.value)}`);
   };
 
@@ -461,8 +513,93 @@ function interpret(text) {
   settle('progression', group(s, mask, [PROGRESSION], false));
   settle('deadliftStance', group(s, mask, [STANCE], false));
 
+  // Unsupported frequency must be claimed before the general days scanner sees "3x a week".
+  for (const re of UNSUPPORTED) {
+    for (const m of s.matchAll(re)) {
+      claim(mask, m.index, m.index + m[0].length);
+      unclear.push(`${quote(m[0])}: I can't build that yet; set it in Settings or describe the sets`);
+    }
+  }
+  const styleHits = group(s, mask, [STYLE], false);
+  const wantedStyles = [];
+  for (const h of styleHits) {
+    if (isClaimed(mask, h.start, h.end)) continue;
+    if (!notNegated(s, h.start)) {
+      unclear.push(`${quote(h.text)} sounds negated; no style set`);
+      claim(mask, h.start, h.end);
+    } else {
+      wantedStyles.push(h);
+      claim(mask, h.start, h.end);
+    }
+  }
+  settle('style', wantedStyles);
+  const parameter = (key, value, h) => {
+    if (!found.has(key)) found.set(key, { value, because: quote(h.text) });
+    else if (JSON.stringify(found.get(key).value) !== JSON.stringify(value)) unclear.push(`Conflicting ${key}: ${quote(h.text)}; using the first value`);
+  };
+  for (const h of wantedStyles.filter((hit) => hit.def.value === wantedStyles[0].def.value)) {
+    const reps = /\btop (?:triples?|doubles?|sets? of [2-6]|[2-6])\b/.test(h.text)
+      ? (/triple/.test(h.text) ? 3 : /double/.test(h.text) ? 2 : Number(h.text.match(/[2-6]/)?.[0])) : null;
+    if (reps) parameter('topReps', reps, h);
+    const across = h.text.match(/\b(10|[2-9]) (?:x|sets of) (1[0-2]|[1-9])\b/);
+    if (across) parameter('setsAcross', { sets: Number(across[1]), reps: Number(across[2]) }, h);
+    const volume = h.text.match(/volume sets of (1[0-2]|[1-9])\b/);
+    if (volume) parameter('setsAcross', { sets: 4, reps: Number(volume[1]) }, h);
+    // "straight sets of 3" / "sets across of 5": the reps follow the phrase.
+    const following = /^(?:sets across|straight sets)$/.test(h.text) && s.slice(h.end, h.end + 8).match(/^ of (1[0-2]|[1-9])\b/);
+    if (following) parameter('setsAcross', { sets: 4, reps: Number(following[1]) }, h);
+    if (h.def.value === 'top-single') {
+      const nearby = h.text.match(/rpe ([7-9](?:\.5)?)\b/) || s.slice(h.end, h.end + 22).match(/^ (?:at )?rpe ([7-9](?:\.5)?)\b/);
+      if (nearby) parameter('topRpe', Number(nearby[1]), { text: `${h.text} ${nearby[0].trim()}` });
+    }
+  }
+  const backoffHits = group(s, mask, [BACKOFF], false).filter((h) => !isClaimed(mask, h.start, h.end));
+  if (backoffHits.length) {
+    const backoff = {};
+    const put = (key, value, h) => {
+      if (backoff[key] === undefined) backoff[key] = value;
+      else if (backoff[key] !== value) unclear.push(`Conflicting back-off ${key}: ${quote(h.text)}; using the first value`);
+    };
+    for (const h of backoffHits) {
+      if (!notNegated(s, h.start)) { unclear.push(`${quote(h.text)} sounds negated; no back-offs set`); claim(mask, h.start, h.end); continue; }
+      const count = h.text.match(/\b([1-6]) back ?offs?/);
+      const reps = h.text.match(/\b(?:back ?offs?(?: sets?)? of) (10|[1-9])\b/);
+      const load = h.text.match(/\b([6-9][0-9]) percent back ?offs?\b|\bback ?offs?(?: sets?)? at ([6-9][0-9]) percent\b/);
+      const drop = h.text.match(/\b(?:drop|minus) ([3-9]|[12][0-9]|30) percent\b/);
+      if (count) put('sets', Number(count[1]), h);
+      if (reps) put('reps', Number(reps[1]), h);
+      if (load) {
+        const percent = Number(load[1] || load[2]);
+        if (percent < 70 || percent > 97) unclear.push(`${quote(h.text)} is outside the supported drop; use 70-97% of the top load`);
+        else put('drop', (100 - percent) / 100, h);
+      }
+      if (drop) put('drop', Number(drop[1]) / 100, h);
+      claim(mask, h.start, h.end);
+    }
+    if (Object.keys(backoff).length) found.set('backoff', { value: backoff, because: quote(backoffHits.map((h) => h.text).join(', ')) });
+  }
+  for (const m of s.matchAll(/\bback ?offs?\b/g)) if (!isClaimed(mask, m.index, m.index + m[0].length) && !notNegated(s, m.index)) {
+    unclear.push(`${quote(m[0])} sounds negated; top-set styles still need back-offs, so choose Singles or Sets across to omit them`);
+    claim(mask, m.index, m.index + m[0].length);
+  }
+  const guarded = (defs) => {
+    const hits = group(s, mask, [defs], false);
+    const kept = [];
+    for (const h of hits) {
+      if (isClaimed(mask, h.start, h.end)) continue;
+      if (notNegated(s, h.start)) kept.push(h);
+      else unclear.push(`${quote(h.text)} sounds negated; no option set`);
+      claim(mask, h.start, h.end);
+    }
+    return kept;
+  };
+  const caps = guarded(RPE_CAP);
+  settle('rpeCap', caps.map((h) => ({ ...h, def: { value: /grind/.test(h.text) ? 8.5 : Number(h.text.match(/rpe (?:at )?(10|[6-9](?:\.5)?)/)?.[1]) } })));
+  settle('accessories', guarded(ACCESSORIES));
+  settle('variations', guarded(VARIATIONS));
+
   // 2. Days per week said with "week".
-  const daysExplicit = scanDaysExplicit(toks);
+  const daysExplicit = scanDaysExplicit(toks).filter((d) => !isClaimed(mask, d.start, d.end));
   for (const d of daysExplicit) claim(mask, d.start, d.end);
 
   // 3. Time phrases (layoff or block length).
@@ -486,8 +623,9 @@ function interpret(text) {
   if (!Object.keys(matches).length && weak.length) {
     matches.return = { start: weak[0].start, end: weak[0].end, text: weak[0].text };
   }
-  const focus = FOCUS_ORDER.find((f) => matches[f]) || null;
-  if (focus) found.set('focus', { value: focus, because: quote(matches[focus].text) });
+  if (!matches.volume && wantedStyles[0]?.text.startsWith('volume ')) matches.volume = wantedStyles[0];
+  const focus = FOCUS_ORDER.find((f) => matches[f]) || (found.has('style') ? 'strength' : null);
+  if (focus) found.set('focus', { value: focus, because: matches[focus] ? quote(matches[focus].text) : `${quote(wantedStyles[0].text)} implies a strength focus` });
   // A deload block is a deload every week: "no deload" or "deload at the end" cannot apply to it.
   if (focus === 'deload' && found.has('deloadWeek')) {
     unclear.push(`A deload block is a deload every week; ignoring "${found.get('deloadWeek').because.replace(/^you said "|"$/g, '')}"`);
@@ -541,7 +679,7 @@ function interpret(text) {
   }
 
   // 8. Report in a fixed order.
-  const ORDER = ['focus', 'layoffWeeks', 'weeks', 'daysPerWeek', 'emphasis', 'deadliftStance', 'progression', 'rotate', 'deloadWeek', 'checkIn'];
+  const ORDER = ['focus', 'layoffWeeks', 'weeks', 'daysPerWeek', 'style', 'topReps', 'topRpe', 'setsAcross', 'backoff', 'rpeCap', 'accessories', 'variations', 'emphasis', 'deadliftStance', 'progression', 'rotate', 'deloadWeek', 'checkIn'];
   const options = {};
   const understood = [];
   for (const key of ORDER) {
@@ -551,7 +689,7 @@ function interpret(text) {
     understood.push({ key, value: hit.value, because: hit.because });
   }
   if (!understood.length) unclear.push(NO_GOAL);
-  return { options, understood, unclear, summary: buildSummary(options) };
+  return { options, understood, unclear, summary: buildSummary(options, !!focus && !matches[focus]) };
 }
 
 /**

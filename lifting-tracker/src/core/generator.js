@@ -9,6 +9,7 @@ const FAMILIES = ['squat', 'bench', 'deadlift'];
 const FOCUSES = ['strength', 'volume', 'peak', 'deload', 'maintenance', 'return', 'specialise'];
 const DRIFT = { conservative: 0.002, standard: 0.004, aggressive: 0.006 };
 const DELOAD_WEEKS = ['none', 'last', 'all'];
+const STYLES = { auto: 'Auto', 'top-single': 'Top single', 'top-set': 'Top set', 'sets-across': 'Sets across', singles: 'Singles', 'heavy-light': 'Heavy and light' };
 const STANCE_SWAPS = {
   sumo: { conventional_deadlift: 'sumo_deadlift', deadlift: 'sumo_deadlift', tempo_to_knee_deadlift: 'tempo_to_knee_sumo_deadlift' },
   conventional: { sumo_deadlift: 'conventional_deadlift', deadlift: 'conventional_deadlift', tempo_to_knee_sumo_deadlift: 'tempo_to_knee_deadlift' },
@@ -122,8 +123,25 @@ function resolve(opts) {
   const deadliftStance = opts.deadliftStance === undefined ? athlete.lifts.deadlift?.stance ?? null : opts.deadliftStance;
   if (deadliftStance !== null && !hasOwn(STANCE_SWAPS, deadliftStance)) fail('deadliftStance must be sumo, conventional or null');
   if (typeof now !== 'function') fail('now must be a function returning a Date');
+  const style = opts.style ?? 'auto', accessories = opts.accessories ?? 'normal', variations = opts.variations ?? 'keep';
+  if (!hasOwn(STYLES, style)) fail('style must be auto, top-single, top-set, sets-across, singles or heavy-light');
+  if (!['normal', 'more', 'minimal', 'none'].includes(accessories)) fail('accessories must be normal, more, minimal or none');
+  if (!['keep', 'competition-only'].includes(variations)) fail('variations must be keep or competition-only');
+  const topReps = opts.topReps ?? 3, topRpe = opts.topRpe ?? 8, rpeCap = opts.rpeCap ?? null;
+  if (!Number.isInteger(topReps) || topReps < 1 || topReps > 6) fail('topReps must be an integer from 1 to 6');
+  if (!Number.isFinite(topRpe) || topRpe < 7 || topRpe > 9.5) fail('topRpe must be from 7 to 9.5');
+  if (rpeCap !== null && (!Number.isFinite(rpeCap) || rpeCap < 6 || rpeCap > 10)) fail('rpeCap must be from 6 to 10 or null');
+  for (const key of ['backoff', 'setsAcross']) if (opts[key] !== undefined && (!opts[key] || typeof opts[key] !== 'object' || Array.isArray(opts[key]))) fail(`${key} must be an object`);
+  const backoff = { sets: 3, reps: style === 'top-set' ? topReps : 3, drop: style === 'top-set' ? 0.08 : 0.10, ...opts.backoff };
+  if (!Number.isInteger(backoff.sets) || backoff.sets < 1 || backoff.sets > 6) fail('backoff.sets must be an integer from 1 to 6');
+  if (!Number.isInteger(backoff.reps) || backoff.reps < 1 || backoff.reps > 10) fail('backoff.reps must be an integer from 1 to 10');
+  if (!Number.isFinite(backoff.drop) || backoff.drop < 0.03 || backoff.drop > 0.30) fail('backoff.drop must be from 0.03 to 0.30');
+  const setsAcross = { sets: 4, reps: 5, ...opts.setsAcross };
+  if (!Number.isInteger(setsAcross.sets) || setsAcross.sets < 2 || setsAcross.sets > 10) fail('setsAcross.sets must be an integer from 2 to 10');
+  if (!Number.isInteger(setsAcross.reps) || setsAcross.reps < 1 || setsAcross.reps > 12) fail('setsAcross.reps must be an integer from 1 to 12');
   return { catalogue, template, athlete, blockNumber, focus, emphasis: focus === 'specialise' ? emphasis : null, layoffWeeks,
-    checkIn, progression, weeks, daysPerWeek, rotate, deloadWeek, deadliftStance, seed: String(seed), now, name };
+    checkIn, progression, weeks, daysPerWeek, rotate, deloadWeek, deadliftStance, seed: String(seed), now, name,
+    style, topReps, topRpe, customTopRpe: opts.topRpe !== undefined, backoff, setsAcross, rpeCap, accessories, variations };
 }
 
 function copySlot(s, byId) {
@@ -268,7 +286,57 @@ function plannedSet(index, reps, rpe, value, gen) {
   };
 }
 
+function backoffSet(top, index, reps, drop, c) {
+  const g = top.gen, e = g.e1rmRef, current = c.e1rmStart[g.family];
+  let value = top.load == null ? null : top.load.value * (1 - drop);
+  if (value != null) {
+    const cap = c.rpeCap == null ? Infinity : unrounded(e, reps, c.rpeCap, biasOf(c.athlete, g.family), g.k, current);
+    value = settle(Math.min(value, cap ?? Infinity), ceilingKg(current, reps));
+  }
+  let rpe = Math.max(6, Math.floor(g.rpe * 2) / 2), distance = Infinity;
+  if (value != null && e > 0 && g.k > 0) for (let candidate = 6; candidate <= g.rpe; candidate += 0.5) {
+    const expected = pctSmooth(reps, clamp(candidate - biasOf(c.athlete, g.family), 6, 10));
+    const delta = Math.abs(value / (e * g.k) - expected);
+    if (delta < distance) { distance = delta; rpe = candidate; }
+  }
+  return plannedSet(index, reps, rpe, value, { ...g, kind: 'backoff', reps, rpe,
+    backoff: { drop, topReps: chartReps(g.reps), topRpe: g.rpe, rpeCap: c.rpeCap } });
+}
+
+function styledSets(s, w, c) {
+  const deload = c.isDeload(w), primary = s.primary && !s.addedLight;
+  const e = c.E(s.family, primary ? (deload ? Math.max(1, w - 1) : w) : 1);
+  // k = 1: the chosen style sets the effort, so the old slot's load offset from the template (a day that ran lighter
+  // or heavier than its RPE) no longer applies. The athlete's RPE bias still does.
+  const k = 1, current = c.e1rmStart[s.family];
+  const topStyle = ['top-single', 'top-set', 'heavy-light'].includes(c.style);
+  let reps, rpe, count, kind = 'straight';
+  if (s.addedLight) { reps = 4; rpe = 6.5; count = 3; }
+  else if (topStyle && primary) {
+    reps = c.style === 'top-single' ? 1 : c.style === 'heavy-light' ? 2 : c.topReps;
+    rpe = Math.min(c.customTopRpe ? 9.5 : 9, c.topRpe + 0.5 * Math.floor((w - 1) / 2));
+    if (!c.customTopRpe && c.focus === 'peak' && w === c.finalFull) rpe = 9;
+    count = 1; kind = 'top';
+  } else if (c.style === 'singles' && primary) { reps = 1; count = 5; kind = 'single'; rpe = w <= 2 ? 8 : w <= 4 ? 8.5 : 9; }
+  else if (c.style === 'sets-across') { reps = c.setsAcross.reps; count = c.setsAcross.sets; rpe = primary ? Math.min(8.5, 7.5 + 0.5 * Math.floor((w - 1) / 2)) : 7; }
+  else { reps = c.style === 'heavy-light' ? 6 : 4; count = c.style === 'singles' ? 3 : 4; rpe = c.style === 'heavy-light' ? 6.5 : 7; }
+  if (deload) { count = Math.max(1, Math.round(count * 0.6)); rpe = kind === 'top' || kind === 'single' ? 7 : Math.max(6, rpe - 1); }
+  rpe = Math.min(rpe, c.rpeCap ?? 10);
+  const raw = unrounded(e, reps, rpe, biasOf(c.athlete, s.family), k, current);
+  const value = raw == null ? null : settle(raw, ceilingKg(current, reps));
+  if (value != null) c.loaded.add(s.family);
+  const out = Array.from({ length: count }, (_, i) => plannedSet(i + 1, reps, rpe, value,
+    { slotId: s.slotId, kind, family: s.family, reps, rpe, e1rmRef: e == null ? null : round1(e), k, week: w, exposure: primary ? 'primary' : 'secondary' }));
+  if (kind === 'top') {
+    const n = Math.min(6, c.backoff.sets + (s.extraBackoff ? 1 : 0));
+    const backoffs = deload ? Math.min(2, Math.max(1, Math.round(n * 0.6))) : n;
+    for (let i = 0; i < backoffs; i++) out.push(backoffSet(out[0], i + 2, c.backoff.reps, c.backoff.drop, c));
+  } else if (s.extraBackoff) out.push(backoffSet(out[0], out.length + 1, reps, c.backoff.drop, c));
+  return out;
+}
+
 function liftSets(s, w, c) {
+  if (s.addedLight || (c.style !== 'auto' && s.role === 'main')) return styledSets(s, w, c);
   const n = c.weeks, f = s.family, deload = c.isDeload(w), finalFull = w === c.finalFull;
   const exposure = s.role === 'main' ? (s.primary ? 'primary' : 'secondary') : c.famHasPrimary.has(f) ? 'primary' : 'secondary';
   const r0 = s.rpe == null || s.rpe > 9 ? 7 : s.rpe;
@@ -299,6 +367,7 @@ function liftSets(s, w, c) {
     sets = Math.max(1, Math.round(sets * 0.6));
     rpe = s.scheme === 'singles' ? 7 : Math.max(6, rpe - 1);
   }
+  rpe = Math.min(rpe, c.rpeCap ?? Infinity);
 
   const e = exposure === 'secondary' ? c.E(f, 1) : c.E(f, deload ? Math.max(1, w - 1) : w);
   const k = Number.isFinite(s.k) ? s.k : s.role === 'main' ? 1 : null;
@@ -311,16 +380,19 @@ function liftSets(s, w, c) {
     let kind = s.scheme === 'top-backoff' ? (i === 0 ? 'top' : 'backoff') : s.scheme === 'singles' ? 'single' : 'straight';
     let reps = s.reps, setRpe = rpe;
     let value = base == null ? null : base * (kind === 'backoff' ? 1 - 0.03 * i : 1);
-    if (checkIn && i === 0) { kind = 'top'; reps = 1; setRpe = 8; value = unrounded(e, 1, 8, bias, k, current); }
+    if (checkIn && i === 0) { kind = 'top'; reps = 1; setRpe = Math.min(8, c.rpeCap ?? Infinity); value = unrounded(e, 1, setRpe, bias, k, current); }
     if (value != null) { value = settle(value, ceilingKg(current, reps)); c.loaded.add(f); }
     out.push(plannedSet(i + 1, reps, setRpe, value,
       { slotId: s.slotId, kind, family: f, reps: copyReps(reps), rpe: setRpe, e1rmRef: e == null ? null : round1(e), k, week: w, exposure }));
   }
+  if (s.extraBackoff && out.filter((x) => x.gen.kind === 'backoff').length < 6) out.push(backoffSet(out[0], out.length + 1, chartReps(s.reps), c.backoff.drop, c));
   return out;
 }
 
 function accessoryEntry(s, w, c) {
   let sets = s.sets, rpe = s.rpe;
+  if (c.accessories === 'more') sets = Math.min(5, sets + 1);
+  if (c.accessories === 'minimal') sets = Math.max(1, sets - 1);
   if (c.focus === 'return' && w <= 2) sets = Math.max(1, sets - 1);
   if (c.focus === 'peak' && w === c.finalFull) sets = Math.max(1, sets - 1);
   if (c.isDeload(w)) { sets = Math.max(1, sets - 1); rpe = easeRpe(rpe); }
@@ -355,8 +427,57 @@ function muscleSets(items, catalogue, byId) {
   return muscles;
 }
 
+function addDays(days, o, byId, lines) {
+  const original = days.length, tieOrder = ['bench', 'squat', 'deadlift'];
+  const accessories = o.template.days.flatMap((d) => d.slots).filter((s) => s.role === 'accessory');
+  while (days.length < o.daysPerWeek) {
+    const counts = Object.fromEntries(FAMILIES.map((f) => [f, days.flatMap((d) => d.slots).filter((s) => s.role === 'main' && s.family === f).length]));
+    const families = tieOrder.filter((f) => o.catalogue.exercises.some((ex) => ex.lift === f && ex.competition)).sort((a, b) => counts[a] - counts[b]).slice(0, 2);
+    if (families.length < 2) fail('adding days needs competition exercises for at least two lift families');
+    const number = days.length + 1;
+    const slots = families.map((family, i) => {
+      const source = days.flatMap((d) => d.slots).find((s) => s.role === 'main' && s.family === family);
+      const ex = source ? byId.get(source.exerciseId) : o.catalogue.exercises.find((x) => x.lift === family && x.competition);
+      return { ...copySlot({ ...source, exerciseId: ex.id, role: 'main', family, slotId: `a${number}s${i + 1}`, scheme: 'straight', sets: 3, reps: 4, rpe: 6.5, k: 1 }, byId), addedLight: true };
+    });
+    for (const s of accessories) if (slots.filter((x) => x.role === 'accessory').length < 2 && !slots.some((x) => x.exerciseId === s.exerciseId)) slots.push(copySlot({ ...s, slotId: `a${number}s${slots.length + 1}` }, byId));
+    days.push({ number, slots });
+    lines.push({ scope: 'day', text: `Added day ${number}: light ${families.join(' and ')}, because you asked for ${o.daysPerWeek} days and your last block had ${original}.` });
+  }
+}
+
+function selectAccessories(days, o, byId) {
+  if (o.accessories === 'normal' || o.accessories === 'more') return;
+  const volume = muscleSets(days.flatMap((d) => d.slots.filter((s) => s.role !== 'accessory')), o.catalogue, byId);
+  for (const day of days) {
+    const pool = day.slots.filter((s) => s.role === 'accessory'), keep = new Set();
+    while (o.accessories === 'minimal' && pool.length && keep.size < 2) {
+      const score = (s) => ['primary', 'secondary'].reduce((sum, role) => sum + (byId.get(s.exerciseId)?.[role] ?? []).reduce((n, m) => n + Math.max(0, 6 - (volume[m] ?? 0)) * (role === 'primary' ? 1 : 0.5), 0), 0);
+      pool.sort((a, b) => score(b) - score(a));
+      const s = pool.shift(); keep.add(s);
+      const contribution = muscleSets([{ ...s, sets: Math.max(1, s.sets - 1) }], o.catalogue, byId);
+      for (const [m, n] of Object.entries(contribution)) volume[m] += n;
+    }
+    day.slots = day.slots.filter((s) => s.role !== 'accessory' || keep.has(s));
+  }
+}
+
 function blockRationale(o, c, slots, athlete) {
   const out = [];
+  if (o.style !== 'auto') {
+    const description = o.style === 'sets-across' ? `${o.setsAcross.sets} sets of ${o.setsAcross.reps} at one load; primary RPE 7.5 rising to 8.5, secondary RPE 7`
+      : o.style === 'singles' ? '5 singles on the main day at RPE 8 rising to 9; other exposures are 3 sets of 4 at RPE 7'
+        : `one top ${o.style === 'top-single' ? 'single' : `set of ${o.style === 'heavy-light' ? 2 : o.topReps}`} at RPE ${o.topRpe}, rising 0.5 every two weeks to ${o.customTopRpe ? 9.5 : 9}`;
+    out.push({ scope: 'block', text: `${STYLES[o.style]}: ${description}.` });
+    if (['top-single', 'top-set', 'heavy-light'].includes(o.style)) out.push({ scope: 'block', text: `Then ${o.backoff.sets} back-off sets of ${o.backoff.reps} about ${+(o.backoff.drop * 100).toFixed(2)}% lighter; deloads use a top set at RPE 7 and 1–2 back-offs.` });
+    if (o.style === 'heavy-light') {
+      out.push({ scope: 'block', text: 'Light exposures are 4 sets of 6 at RPE 6.5.' });
+      for (const f of FAMILIES) if (slots.filter((s) => s.role === 'main' && s.family === f).length === 1) out.push({ scope: 'block', text: `${title(f)} has only one weekly exposure, so it uses the top-set day without a light day.` });
+    }
+  }
+  if (o.rpeCap != null) out.push({ scope: 'block', text: `RPE cap ${o.rpeCap}: competition lifts and variations stay at or below it; accessories keep their targets.` });
+  if (o.accessories !== 'normal') out.push({ scope: 'block', text: o.accessories === 'more' ? 'More accessories: one extra set each, at most 5.' : o.accessories === 'minimal' ? 'Minimal accessories: up to two exercises per day for the muscles needing the most work, one fewer set each (at least 1).' : 'No accessories.' });
+  if (o.variations === 'competition-only') out.push({ scope: 'block', text: 'Competition lifts only: variations removed and one extra back-off on each primary exposure, at most 6 back-offs.' });
   for (const f of FAMILIES) {
     const lift = athlete.lifts[f];
     if (c.e1rmStart[f] != null) out.push({ scope: 'block', text: `${title(f)} e1RM ${c.e1rmStart[f].toFixed(1)} kg${lift?.basis ? `: ${lift.basis}` : ''}` });
@@ -364,22 +485,22 @@ function blockRationale(o, c, slots, athlete) {
   const n = o.weeks;
   const span = n >= 3 ? `weeks 2 to ${n - 1}` : 'no weeks (the block is too short)';
   if (o.focus === 'maintenance') {
-    out.push({ scope: 'block', text: 'Maintenance: about a third fewer main-lift sets, accessories down by one set, intensity kept (top sets at RPE 7.5). '
+    out.push({ scope: 'block', text: o.style !== 'auto' ? 'Maintenance: fewer template exposures and accessories down by one set; your selected main-lift style sets the reps, sets and effort. Current e1RM is held throughout.' : 'Maintenance: about a third fewer main-lift sets, accessories down by one set, intensity kept (top sets at RPE 7.5). '
       + `The aim is to hold your e1RM${o.checkIn && n >= 3 ? `; week ${n} turns each main lift's top set into a single at RPE 8 as the check-in` : ''}.` });
     out.push({ scope: 'block', text: 'No projected gain: every week uses your current e1RM.' });
   } else if (o.focus === 'return') {
     const s = Math.max(0.8, 1 - 0.01 * o.layoffWeeks);
     out.push({ scope: 'block', text: `Return after ${o.layoffWeeks} weeks off: week 1 uses ${Math.round(s * 100)}% of your e1RM and climbs evenly to 100% by week ${n}, `
-      + 'so the body can catch up with the loads. Main-lift RPE starts 1 below the template (at least 6) and rises 0.5 a week to at most 8; weeks 1 and 2 have one set fewer.' });
+      + (o.style === 'auto' ? 'so the body can catch up with the loads. Main-lift RPE starts 1 below the template (at least 6) and rises 0.5 a week to at most 8; weeks 1 and 2 have one set fewer.' : 'Your selected main-lift style sets the reps, sets and effort; the return focus scales its loads. Add an RPE cap if you want lower effort.') });
   } else {
-    if (o.focus === 'volume') out.push({ scope: 'block', text: `Volume: main lifts stay at the template RPE (at most 8) and gain one set in ${span} (never above 6 sets).` });
-    else if (o.focus !== 'deload') out.push({ scope: 'block', text: 'Wave: main-lift RPE rises 0.5 a week from the template RPE, at most 1 above it and never above 8.5; singles go RPE 8, 8.5, then 9 from week 5.' });
-    if (o.focus === 'peak' && c.finalFull) out.push({ scope: 'week', text: `Peak: week ${c.finalFull} is the heaviest week (0.5 RPE up, at most 9; singles at 9), with one set fewer on variations and accessories.` });
-    if (o.focus === 'specialise') out.push({ scope: 'block', text: `Specialising in ${o.emphasis}: ${o.emphasis} main and variation slots gain one set in ${span} (never above 6); the other lifts' variations lose one set.` });
+    if (o.focus === 'volume') out.push({ scope: 'block', text: o.style === 'auto' ? `Volume: main lifts stay at the template RPE (at most 8) and gain one set in ${span} (never above 6 sets).` : 'Volume: your selected style sets main-lift volume and effort; variations retain the volume progression.' });
+    else if (o.focus !== 'deload' && o.style === 'auto') out.push({ scope: 'block', text: 'Wave: main-lift RPE rises 0.5 a week from the template RPE, at most 1 above it and never above 8.5; singles go RPE 8, 8.5, then 9 from week 5.' });
+    if (o.focus === 'peak' && c.finalFull) out.push({ scope: 'week', text: o.style === 'auto' ? `Peak: week ${c.finalFull} is the heaviest week (0.5 RPE up, at most 9; singles at 9), with one set fewer on variations and accessories.` : `Peak: week ${c.finalFull} is the final full week, with one set fewer on variations and accessories; main lifts follow your selected style and RPE cap.` });
+    if (o.focus === 'specialise') out.push({ scope: 'block', text: `Specialising in ${o.emphasis}: ${o.emphasis} ${o.style === 'auto' ? 'main and variation' : 'variation'} slots gain one set in ${span} (never above 6); the other lifts' variations lose one set.${o.style === 'auto' ? '' : ' Your selected style sets main-lift volume and effort.'}` });
     const g = drift(o.progression, o.focus);
     out.push({ scope: 'block', text: `Projected e1RM rises ${+(g * 100).toFixed(3)}% a week (${o.progression} progression).` });
   }
-  if (slots.some((s) => s.role === 'main' && !s.primary)) out.push({ scope: 'block', text: 'Other main-lift slots of the same lift hold RPE 7 at week-1 loads for the whole block.' });
+  if (o.style === 'auto' && slots.some((s) => s.role === 'main' && !s.primary && !s.addedLight)) out.push({ scope: 'block', text: 'Other main-lift slots of the same lift hold RPE 7 at week-1 loads for the whole block.' });
   const present = new Set(slots.map((s) => s.family).filter(Boolean));
   for (const f of FAMILIES) {
     const eff = biasOf(athlete, f);
@@ -406,12 +527,17 @@ export function generateBlock(options) {
   let days = template.days.filter((d) => d?.slots?.length).map((d) => ({ number: d.number, slots: d.slots.map((s) => copySlot(s, byId)) }));
   markPrimaries(days);
   if (focus === 'maintenance') reduceForMaintenance(days, byId);
-  if (o.daysPerWeek > days.length) warnings.push(`${o.daysPerWeek} days a week asked for, but the template has ${days.length}: keeping ${days.length} days.`);
   days = dropDays(days, o.daysPerWeek, byId, lines);
+  addDays(days, o, byId, lines);
   markPrimaries(days);
   days.forEach((d, i) => { d.number = i + 1; });
   if (o.deadliftStance) swapStance(days, o.deadliftStance, byId, lines);
   rotateAccessories(days, o, byId, lines);
+  if (o.variations === 'competition-only') for (const d of days) {
+    d.slots = d.slots.filter((s) => s.role !== 'variation');
+    for (const s of d.slots) if (s.role === 'main' && s.primary) s.extraBackoff = true;
+  }
+  selectAccessories(days, o, byId);
   const slots = days.flatMap((d) => d.slots);
 
   const e1rmStart = Object.fromEntries(FAMILIES.map((f) => [f, e1rmOf(athlete, f)]));
@@ -457,7 +583,7 @@ export function generateBlock(options) {
   }
 
   const block = {
-    id: `b${o.blockNumber}`, number: o.blockNumber, name: o.name ?? `Block ${o.blockNumber} ${title(focus)}`,
+    id: `b${o.blockNumber}`, number: o.blockNumber, name: o.name ?? (o.style === 'auto' ? `Block ${o.blockNumber} ${title(focus)}` : `${STYLES[o.style]} block`),
     goal: focus === 'specialise' ? `Bring up the ${o.emphasis} while the other lifts keep ticking over.` : GOALS[focus],
     instructions: INSTRUCTIONS, weeks: weekList,
     generated: {
@@ -497,7 +623,15 @@ export function reviseBlock({ block, athlete, fromWeek } = {}) { // `catalogue` 
     const base = unrounded(e, gen.reps, gen.rpe, biasOf(athlete, gen.family), gen.k, e1);
     if (base == null) continue;
     gen.e1rmRef = round1(e);
-    const to = settle(base * (gen.kind === 'backoff' ? 1 - 0.03 * (set.index - 1) : 1), ceilingKg(e1, gen.reps));
+    let value = base * (gen.kind === 'backoff' ? 1 - 0.03 * (set.index - 1) : 1);
+    if (gen.kind === 'backoff' && gen.backoff) {
+      const b = gen.backoff;
+      const top = unrounded(e, b.topReps, b.topRpe, biasOf(athlete, gen.family), gen.k, e1);
+      if (top == null) continue;
+      value = settle(top, ceilingKg(e1, b.topReps)) * (1 - b.drop);
+      if (b.rpeCap != null) value = Math.min(value, unrounded(e, gen.reps, b.rpeCap, biasOf(athlete, gen.family), gen.k, e1) ?? value);
+    }
+    const to = settle(value, ceilingKg(e1, gen.reps));
     const from = set.load ? toKg(set.load) : null;
     if (from !== null && Math.abs(to - from) < 2.5) continue;
     set.load = { value: to, unit: 'kg', raw: String(to) };
