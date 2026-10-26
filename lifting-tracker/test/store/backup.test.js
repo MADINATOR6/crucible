@@ -71,7 +71,7 @@ const good = () => ({
 test('a valid backup passes and yields a store snapshot with counts', () => {
   const r = validateBackup(JSON.stringify(good()));
   assert.equal(r.ok, true);
-  assert.deepEqual(r.counts, { sessions: 1, sets: 1, bodyweights: 1, activities: 0, hasProgramme: false });
+  assert.deepEqual(r.counts, { sessions: 1, sets: 1, bodyweights: 1, activities: 0, intake: 0, hasProgramme: false });
   assert.equal(r.snapshot.meta[0].key, 'settings');
 });
 
@@ -90,11 +90,19 @@ test('cardio and work entries restore with the backup; a malformed entry rejects
   assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /more than 20000/);
 });
 
-test('backups are format 2 so older apps refuse them instead of dropping activities; format 1 still restores', () => {
-  assert.equal(BACKUP_VERSION, 2);
-  assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: 1 })).ok, true);
-  assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: 2 })).ok, true);
-  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 3 })).errors[0], /newer version/);
+test('backups are format 3 so older apps refuse them instead of dropping activities or food; 1 and 2 still restore', () => {
+  assert.equal(BACKUP_VERSION, 3);
+  for (const v of [1, 2, 3]) assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: v })).ok, true, `format ${v}`);
+  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 4 })).errors[0], /newer version/);
+});
+
+test('the food log restores with the backup; a malformed or duplicate entry rejects the file', () => {
+  const b = good(); b.intake = [{ id: 'f1', date: '2026-10-01', label: 'Chicken & rice', kcal: 700, protein: 70, fat: 8, carbs: 84 }];
+  const r = validateBackup(JSON.stringify(b));
+  assert.equal(r.ok, true); assert.equal(r.counts.intake, 1);
+  assert.deepEqual(r.snapshot.meta.find((m) => m.key === 'intake').value[0].kcal, 700);
+  b.intake.push({ ...b.intake[0] });
+  assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /food log entries are malformed or repeat an id/);
 });
 
 test('rejects non-JSON, foreign files and newer schemas without throwing', () => {

@@ -586,8 +586,17 @@ table.load .swatch { margin-right: 4px; }
 .energy-row .ebar rect { fill: var(--accent); opacity: .85; }
 .energy-row .btn.small { min-height: 40px; min-width: var(--tap); padding: 0 10px; }
 .act-form { display: grid; gap: var(--s-2); }
-.energy-card .chips { flex-wrap: wrap; overflow: visible; }
-.energy-card .chip { font-size: var(--t-sm); }
+.energy-card .chips, .meals-card .chips { flex-wrap: wrap; overflow: visible; }
+.energy-card .chip, .meals-card .chip { font-size: var(--t-sm); }
+.meal-rows { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.meal-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 6px; align-items: end; padding-bottom: var(--s-2); border-bottom: 1px solid var(--line); }
+.meal-row .field:first-child { grid-column: 1 / -1; }
+.meal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); align-items: end; margin-top: var(--s-2); }
+.meal-actions .field { grid-column: 1 / -1; }
+@media (min-width: 700px) { .meal-row { grid-template-columns: minmax(0, 2fr) 6em 9em auto; } .meal-row .field:first-child { grid-column: auto; } .meal-actions { grid-template-columns: 1fr auto auto; } .meal-actions .field { grid-column: auto; } }
+.meal-row .btn.small { min-height: 40px; min-width: var(--tap); }
+.meal-total { font-weight: 650; font-variant-numeric: tabular-nums; }
+.meals-card .list-row .btn.small { min-height: 40px; min-width: var(--tap); }
 .act-time { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--s-2); align-items: end; }
 .wk-chart { display: block; width: 100%; height: auto; }
 .wk-bar { cursor: pointer; outline: none; }

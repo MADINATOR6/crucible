@@ -4,6 +4,7 @@
 // not fit. The views rely on this: a restored file can never smuggle markup or a thrown error into them.
 import { ACTIVITIES, EVERYDAY } from '../core/calories.js';
 import { PACES } from '../core/targets.js';
+import { UNITS } from '../core/foods.js';
 
 const LIMITS = { blocks: 100, weeks: 200, days: 14, entries: 120, sets: 120, cues: 20, items: 500 };
 const TEXT_MAX = 2000;
@@ -139,6 +140,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   shareBarEnd: 'right', // which way the bar's loaded end points in the bar share image
   heightCm: null, birthYear: null, bodyFatPct: null, sleepHours: 8, everyday: 'mixed', // resting burn and daily energy (with sex)
   goal: 'maintain', goalPace: 'hold', // eating target (src/core/targets.js)
+  customFoods: [], meals: [], // My meals (src/core/foods.js)
 });
 
 /** A key of `table`, never an inherited or non-string one (an array like ["lose"] would otherwise pass). */
@@ -154,9 +156,40 @@ export function sanitizeActivities(list) {
     .map((a) => ({ id: a.id, date: a.date, kind: a.kind, minutes: a.minutes, createdAt: String(a.createdAt ?? '') }));
 }
 
+const nutr = (v, max) => (num(v) !== null && v >= 0 && v <= max ? v : null);
+const shortName = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 60) : null);
+const id100 = (v) => typeof v === 'string' && v && v.length <= 100;
+
+/** Your own foods, per 100 g from a label: { id, name, kcal, protein, fat, carbs }. */
+function sanitizeCustomFoods(list) {
+  if (!Array.isArray(list)) return [];
+  const ids = new Set();
+  return list.slice(0, 50).filter((f) => isObj(f) && id100(f.id) && !ids.has(f.id) && ids.add(f.id) && shortName(f.name)
+    && nutr(f.kcal, 1000) !== null && nutr(f.protein, 100) !== null && nutr(f.fat, 100) !== null && nutr(f.carbs, 120) !== null)
+    .map((f) => ({ id: f.id, name: shortName(f.name), kcal: f.kcal, protein: f.protein, fat: f.fat, carbs: f.carbs }));
+}
+/** Saved meals: { id, name, items: [{ food, amount, unit }] }. Unknown foods are skipped when totalled. */
+function sanitizeMeals(list) {
+  if (!Array.isArray(list)) return [];
+  const ids = new Set();
+  return list.slice(0, 30).filter((m) => isObj(m) && id100(m.id) && !ids.has(m.id) && ids.add(m.id) && shortName(m.name) && Array.isArray(m.items))
+    .map((m) => ({ id: m.id, name: shortName(m.name), items: m.items.slice(0, 15).filter((it) => isObj(it) && id100(it.food) && keyOf(UNITS, it.unit) && nutr(it.amount, 5000) > 0)
+      .map((it) => ({ food: it.food, amount: it.amount, unit: it.unit })) }))
+    .filter((m) => m.items.length);
+}
+export const MAX_INTAKE = 20000;
+/** What you ate: { id, date, label, kcal, protein, fat, carbs }, totalled per day for the goal card. */
+export function sanitizeIntake(list) {
+  if (!Array.isArray(list)) return [];
+  const ids = new Set();
+  return list.slice(0, MAX_INTAKE).filter((e) => isObj(e) && id100(e.id) && !ids.has(e.id) && ids.add(e.id) && isStrictDate(e.date) && shortName(e.label)
+    && nutr(e.kcal, 20000) !== null && nutr(e.protein, 2000) !== null && nutr(e.fat, 2000) !== null && nutr(e.carbs, 3000) !== null)
+    .map((e) => ({ id: e.id, date: e.date, label: shortName(e.label), kcal: e.kcal, protein: e.protein, fat: e.fat, carbs: e.carbs, createdAt: String(e.createdAt ?? '') }));
+}
+
 /** Whitelist and coerce settings (never trust stored or restored values). */
 export function sanitizeSettings(s) {
-  const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays } };
+  const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays }, customFoods: [], meals: [] };
   if (!isObj(s)) return out;
   for (const k of ['keepAwake', 'vibrate', 'weeklySummary']) if (typeof s[k] === 'boolean') out[k] = s[k];
   if (['transparent', 'dark', 'light'].includes(s.shareBg)) out.shareBg = s.shareBg;
@@ -167,6 +200,8 @@ export function sanitizeSettings(s) {
   if (Number.isInteger(s.birthYear) && s.birthYear >= 1900 && s.birthYear <= 2100) out.birthYear = s.birthYear;
   if (num(s.bodyFatPct) !== null && s.bodyFatPct >= 3 && s.bodyFatPct <= 60) out.bodyFatPct = s.bodyFatPct;
   if (num(s.sleepHours) !== null && s.sleepHours >= 3 && s.sleepHours <= 14) out.sleepHours = s.sleepHours;
+  out.customFoods = sanitizeCustomFoods(s.customFoods);
+  out.meals = sanitizeMeals(s.meals);
   if (keyOf(EVERYDAY, s.everyday)) out.everyday = s.everyday;
   if (keyOf(PACES, s.goal)) { out.goal = s.goal; out.goalPace = keyOf(PACES[s.goal], s.goalPace) ? s.goalPace : Object.keys(PACES[s.goal])[0]; }
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;

@@ -1,7 +1,7 @@
 // Application state: loads storage, owns settings/programme/logs, and derives set events, PRs and dates.
 import { openStore, requestPersistence, uuid } from '../store/db.js';
 import { buildBackup, validateBackup } from '../store/backup.js';
-import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES } from '../store/programme-schema.js';
+import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, MAX_INTAKE } from '../store/programme-schema.js';
 import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
@@ -28,7 +28,7 @@ export async function createApp() {
   const persisted = await requestPersistence();
   const app = {
     store, catalogue, platesData, persisted,
-    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [], activities: [],
+    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [], activities: [], intake: [],
     listeners: new Set(), cache: new Map(), dataRevision: 0,
   };
   const byId = new Map(catalogue.exercises.map((e) => [e.id, e]));
@@ -67,12 +67,12 @@ export async function createApp() {
   app.clearDraft = (kind) => enqueue(async () => { const key = draftKey(kind); await store.delete('meta', key); drafts.delete(key); });
 
   async function load() {
-    const [settings, programme, sessions, sets, bodyweights, activities, setDraft, coachDraft] = await Promise.all([
-      store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'),
+    const [settings, programme, sessions, sets, bodyweights, activities, intake, setDraft, coachDraft] = await Promise.all([
+      store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'), store.get('meta', 'intake'),
       ...draftKeys.map((key) => store.get('meta', key)),
     ]);
     app.settings = sanitizeSettings(settings?.value);
-    app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights; app.activities = sanitizeActivities(activities?.value);
+    app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights; app.activities = sanitizeActivities(activities?.value); app.intake = sanitizeIntake(intake?.value);
     const clean = sanitizeProgramme(programme?.value);
     if (clean) { app.programme = clean; app.usingExample = !!clean.isExample; }
     else { app.programme = buildExampleProgramme(); app.usingExample = true; }
@@ -270,9 +270,33 @@ export async function createApp() {
     const s = app.settings, body = bodyOn(today);
     const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)).map((date) => { const e = app.dayEnergy(date); return { date, kcal: e ? (e.total[0] + e.total[1]) / 2 : null }; });
     const pts = app.bodyweightPoints();
-    const m = maintenance({ days, intake: pts.filter((p) => p.kcal > 0).map((p) => ({ date: p.x, kcal: p.kcal })), weights: pts, today, perKg: kcalPerKg(body) });
+    // A day's food log total wins over calories typed with a weigh-in for the same date. Today is still being
+    // eaten, so only finished days of the food log count.
+    const logged = new Map([...app.intakeTotals()].filter(([date]) => date < today));
+    const typed = pts.filter((p) => p.kcal > 0 && !logged.has(p.x)).map((p) => ({ date: p.x, kcal: p.kcal }));
+    const intake = [...typed, ...[...logged].map(([date, t]) => ({ date, kcal: t.kcal }))].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const m = maintenance({ days, intake, weights: pts, today, perKg: kcalPerKg(body) });
     return { maintenance: m, target: target({ maintenanceKcal: m.kcal, weightKg: body.weightKg, goal: s.goal, pace: s.goalPace, restKcal: restingKcal(body), sex: s.sex, bodyFatPct: s.bodyFatPct }) };
   };
+  /** Food log totals per date: Map(date → { kcal, protein, fat, carbs }). */
+  app.intakeTotals = () => memo('intakeTotals', () => {
+    const m = new Map();
+    for (const e of app.intake) {
+      const t = m.get(e.date) || { kcal: 0, protein: 0, fat: 0, carbs: 0 };
+      for (const k of Object.keys(t)) t[k] += e[k];
+      m.set(e.date, t);
+    }
+    return m;
+  });
+  const saveIntake = async (next) => { await store.put('meta', { key: 'intake', value: next }); app.intake = next; dataChanged(false); };
+  app.addIntake = (date, label, totals) => enqueue(async () => {
+    if (app.intake.length >= MAX_INTAKE) throw new RangeError('Food log is full. Export a backup, then remove old entries.');
+    const [clean] = sanitizeIntake([{ id: uuid(), date, label, ...totals, createdAt: new Date().toISOString() }]);
+    if (!clean) throw new RangeError('That food entry is not valid.');
+    await saveIntake([...app.intake, clean]);
+    return clean;
+  });
+  app.deleteIntake = (id) => enqueue(() => saveIntake(app.intake.filter((e) => e.id !== id)));
   const saveActivities = async (next) => { await store.put('meta', { key: 'activities', value: next }); app.activities = next; dataChanged(false); };
   app.addActivity = (date, kind, minutes) => enqueue(async () => {
     if (app.activities.length >= MAX_ACTIVITIES) throw new RangeError('Activity log is full. Export a backup, then remove old entries.');

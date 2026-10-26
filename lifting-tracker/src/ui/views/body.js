@@ -3,6 +3,8 @@
 // its sources live in src/core/calories.js.
 import { ACTIVITIES, EVERYDAY } from '../../core/calories.js';
 import { PACES, PACE_LABELS } from '../../core/targets.js';
+import { FOODS, FOOD_GROUPS, UNITS, allFoods, mealTotal } from '../../core/foods.js';
+import { uuid } from '../../store/db.js';
 import { round1, convert } from '../../core/units.js';
 import { addDays } from '../../core/weeks.js';
 import { lineChart, bindCharts, movingAverage, shortDate, longDate } from '../charts.js';
@@ -95,7 +97,48 @@ export function bodyView(app, ui) {
         <p>The target never drops below your resting burn or 1,500 kcal (men) / 1,200 kcal (women). Weigh in under the same conditions, judge progress over 2–3 weeks, not day to day. This is general guidance, not medical advice; see a dietitian for health conditions.</p></div></details>
     </section>`;
 
-  const html = `${goalCard}
+  // ---- My meals: saved meals in one tap, a builder with live totals, and the day's food log against the target ----
+  const foods = allFoods(s.customFoods);
+  const draft = (b.draft ||= [{ food: 'F002593', amount: 200, unit: 'g' }, { food: 'F007641', amount: 250, unit: 'g' }]);
+  const eaten = app.intakeTotals().get(b.date) || { kcal: 0, protein: 0, fat: 0, carbs: 0 };
+  const log = app.intake.filter((e) => e.date === b.date);
+  const dayWord = b.date === today ? 'today' : `on ${esc(shortDate(b.date))}`;
+  const foodOptions = (sel) => `${FOOD_GROUPS.map((grp) => `<optgroup label="${esc(grp)}">${Object.entries(FOODS).filter(([, f]) => f.group === grp).map(([k, f]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup>`).join('')}${s.customFoods.length ? `<optgroup label="My foods">${s.customFoods.map((f) => `<option value="${esc(f.id)}"${f.id === sel ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup>` : ''}`;
+  const unitOptions = (food, sel) => Object.keys(foods[food]?.units || { g: 1 }).map((u) => `<option value="${u}"${u === sel ? ' selected' : ''}>${UNITS[u].label}</option>`).join('');
+  const totalText = (t) => `${kcal(t.kcal)} kcal · P ${g(t.protein)} g · F ${g(t.fat)} g · C ${g(t.carbs)} g`;
+  const mealsCard = `
+    <section class="card mt-4 meals-card">
+      <div class="card-h"><h2>My meals</h2><span class="muted small">eaten ${dayWord}</span></div>
+      <div class="energy-hero"><b class="figure">${kcal(eaten.kcal)}<small>${t ? `of ${kcal(t.kcal)} kcal` : 'kcal'}</small></b>
+        <span class="muted small">Protein ${g(eaten.protein)}${t ? ` of ${g(t.protein.g)}` : ''} g · Fat ${g(eaten.fat)} g · Carbs ${g(eaten.carbs)} g</span></div>
+      ${t ? `<div class="progress mb-3" aria-label="${g(eaten.kcal)} of ${g(t.kcal)} kcal eaten"><div class="progress-track"><i style="width:${Math.min(100, Math.round((eaten.kcal / t.kcal) * 100))}%"></i></div><span class="nowrap">${Math.round((eaten.kcal / t.kcal) * 100)}%</span></div>` : ''}
+      ${s.meals.length ? `<div class="chips mb-2">${s.meals.map((m) => `<button type="button" class="chip" data-eat-meal="${esc(m.id)}">+ ${esc(m.name)} · ${kcal(mealTotal(m.items, foods).kcal)}</button>`).join('')}</div>` : ''}
+      ${log.length ? `<ul class="list energy mb-2">${log.map((e) => `<li class="list-row"><span class="main">${esc(e.label)}<small>P ${g(e.protein)} · F ${g(e.fat)} · C ${g(e.carbs)} g</small></span><span class="trail">${kcal(e.kcal)}</span><button type="button" class="btn ghost small" data-del-food="${esc(e.id)}" aria-label="Remove ${esc(e.label)}">×</button></li>`).join('')}</ul>` : ''}
+      <details class="fold" data-keep-open="meal-builder"${s.meals.length ? '' : ' open'}><summary>Build a meal</summary>
+        <div class="meal-rows">${draft.map((it, i) => `<div class="meal-row" data-row="${i}">
+          <label class="field"><span class="visually-hidden">Food</span><select data-m="food">${foodOptions(it.food)}</select></label>
+          <label class="field"><span class="visually-hidden">Amount</span><input data-m="amount" type="number" inputmode="decimal" min="0" step="any" value="${it.amount}"></label>
+          <label class="field"><span class="visually-hidden">Unit</span><select data-m="unit">${unitOptions(it.food, it.unit)}</select></label>
+          <button type="button" class="btn ghost small" data-m-del="${i}" aria-label="Remove this food">×</button></div>`).join('')}</div>
+        <button type="button" class="btn ghost small mt-2" id="meal-add-row">+ Add food</button>
+        <p class="meal-total mt-2" id="meal-total" aria-live="polite">${totalText(mealTotal(draft, foods))}</p>
+        <div class="meal-actions"><label class="field"><span>Meal name</span><input id="meal-name" maxlength="60" placeholder="Chicken & rice"></label><button type="button" class="btn ghost" id="meal-save">Save meal</button><button type="button" class="btn primary" id="meal-eat">Eat ${b.date === today ? 'now' : 'that day'}</button></div>
+      </details>
+      <details class="fold mt-2" data-keep-open="my-foods"><summary>Add your own food (from a label)</summary>
+        <form id="food-form" class="details-grid mt-2">
+          <label class="field"><span>Name</span><input name="name" maxlength="60" required placeholder="Protein bar"></label>
+          <label class="field"><span>kcal per 100 g</span><input name="kcal" type="number" inputmode="decimal" min="0" max="1000" step="any" required></label>
+          <label class="field"><span>Protein g/100 g</span><input name="protein" type="number" inputmode="decimal" min="0" max="100" step="any" required></label>
+          <label class="field"><span>Fat g/100 g</span><input name="fat" type="number" inputmode="decimal" min="0" max="100" step="any" required></label>
+          <label class="field"><span>Carbs g/100 g</span><input name="carbs" type="number" inputmode="decimal" min="0" max="120" step="any" required></label>
+          <button class="btn primary" type="submit">Add food</button>
+        </form>
+        ${s.meals.length || s.customFoods.length ? `<ul class="list mt-3">${s.meals.map((m) => `<li class="list-row"><span class="main">${esc(m.name)}<small>saved meal</small></span><button type="button" class="btn ghost small" data-del-meal="${esc(m.id)}" aria-label="Delete meal ${esc(m.name)}">×</button></li>`).join('')}${s.customFoods.map((f) => `<li class="list-row"><span class="main">${esc(f.name)}<small>${g(f.kcal)} kcal/100 g</small></span><button type="button" class="btn ghost small" data-del-custom="${esc(f.id)}" aria-label="Delete food ${esc(f.name)}">×</button></li>`).join('')}</ul>` : ''}
+      </details>
+      <p class="small muted mt-2">Values from the Australian Food Composition Database (FSANZ, Release 3.0), cooked as eaten: weigh meat, rice and vegetables after cooking. Curries and soups (sinigang, bulalo): add the meat, vegetables and rice separately; broth itself adds little unless it is fatty or has coconut milk. A tablespoon is the Australian 20 mL (honey ≈ 79 kcal); a cup is 250 mL. Save your usual plates and coffees as meals for one-tap logging. Finished days of this log feed the measured maintenance above.</p>
+    </section>`;
+
+  const html = `${goalCard}${mealsCard}
     <section class="card energy-card mt-4">
       <div class="card-h"><h2>Daily energy</h2><input id="energy-date" class="energy-date" type="date" value="${esc(b.date)}" max="${today}" aria-label="Day"></div>
       ${day ? `<div class="energy-hero"><b class="figure">${span(day.total)}<small>kcal</small></b><span class="muted small">estimated burn ${b.date === today ? 'today' : `on ${esc(longDate(b.date))}`}</span></div>
@@ -148,6 +191,53 @@ export function bodyView(app, ui) {
       const added = app.activities.at(-1);
       toast(`Added ${short(String(f.get('kind'))).toLowerCase()}, ${dur(minutes)}`, 4200, { label: 'Undo', onClick: () => app.deleteActivity(added.id) });
     });
+    // My meals. Builder edits update the live total in place, so typing never loses focus to a redraw.
+    const showTotal = () => { const el = root.querySelector('#meal-total'); if (el) el.textContent = totalText(mealTotal(draft, foods)); };
+    root.querySelectorAll('[data-row]').forEach((row) => {
+      const i = Number(row.dataset.row), unitSel = row.querySelector('[data-m="unit"]');
+      row.querySelector('[data-m="amount"]').addEventListener('input', (e) => { draft[i].amount = Number(e.target.value) || 0; showTotal(); });
+      unitSel.addEventListener('change', (e) => { draft[i].unit = e.target.value; showTotal(); });
+      row.querySelector('[data-m="food"]').addEventListener('change', (e) => {
+        draft[i].food = e.target.value;
+        if (!foods[draft[i].food]?.units?.[draft[i].unit]) draft[i].unit = 'g';
+        unitSel.innerHTML = unitOptions(draft[i].food, draft[i].unit);
+        showTotal();
+      });
+    });
+    root.querySelector('#meal-add-row')?.addEventListener('click', () => { draft.push({ food: 'F002014', amount: 100, unit: 'g' }); rerender(); });
+    root.querySelectorAll('[data-m-del]').forEach((btn) => btn.addEventListener('click', () => { draft.splice(Number(btn.dataset.mDel), 1); rerender(); }));
+    const eat = async (label, totals) => {
+      if (!(totals.kcal > 0)) { toast('Add a food with an amount first'); return; }
+      const entry = await app.addIntake(b.date, label, totals);
+      toast(`Logged ${label.length > 30 ? label.slice(0, 29) + '…' : label}, ${kcal(totals.kcal)} kcal`, 4200, { label: 'Undo', onClick: () => app.deleteIntake(entry.id) });
+    };
+    const draftLabel = () => draft.filter((it) => foods[it.food]).map((it) => `${foods[it.food].name.split(',')[0]} ${it.amount}${it.unit === 'g' ? ' g' : ' ' + it.unit}`).join(' + ').slice(0, 60) || 'Meal';
+    root.querySelector('#meal-eat')?.addEventListener('click', () => eat(root.querySelector('#meal-name').value.trim() || draftLabel(), mealTotal(draft, foods)));
+    root.querySelector('#meal-save')?.addEventListener('click', async () => {
+      const name = root.querySelector('#meal-name').value.trim();
+      if (!name) { toast('Name the meal first, for example "Chicken & rice"'); root.querySelector('#meal-name').focus(); return; }
+      if (!(mealTotal(draft, foods).kcal > 0)) { toast('Add a food with an amount first'); return; }
+      await app.saveSettings({ meals: [...s.meals, { id: uuid(), name, items: draft.map((it) => ({ ...it })) }] });
+      toast(`Saved "${name}". Tap it under My meals to log it.`);
+    });
+    root.querySelectorAll('[data-eat-meal]').forEach((btn) => btn.addEventListener('click', () => {
+      const m = s.meals.find((x) => x.id === btn.dataset.eatMeal);
+      if (m) eat(m.name, mealTotal(m.items, foods));
+    }));
+    root.querySelectorAll('[data-del-food]').forEach((btn) => btn.addEventListener('click', async () => {
+      const e = app.intake.find((x) => x.id === btn.dataset.delFood);
+      if (!e) return;
+      await app.deleteIntake(e.id);
+      toast('Food removed', 4200, { label: 'Undo', onClick: () => app.addIntake(e.date, e.label, { kcal: e.kcal, protein: e.protein, fat: e.fat, carbs: e.carbs }) });
+    }));
+    root.querySelector('#food-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target), n = (k) => Number(f.get(k));
+      await app.saveSettings({ customFoods: [...s.customFoods, { id: uuid(), name: String(f.get('name')).trim(), kcal: n('kcal'), protein: n('protein'), fat: n('fat'), carbs: n('carbs') }] });
+      toast('Food added. Pick it under Build a meal.');
+    });
+    root.querySelectorAll('[data-del-meal]').forEach((btn) => btn.addEventListener('click', () => app.saveSettings({ meals: s.meals.filter((m) => m.id !== btn.dataset.delMeal) })));
+    root.querySelectorAll('[data-del-custom]').forEach((btn) => btn.addEventListener('click', () => app.saveSettings({ customFoods: s.customFoods.filter((x) => x.id !== btn.dataset.delCustom) })));
     root.querySelectorAll('[data-quick]').forEach((btn) => btn.addEventListener('click', async () => {
       const [kind, minutes] = btn.dataset.quick.split('|');
       await app.addActivity(b.date, kind, Number(minutes));

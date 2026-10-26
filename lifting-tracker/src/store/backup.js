@@ -1,11 +1,12 @@
 // JSON backup/restore and CSV export. Restore validates and sanitises everything first and applies in one
 // transaction, so a bad or hostile file never leaves the database half-written or the app unable to start.
-import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES } from './programme-schema.js';
+import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, MAX_INTAKE } from './programme-schema.js';
 
 const APP = 'lifting-tracker';
-// Backup file format, separate from the IndexedDB version. 2 adds cardio/work `activities`: apps that only know 1
-// refuse a 2 ("newer version") instead of restoring it and silently dropping the activities.
-export const BACKUP_VERSION = 2;
+// Backup file format, separate from the IndexedDB version. 2 adds cardio/work `activities`, 3 adds the food log
+// `intake`: an app that knows an older format refuses a newer file ("newer version") instead of restoring it and
+// silently dropping what it doesn't know.
+export const BACKUP_VERSION = 3;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_RECORDS = 200000;
 
@@ -18,12 +19,12 @@ export function backupReminder({ lastBackupAt, backupSnoozeUntil, loggedDates, t
 }
 
 export async function buildBackup(store) {
-  const [settings, programme, sessions, sets, bodyweights, activities] = await Promise.all([
-    store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'),
+  const [settings, programme, sessions, sets, bodyweights, activities, intake] = await Promise.all([
+    store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'), store.get('meta', 'intake'),
   ]);
   return {
     app: APP, schemaVersion: BACKUP_VERSION, exportedAt: new Date().toISOString(),
-    settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights, activities: activities?.value ?? [],
+    settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights, activities: activities?.value ?? [], intake: intake?.value ?? [],
   };
 }
 
@@ -111,13 +112,17 @@ export function validateBackup(text) {
   else if (json.activities?.length > MAX_ACTIVITIES) errors.push(`"activities" has more than ${MAX_ACTIVITIES} entries.`);
   const activities = sanitizeActivities(json.activities);
   if (Array.isArray(json.activities) && json.activities.length <= MAX_ACTIVITIES && activities.length !== json.activities.length) errors.push(`${json.activities.length - activities.length} activity entries are malformed or repeat an id.`);
+  if (json.intake != null && !Array.isArray(json.intake)) errors.push('"intake" must be a list.');
+  else if (json.intake?.length > MAX_INTAKE) errors.push(`"intake" has more than ${MAX_INTAKE} entries.`);
+  const intake = sanitizeIntake(json.intake);
+  if (Array.isArray(json.intake) && json.intake.length <= MAX_INTAKE && intake.length !== json.intake.length) errors.push(`${json.intake.length - intake.length} food log entries are malformed or repeat an id.`);
   if (errors.length) return { ok: false, errors: errors.slice(0, 20).concat(errors.length > 20 ? [`…and ${errors.length - 20} more.`] : []) };
   const settings = json.settings ? sanitizeSettings(json.settings) : null;
   const snapshot = {
-    meta: [...(settings ? [{ key: 'settings', value: settings }] : []), ...(programme ? [{ key: 'programme', value: programme }] : []), ...(activities.length ? [{ key: 'activities', value: activities }] : [])],
+    meta: [...(settings ? [{ key: 'settings', value: settings }] : []), ...(programme ? [{ key: 'programme', value: programme }] : []), ...(activities.length ? [{ key: 'activities', value: activities }] : []), ...(intake.length ? [{ key: 'intake', value: intake }] : [])],
     sessions, sets, bodyweights,
   };
-  return { ok: true, snapshot, counts: { sessions: sessions.length, sets: sets.length, bodyweights: bodyweights.length, activities: activities.length, hasProgramme: !!programme } };
+  return { ok: true, snapshot, counts: { sessions: sessions.length, sets: sets.length, bodyweights: bodyweights.length, activities: activities.length, intake: intake.length, hasProgramme: !!programme } };
 }
 
 const csvCell = (v) => {
