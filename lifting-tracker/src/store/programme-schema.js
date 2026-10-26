@@ -135,6 +135,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   meetDate: null, sex: null, // optional: projection to meet day, and the IPF GL category (male/female)
   shareBg: 'transparent', weeklySummary: false, // share-image background; weekly summary notification (Android)
   shareBarEnd: 'right', // which way the bar's loaded end points in the bar share image
+  heightCm: null, birthYear: null, bodyFatPct: null, // optional: resting burn for the session calorie estimate (with sex)
 });
 
 /** Whitelist and coerce settings (never trust stored or restored values). */
@@ -146,6 +147,9 @@ export function sanitizeSettings(s) {
   if (['right', 'left'].includes(s.shareBarEnd)) out.shareBarEnd = s.shareBarEnd;
   for (const k of ['lastBackupAt', 'backupSnoozeUntil', 'meetDate']) if (isStrictDate(s[k])) out[k] = s[k];
   if (s.sex === 'male' || s.sex === 'female') out.sex = s.sex;
+  if (num(s.heightCm) !== null && s.heightCm >= 100 && s.heightCm <= 250) out.heightCm = s.heightCm;
+  if (Number.isInteger(s.birthYear) && s.birthYear >= 1900 && s.birthYear <= 2100) out.birthYear = s.birthYear;
+  if (num(s.bodyFatPct) !== null && s.bodyFatPct >= 3 && s.bodyFatPct <= 60) out.bodyFatPct = s.bodyFatPct;
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;
   if (['system', 'dark', 'light'].includes(s.theme)) out.theme = s.theme;
   out.collar = s.collar !== false;

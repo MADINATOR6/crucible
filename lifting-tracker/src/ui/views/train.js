@@ -128,6 +128,9 @@ export function trainView(app, ui) {
   const next = app.nextSession?.();
   const label = sameDay(next, dayRef) ? (est === todayIso() ? 'Today' : 'Next up') : est && est < todayIso() ? 'Earlier session' : 'Session';
   const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+  const daySession = dayRef && app.sessions.find((s) => s.date === ui.train.actualDate && sameDay(s.programmeRef, dayRef));
+  const cal = daySession && app.sessionCalories(daySession);
+  const kcal = (n) => Math.round(n / 10) * 10;
   const loggedSessionIds = new Set(app.sets.map((s) => s.sessionId));
   const reminder = backupReminder({ ...app.settings, today: todayIso(), loggedDates: app.sessions.filter((s) => loggedSessionIds.has(s.id)).map((s) => s.date) });
   const draft = recoverSetDraft(app);
@@ -147,7 +150,8 @@ export function trainView(app, ui) {
     ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small" href="#data">Import</a></div>` : ''}
     ${draft ? `<div class="banner mb-4" role="status"><span><b>UNSAVED set inputs</b> · ${draft.stale ? 'This draft no longer matches the programme or set.' : 'Ready to resume; nothing was logged.'}</span><div class="actions">${draft.stale ? '' : '<button class="btn small primary" id="resume-draft">Resume</button>'}<button class="btn small ghost" id="discard-draft">Discard</button></div></div>` : ''}
     ${day ? `<label class="field train-session-date"><span>Actual session date</span><input id="session-date" type="date" value="${esc(ui.train.actualDate)}"><small id="session-date-status" class="muted">${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${esc(shortDate(est))}` : ''}</small></label>
-    <div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
+    <div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>
+    ${cal ? `<p class="small muted mb-4 train-kcal">${Math.round(cal.minutes)} min · about ${kcal(cal.total[0])}–${kcal(cal.total[1])} kcal${cal.active ? ` (${kcal(cal.active[0])}–${kcal(cal.active[1])} active)` : ''} · <a href="#progress">estimate</a></p>` : ''}` : ''}`;
 
   const focus = current ? `<section class="card train-focus" aria-label="Current set">
     <span class="eyebrow train-focus-kicker">Current set · ${prog.total - prog.done} remaining</span>

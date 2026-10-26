@@ -206,7 +206,8 @@ export function progressView(app, ui) {
       ${bwSeries.length ? lineChart({ series: bwSeries, unit, height: 160, tips: bw.map((p) => ({ x: p.x, lines: [longDate(p.x), `${toU(p.y)} ${unit}${p.estimated ? ' (estimated date)' : ''}`] })), title: 'Bodyweight weigh-ins and their 7-day average' }) : '<p class="muted">No bodyweight yet.</p>'}
       <form id="bwform" class="row end mt-3"><label class="field grow"><span>Weight (${unit})</span><input name="w" type="number" step="0.1" min="20" inputmode="decimal" required></label>
         <label class="field grow"><span>Date</span><input name="d" type="date" value="${today}" required></label><button class="btn primary" type="submit">Add</button></form>
-      ${datesEst && bw.some((p) => p.estimated) ? '<p class="small muted mt-2">Points from the workbook use estimated dates.</p>' : ''}</div>`;
+      ${datesEst && bw.some((p) => p.estimated) ? '<p class="small muted mt-2">Points from the workbook use estimated dates.</p>' : ''}</div>
+    ${caloriesCard(app)}`;
 
   function bind(root, rerender) {
     bindCharts(root);
@@ -220,6 +221,10 @@ export function progressView(app, ui) {
     root.querySelectorAll('[data-variants]').forEach((b) => b.addEventListener('click', () => { pg.variants = b.dataset.variants === '1'; rerender(); }));
     root.querySelectorAll('[data-maxreps]').forEach((b) => b.addEventListener('click', () => { pg.maxReps = Number(b.dataset.maxreps); rerender(); }));
     root.querySelectorAll('[data-sex]').forEach((b) => b.addEventListener('click', () => app.saveSettings({ sex: b.dataset.sex || null })));
+    root.querySelectorAll('[data-body]').forEach((inp) => inp.addEventListener('change', () => {
+      const v = inp.value === '' ? null : Number(inp.value);
+      app.saveSettings({ [inp.dataset.body]: inp.dataset.body === 'birthYear' && v != null ? Math.round(v) : v });
+    }));
     root.querySelector('#meet-date')?.addEventListener('change', (e) => app.saveSettings({ meetDate: e.target.value || null }));
     root.querySelector('#bwform')?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -230,6 +235,25 @@ export function progressView(app, ui) {
     });
   }
   return { html, bind };
+}
+
+const kcal = (n) => Math.round(n / 10) * 10; // nearest 10: the estimate is not more precise than that
+const kcalRange =([lo, hi]) => `${kcal(lo)}–${kcal(hi)}`;
+
+/** Calories per session (src/core/calories.js) and the body details the resting burn needs. */
+function caloriesCard(app) {
+  const s = app.settings, today = todayIso();
+  const rows = app.sessions.filter((x) => x.date <= today).sort((a, b) => (a.date < b.date ? 1 : -1))
+    .map((x) => ({ date: x.date, c: app.sessionCalories(x) })).filter((r) => r.c).slice(0, 10);
+  const haveActive = rows.some((r) => r.c.active);
+  const method = s.bodyFatPct ? 'Resting burn from your lean mass (body fat %).' : s.heightCm && s.birthYear && s.sex ? 'Resting burn from your weight, height, age and sex.' : 'Add height, birth year and sex (or body fat %) to see active calories.';
+  const field = (key, label, attrs) => `<label class="field grow"><span>${label}</span><input data-body="${key}" type="number" inputmode="decimal" ${attrs} value="${s[key] ?? ''}"></label>`;
+  return `<div class="card mt-4"><div class="card-h"><h2>Calories per session</h2><span class="muted small">estimate</span></div>
+    ${rows.length ? `<div class="scroll-x"><table class="plain"><thead><tr><th>Date</th><th>Time</th><th>Total kcal</th>${haveActive ? '<th>Active kcal</th>' : ''}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(shortDate(r.date))}</td><td>${Math.round(r.c.minutes)} min</td><td>${kcalRange(r.c.total)}</td>${haveActive ? `<td>${r.c.active ? kcalRange(r.c.active) : '–'}</td>` : ''}</tr>`).join('')}</tbody></table></div>`
+    : '<p class="muted">Appears after a session logged live (at least two sets on the day) with a bodyweight entered above.</p>'}
+    <p class="small muted mt-2">Total = effort (2024 Compendium of Physical Activities: 3.5–6 METs for lifting, banded by your RPE) × bodyweight × time between logged sets. Active = total minus your resting burn (ten Haaf equation for athletes). ${esc(method)} Without heart rate, expect about ±30%.</p>
+    <div class="row mt-3">${field('heightCm', 'Height (cm)', 'min="100" max="250" step="0.5"')}${field('birthYear', 'Birth year', 'min="1900" max="2100" step="1"')}${field('bodyFatPct', 'Body fat % (optional)', 'min="3" max="60" step="0.5"')}</div>
+    <div class="field mt-2"><span>Sex (also the IPF GL category)</span><div class="seg" role="group" aria-label="Sex for resting burn">${[['male', 'Male'], ['female', 'Female'], ['', 'Not set']].map(([v, t]) => `<button data-sex="${v}" aria-pressed="${(s.sex || '') === v}">${t}</button>`).join('')}</div></div></div>`;
 }
 
 function coachSummary(app, unit) {

@@ -8,6 +8,7 @@ import { detectPRs } from '../core/prs.js';
 import { nextSession, plannedValues } from '../core/session.js';
 import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
+import { sessionCalories, weightOn } from '../core/calories.js';
 import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
 
@@ -249,6 +250,13 @@ export async function createApp() {
     for (const r of app.bodyweights) { try { pts.push({ x: r.date, y: toKg(r.weight), estimated: false }); } catch { /* skip */ } }
     return pts.sort((a, c) => (a.x < c.x ? -1 : 1));
   });
+
+  /** Estimated calories for a logged session (src/core/calories.js), or null without set times or a bodyweight. */
+  app.sessionCalories = (session) => {
+    const s = app.settings;
+    return sessionCalories({ date: session.date, sets: app.sets.filter((x) => x.sessionId === session.id), weightKg: weightOn(app.bodyweightPoints(), session.date),
+      heightCm: s.heightCm, age: s.birthYear ? Number(session.date.slice(0, 4)) - s.birthYear : null, sex: s.sex, bodyFatPct: s.bodyFatPct });
+  };
 
   // ---- logging ----
   app.logAsPlanned = ({ programmeRef, plannedRef, date }) => enqueue(async () => {
