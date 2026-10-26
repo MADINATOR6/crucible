@@ -4,6 +4,7 @@ import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
 import { renderBarbell, renderEndView } from '../barbell.js';
 import { mount3d } from '../barbell3d.js';
 import { esc, toast } from '../dom.js';
+import { shareCanvas, shareFont, drawBrand, shareOut, shareBgPicker, bindShareBg } from '../share-image.js';
 import { meetCard } from './meet.js';
 import { platesTolerance } from '../../plates/tolerance.js';
 
@@ -20,32 +21,28 @@ function supports3d() {
   return webgl;
 }
 
-// A transparent 1080 × 1350 PNG of the loaded bar with the total, for an Instagram story sticker. Shared through the
-// phone's share sheet where files can be shared (Android), otherwise downloaded.
-async function shareBarImage({ side, collar, total, unit, text }) {
+// A 1080 × 1350 PNG of the loaded bar with the total and the app's mark, for an Instagram story (transparent by
+// default, so it sits on a photo; dark or light backgrounds from the picker beside the button).
+async function shareBarImage({ side, collar, total, unit, text, bg }) {
   const svg = renderBarbell({ plates: side, collar }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="717" ');
   const img = new Image();
   img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   await img.decode();
-  const W = 1080, H = 1350, c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const g = c.getContext('2d');
-  g.drawImage(img, 0, 120, W, 717);
+  const W = 1080, H = 1350, { c, g, ink, glow } = shareCanvas(W, H, bg);
+  g.drawImage(img, 0, 100, W, 717);
   URL.revokeObjectURL(img.src);
-  g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 18;
-  const font = "Bahnschrift, 'Arial Narrow', system-ui, sans-serif";
-  g.font = `700 200px ${font}`; g.fillText(`${total}`, W / 2 - 60, 1060);
-  g.font = `700 80px ${font}`; g.fillText(unit.toUpperCase(), W / 2 + g.measureText(`${total}`).width / 2 + 140, 1060);
+  g.textAlign = 'center'; g.fillStyle = ink;
+  const font = shareFont();
+  g.font = `700 200px ${font}`;
+  const nw = g.measureText(`${total}`).width;
+  g.fillText(`${total}`, W / 2 - 50, 1020);
+  g.font = `700 80px ${font}`; g.textAlign = 'left'; g.fillText(unit.toUpperCase(), W / 2 - 50 + nw / 2 + 20, 1020); g.textAlign = 'center';
   g.font = `600 44px ${font}`;
   const words = text.split(' '), lines = [''];
   for (const w of words) { const t = `${lines.at(-1)} ${w}`.trim(); if (g.measureText(t).width > W - 120) lines.push(w); else lines[lines.length - 1] = t; }
-  lines.forEach((l, i) => g.fillText(l, W / 2, 1160 + i * 58));
-  const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
-  const file = new File([blob], `bar-${total}${unit}.png`, { type: 'image/png' });
-  if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], title: `${total} ${unit}` });
-  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: file.name });
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  toast('Image saved');
+  lines.forEach((l, i) => g.fillText(l, W / 2, 1110 + i * 58));
+  glow(true, 10); drawBrand(g, W, 1290, ink);
+  return shareOut(c, `bar-${total}${unit}.png`, `${total} ${unit}`);
 }
 
 export function barsFor(app, unit) { return app.platesData[unit].bars; }
@@ -134,9 +131,9 @@ export function platesView(app, ui) {
       </div>
       <div class="row spread">
         <button class="btn ghost small" data-act="undo" ${side.length ? '' : 'disabled'}>Remove last</button>
-        <button class="btn ghost small" data-act="share" ${side.length ? '' : 'disabled'}>Share image</button>
         <button class="btn ghost small" data-act="clear" ${side.length ? '' : 'disabled'}>Clear bar</button>
       </div>
+      <div class="share-row mt-2">${shareBgPicker(app.settings.shareBg)}<button class="btn ghost small" data-act="share" ${side.length ? '' : 'disabled'}>Share image</button></div>
     </div>
     ${calibrationCard}
     <div class="grid cols-2 mt-4">
@@ -241,7 +238,8 @@ export function platesView(app, ui) {
     root.querySelectorAll('[data-bview]').forEach((b) => b.addEventListener('click', () => { ui.plates.view = b.dataset.bview; rerender(); }));
     root.querySelector('[data-act=undo]')?.addEventListener('click', () => keepSide(() => side.pop()));
     root.querySelector('[data-act=clear]')?.addEventListener('click', () => keepSide(() => { side.length = 0; }));
-    root.querySelector('[data-act=share]')?.addEventListener('click', () => shareBarImage({ side, collar: !!collar, total: round1(total), unit, text: perSideText(grouped, unit) })
+    bindShareBg(root, app);
+    root.querySelector('[data-act=share]')?.addEventListener('click', () => shareBarImage({ side, collar: !!collar, total: round1(total), unit, text: perSideText(grouped, unit), bg: app.settings.shareBg })
       .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); }));
     const target = root.querySelector('#target');
     const preview = () => {

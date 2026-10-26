@@ -9,6 +9,7 @@ import { planView } from './views/plan.js';
 import { esc, toast, download, todayIso } from './dom.js';
 import { openStore } from '../store/db.js';
 import { buildBackup } from '../store/backup.js';
+import { keepSummaryFresh } from './summary.js';
 
 const ICON = {
   train: '<path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/>',
@@ -70,6 +71,7 @@ async function main() {
   }
   window.addEventListener('hashchange', () => { render({ keepScroll: false }); window.scrollTo(0, 0); });
   app.subscribe(() => { applyTheme(app.settings.theme); render(); });
+  keepSummaryFresh(app);
   render({ keepScroll: false });
 
   // The service worker is skipped on localhost while developing, unless asked for with ?sw=1.

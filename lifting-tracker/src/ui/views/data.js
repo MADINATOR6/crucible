@@ -2,6 +2,7 @@
 import { esc, openSheet, toast, download, todayIso } from '../dom.js';
 import { setsToCsv } from '../../store/backup.js';
 import { mondayOf } from '../../core/weeks.js';
+import { setWeeklySummary } from '../summary.js';
 
 const WARNING_HELP = {
   reps_date_converted: 'Excel turned a rep range into a date; converted back (day = low, month = high).',
@@ -80,6 +81,7 @@ export function dataView(app, ui) {
       </details>
       <label class="row mt-3"><input type="checkbox" data-setting="keepAwake" ${s.keepAwake ? 'checked' : ''}> Keep the screen on while training</label>
       <label class="row mt-3"><input type="checkbox" data-setting="vibrate" ${s.vibrate ? 'checked' : ''}> Vibrate on one-tap logs and when rest ends</label>
+      <label class="row mt-3"><input type="checkbox" id="weekly-summary" ${s.weeklySummary ? 'checked' : ''}> Weekly summary notification<small class="muted">&nbsp;(Android, installed app)</small></label>
       <p class="small muted mt-2">The workbook has no dates, so charts place sets using this start date and the assumption that blocks follow each other week by week. Treat dates as estimates. A start on any day is moved to that week's Monday.</p>
     </div>
 
@@ -124,6 +126,7 @@ export function dataView(app, ui) {
     }));
     root.querySelector('#start').addEventListener('change', (e) => app.saveSettings({ programmeStart: e.target.value ? mondayOf(e.target.value) : null }));
     root.querySelectorAll('[data-setting]').forEach((input) => input.addEventListener('change', () => app.saveSettings({ [input.dataset.setting]: input.checked })));
+    root.querySelector('#weekly-summary')?.addEventListener('change', (e) => setWeeklySummary(app, e.target.checked));
     root.querySelector('#export-json').addEventListener('click', () => saveBackup(app));
     root.querySelector('#share-backup')?.addEventListener('click', () => saveBackup(app, true));
     root.querySelector('#export-csv').addEventListener('click', () => {

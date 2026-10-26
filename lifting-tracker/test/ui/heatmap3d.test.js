@@ -40,6 +40,23 @@ test('every body GLB mesh has a known name', async () => {
   for (const node of json.nodes.filter((n) => n.mesh !== undefined)) assert.ok(meshMuscleId(node.name), node.name);
 });
 
+test('body GLB is quantized and its bounds describe a 1.80 m figure', async () => {
+  const glb = await readFile(new URL('../../assets/body.glb', import.meta.url));
+  const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString());
+  assert.ok(json.extensionsRequired?.includes('KHR_mesh_quantization'), 'run assets/quantize_glb.mjs after building');
+  // Bounds of normalized integer data are raw integers (a loader scales them); wrong bounds make three.js cull the body.
+  let lo = Infinity, hi = -Infinity;
+  for (const node of json.nodes.filter((n) => n.mesh !== undefined)) {
+    for (const p of json.meshes[node.mesh].primitives) {
+      const a = json.accessors[p.attributes.POSITION];
+      assert.ok(a.normalized && a.componentType === 5122 && a.min.every(Number.isInteger));
+      lo = Math.min(lo, (a.min[1] / 32767) * node.scale[1] + node.translation[1]);
+      hi = Math.max(hi, (a.max[1] / 32767) * node.scale[1] + node.translation[1]);
+    }
+  }
+  assert.ok(Math.abs(lo) < 0.01 && Math.abs(hi - 1.8) < 0.01, `${lo}..${hi}`);
+});
+
 test('import map is allowed by its exact CSP hash and precedes app startup', async () => {
   const html = await read('index.html');
   const map = /<script type="importmap">([\s\S]*?)<\/script>/.exec(html);

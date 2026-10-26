@@ -9,6 +9,8 @@ import { lineChart, bindCharts, movingAverage, shortDate, longDate } from '../ch
 import { esc, toast, todayIso } from '../dom.js';
 import { prLabel } from './train.js';
 import { coachReview } from '../../core/coach.js';
+import { shareBgPicker, bindShareBg } from '../share-image.js';
+import { shareLiftImage } from '../share-progress.js';
 
 const LIFTS = ['squat', 'bench', 'deadlift'];
 const NAMES = { squat: 'Squat', bench: 'Bench', deadlift: 'Deadlift' };
@@ -77,6 +79,7 @@ export function progressView(app, ui) {
     return { range: steps.map((x) => { const i = l.tr.interval(x); return { x, lo: toU(i.lo), hi: toU(i.hi) }; }), meet: l.tr.interval(meetAhead) };
   };
 
+  const shareData = {};
   const liftCard = (l) => {
     const { lift, points, tr, line, since } = l;
     if (!points.length) return `<div class="card s-${lift}"><div class="card-h"><h2>${NAMES[lift]}</h2></div><p class="muted">No ${NAMES[lift].toLowerCase()} sets yet.</p></div>`;
@@ -95,12 +98,19 @@ export function progressView(app, ui) {
       { id: lift, label: '', kind: 'line', points: line.map((p) => ({ x: p.x, y: toU(p.y) })), range: proj?.range },
     ];
     const rate = tr ? `${tr.slopePerWeek >= 0 ? '+' : '−'}${toU(Math.abs(tr.slopePerWeek))} ${unit}/wk` : '';
+    const hardPts = points.filter((p) => p.hard);
+    shareData[lift] = { lift, name: NAMES[lift], unit, rate, rateDown: !!tr && tr.slopePerWeek < 0,
+      now: toU(tr ? tr.at(hardPts.at(-1)?.x ?? points.at(-1).x) : (hardPts.at(-1) ?? points.at(-1)).y),
+      points: points.filter((p) => inRange(p.x)).map((p) => ({ x: p.x, y: toU(p.y), hard: p.hard })),
+      line: line.filter((p) => inRange(p.x)).map((p) => ({ x: p.x, y: toU(p.y) })),
+      prs: prs.filter((p) => inRange(p.x)).map((p) => ({ x: p.x, y: toU(p.y) })) };
     const note = since >= 4 ? `No new high in ${since} weeks. Normal in a deload or peak; otherwise worth a change.` : '';
     return `<div class="card s-${lift}"><div class="card-h"><h2><i class="swatch"></i>${NAMES[lift]}</h2><span class="rate${tr && tr.slopePerWeek < 0 ? ' down' : ''}" title="Trend over ${tr ? tr.n : 0} hard sessions, last 8 weeks">${rate || '<span class="muted small">trend needs 3 hard sessions in 8 weeks</span>'}</span></div>
       ${lineChart({ series, unit, height: 190, domain, bands, markers: [...meetMarker, ...prs.filter((p) => inRange(p.x)).map((p) => ({ x: p.x, y: toU(p.y), label: 'PR', kind: 'pr' }))], tips, title: `${NAMES[lift]} estimated max per session with trend` })}
       ${proj ? `<p class="small mt-2 mb-0">Meet day: likely <b>${toU(proj.meet.lo)}–${toU(proj.meet.hi)} ${unit}</b> if the last 8 weeks' trend holds.</p>` : ''}
       ${pj?.why ? `<p class="small muted mt-2 mb-0">${esc(pj.why)}</p>` : ''}
-      ${note ? `<p class="small muted mt-2 mb-0">${esc(note)}</p>` : ''}</div>`;
+      ${note ? `<p class="small muted mt-2 mb-0">${esc(note)}</p>` : ''}
+      <div class="share-row mt-2"><button class="btn ghost small" data-share-lift="${lift}">Share image</button></div></div>`;
   };
 
   // Tiles: current form, change on four weeks ago, and a sparkline of the trend.
@@ -166,6 +176,7 @@ export function progressView(app, ui) {
     <div class="stats3">${lifts.map(tile).join('')}</div>
     <details class="options mb-4"><summary>Options · ${pg.variants ? 'with variants' : 'competition only'} · up to ${pg.maxReps} reps${meetDate ? ' · meet ' + shortDate(meetDate) : ''}</summary><div class="options-body">
       <div class="field"><span>Lifts counted</span><div class="seg" role="group" aria-label="Which lifts count"><button data-variants="1" aria-pressed="${pg.variants}">With variants</button><button data-variants="0" aria-pressed="${!pg.variants}">Competition only</button></div></div>
+      <div class="field"><span>Share image background</span>${shareBgPicker(app.settings.shareBg)}</div>
       <div class="field"><span>Estimate from sets of up to</span><div class="seg" role="group" aria-label="Maximum reps for the estimate">${[5, 8, 12].map((n) => `<button data-maxreps="${n}" aria-pressed="${pg.maxReps === n}">${n} reps</button>`).join('')}</div></div>
       <label class="field"><span>Meet date (projection)</span><input id="meet-date" type="date" value="${esc(meetDate || '')}"></label>
       <div class="field"><span>IPF GL category</span><div class="seg" role="group" aria-label="IPF GL category">${[['male', 'Men'], ['female', 'Women'], ['', 'Not set']].map(([v, t]) => `<button data-sex="${v}" aria-pressed="${(sex || '') === v}">${t}</button>`).join('')}</div></div>
@@ -199,6 +210,12 @@ export function progressView(app, ui) {
 
   function bind(root, rerender) {
     bindCharts(root);
+    bindShareBg(root, app);
+    root.querySelectorAll('[data-share-lift]').forEach((b) => b.addEventListener('click', () => {
+      const d = shareData[b.dataset.shareLift];
+      if (!d?.points.length) { toast('No sessions in this range to share'); return; }
+      shareLiftImage({ ...d, bg: app.settings.shareBg }).catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); });
+    }));
     root.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => { pg.range = b.dataset.range; rerender(); }));
     root.querySelectorAll('[data-variants]').forEach((b) => b.addEventListener('click', () => { pg.variants = b.dataset.variants === '1'; rerender(); }));
     root.querySelectorAll('[data-maxreps]').forEach((b) => b.addEventListener('click', () => { pg.maxReps = Number(b.dataset.maxreps); rerender(); }));
