@@ -1,14 +1,14 @@
 // Application state: loads storage, owns settings/programme/logs, and derives set events, PRs and dates.
 import { openStore, requestPersistence, uuid } from '../store/db.js';
 import { buildBackup, validateBackup } from '../store/backup.js';
-import { isStrictDate, sanitizeProgramme, sanitizeSettings } from '../store/programme-schema.js';
+import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities } from '../store/programme-schema.js';
 import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
 import { nextSession, plannedValues } from '../core/session.js';
 import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
-import { sessionCalories, weightOn } from '../core/calories.js';
+import { sessionCalories, weightOn, restingKcal, dayEnergy } from '../core/calories.js';
 import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
 
@@ -27,7 +27,7 @@ export async function createApp() {
   const persisted = await requestPersistence();
   const app = {
     store, catalogue, platesData, persisted,
-    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [],
+    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [], activities: [],
     listeners: new Set(), cache: new Map(), dataRevision: 0,
   };
   const byId = new Map(catalogue.exercises.map((e) => [e.id, e]));
@@ -66,12 +66,12 @@ export async function createApp() {
   app.clearDraft = (kind) => enqueue(async () => { const key = draftKey(kind); await store.delete('meta', key); drafts.delete(key); });
 
   async function load() {
-    const [settings, programme, sessions, sets, bodyweights, setDraft, coachDraft] = await Promise.all([
-      store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'),
+    const [settings, programme, sessions, sets, bodyweights, activities, setDraft, coachDraft] = await Promise.all([
+      store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'),
       ...draftKeys.map((key) => store.get('meta', key)),
     ]);
     app.settings = sanitizeSettings(settings?.value);
-    app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights;
+    app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights; app.activities = sanitizeActivities(activities?.value);
     const clean = sanitizeProgramme(programme?.value);
     if (clean) { app.programme = clean; app.usingExample = !!clean.isExample; }
     else { app.programme = buildExampleProgramme(); app.usingExample = true; }
@@ -251,12 +251,26 @@ export async function createApp() {
     return pts.sort((a, c) => (a.x < c.x ? -1 : 1));
   });
 
-  /** Estimated calories for a logged session (src/core/calories.js), or null without set times or a bodyweight. */
-  app.sessionCalories = (session) => {
+  /** The body details the calorie estimates use, for a date. */
+  const bodyOn = (date) => {
     const s = app.settings;
-    return sessionCalories({ date: session.date, sets: app.sets.filter((x) => x.sessionId === session.id), weightKg: weightOn(app.bodyweightPoints(), session.date),
-      heightCm: s.heightCm, age: s.birthYear ? Number(session.date.slice(0, 4)) - s.birthYear : null, sex: s.sex, bodyFatPct: s.bodyFatPct });
+    return { weightKg: weightOn(app.bodyweightPoints(), date), heightCm: s.heightCm, age: s.birthYear ? Number(date.slice(0, 4)) - s.birthYear : null, sex: s.sex, bodyFatPct: s.bodyFatPct };
   };
+  /** Estimated calories for a logged session (src/core/calories.js), or null without set times or a bodyweight. */
+  app.sessionCalories = (session) => sessionCalories({ date: session.date, sets: app.sets.filter((x) => x.sessionId === session.id), ...bodyOn(session.date) });
+  /** A day's estimated energy: sleep, lifting, logged cardio and work, everyday movement and digestion. */
+  app.dayEnergy = (date) => {
+    const body = bodyOn(date);
+    return dayEnergy({ weightKg: body.weightKg, restKcal: restingKcal(body), sleepHours: app.settings.sleepHours,
+      lifting: app.sessions.filter((s) => s.date === date).map(app.sessionCalories).filter(Boolean), activities: app.activities.filter((a) => a.date === date) });
+  };
+  const saveActivities = async (next) => { await store.put('meta', { key: 'activities', value: next }); app.activities = next; dataChanged(false); };
+  app.addActivity = (date, kind, minutes) => enqueue(async () => {
+    const [clean] = sanitizeActivities([{ id: uuid(), date, kind, minutes, createdAt: new Date().toISOString() }]);
+    if (!clean) throw new RangeError('Choose an activity and a time between 1 minute and 24 hours.');
+    await saveActivities([...app.activities, clean]);
+  });
+  app.deleteActivity = (id) => enqueue(() => saveActivities(app.activities.filter((a) => a.id !== id)));
 
   // ---- logging ----
   app.logAsPlanned = ({ programmeRef, plannedRef, date }) => enqueue(async () => {

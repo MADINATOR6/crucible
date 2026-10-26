@@ -573,3 +573,27 @@ table.load .swatch { margin-right: 4px; }
 /* Share image: background picker beside the button */
 .share-row { display: flex; gap: var(--s-2); align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .share-row select { width: auto; min-height: var(--tap); padding: 4px 10px; font-size: var(--t-sm); }
+/* Progress tabs and Body & energy (views/body.js) */
+.view-tabs { display: flex; width: 100%; }
+.view-tabs button { flex: 1; }
+.energy-date { width: auto; min-height: 38px; padding: 4px 10px; font-size: var(--t-sm); }
+.energy-hero { display: grid; gap: 2px; margin-bottom: var(--s-3); }
+.energy-hero .figure { font-family: var(--font-display); font-size: clamp(34px, 10vw, 48px); line-height: 1; color: var(--text); }
+.energy-hero .figure small { font-size: .4em; margin-left: 6px; color: var(--muted); }
+.list.energy { display: grid; gap: 6px; }
+.energy-row .main { display: grid; gap: 5px; white-space: normal; }
+.energy-row .ebar { display: block; overflow: visible; }
+.energy-row .ebar rect { fill: var(--accent); opacity: .85; }
+.energy-row .btn.small { min-height: 34px; padding: 0 10px; }
+.act-form { display: grid; gap: var(--s-2); }
+.act-time { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--s-2); align-items: end; }
+.wk-chart { display: block; width: 100%; height: auto; }
+.wk-bar { cursor: pointer; outline: none; }
+.wk-fill { fill: var(--accent); opacity: .4; transition: opacity .15s; }
+.wk-bar.is-on .wk-fill, .wk-bar:hover .wk-fill, .wk-bar:focus-visible .wk-fill { opacity: 1; }
+.wk-val { fill: var(--text); font-size: 11px; font-weight: 650; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.wk-day { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+.wk-bar.is-on .wk-day { fill: var(--accent); font-weight: 700; }
+.details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2) var(--s-3); }
+@media (min-width: 700px) { .details-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.train-kcal a { color: inherit; }

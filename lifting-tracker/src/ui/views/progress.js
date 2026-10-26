@@ -1,6 +1,7 @@
-// Progress view: one chart per competition lift (RPE-aware estimated max, light days faded, smoothed trend, kg per
-// week, block bands, PR stars, projection to meet day), the total with IPF GL points, weekly training load,
-// "same weight, lower RPE" signals, PRs, planned vs actual RPE, per-block bests and bodyweight.
+// Progress view, two tabs. Strength: one chart per competition lift (RPE-aware estimated max, light days faded,
+// smoothed trend, kg per week, block bands, PR stars, projection to meet day), the total with IPF GL points, weekly
+// training load, "same weight, lower RPE" signals, PRs, planned vs actual RPE and per-block bests. Body & energy:
+// views/body.js.
 import { workingSets, fromProgrammeSets } from '../../core/sets.js';
 import { rpeDeltas } from '../../core/rpe.js';
 import { sessionPoints, trend, smoothLine, weeksSinceBest, valueAt, ipfGl, weeklyLoad, rpeAtLoad, setE1rm, dayNum, isoOf } from '../../core/progress.js';
@@ -11,6 +12,7 @@ import { prLabel } from './train.js';
 import { coachReview } from '../../core/coach.js';
 import { shareBgPicker, bindShareBg, saveButton } from '../share-image.js';
 import { shareLiftImage } from '../share-progress.js';
+import { bodyView } from './body.js';
 
 const LIFTS = ['squat', 'bench', 'deadlift'];
 const NAMES = { squat: 'Squat', bench: 'Bench', deadlift: 'Deadlift' };
@@ -33,10 +35,17 @@ function lineAt(line, iso) {
 export function progressView(app, ui) {
   const unit = app.settings.unit;
   const toU = (kg) => round1(convert(kg, 'kg', unit));
-  const pg = (ui.progress ||= { maxReps: 12, variants: true, range: '6m' });
-  pg.range ||= '6m';
+  const pg = (ui.progress ||= {});
+  pg.maxReps ??= 12; pg.variants ??= true; pg.range ||= '6m'; pg.tab ||= 'strength';
   const { meetDate, sex } = app.settings;
   const today = todayIso();
+  const tabs = `<div class="seg view-tabs mb-3" role="group" aria-label="Progress section">${[['strength', 'Strength'], ['body', 'Body & energy']].map(([k, t]) => `<button data-view-tab="${k}" aria-pressed="${pg.tab === k}">${t}</button>`).join('')}</div>`;
+  const bindTabs = (root, rerender) => root.querySelectorAll('[data-view-tab]').forEach((b) => b.addEventListener('click', () => { pg.tab = b.dataset.viewTab; rerender(); window.scrollTo(0, 0); }));
+  const header = (sub) => `<div class="topbar"><div><h1>Progress</h1><p class="muted small">${sub}</p></div>${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>${tabs}`;
+  if (pg.tab === 'body') {
+    const body = bodyView(app, ui);
+    return { html: header('Bodyweight and the energy you use, day by day. Estimates from published equations.') + body.html, bind(root, rerender) { bindTabs(root, rerender); body.bind(root, rerender); } };
+  }
 
   // Working sets per lift. With variants on, high bar, paused, tempo and similar versions count towards the lift.
   const sets = { squat: [], bench: [], deadlift: [] };
@@ -157,7 +166,6 @@ export function progressView(app, ui) {
   const signals = lifts.flatMap((l) => rpeAtLoad(sets[l.lift]).filter((s) => s.drop > 0).slice(0, 3).map((s) => ({ ...s, lift: l.lift }))).sort((a, b) => b.drop - a.drop).slice(0, 5);
 
   const prs = app.prs().slice().reverse().slice(0, 12);
-  const bwSeries = bw.length ? [{ id: 'bw', label: 'Weigh-ins', kind: 'dots', faint: true, points: bw.map((p) => ({ x: p.x, y: toU(p.y) })) }, { id: 'bw', label: '7-day average', kind: 'line', points: movingAverage(bw, 7).map((p) => ({ x: p.x, y: toU(p.y) })) }] : [];
   const rpe = rpeDeltas(app.programme);
   const rpeRows = Object.entries(rpe.perExercise).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.sets - a.sets).slice(0, 12);
   const allDeltas = rpe.perSet.map((s) => s.delta);
@@ -171,7 +179,7 @@ export function progressView(app, ui) {
   const datesEst = app.usingExample || !(app.programme?.blocks || []).length ? '' : 'Programme dates are estimates until you set a start date in Data.';
 
   const html = `
-    <div class="topbar"><div><h1>Progress</h1><p class="muted small">Estimated max from each session's best set, using the RPE chart when the set has an RPE. Faded dots are light days, left out of the trend.</p></div>${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>
+    ${header("Estimated max from each session's best set, using the RPE chart when the set has an RPE. Faded dots are light days, left out of the trend.")}
     <div class="seg mb-3" role="group" aria-label="Time range">${Object.keys(RANGES).map((k) => `<button data-range="${k}" aria-pressed="${pg.range === k}">${RANGE_LABEL[k]}</button>`).join('')}</div>
     <div class="stats3">${lifts.map(tile).join('')}</div>
     <details class="options mb-4"><summary>Options · ${pg.variants ? 'with variants' : 'competition only'} · up to ${pg.maxReps} reps${meetDate ? ' · meet ' + shortDate(meetDate) : ''}</summary><div class="options-body">
@@ -179,7 +187,6 @@ export function progressView(app, ui) {
       <div class="field"><span>Share image background</span>${shareBgPicker(app.settings.shareBg)}</div>
       <div class="field"><span>Estimate from sets of up to</span><div class="seg" role="group" aria-label="Maximum reps for the estimate">${[5, 8, 12].map((n) => `<button data-maxreps="${n}" aria-pressed="${pg.maxReps === n}">${n} reps</button>`).join('')}</div></div>
       <label class="field"><span>Meet date (projection)</span><input id="meet-date" type="date" value="${esc(meetDate || '')}"></label>
-      <div class="field"><span>IPF GL category</span><div class="seg" role="group" aria-label="IPF GL category">${[['male', 'Men'], ['female', 'Women'], ['', 'Not set']].map(([v, t]) => `<button data-sex="${v}" aria-pressed="${(sex || '') === v}">${t}</button>`).join('')}</div></div>
     </div></details>
     ${coachSummary(app, unit)}
     ${lifts.map(liftCard).join('')}
@@ -187,7 +194,7 @@ export function progressView(app, ui) {
     <div class="card"><div class="card-h"><h2>Total</h2><span class="muted small">${totalNow != null ? 'now ' + formatWeight({ value: totalNow, unit: 'kg' }, unit) : ''}</span></div>
       ${totalLine.length ? lineChart({ series: [{ id: 'total', label: '', kind: 'line', area: true, points: totalLine.map((p) => ({ x: p.x, y: toU(p.y) })), range: totalProj ? [{ x: totalLine.at(-1).x, lo: toU(totalLine.at(-1).y), hi: toU(totalLine.at(-1).y) }, { x: meetAhead, lo: toU(totalProj.lo), hi: toU(totalProj.hi) }] : undefined }], unit, height: 170, domain, bands, markers: meetMarker, tips: totalTips, title: 'Squat plus bench plus deadlift at current form' }) : '<p class="muted">The total appears once squat, bench and deadlift all have hard sessions.</p>'}
       <div class="stat-row mt-3">
-        <div><span class="muted small">IPF GL points</span><b>${gl != null ? round1(gl) : '–'}</b><small class="muted">${gl != null ? `at ${toU(bwAvg)} ${unit} bodyweight` : !sex ? 'set your category in Options' : 'needs a bodyweight'}</small></div>
+        <div><span class="muted small">IPF GL points</span><b>${gl != null ? round1(gl) : '–'}</b><small class="muted">${gl != null ? `at ${toU(bwAvg)} ${unit} bodyweight` : !sex ? 'set your sex in Body &amp; energy' : 'needs a bodyweight'}</small></div>
         ${totalProj ? `<div><span class="muted small">Meet day total</span><b>${toU(totalProj.lo)}–${toU(totalProj.hi)}</b><small class="muted">${unit}, likely range${bwAvg && sex ? ` · GL ${round1(ipfGl(totalProj.mid, bwAvg, sex))}` : ''}</small></div>` : ''}
       </div></div>
     <div class="card mt-4"><div class="card-h"><h2>Training load</h2><span class="muted small">working sets · average % of form</span></div>
@@ -202,15 +209,11 @@ export function progressView(app, ui) {
     </div>
     <div class="card mt-4"><div class="card-h"><h2>By block</h2><span class="muted small">from the coach's workbook</span></div>
       ${blockRows.length ? `<div class="scroll-x"><table class="plain"><thead><tr><th>Block</th><th>Weeks</th><th>Sets</th><th>Squat</th><th>Bench</th><th>Deadlift</th></tr></thead><tbody>${blockRows.map((r) => `<tr><td><b>${r.b.number}</b> ${esc(r.b.name)}</td><td>${r.weeks}</td><td>${r.sets}</td>${LIFTS.map((l) => `<td>${r.best[l] != null ? toU(r.best[l]) : '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="small muted mt-2">Best estimated max in ${unit} for each block's competition lifts.</p>` : '<p class="muted">No blocks yet.</p>'}</div>
-    <div class="card mt-4"><div class="card-h"><h2>Bodyweight</h2><span class="muted small">${bw.length ? bw.length + ' entries' : ''}</span></div>
-      ${bwSeries.length ? lineChart({ series: bwSeries, unit, height: 160, tips: bw.map((p) => ({ x: p.x, lines: [longDate(p.x), `${toU(p.y)} ${unit}${p.estimated ? ' (estimated date)' : ''}`] })), title: 'Bodyweight weigh-ins and their 7-day average' }) : '<p class="muted">No bodyweight yet.</p>'}
-      <form id="bwform" class="row end mt-3"><label class="field grow"><span>Weight (${unit})</span><input name="w" type="number" step="0.1" min="20" inputmode="decimal" required></label>
-        <label class="field grow"><span>Date</span><input name="d" type="date" value="${today}" required></label><button class="btn primary" type="submit">Add</button></form>
-      ${datesEst && bw.some((p) => p.estimated) ? '<p class="small muted mt-2">Points from the workbook use estimated dates.</p>' : ''}</div>
-    ${caloriesCard(app)}`;
+`;
 
   function bind(root, rerender) {
     bindCharts(root);
+    bindTabs(root, rerender);
     bindShareBg(root, app);
     root.querySelectorAll('[data-share-lift]').forEach((b) => b.addEventListener('click', () => {
       const d = shareData[b.dataset.shareLift];
@@ -220,40 +223,9 @@ export function progressView(app, ui) {
     root.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => { pg.range = b.dataset.range; rerender(); }));
     root.querySelectorAll('[data-variants]').forEach((b) => b.addEventListener('click', () => { pg.variants = b.dataset.variants === '1'; rerender(); }));
     root.querySelectorAll('[data-maxreps]').forEach((b) => b.addEventListener('click', () => { pg.maxReps = Number(b.dataset.maxreps); rerender(); }));
-    root.querySelectorAll('[data-sex]').forEach((b) => b.addEventListener('click', () => app.saveSettings({ sex: b.dataset.sex || null })));
-    root.querySelectorAll('[data-body]').forEach((inp) => inp.addEventListener('change', () => {
-      const v = inp.value === '' ? null : Number(inp.value);
-      app.saveSettings({ [inp.dataset.body]: inp.dataset.body === 'birthYear' && v != null ? Math.round(v) : v });
-    }));
     root.querySelector('#meet-date')?.addEventListener('change', (e) => app.saveSettings({ meetDate: e.target.value || null }));
-    root.querySelector('#bwform')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = new FormData(e.target); const w = parseFloat(f.get('w'));
-      if (!(w > 20 && w < 500)) { toast('Enter a realistic bodyweight'); return; }
-      await app.addBodyweight(String(f.get('d')), { value: w, unit });
-      toast('Bodyweight added');
-    });
   }
   return { html, bind };
-}
-
-const kcal = (n) => Math.round(n / 10) * 10; // nearest 10: the estimate is not more precise than that
-const kcalRange =([lo, hi]) => `${kcal(lo)}–${kcal(hi)}`;
-
-/** Calories per session (src/core/calories.js) and the body details the resting burn needs. */
-function caloriesCard(app) {
-  const s = app.settings, today = todayIso();
-  const rows = app.sessions.filter((x) => x.date <= today).sort((a, b) => (a.date < b.date ? 1 : -1))
-    .map((x) => ({ date: x.date, c: app.sessionCalories(x) })).filter((r) => r.c).slice(0, 10);
-  const haveActive = rows.some((r) => r.c.active);
-  const method = s.bodyFatPct ? 'Resting burn from your lean mass (body fat %).' : s.heightCm && s.birthYear && s.sex ? 'Resting burn from your weight, height, age and sex.' : 'Add height, birth year and sex (or body fat %) to see active calories.';
-  const field = (key, label, attrs) => `<label class="field grow"><span>${label}</span><input data-body="${key}" type="number" inputmode="decimal" ${attrs} value="${s[key] ?? ''}"></label>`;
-  return `<div class="card mt-4"><div class="card-h"><h2>Calories per session</h2><span class="muted small">estimate</span></div>
-    ${rows.length ? `<div class="scroll-x"><table class="plain"><thead><tr><th>Date</th><th>Time</th><th>Total kcal</th>${haveActive ? '<th>Active kcal</th>' : ''}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(shortDate(r.date))}</td><td>${Math.round(r.c.minutes)} min</td><td>${kcalRange(r.c.total)}</td>${haveActive ? `<td>${r.c.active ? kcalRange(r.c.active) : '–'}</td>` : ''}</tr>`).join('')}</tbody></table></div>`
-    : '<p class="muted">Appears after a session logged live (at least two sets on the day) with a bodyweight entered above.</p>'}
-    <p class="small muted mt-2">Total = effort (2024 Compendium of Physical Activities: 3.5–6 METs for lifting, banded by your RPE) × bodyweight × time between logged sets. Active = total minus your resting burn (ten Haaf equation for athletes). ${esc(method)} Without heart rate, expect about ±30%.</p>
-    <div class="row mt-3">${field('heightCm', 'Height (cm)', 'min="100" max="250" step="0.5"')}${field('birthYear', 'Birth year', 'min="1900" max="2100" step="1"')}${field('bodyFatPct', 'Body fat % (optional)', 'min="3" max="60" step="0.5"')}</div>
-    <div class="field mt-2"><span>Sex (also the IPF GL category)</span><div class="seg" role="group" aria-label="Sex for resting burn">${[['male', 'Male'], ['female', 'Female'], ['', 'Not set']].map(([v, t]) => `<button data-sex="${v}" aria-pressed="${(s.sex || '') === v}">${t}</button>`).join('')}</div></div></div>`;
 }
 
 function coachSummary(app, unit) {

@@ -207,7 +207,7 @@ export function dataView(app, ui) {
         const old = counts(app.programme), incoming = counts(incomingProgramme);
         const details = `<p class="muted small">${esc(file.name)} passed backup validation. Applying replaces all local app data.</p>
           <p><b>Planned programme:</b> ${old.blocks} blocks and ${old.sets} planned sets → ${incoming.blocks} blocks and ${incoming.sets} planned sets${incomingProgramme ? '' : ' (example programme will be shown)'}.</p>
-          <p><b>Logged sets:</b> ${app.sets.length} current → ${validation.counts.sets} in backup. <b>Sessions:</b> ${app.sessions.length} → ${validation.counts.sessions}. <b>Bodyweights:</b> ${app.bodyweights.length} → ${validation.counts.bodyweights}.</p>
+          <p><b>Logged sets:</b> ${app.sets.length} current → ${validation.counts.sets} in backup. <b>Sessions:</b> ${app.sessions.length} → ${validation.counts.sessions}. <b>Bodyweights:</b> ${app.bodyweights.length} → ${validation.counts.bodyweights}. <b>Cardio and work:</b> ${app.activities.length} → ${validation.counts.activities}.</p>
           <p><b>Settings:</b> replaced with the backup settings, or reset to defaults if absent. No current logged records are kept.</p>
           <p><b>Warnings:</b> none from validation.</p>`;
         openReview(app, ui, { title: 'Restore backup?', details, source,

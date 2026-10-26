@@ -1,7 +1,7 @@
 // JSON backup/restore and CSV export. Restore validates and sanitises everything first and applies in one
 // transaction, so a bad or hostile file never leaves the database half-written or the app unable to start.
 import { SCHEMA_VERSION } from './db.js';
-import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings } from './programme-schema.js';
+import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities } from './programme-schema.js';
 
 const APP = 'lifting-tracker';
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
@@ -16,12 +16,12 @@ export function backupReminder({ lastBackupAt, backupSnoozeUntil, loggedDates, t
 }
 
 export async function buildBackup(store) {
-  const [settings, programme, sessions, sets, bodyweights] = await Promise.all([
-    store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'),
+  const [settings, programme, sessions, sets, bodyweights, activities] = await Promise.all([
+    store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'),
   ]);
   return {
     app: APP, schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(),
-    settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights,
+    settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights, activities: activities?.value ?? [],
   };
 }
 
@@ -104,13 +104,17 @@ export function validateBackup(text) {
     if (!programme) errors.push('programme is malformed.');
   }
   if (json.settings != null && !isObj(json.settings)) errors.push('settings is malformed.');
+  // Cardio/work entries arrived after schema 1 backups, so they are optional; a present list must be well formed.
+  if (json.activities != null && (!Array.isArray(json.activities) || json.activities.length > MAX_RECORDS)) errors.push('"activities" must be a list.');
+  const activities = sanitizeActivities(json.activities);
+  if (Array.isArray(json.activities) && activities.length !== json.activities.length) errors.push(`${json.activities.length - activities.length} activity entries are malformed.`);
   if (errors.length) return { ok: false, errors: errors.slice(0, 20).concat(errors.length > 20 ? [`…and ${errors.length - 20} more.`] : []) };
   const settings = json.settings ? sanitizeSettings(json.settings) : null;
   const snapshot = {
-    meta: [...(settings ? [{ key: 'settings', value: settings }] : []), ...(programme ? [{ key: 'programme', value: programme }] : [])],
+    meta: [...(settings ? [{ key: 'settings', value: settings }] : []), ...(programme ? [{ key: 'programme', value: programme }] : []), ...(activities.length ? [{ key: 'activities', value: activities }] : [])],
     sessions, sets, bodyweights,
   };
-  return { ok: true, snapshot, counts: { sessions: sessions.length, sets: sets.length, bodyweights: bodyweights.length, hasProgramme: !!programme } };
+  return { ok: true, snapshot, counts: { sessions: sessions.length, sets: sets.length, bodyweights: bodyweights.length, activities: activities.length, hasProgramme: !!programme } };
 }
 
 const csvCell = (v) => {

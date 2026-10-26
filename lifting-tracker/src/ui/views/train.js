@@ -151,7 +151,7 @@ export function trainView(app, ui) {
     ${draft ? `<div class="banner mb-4" role="status"><span><b>UNSAVED set inputs</b> · ${draft.stale ? 'This draft no longer matches the programme or set.' : 'Ready to resume; nothing was logged.'}</span><div class="actions">${draft.stale ? '' : '<button class="btn small primary" id="resume-draft">Resume</button>'}<button class="btn small ghost" id="discard-draft">Discard</button></div></div>` : ''}
     ${day ? `<label class="field train-session-date"><span>Actual session date</span><input id="session-date" type="date" value="${esc(ui.train.actualDate)}"><small id="session-date-status" class="muted">${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${esc(shortDate(est))}` : ''}</small></label>
     <div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>
-    ${cal ? `<p class="small muted mb-4 train-kcal">${Math.round(cal.minutes)} min · about ${kcal(cal.total[0])}–${kcal(cal.total[1])} kcal${cal.active ? ` (${kcal(cal.active[0])}–${kcal(cal.active[1])} active)` : ''} · <a href="#progress">estimate</a></p>` : ''}` : ''}`;
+    ${cal ? `<p class="small muted mb-4 train-kcal">${Math.round(cal.minutes)} min · about ${kcal(cal.total[0])}–${kcal(cal.total[1])} kcal${cal.active ? ` (${kcal(cal.active[0])}–${kcal(cal.active[1])} active)` : ''} · <a href="#progress" data-to-body>details</a></p>` : ''}` : ''}`;
 
   const focus = current ? `<section class="card train-focus" aria-label="Current set">
     <span class="eyebrow train-focus-kicker">Current set · ${prog.total - prog.done} remaining</span>
@@ -201,6 +201,7 @@ export function trainView(app, ui) {
     root.querySelector('#backup-now')?.addEventListener('click', (e) => guarded(e.currentTarget, () => saveBackup(app, true)));
     root.querySelector('#backup-later')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.saveSettings({ backupSnoozeUntil: addDays(todayIso(), 3) })));
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
+    root.querySelector('[data-to-body]')?.addEventListener('click', () => { (ui.progress ||= {}).tab = 'body'; ui.body = { date: ui.train.actualDate }; });
     root.querySelector('#pick')?.addEventListener('click', () => openDayPicker(app, ui, blocks, rerender));
     root.querySelector('#resume-draft')?.addEventListener('click', () => {
       if (draft.kind === 'quick') { openQuickLog(app, draft.fields); return; }

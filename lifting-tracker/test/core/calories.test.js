@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { metRange, restingKcal, sessionMinutes, sessionCalories, weightOn } from '../../src/core/calories.js';
+import { metRange, restingKcal, sessionMinutes, sessionCalories, weightOn, dayEnergy, ACTIVITIES } from '../../src/core/calories.js';
 
 const at = (min, day = 26) => new Date(2026, 9, day, 10, min).toISOString(); // local 10:00 on a synthetic date
 const sets = (mins, rpe = 8, day = 26) => mins.map((m) => ({ createdAt: at(m, day), rpe, isWarmup: false }));
@@ -24,6 +24,7 @@ test('session time is the gaps between logged sets plus one typical gap, long pa
   assert.equal(sessionMinutes([at(0), at(10), at(20), at(30), at(40), at(50)]), 60);
   assert.equal(sessionMinutes([at(0), at(5), at(125)]), 5 + 15 + 15);
   assert.equal(sessionMinutes([at(0)]), null);
+  assert.equal(sessionMinutes([at(0), at(1), at(2)]), null, 'under 5 minutes: typed in afterwards, not timed live');
 });
 
 test('session calories: total from MET × weight × time, active subtracts the resting burn', () => {
@@ -39,6 +40,23 @@ test('no estimate for a backfilled workout, a single set or an unknown bodyweigh
   assert.equal(sessionCalories({ date: '2026-10-20', sets: sets([0, 10, 20]), weightKg: 85 }), null);
   assert.equal(sessionCalories({ date: '2026-10-26', sets: sets([0]), weightKg: 85 }), null);
   assert.equal(sessionCalories({ date: '2026-10-26', sets: sets([0, 10]), weightKg: null }), null);
+});
+
+test('a day adds sleep, logged activities, everyday movement for the rest of the waking day, and digestion', () => {
+  const d = dayEnergy({ weightKg: 80, restKcal: 2000, sleepHours: 8, lifting: [{ minutes: 60, total: [420, 504] }], activities: [{ id: 'a', kind: 'shift', minutes: 480 }] });
+  near(d.sleep.kcal, 2000 / 3); // 8 h at resting burn
+  near(d.parts[1].kcal[0], 480 * 3.3 * 1.4); // shift: MET × 3.5 × 80 kg ÷ 200 per minute
+  assert.equal(d.everyday.minutes, 1440 - 480 - 60 - 480);
+  near(d.everyday.kcal, 420 * 1.5 * 1.4);
+  near(d.total[0], (2000 / 3 + 882 + 420 + 2217.6) / 0.9);
+  near(d.total[1] - d.total[0], 84 / 0.9, 'the range comes from the lifting MET band');
+  near(d.digestion[0], d.total[0] * 0.1);
+  assert.equal(dayEnergy({ weightKg: 80, restKcal: null }), null, 'needs a resting burn');
+  assert.equal(dayEnergy({ weightKg: 80, restKcal: 2000, activities: [{ kind: 'unknown', minutes: 30 }] }).parts.length, 0);
+});
+
+test('every activity is a Compendium code with a MET', () => {
+  for (const [k, a] of Object.entries(ACTIVITIES)) assert.ok(/^\d{5}$/.test(a.code) && a.met > 1 && ['Walk & run', 'Gym cardio', 'Outdoors & sports', 'Work'].includes(a.group), k);
 });
 
 test('bodyweight on a date is the latest weigh-in up to it, else the first after', () => {

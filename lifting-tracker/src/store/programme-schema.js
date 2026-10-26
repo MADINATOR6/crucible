@@ -2,6 +2,7 @@
 // or anything read back from storage. It rebuilds the programme and settings from known fields only, coerces
 // every value to its expected type (numbers stay finite numbers, text stays capped text) and drops what does
 // not fit. The views rely on this: a restored file can never smuggle markup or a thrown error into them.
+import { ACTIVITIES } from '../core/calories.js';
 
 const LIMITS = { blocks: 100, weeks: 200, days: 14, entries: 120, sets: 120, cues: 20, items: 500 };
 const TEXT_MAX = 2000;
@@ -135,8 +136,16 @@ export const DEFAULT_SETTINGS = Object.freeze({
   meetDate: null, sex: null, // optional: projection to meet day, and the IPF GL category (male/female)
   shareBg: 'transparent', weeklySummary: false, // share-image background; weekly summary notification (Android)
   shareBarEnd: 'right', // which way the bar's loaded end points in the bar share image
-  heightCm: null, birthYear: null, bodyFatPct: null, // optional: resting burn for the session calorie estimate (with sex)
+  heightCm: null, birthYear: null, bodyFatPct: null, sleepHours: 8, // optional: resting burn and daily energy (with sex)
 });
+
+/** Cardio and work entries for the daily energy estimate; unknown kinds and malformed rows are dropped. */
+export function sanitizeActivities(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 20000).filter((a) => isObj(a) && typeof a.id === 'string' && a.id && a.id.length <= 100 && isStrictDate(a.date)
+    && Object.hasOwn(ACTIVITIES, a.kind) && Number.isFinite(a.minutes) && a.minutes > 0 && a.minutes <= 1440)
+    .map((a) => ({ id: a.id, date: a.date, kind: a.kind, minutes: a.minutes, createdAt: String(a.createdAt ?? '') }));
+}
 
 /** Whitelist and coerce settings (never trust stored or restored values). */
 export function sanitizeSettings(s) {
@@ -150,6 +159,7 @@ export function sanitizeSettings(s) {
   if (num(s.heightCm) !== null && s.heightCm >= 100 && s.heightCm <= 250) out.heightCm = s.heightCm;
   if (Number.isInteger(s.birthYear) && s.birthYear >= 1900 && s.birthYear <= 2100) out.birthYear = s.birthYear;
   if (num(s.bodyFatPct) !== null && s.bodyFatPct >= 3 && s.bodyFatPct <= 60) out.bodyFatPct = s.bodyFatPct;
+  if (num(s.sleepHours) !== null && s.sleepHours >= 3 && s.sleepHours <= 14) out.sleepHours = s.sleepHours;
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;
   if (['system', 'dark', 'light'].includes(s.theme)) out.theme = s.theme;
   out.collar = s.collar !== false;

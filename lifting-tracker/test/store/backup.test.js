@@ -71,8 +71,19 @@ const good = () => ({
 test('a valid backup passes and yields a store snapshot with counts', () => {
   const r = validateBackup(JSON.stringify(good()));
   assert.equal(r.ok, true);
-  assert.deepEqual(r.counts, { sessions: 1, sets: 1, bodyweights: 1, hasProgramme: false });
+  assert.deepEqual(r.counts, { sessions: 1, sets: 1, bodyweights: 1, activities: 0, hasProgramme: false });
   assert.equal(r.snapshot.meta[0].key, 'settings');
+});
+
+test('cardio and work entries restore with the backup; a malformed entry rejects the file', () => {
+  const b = good(); b.activities = [{ id: 'c1', date: '2026-10-01', kind: 'shift', minutes: 480, createdAt: 'x' }];
+  const r = validateBackup(JSON.stringify(b));
+  assert.equal(r.ok, true); assert.equal(r.counts.activities, 1);
+  assert.deepEqual(r.snapshot.meta.find((m) => m.key === 'activities').value, b.activities);
+  b.activities.push({ id: 'c2', date: '2026-10-01', kind: 'teleport', minutes: 30 });
+  const bad = validateBackup(JSON.stringify(b));
+  assert.equal(bad.ok, false); assert.match(bad.errors.join(' '), /1 activity entries are malformed/);
+  b.activities = 'lots'; assert.equal(validateBackup(JSON.stringify(b)).ok, false);
 });
 
 test('rejects non-JSON, foreign files and newer schemas without throwing', () => {
