@@ -6,7 +6,7 @@ import { progressView } from './views/progress.js';
 import { platesView } from './views/plates.js';
 import { dataView } from './views/data.js';
 import { planView } from './views/plan.js';
-import { esc, toast, download, todayIso } from './dom.js';
+import { esc, toast, download, todayIso, captureView, restoreView } from './dom.js';
 import { openStore } from '../store/db.js';
 import { buildBackup } from '../store/backup.js';
 import { keepSummaryFresh } from './summary.js';
@@ -63,11 +63,13 @@ async function main() {
     document.title = `${label} · Lifting Tracker`;
     document.querySelectorAll('[data-tab]').forEach((a) => (a.dataset.tab === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
     const y = window.scrollY;
+    const savedView = keepScroll ? captureView(view) : null;
     let out;
     try { out = fn(app, ui); } catch (err) { console.error(err); out = { html: `<div class="card"><h2>Something went wrong</h2><p class="muted">${esc(err.message || err)}</p></div>${emergencyHtml()}`, bind: bindEmergency }; }
     const storageWarning = app.store.persistent ? '' : '<div class="banner" role="alert" style="margin-bottom:14px"><span><b>Storage is unavailable</b> (private window or blocked site data). Anything you log will be lost when you close this tab. Use a normal window and export backups.</span></div>';
     view.innerHTML = storageWarning + out.html;
     try { out.bind(view, () => render()); } catch (err) { console.error(err); }
+    restoreView(view, savedView);
     if (keepScroll) window.scrollTo(0, y);
   }
   window.addEventListener('hashchange', () => { render({ keepScroll: false }); window.scrollTo(0, 0); });

@@ -30,7 +30,7 @@ test('Train focuses the first unfinished set with its prescription and next cont
   assert.match(html, /Squat · Set 1/);
   assert.match(html, /100 kg × 3 reps<small>RPE 8<\/small>/);
   assert.match(html, /Next: Squat, set 2/);
-  assert.match(html, /<details class="train-overview" >/);
+  assert.match(html, /<details class="train-overview"[^>]*>/);
   assert.equal((html.match(/data-focus-log="0:0"/g) || []).length, 2, 'card and sticky action use the same set');
   assert.match(html, /id="pick"/);
   assert.match(html, /id="quick"/);
@@ -58,7 +58,7 @@ test('Train reports complete and empty sessions without a logging action', () =>
     const { html } = trainView(app, ui);
     assert.match(html, new RegExp(expected));
     assert.doesNotMatch(html, /data-focus-log=/);
-    assert.match(html, /<details class="train-overview" open>/);
+    assert.match(html, /<details class="train-overview"[^>]* open>/);
   }
 });
 

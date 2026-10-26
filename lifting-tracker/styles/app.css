@@ -248,7 +248,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); z-index: 40; display: flex; align-items: flex-end; justify-content: center; animation: fade .15s ease; }
 .sheet { width: min(100%, 560px); max-height: 92dvh; overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 22px 22px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); animation: rise .2s cubic-bezier(.2,.8,.2,1); }
 @media (min-width: 720px) { .sheet-backdrop { align-items: center; } .sheet { border-radius: 22px; } }
-@keyframes rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rise { from { translate: 0 24px; opacity: 0; } to { translate: none; opacity: 1; } } /* translate, not transform, so centring and swipe offsets survive */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 18px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 650; z-index: 60; box-shadow: 0 10px 30px rgba(0,0,0,.4); animation: rise .2s ease; max-width: calc(100% - 32px); }
 @media (min-width: 900px) { .toast { bottom: 24px; } }
@@ -480,6 +480,7 @@ ul.bullets li + li { margin-top: 2px; }
 .seg button::after { content: ''; position: absolute; inset: -3px -1px; }
 .btn.small::after { content: ''; position: absolute; inset: -4px 0; }
 .toast-action { min-height: var(--tap); }
+.toast, .rest-timer { touch-action: pan-y; transform: translateX(calc(-50% + var(--swipe-x, 0px))); }
 label.row:has(> input[type="checkbox"]) { flex-wrap: nowrap; align-items: center; } /* long labels wrap beside the box */
 .stepper { display: inline-flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
 .stepper b { min-width: 6.5em; text-align: center; }

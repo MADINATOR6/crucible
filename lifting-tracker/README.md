@@ -70,7 +70,7 @@ The import report in Data lists counts, warnings by type and every cell it could
 
 **Dates.** The workbook has no dates. Charts place sets using a start date you set in Data (default: the START row of the overview sheet) and assume blocks follow each other week by week. Treat those dates as estimates.
 
-Newly logged sets use the **Actual session date**, initially today. Choose a different date explicitly to backfill a workout. Editing keeps the saved date. Save, edit and remove offer Undo for the latest set change; a later data change makes an older Undo unavailable.
+Newly logged sets use the **Actual session date**, initially today. Choose a different date explicitly to backfill a workout. Editing keeps the saved date. Save, edit and remove offer Undo for the latest set change; a later data change makes an older Undo unavailable. Swipe the Undo message or rest timer left or right to dismiss it, or use its close button. Dismissing Undo keeps the saved set; dismissing the timer stops it. Saves retain your expanded workout/settings sections and position.
 
 Unsaved set inputs and Coach requests/settings are kept on this device. After reopening, choose Resume for a set, or build a fresh Coach draft from the recovered inputs. Nothing is logged or added automatically. Cancel/Discard clears the applicable inputs; replacing data clears both drafts. Drafts are excluded from JSON backups. If storage is unavailable, recovery is only temporary and the app warns you.
 

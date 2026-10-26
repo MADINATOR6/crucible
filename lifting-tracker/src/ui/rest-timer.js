@@ -1,4 +1,5 @@
 // Rest timer pill. Uses the wall clock (not a tick count) so it stays right if the screen sleeps.
+import { swipeDismiss } from './dom.js';
 let state = null;
 
 function fmt(s) { const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, '0')}`; }
@@ -10,6 +11,7 @@ function ensureEl() {
     el.id = 'rest-timer';
     el.className = 'rest-timer';
     el.setAttribute('role', 'timer');
+    swipeDismiss(el, stopRest);
     el.innerHTML = '<span class="rt-label">Rest</span><b class="rt-time" aria-live="off">0:00</b><button class="btn small" data-rt="add" aria-label="Add 30 seconds">+30s</button><button class="btn small ghost" data-rt="skip" aria-label="Dismiss rest timer">×</button>';
     el.addEventListener('click', (e) => {
       const act = e.target.closest('[data-rt]')?.dataset.rt;

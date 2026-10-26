@@ -108,11 +108,11 @@ export function dataView(app, ui) {
       <p class="muted small">Choose your .xlsx. It is read in your browser and never leaves the device. Importing replaces the programme; your logged sets are kept.</p>
       <label class="btn primary">Choose .xlsx<input id="xlsx" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="visually-hidden"></label>
       <div id="import-status" class="small mt-3" aria-live="polite"></div>
-      ${rep && !p.isExample ? `<details class="fold mt-3" open><summary>Last import report</summary>
+      ${rep && !p.isExample ? `<details class="fold mt-3" data-keep-open="import-report" open><summary>Last import report</summary>
         <div class="grid-3"><div class="stat"><b>${rep.blocks}</b><span>blocks</span></div><div class="stat"><b>${rep.weeks}</b><span>weeks</span></div><div class="stat"><b>${rep.sets}</b><span>sets (${rep.completedSets} completed)</span></div></div>
         <p class="small muted mt-2">${rep.dateRepsConverted} date-cells converted to rep ranges · ${rep.placeholders} placeholder cells ignored · ${rep.assumedKgLoads} loads assumed kg · ${rep.unparsedCells.length} cells not understood.</p>
         ${warnTypes.length ? `<table class="plain"><thead><tr><th>Warning</th><th>Count</th></tr></thead><tbody>${warnTypes.map(([k, v]) => `<tr><td><b>${esc(k)}</b><br><span class="muted small">${esc(WARNING_HELP[k] || '')}</span></td><td>${v}</td></tr>`).join('')}</tbody></table>` : ''}
-        ${rep.unparsedCells.length ? `<details class="fold"><summary>Cells not understood (${rep.unparsedCells.length})</summary><div class="warnlist"><table class="plain"><tbody>${rep.unparsedCells.slice(0, 200).map((c) => `<tr><td>${esc(c.sheet)} ${esc(c.ref)}</td><td>${esc(c.reason)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+        ${rep.unparsedCells.length ? `<details class="fold" data-keep-open="import-cells"><summary>Cells not understood (${rep.unparsedCells.length})</summary><div class="warnlist"><table class="plain"><tbody>${rep.unparsedCells.slice(0, 200).map((c) => `<tr><td>${esc(c.sheet)} ${esc(c.ref)}</td><td>${esc(c.reason)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
       </details>` : ''}
       ${!p?.isExample ? '<button class="btn ghost small mt-3" id="use-example">Switch back to example data</button>' : ''}
     </div>
@@ -123,7 +123,7 @@ export function dataView(app, ui) {
         <div class="field"><span>Theme</span><div class="seg" role="group" aria-label="Theme">${['system', 'dark', 'light'].map((t) => `<button data-theme="${t}" aria-pressed="${s.theme === t}">${t}</button>`).join('')}</div></div>
         <label class="field"><span>Programme start date (Block 1, week 1)</span><input id="start" type="date" value="${esc(startDefault)}"></label>
       </div>
-      <details class="fold mt-3"><summary>Block start dates (optional)</summary>
+      <details class="fold mt-3" data-keep-open="block-starts"><summary>Block start dates (optional)</summary>
         <p class="small muted">Leave blank to follow on from the previous block. Set a date when a block really began (for example after a break); later blocks then follow it.</p>
         <div class="grid cols-2">${(p?.blocks || []).map((b) => `<label class="field"><span>Block ${b.number} · ${esc(b.name)}</span><input type="date" data-block-start="${b.number}" value="${esc((s.blockStarts || {})[b.number] || '')}"></label>`).join('')}</div>
       </details>

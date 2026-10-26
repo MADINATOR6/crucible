@@ -172,9 +172,9 @@ export function trainView(app, ui) {
         ${notes}
       </section>`;
     }).join('') || '<div class="empty card"><p>No exercises on this day.</p></div>';
-    body += `<details class="train-overview" ${current ? '' : 'open'}><summary>Full workout · ${prog.done} of ${prog.total} sets done</summary>${workout}</details>`;
+    body += `<details class="train-overview" data-keep-open="workout-${dateKey}" ${current ? '' : 'open'}><summary>Full workout · ${prog.done} of ${prog.total} sets done</summary>${workout}</details>`;
     const t = week.target;
-    body += `<details class="options mt-4"><summary>Week ${week.number} details</summary><div class="options-body">
+    body += `<details class="options mt-4" data-keep-open="week-${block.number}:${week.number}"><summary>Week ${week.number} details</summary><div class="options-body">
       <div class="grid-3">
         <div class="stat"><span>Week target</span><b class="figure">${t && t.total != null ? `${t.total}<small>kg</small>` : '–'}</b><small>${t ? [t.squat, t.bench, t.deadlift].map((v) => v ?? '–').join(' / ') : 'not set by coach'}</small></div>
         <div class="stat"><span>Avg bodyweight</span><b class="figure">${week.avgBodyweightKg ? `${week.avgBodyweightKg}<small>kg</small>` : '–'}</b><small>${week.avgCalories ? week.avgCalories + ' kcal' : 'no calories noted'}</small></div>
