@@ -4,7 +4,7 @@ import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
 import { renderBarbell, renderEndView } from '../barbell.js';
 import { mount3d } from '../barbell3d.js';
 import { esc, toast } from '../dom.js';
-import { shareCanvas, shareFont, drawBrand, shareOut, shareBgPicker, bindShareBg, saveButton } from '../share-image.js';
+import { shareCanvas, shareFont, shareOut, shareBgPicker, bindShareBg, saveButton } from '../share-image.js';
 import { meetCard } from './meet.js';
 import { platesTolerance } from '../../plates/tolerance.js';
 
@@ -21,27 +21,25 @@ function supports3d() {
   return webgl;
 }
 
-// A 1080 × 1350 PNG of the loaded bar with the total and the app's mark, for an Instagram story (transparent by
-// default, so it sits on a photo; dark or light backgrounds from the picker beside the button).
-async function shareBarImage({ side, collar, total, unit, text, bg, save }) {
+// A 1080 × 1350 PNG of the loaded bar and its total, for an Instagram story (transparent by default, so it sits on a
+// photo; dark or light backgrounds from the picker beside the button). Bar and number are centred vertically.
+async function shareBarImage({ side, collar, total, unit, bg, end, save }) {
   const svg = renderBarbell({ plates: side, collar }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="717" ');
   const img = new Image();
   img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   await img.decode();
-  const W = 1080, H = 1350, { c, g, ink, glow } = shareCanvas(W, H, bg);
-  g.drawImage(img, 0, 100, W, 717);
+  const W = 1080, H = 1350, { c, g, ink } = shareCanvas(W, H, bg);
+  g.save();
+  if (end === 'left') { g.translate(W, 0); g.scale(-1, 1); } // mirror the bar only, never the number
+  g.drawImage(img, 0, 200, W, 717);
+  g.restore();
   URL.revokeObjectURL(img.src);
   g.textAlign = 'center'; g.fillStyle = ink;
   const font = shareFont();
   g.font = `700 200px ${font}`;
   const nw = g.measureText(`${total}`).width;
-  g.fillText(`${total}`, W / 2 - 50, 1020);
-  g.font = `700 80px ${font}`; g.textAlign = 'left'; g.fillText(unit.toUpperCase(), W / 2 - 50 + nw / 2 + 20, 1020); g.textAlign = 'center';
-  g.font = `600 44px ${font}`;
-  const words = text.split(' '), lines = [''];
-  for (const w of words) { const t = `${lines.at(-1)} ${w}`.trim(); if (g.measureText(t).width > W - 120) lines.push(w); else lines[lines.length - 1] = t; }
-  lines.forEach((l, i) => g.fillText(l, W / 2, 1110 + i * 58));
-  glow(true, 10); drawBrand(g, W, 1290, ink);
+  g.fillText(`${total}`, W / 2 - 50, 1120);
+  g.font = `700 80px ${font}`; g.textAlign = 'left'; g.fillText(unit.toUpperCase(), W / 2 - 50 + nw / 2 + 20, 1120);
   return shareOut(c, `bar-${total}${unit}.png`, `${total} ${unit}`, save);
 }
 
@@ -133,7 +131,7 @@ export function platesView(app, ui) {
         <button class="btn ghost small" data-act="undo" ${side.length ? '' : 'disabled'}>Remove last</button>
         <button class="btn ghost small" data-act="clear" ${side.length ? '' : 'disabled'}>Clear bar</button>
       </div>
-      <div class="share-row mt-2">${shareBgPicker(app.settings.shareBg)}<button class="btn ghost small" data-act="share" ${side.length ? '' : 'disabled'}>Share image</button>${saveButton('data-act="save"', !side.length)}</div>
+      <div class="share-row mt-2">${shareBgPicker(app.settings.shareBg)}<select class="share-bg" data-bar-end aria-label="Bar end in the image">${[['right', 'Bar end right'], ['left', 'Bar end left']].map(([v, t]) => `<option value="${v}"${v === app.settings.shareBarEnd ? ' selected' : ''}>${t}</option>`).join('')}</select><button class="btn ghost small" data-act="share" ${side.length ? '' : 'disabled'}>Share image</button>${saveButton('data-act="save"', !side.length)}</div>
     </div>
     ${calibrationCard}
     <div class="grid cols-2 mt-4">
@@ -239,7 +237,8 @@ export function platesView(app, ui) {
     root.querySelector('[data-act=undo]')?.addEventListener('click', () => keepSide(() => side.pop()));
     root.querySelector('[data-act=clear]')?.addEventListener('click', () => keepSide(() => { side.length = 0; }));
     bindShareBg(root, app);
-    root.querySelectorAll('[data-act=share], [data-act=save]').forEach((b) => b.addEventListener('click', () => shareBarImage({ side, collar: !!collar, total: round1(total), unit, text: perSideText(grouped, unit), bg: app.settings.shareBg, save: b.dataset.act === 'save' })
+    root.querySelector('[data-bar-end]')?.addEventListener('change', (e) => app.saveSettings({ shareBarEnd: e.target.value }));
+    root.querySelectorAll('[data-act=share], [data-act=save]').forEach((b) => b.addEventListener('click', () => shareBarImage({ side, collar: !!collar, total: round1(total), unit, bg: app.settings.shareBg, end: app.settings.shareBarEnd, save: b.dataset.act === 'save' })
       .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); })));
     const target = root.querySelector('#target');
     const preview = () => {

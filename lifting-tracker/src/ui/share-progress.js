@@ -1,7 +1,7 @@
 // A 1080 x 1350 PNG of one lift's progress for an Instagram story: lift name, current estimated max, kg per week,
 // and the chart (light days faded, trend line, PR stars), drawn straight onto a canvas from the same points as the
 // on-screen chart. Background as chosen in the picker (transparent by default).
-import { shareCanvas, shareFont, drawBrand, shareOut } from './share-image.js';
+import { shareCanvas, shareFont, shareOut } from './share-image.js';
 import { shortDate } from './charts.js';
 
 // Same validated lift colours as styles/app.css, per background.
@@ -55,6 +55,5 @@ export async function shareLiftImage({ lift, name, points, line, prs, now, rate,
   g.fillStyle = ink; g.textAlign = 'center'; g.font = `700 34px ${font}`; glow(true, 8);
   for (const p of prs) g.fillText('★', X(p.x), Y(p.y) - 26);
 
-  drawBrand(g, W, 1290, ink);
   return shareOut(c, `${lift}-progress.png`, `${name} ${now} ${unit}`, save);
 }

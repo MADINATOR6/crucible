@@ -3,7 +3,7 @@
 // downloaded. The SVG is rendered off screen so its CSS (theme colours, pills, shading blend) can be read back and
 // written into the copy as plain attributes, because an SVG drawn as an image cannot see the page's stylesheet.
 import { renderHeatmap } from './heatmap.js';
-import { shareCanvas, shareFont, drawBrand, shareOut } from './share-image.js';
+import { shareCanvas, shareFont, shareOut } from './share-image.js';
 
 const PROPS = ['fill', 'stroke', 'stroke-width', 'stroke-linejoin', 'opacity', 'font-family', 'font-weight', 'text-anchor', 'dominant-baseline', 'mix-blend-mode'];
 
@@ -60,7 +60,6 @@ export async function shareHeatmapImage({ data, bands, title, subtitle, bg = 'tr
       g.beginPath(); g.roundRect(x, y - 30, 40, 40, 9); g.fill();
       g.fillStyle = ink; g.fillText(b.label, x + 56, y);
     });
-    drawBrand(g, W, TOP + fh + 80 + 66 + 100, ink);
     return await shareOut(c, `muscles-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, title, save);
   } finally {
     host.remove();

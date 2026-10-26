@@ -1,5 +1,5 @@
-// Shared pieces of the share images (bar, heat map, lift progress): a canvas with the chosen background, the brand
-// mark, and handing the PNG to the phone's share sheet (Android) or downloading it.
+// Shared pieces of the share images (bar, heat map, lift progress): a canvas with the chosen background, and handing
+// the PNG to the phone's share sheet (Android) or downloading it.
 import { esc, toast } from './dom.js';
 
 const BG = { dark: '#111216', light: '#f4f0e6' };
@@ -30,24 +30,6 @@ export function shareCanvas(w, h, bg) {
 }
 
 export const shareFont = () => getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim() || 'system-ui, sans-serif';
-
-/** The app's mark and name, centred with its baseline at y. */
-export function drawBrand(g, w, y, ink) {
-  const font = shareFont();
-  g.save();
-  g.font = `700 34px ${font}`;
-  const label = 'LIFTING TRACKER', tw = g.measureText(label).width, size = 46, gap = 16;
-  const x = (w - size - gap - tw) / 2, top = y - size + 8;
-  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d93a17';
-  g.beginPath(); g.roundRect(x, top, size, size, 12); g.fill();
-  g.strokeStyle = '#fff6f2'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath();
-  const s = size / 32, X = (v) => x + v * s, Y = (v) => top + v * s;
-  for (const [x1, y1, x2, y2] of [[6, 12, 6, 20], [9.5, 9, 9.5, 23], [22.5, 9, 22.5, 23], [26, 12, 26, 20], [9.5, 16, 22.5, 16]]) { g.moveTo(X(x1), Y(y1)); g.lineTo(X(x2), Y(y2)); }
-  g.stroke();
-  g.fillStyle = ink; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillText(label, x + size + gap, y - 4);
-  g.restore();
-}
 
 /** Save image button shown beside a Share image button; `attrs` are the same data attributes plus the save flag. */
 export const saveButton = (attrs, disabled = false) => `<button class="btn ghost small" ${attrs} ${disabled ? 'disabled' : ''}>Save image</button>`;

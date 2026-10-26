@@ -29,5 +29,7 @@ test('weekly summary says so when nothing was logged', () => {
 test('share background and weekly summary settings are whitelisted', () => {
   assert.equal(sanitizeSettings({ shareBg: 'dark', weeklySummary: true }).shareBg, 'dark');
   assert.equal(sanitizeSettings({ shareBg: 'neon' }).shareBg, 'transparent');
+  assert.equal(sanitizeSettings({ shareBarEnd: 'left' }).shareBarEnd, 'left');
+  assert.equal(sanitizeSettings({ shareBarEnd: 'up' }).shareBarEnd, 'right');
   assert.equal(sanitizeSettings({ weeklySummary: 'yes' }).weeklySummary, false);
 });

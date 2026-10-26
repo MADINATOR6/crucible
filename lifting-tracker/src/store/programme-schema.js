@@ -134,6 +134,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   keepAwake: true, vibrate: true, lastBackupAt: null, backupSnoozeUntil: null,
   meetDate: null, sex: null, // optional: projection to meet day, and the IPF GL category (male/female)
   shareBg: 'transparent', weeklySummary: false, // share-image background; weekly summary notification (Android)
+  shareBarEnd: 'right', // which way the bar's loaded end points in the bar share image
 });
 
 /** Whitelist and coerce settings (never trust stored or restored values). */
@@ -142,6 +143,7 @@ export function sanitizeSettings(s) {
   if (!isObj(s)) return out;
   for (const k of ['keepAwake', 'vibrate', 'weeklySummary']) if (typeof s[k] === 'boolean') out[k] = s[k];
   if (['transparent', 'dark', 'light'].includes(s.shareBg)) out.shareBg = s.shareBg;
+  if (['right', 'left'].includes(s.shareBarEnd)) out.shareBarEnd = s.shareBarEnd;
   for (const k of ['lastBackupAt', 'backupSnoozeUntil', 'meetDate']) if (isStrictDate(s[k])) out[k] = s[k];
   if (s.sex === 'male' || s.sex === 'female') out.sex = s.sex;
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;
