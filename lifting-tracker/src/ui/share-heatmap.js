@@ -32,7 +32,7 @@ async function standalone(svg, w, h) {
   return img;
 }
 
-export async function shareHeatmapImage({ data, bands, title, subtitle, bg = 'transparent' }) {
+export async function shareHeatmapImage({ data, bands, title, subtitle, bg = 'transparent', save = false }) {
   const host = Object.assign(document.createElement('div'), { innerHTML: renderHeatmap(data, { bands }) });
   host.setAttribute('aria-hidden', 'true');
   host.style.cssText = 'position:fixed;left:-10000px;top:0;width:900px';
@@ -61,7 +61,7 @@ export async function shareHeatmapImage({ data, bands, title, subtitle, bg = 'tr
       g.fillStyle = ink; g.fillText(b.label, x + 56, y);
     });
     drawBrand(g, W, TOP + fh + 80 + 66 + 100, ink);
-    return await shareOut(c, `muscles-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, title);
+    return await shareOut(c, `muscles-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, title, save);
   } finally {
     host.remove();
   }

@@ -49,12 +49,18 @@ export function drawBrand(g, w, y, ink) {
   g.restore();
 }
 
-/** Shares the canvas as a PNG through the share sheet where files can be shared, otherwise downloads it. */
-export async function shareOut(c, name, title) {
+/** Save image button shown beside a Share image button; `attrs` are the same data attributes plus the save flag. */
+export const saveButton = (attrs, disabled = false) => `<button class="btn ghost small" ${attrs} ${disabled ? 'disabled' : ''}>Save image</button>`;
+
+/**
+ * Shares the canvas as a PNG through the share sheet where files can be shared, otherwise downloads it. `save` always
+ * downloads (Android puts it in Downloads, where Photos and Instagram can pick it up); PNG keeps the transparency.
+ */
+export async function shareOut(c, name, title, save = false) {
   const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
   const file = new File([blob], name, { type: 'image/png' });
-  if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], title });
+  if (!save && navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], title });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: file.name });
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  toast('Image saved');
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  toast(`Saved ${file.name} to Downloads`);
 }

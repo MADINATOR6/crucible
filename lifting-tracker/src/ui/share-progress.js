@@ -13,7 +13,7 @@ const dayNum = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.sl
  *           prs: Array<{x: string, y: number}>, now: number, rate: string, rateDown: boolean, unit: string, bg: string }} o
  * All values are already in the display unit.
  */
-export async function shareLiftImage({ lift, name, points, line, prs, now, rate, rateDown, unit, bg }) {
+export async function shareLiftImage({ lift, name, points, line, prs, now, rate, rateDown, unit, bg, save }) {
   const W = 1080, H = 1350, { c, g, ink, glow, dark } = shareCanvas(W, H, bg);
   const colour = COLOURS[dark ? 'dark' : 'light'][lift];
   const font = shareFont();
@@ -56,5 +56,5 @@ export async function shareLiftImage({ lift, name, points, line, prs, now, rate,
   for (const p of prs) g.fillText('★', X(p.x), Y(p.y) - 26);
 
   drawBrand(g, W, 1290, ink);
-  return shareOut(c, `${lift}-progress.png`, `${name} ${now} ${unit}`);
+  return shareOut(c, `${lift}-progress.png`, `${name} ${now} ${unit}`, save);
 }

@@ -9,7 +9,7 @@ import { lineChart, bindCharts, movingAverage, shortDate, longDate } from '../ch
 import { esc, toast, todayIso } from '../dom.js';
 import { prLabel } from './train.js';
 import { coachReview } from '../../core/coach.js';
-import { shareBgPicker, bindShareBg } from '../share-image.js';
+import { shareBgPicker, bindShareBg, saveButton } from '../share-image.js';
 import { shareLiftImage } from '../share-progress.js';
 
 const LIFTS = ['squat', 'bench', 'deadlift'];
@@ -110,7 +110,7 @@ export function progressView(app, ui) {
       ${proj ? `<p class="small mt-2 mb-0">Meet day: likely <b>${toU(proj.meet.lo)}–${toU(proj.meet.hi)} ${unit}</b> if the last 8 weeks' trend holds.</p>` : ''}
       ${pj?.why ? `<p class="small muted mt-2 mb-0">${esc(pj.why)}</p>` : ''}
       ${note ? `<p class="small muted mt-2 mb-0">${esc(note)}</p>` : ''}
-      <div class="share-row mt-2"><button class="btn ghost small" data-share-lift="${lift}">Share image</button></div></div>`;
+      <div class="share-row mt-2"><button class="btn ghost small" data-share-lift="${lift}">Share image</button>${saveButton(`data-share-lift="${lift}" data-save`)}</div></div>`;
   };
 
   // Tiles: current form, change on four weeks ago, and a sparkline of the trend.
@@ -214,7 +214,7 @@ export function progressView(app, ui) {
     root.querySelectorAll('[data-share-lift]').forEach((b) => b.addEventListener('click', () => {
       const d = shareData[b.dataset.shareLift];
       if (!d?.points.length) { toast('No sessions in this range to share'); return; }
-      shareLiftImage({ ...d, bg: app.settings.shareBg }).catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); });
+      shareLiftImage({ ...d, bg: app.settings.shareBg, save: b.hasAttribute('data-save') }).catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); });
     }));
     root.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => { pg.range = b.dataset.range; rerender(); }));
     root.querySelectorAll('[data-variants]').forEach((b) => b.addEventListener('click', () => { pg.variants = b.dataset.variants === '1'; rerender(); }));

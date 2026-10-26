@@ -2,7 +2,7 @@
 // Only same-origin GET requests are handled; nothing is ever sent to another site.
 // The 3D library (vendor/three) and body model (assets/body.glb), about 2.4 MB, are not installed up front: the fetch
 // handler caches them the first time a 3D view opens, and they work offline from then on.
-const VERSION = 'lt-v15';
+const VERSION = 'lt-v16';
 const SHELL = [
   'src/ui/updates.js', 'src/ui/drafts.js',
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'styles/app.css',

@@ -4,7 +4,7 @@ import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
 import { renderBarbell, renderEndView } from '../barbell.js';
 import { mount3d } from '../barbell3d.js';
 import { esc, toast } from '../dom.js';
-import { shareCanvas, shareFont, drawBrand, shareOut, shareBgPicker, bindShareBg } from '../share-image.js';
+import { shareCanvas, shareFont, drawBrand, shareOut, shareBgPicker, bindShareBg, saveButton } from '../share-image.js';
 import { meetCard } from './meet.js';
 import { platesTolerance } from '../../plates/tolerance.js';
 
@@ -23,7 +23,7 @@ function supports3d() {
 
 // A 1080 × 1350 PNG of the loaded bar with the total and the app's mark, for an Instagram story (transparent by
 // default, so it sits on a photo; dark or light backgrounds from the picker beside the button).
-async function shareBarImage({ side, collar, total, unit, text, bg }) {
+async function shareBarImage({ side, collar, total, unit, text, bg, save }) {
   const svg = renderBarbell({ plates: side, collar }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="717" ');
   const img = new Image();
   img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
@@ -42,7 +42,7 @@ async function shareBarImage({ side, collar, total, unit, text, bg }) {
   for (const w of words) { const t = `${lines.at(-1)} ${w}`.trim(); if (g.measureText(t).width > W - 120) lines.push(w); else lines[lines.length - 1] = t; }
   lines.forEach((l, i) => g.fillText(l, W / 2, 1110 + i * 58));
   glow(true, 10); drawBrand(g, W, 1290, ink);
-  return shareOut(c, `bar-${total}${unit}.png`, `${total} ${unit}`);
+  return shareOut(c, `bar-${total}${unit}.png`, `${total} ${unit}`, save);
 }
 
 export function barsFor(app, unit) { return app.platesData[unit].bars; }
@@ -133,7 +133,7 @@ export function platesView(app, ui) {
         <button class="btn ghost small" data-act="undo" ${side.length ? '' : 'disabled'}>Remove last</button>
         <button class="btn ghost small" data-act="clear" ${side.length ? '' : 'disabled'}>Clear bar</button>
       </div>
-      <div class="share-row mt-2">${shareBgPicker(app.settings.shareBg)}<button class="btn ghost small" data-act="share" ${side.length ? '' : 'disabled'}>Share image</button></div>
+      <div class="share-row mt-2">${shareBgPicker(app.settings.shareBg)}<button class="btn ghost small" data-act="share" ${side.length ? '' : 'disabled'}>Share image</button>${saveButton('data-act="save"', !side.length)}</div>
     </div>
     ${calibrationCard}
     <div class="grid cols-2 mt-4">
@@ -239,8 +239,8 @@ export function platesView(app, ui) {
     root.querySelector('[data-act=undo]')?.addEventListener('click', () => keepSide(() => side.pop()));
     root.querySelector('[data-act=clear]')?.addEventListener('click', () => keepSide(() => { side.length = 0; }));
     bindShareBg(root, app);
-    root.querySelector('[data-act=share]')?.addEventListener('click', () => shareBarImage({ side, collar: !!collar, total: round1(total), unit, text: perSideText(grouped, unit), bg: app.settings.shareBg })
-      .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); }));
+    root.querySelectorAll('[data-act=share], [data-act=save]').forEach((b) => b.addEventListener('click', () => shareBarImage({ side, collar: !!collar, total: round1(total), unit, text: perSideText(grouped, unit), bg: app.settings.shareBg, save: b.dataset.act === 'save' })
+      .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); })));
     const target = root.querySelector('#target');
     const preview = () => {
       const v = parseFloat(target.value); ui.plates.target = target.value;
