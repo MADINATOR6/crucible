@@ -9,6 +9,7 @@ import { nextSession, plannedValues } from '../core/session.js';
 import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
 import { sessionCalories, weightOn, restingKcal, dayEnergy } from '../core/calories.js';
+import { maintenance, target } from '../core/targets.js';
 import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
 
@@ -245,9 +246,9 @@ export async function createApp() {
       const start = app.dateFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: 1 });
       if (!start) continue;
       const weekStart = mondayOf(start);
-      for (const e of w.bodyLog || []) if (e.bodyweightKg) pts.push({ x: addDays(weekStart, idx[e.weekday] ?? 0), y: e.bodyweightKg, estimated: true });
+      for (const e of w.bodyLog || []) if (e.bodyweightKg) pts.push({ x: addDays(weekStart, idx[e.weekday] ?? 0), y: e.bodyweightKg, kcal: e.calories ?? null, estimated: true });
     }
-    for (const r of app.bodyweights) { try { pts.push({ x: r.date, y: toKg(r.weight), estimated: false }); } catch { /* skip */ } }
+    for (const r of app.bodyweights) { try { pts.push({ x: r.date, y: toKg(r.weight), kcal: r.calories ?? null, estimated: false }); } catch { /* skip */ } }
     return pts.sort((a, c) => (a.x < c.x ? -1 : 1));
   });
 
@@ -261,8 +262,16 @@ export async function createApp() {
   /** A day's estimated energy: sleep, lifting, logged cardio and work, everyday movement and digestion. */
   app.dayEnergy = (date) => {
     const body = bodyOn(date);
-    return dayEnergy({ weightKg: body.weightKg, restKcal: restingKcal(body), sleepHours: app.settings.sleepHours,
+    return dayEnergy({ weightKg: body.weightKg, restKcal: restingKcal(body), sleepHours: app.settings.sleepHours, everyday: app.settings.everyday,
       lifting: app.sessions.filter((s) => s.date === date).map(app.sessionCalories).filter(Boolean), activities: app.activities.filter((a) => a.date === date) });
+  };
+  /** Maintenance and the daily eating target for the goal in settings (src/core/targets.js), as of `today`. */
+  app.eatingTarget = (today) => {
+    const s = app.settings, body = bodyOn(today);
+    const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)).map((date) => { const e = app.dayEnergy(date); return { date, kcal: e ? (e.total[0] + e.total[1]) / 2 : null }; });
+    const pts = app.bodyweightPoints();
+    const m = maintenance({ days, intake: pts.filter((p) => p.kcal > 0).map((p) => ({ date: p.x, kcal: p.kcal })), weights: pts, today });
+    return { maintenance: m, target: target({ maintenanceKcal: m.kcal, weightKg: body.weightKg, goal: s.goal, pace: s.goalPace, restKcal: restingKcal(body), sex: s.sex, bodyFatPct: s.bodyFatPct }) };
   };
   const saveActivities = async (next) => { await store.put('meta', { key: 'activities', value: next }); app.activities = next; dataChanged(false); };
   app.addActivity = (date, kind, minutes) => enqueue(async () => {

@@ -597,3 +597,9 @@ table.load .swatch { margin-right: 4px; }
 .details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2) var(--s-3); }
 @media (min-width: 700px) { .details-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .train-kcal a { color: inherit; }
+.view-tabs button small { font-weight: 500; opacity: .75; margin-left: 2px; }
+.macros .stat { background: var(--surface-2); border-radius: 12px; padding: 10px; }
+.macros .figure { font-size: clamp(22px, 6.5vw, 30px); }
+.weigh-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); align-items: end; }
+.weigh-form .field:last-of-type { grid-column: 1; }
+@media (min-width: 700px) { .weigh-form { grid-template-columns: 1fr 1fr 1fr auto; } .weigh-form .field:last-of-type { grid-column: auto; } }

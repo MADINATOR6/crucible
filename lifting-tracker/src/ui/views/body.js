@@ -1,7 +1,8 @@
 // Progress → Body: the day's estimated energy (sleep, lifting, cardio and work entries, everyday movement, digestion),
 // the last 7 days, calories per lifting session, bodyweight, and the body details the estimates use. The maths and
 // its sources live in src/core/calories.js.
-import { ACTIVITIES } from '../../core/calories.js';
+import { ACTIVITIES, EVERYDAY } from '../../core/calories.js';
+import { PACES, PACE_LABELS } from '../../core/targets.js';
 import { round1, convert } from '../../core/units.js';
 import { addDays } from '../../core/weeks.js';
 import { lineChart, bindCharts, movingAverage, shortDate, longDate } from '../charts.js';
@@ -43,7 +44,7 @@ export function bodyView(app, ui) {
     const all = mid(day.total), row = (label, sub, k, extra = '') => `<li class="list-row energy-row"><span class="main"><span>${esc(label)}<small>${esc(sub)}</small></span><svg class="ebar" width="100%" height="5" aria-hidden="true"><rect width="${Math.max(2, (mid(k) / all) * 100).toFixed(1)}%" height="5" rx="2.5"/></svg></span><span class="trail">${span(k)}</span>${extra}</li>`;
     rows = [
       ...day.parts.map((p) => row(p.label.replace(/ \(.*\)$/, ''), dur(p.minutes), p.kcal, p.id ? del(entries.find((a) => a.id === p.id)) : '')),
-      row('Everyday movement', `${dur(day.everyday.minutes)} awake`, [day.everyday.kcal, day.everyday.kcal]),
+      row('Everyday movement', `${dur(day.everyday.minutes)} awake · ${(EVERYDAY[s.everyday] ?? EVERYDAY.mixed).label.toLowerCase()}`, [day.everyday.kcal, day.everyday.kcal]),
       row('Sleep', `${dur(day.sleep.minutes)} at resting burn`, [day.sleep.kcal, day.sleep.kcal]),
       row('Digestion', 'about 10% of the day', day.digestion),
     ].join('');
@@ -59,8 +60,35 @@ export function bodyView(app, ui) {
   const field = (key, label, attrs) => `<label class="field"><span>${label}</span><input data-body="${key}" type="number" inputmode="decimal" ${attrs} value="${s[key] ?? ''}"></label>`;
   const method = s.bodyFatPct ? 'from your lean mass (body fat %)' : s.heightCm && s.birthYear && s.sex ? 'from your weight, height, age and sex' : null;
 
-  const html = `
-    <section class="card energy-card">
+  const { maintenance: m, target: t } = app.eatingTarget(today);
+  const g = (n) => `${Math.round(n)}`;
+  const kgWk = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)} kg a week`;
+  const goalCard = `
+    <section class="card goal-card">
+      <div class="card-h"><h2>Eat for your goal</h2><span class="muted small">daily average</span></div>
+      <div class="seg view-tabs mb-2" role="group" aria-label="Goal">${[['lose', 'Lose'], ['maintain', 'Maintain'], ['gain', 'Gain']].map(([k, l]) => `<button data-goal="${k}" aria-pressed="${s.goal === k}">${l}</button>`).join('')}</div>
+      ${s.goal !== 'maintain' ? `<div class="seg view-tabs mb-3" role="group" aria-label="Pace">${Object.entries(PACES[s.goal]).map(([k, pct]) => `<button data-pace="${k}" aria-pressed="${s.goalPace === k}">${PACE_LABELS[k]} <small>${Math.abs(pct)}%/wk</small></button>`).join('')}</div>` : ''}
+      ${t ? `<div class="energy-hero"><b class="figure">${kcal(t.kcal)}<small>kcal a day</small></b>
+          <span class="muted small">${s.goal === 'maintain' ? 'to hold your weight' : `about ${kgWk(t.kgPerWeek)}`} · maintenance ${kcal(m.kcal)}, ${m.measured ? `measured from ${m.measured.days} days of intake and your weight trend` : `estimated from your last ${m.estimatedDays} day${m.estimatedDays === 1 ? '' : 's'}`}</span></div>
+        <div class="grid-3 macros">
+          <div class="stat"><span>Protein</span><b class="figure">${g(t.protein.g)}<small>g</small></b><small>${g(t.protein.lo)}–${g(t.protein.hi)} g</small></div>
+          <div class="stat"><span>Fat</span><b class="figure">${g(t.fat.g)}<small>g</small></b><small>${g(t.fat.lo)}–${g(t.fat.hi)} g</small></div>
+          <div class="stat"><span>Carbs</span><b class="figure">${g(t.carbs.g)}<small>g</small></b><small>${t.carbs.perKg.toFixed(1)} g/kg</small></div>
+        </div>
+        ${t.floored ? '<p class="small tone-warn mt-2">Held at your resting burn (or the 1,500 / 1,200 kcal minimum): a bigger deficit risks muscle and health. The change will be slower than the pace you picked.</p>' : ''}
+        ${t.lowCarb ? '<p class="small tone-warn mt-2">Carbs are under 3 g/kg, the suggested minimum to fuel training. Consider a slower pace.</p>' : ''}
+        ${s.goal === 'lose' && !s.bodyFatPct ? '<p class="small muted mt-2">Cutting: aim for the top of the protein range. Add a body fat % under Your details for a lean-mass protein target.</p>' : ''}
+        ${!m.measured ? '<p class="small muted mt-2">Log what you eat with your weigh-ins below. After 2 weeks (14 days of intake, 8 weigh-ins) maintenance is measured from your real weight change instead of estimated.</p>' : ''}`
+      : `<p class="muted">${esc(missing)}</p>`}
+      <details class="fold mt-3"><summary>How this target works</summary><div class="small muted">
+        <p><b>Maintenance</b> is the average of your last 7 days of estimated energy. Once you log intake for 2 weeks, it switches to the measured method: average calories eaten minus your weight trend (a robust Theil–Sen line through 28 days of weigh-ins) × 7,700 kcal per kg. This corrects the estimate for your own metabolism.</p>
+        <p><b>Pace</b>: losing 0.5–1% of bodyweight a week helps keep muscle (Helms, Aragon &amp; Fitschen 2014); gaining 0.25–0.5% a week suits novice and intermediate lifters (Iraki et al. 2019). Each kg is about 7,700 kcal (Hall 2008).</p>
+        <p><b>Protein</b> 1.6–2.2 g/kg (Morton et al. 2018), or 2.3–3.1 g per kg of lean mass when cutting with a known body fat % (Helms 2014). <b>Fat</b> 0.5–1.5 g/kg (Iraki 2019), or 15–30% of calories when cutting (Helms 2014). <b>Carbs</b> are the rest; at least 3 g/kg fuels training.</p>
+        <p>The target never drops below your resting burn or 1,500 kcal (men) / 1,200 kcal (women). Weigh in under the same conditions, judge progress over 2–3 weeks, not day to day. This is general guidance, not medical advice; see a dietitian for health conditions.</p></div></details>
+    </section>`;
+
+  const html = `${goalCard}
+    <section class="card energy-card mt-4">
       <div class="card-h"><h2>Daily energy</h2><input id="energy-date" class="energy-date" type="date" value="${esc(b.date)}" max="${today}" aria-label="Day"></div>
       ${day ? `<div class="energy-hero"><b class="figure">${span(day.total)}<small>kcal</small></b><span class="muted small">estimated burn ${b.date === today ? 'today' : `on ${esc(longDate(b.date))}`}</span></div>
         <ul class="list energy">${rows}</ul>`
@@ -77,18 +105,21 @@ export function bodyView(app, ui) {
       ${sessions.length ? `<div class="scroll-x"><table class="plain"><thead><tr><th>Date</th><th>Time</th><th>Total</th>${haveActive ? '<th>Active</th>' : ''}</tr></thead><tbody>${sessions.map((r) => `<tr><td>${esc(shortDate(r.date))}</td><td>${dur(r.c.minutes)}</td><td>${span(r.c.total)}</td>${haveActive ? `<td>${r.c.active ? span(r.c.active) : '–'}</td>` : ''}</tr>`).join('')}</tbody></table></div>`
         : '<p class="muted">Appears after a session logged live (at least two sets on the day) with a bodyweight entered.</p>'}
       <p class="small muted mt-2">Active = total minus what you would burn resting anyway.</p></section>
-    <section class="card mt-4"><div class="card-h"><h2>Bodyweight</h2><span class="muted small">${bw.length ? bw.length + ' entries' : ''}</span></div>
+    <section class="card mt-4"><div class="card-h"><h2>Weigh-ins</h2><span class="muted small">${bw.length ? bw.length + ' entries' : ''}</span></div>
       ${bwSeries.length ? lineChart({ series: bwSeries, unit, height: 160, tips: bw.map((p) => ({ x: p.x, lines: [longDate(p.x), `${toU(p.y)} ${unit}${p.estimated ? ' (estimated date)' : ''}`] })), title: 'Bodyweight weigh-ins and their 7-day average' }) : '<p class="muted">No bodyweight yet.</p>'}
-      <form id="bwform" class="row end mt-3"><label class="field grow"><span>Weight (${unit})</span><input name="w" type="number" step="0.1" min="20" inputmode="decimal" required></label>
-        <label class="field grow"><span>Date</span><input name="d" type="date" value="${today}" required></label><button class="btn primary" type="submit">Add</button></form>
+      <form id="bwform" class="weigh-form mt-3"><label class="field"><span>Weight (${unit})</span><input name="w" type="number" step="0.1" min="20" inputmode="decimal" required></label>
+        <label class="field"><span>Calories eaten (optional)</span><input name="c" type="number" step="10" min="0" max="20000" inputmode="numeric" placeholder="that day"></label>
+        <label class="field"><span>Date</span><input name="d" type="date" value="${today}" max="${today}" required></label><button class="btn primary" type="submit">Add</button></form>
+      <p class="small muted mt-2">Weigh in each morning after the toilet, before eating. Adding the day's calories lets the goal card measure your real maintenance.</p>
       ${bw.some((p) => p.estimated) ? '<p class="small muted mt-2">Points from the workbook use estimated dates.</p>' : ''}</section>
     <section class="card mt-4" id="body-details"><div class="card-h"><h2>Your details</h2><span class="muted small">${method ? `resting burn ${method}` : 'needed for the estimates'}</span></div>
       <div class="details-grid">${field('heightCm', 'Height (cm)', 'min="100" max="250" step="0.5"')}${field('birthYear', 'Birth year', 'min="1900" max="2100" step="1"')}${field('bodyFatPct', 'Body fat % (optional)', 'min="3" max="60" step="0.5"')}${field('sleepHours', 'Sleep (hours a night)', 'min="3" max="14" step="0.5"')}</div>
+      <div class="field mt-2"><span>Everyday movement outside logged activities</span><div class="seg" role="group" aria-label="Everyday movement">${Object.entries(EVERYDAY).map(([k, v]) => `<button data-everyday="${k}" aria-pressed="${s.everyday === k}">${v.label}</button>`).join('')}</div></div>
       <div class="field mt-2"><span>Sex (also your IPF GL category)</span><div class="seg" role="group" aria-label="Sex">${[['male', 'Male'], ['female', 'Female'], ['', 'Not set']].map(([v, t]) => `<button data-sex="${v}" aria-pressed="${(s.sex || '') === v}">${t}</button>`).join('')}</div></div>
       <details class="fold mt-3"><summary>How these estimates work</summary><div class="small muted">
         <p><b>Activities</b> use the 2024 Adult Compendium of Physical Activities: each one's MET (effort as a multiple of rest) × 3.5 ml O₂/kg/min × bodyweight × time, at about 5 kcal per litre of oxygen. Lifting is 3.5–6 METs (codes 02054, 02052, 02050), banded by your session's RPE, timed from when you logged its sets. A nursing shift is 2.3, 3.3 or 4.5 METs (codes 11650, 11610, 11630); enter the hours on your feet.</p>
         <p><b>Resting burn</b> uses the ten Haaf &amp; Weijs (2014) equation for athletes, the most precise in a 2023 meta-analysis: lean mass when you give a body fat %, otherwise weight, height, age and sex.</p>
-        <p><b>A day</b> = sleep at resting burn + logged activities + the rest of your waking time as light everyday movement (1.5 METs) + digestion (about 10%). Without heart rate data, expect roughly ±30% on activities and ±10% on resting burn.</p></div></details>
+        <p><b>A day</b> = sleep at resting burn + logged activities + the rest of your waking time as everyday movement + digestion (about 10%). Everyday movement is every awake minute you didn't log, at the level you pick: mostly sitting 1.3, mixed 1.5 or on your feet 1.8 METs (Compendium 07026, 07022, 11600). It is the least certain part of the day, which is why the goal card switches to your measured maintenance once you log intake. Without heart rate data, expect roughly ±30% on activities and ±10% on resting burn.</p></div></details>
     </section>`;
 
   function bind(root, rerender) {
@@ -114,11 +145,15 @@ export function bodyView(app, ui) {
     }));
     root.querySelector('#bwform')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const f = new FormData(e.target); const w = parseFloat(f.get('w'));
+      const f = new FormData(e.target); const w = parseFloat(f.get('w')), c = f.get('c') === '' ? null : Number(f.get('c'));
       if (!(w > 20 && w < 500)) { toast('Enter a realistic bodyweight'); return; }
-      await app.addBodyweight(String(f.get('d')), { value: w, unit });
-      toast('Bodyweight added');
+      if (c != null && !(c >= 0 && c < 20000)) { toast('Enter calories between 0 and 20,000'); return; }
+      await app.addBodyweight(String(f.get('d')), { value: w, unit }, c);
+      toast(c != null ? 'Weigh-in and calories added' : 'Weigh-in added');
     });
+    root.querySelectorAll('[data-goal]').forEach((btn) => btn.addEventListener('click', () => app.saveSettings({ goal: btn.dataset.goal, goalPace: btn.dataset.goal === 'lose' ? 'steady' : btn.dataset.goal === 'gain' ? 'lean' : 'hold' })));
+    root.querySelectorAll('[data-pace]').forEach((btn) => btn.addEventListener('click', () => app.saveSettings({ goalPace: btn.dataset.pace })));
+    root.querySelectorAll('[data-everyday]').forEach((btn) => btn.addEventListener('click', () => app.saveSettings({ everyday: btn.dataset.everyday })));
     root.querySelectorAll('[data-body]').forEach((inp) => inp.addEventListener('change', () => {
       const v = inp.value === '' ? null : Number(inp.value);
       app.saveSettings({ [inp.dataset.body]: inp.dataset.body === 'birthYear' && v != null ? Math.round(v) : v ?? (inp.dataset.body === 'sleepHours' ? 8 : null) });

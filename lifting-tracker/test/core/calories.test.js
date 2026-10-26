@@ -51,6 +51,7 @@ test('a day adds sleep, logged activities, everyday movement for the rest of the
   near(d.total[0], (2000 / 3 + 882 + 420 + 2217.6) / 0.9);
   near(d.total[1] - d.total[0], 84 / 0.9, 'the range comes from the lifting MET band');
   near(d.digestion[0], d.total[0] * 0.1);
+  near(dayEnergy({ weightKg: 80, restKcal: 2000, everyday: 'feet' }).everyday.kcal, 960 * 1.8 * 1.4); // 16 h awake on your feet
   assert.equal(dayEnergy({ weightKg: 80, restKcal: null }), null, 'needs a resting burn');
   assert.equal(dayEnergy({ weightKg: 80, restKcal: 2000, activities: [{ kind: 'unknown', minutes: 30 }] }).parts.length, 0);
 });

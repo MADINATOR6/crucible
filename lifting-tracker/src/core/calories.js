@@ -96,7 +96,9 @@ export const ACTIVITIES = {
   'shift-tough': { group: 'Work', label: 'Nursing shift, tough (transfers, heavy lifting)', met: 4.5, code: '11630' },
 };
 
-const EVERYDAY = 1.5; // ponytail: untracked waking time as light sitting/standing (Compendium 07022/07041 are 1.5 METs)
+/** Untracked waking time, by lifestyle: Compendium 07026 sitting (1.3), 07022/07041 sitting and standing, fidgeting
+ * (1.5), 11600 standing tasks, light effort (1.8). */
+export const EVERYDAY = { sitting: { met: 1.3, label: 'Mostly sitting' }, mixed: { met: 1.5, label: 'Mixed' }, feet: { met: 1.8, label: 'On my feet' } };
 const TEF = 0.10; // digestion: about 10% of a day's energy
 
 /**
@@ -105,7 +107,8 @@ const TEF = 0.10; // digestion: about 10% of a day's energy
  * `lifting` is [{ minutes, total: [lo, hi] }] from sessionCalories; `activities` are [{ kind, minutes }].
  * Returns null without a resting burn (height, birth year and sex, or body fat %) or a bodyweight.
  */
-export function dayEnergy({ weightKg, restKcal, sleepHours = 8, lifting = [], activities = [] }) {
+export function dayEnergy({ weightKg, restKcal, sleepHours = 8, everyday = 'mixed', lifting = [], activities = [] }) {
+  const everydayMet = (EVERYDAY[everyday] ?? EVERYDAY.mixed).met;
   if (!(weightKg > 0 && restKcal > 0)) return null;
   const perMin = (met) => (met * 3.5 * weightKg) / 200;
   const restMin = restKcal / 1440;
@@ -117,9 +120,9 @@ export function dayEnergy({ weightKg, restKcal, sleepHours = 8, lifting = [], ac
   }
   const sleepMin = Math.min(1440, sleepHours * 60);
   const awake = Math.max(0, 1440 - sleepMin - parts.reduce((a, p) => a + p.minutes, 0)); // ponytail: logged time beyond the waking day is not trimmed
-  const sum = (i) => restMin * sleepMin + perMin(EVERYDAY) * awake + parts.reduce((a, p) => a + p.kcal[i], 0);
+  const sum = (i) => restMin * sleepMin + perMin(everydayMet) * awake + parts.reduce((a, p) => a + p.kcal[i], 0);
   const total = [0, 1].map((i) => sum(i) / (1 - TEF));
-  return { sleep: { minutes: sleepMin, kcal: restMin * sleepMin }, everyday: { minutes: awake, kcal: perMin(EVERYDAY) * awake }, parts, digestion: total.map((t) => t * TEF), total };
+  return { sleep: { minutes: sleepMin, kcal: restMin * sleepMin }, everyday: { minutes: awake, kcal: perMin(everydayMet) * awake, met: everydayMet }, parts, digestion: total.map((t) => t * TEF), total };
 }
 
 /** Bodyweight (kg) on a date: the latest weigh-in on or before it, else the first one after. */
