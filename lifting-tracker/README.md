@@ -70,6 +70,27 @@ The import report in Data lists counts, warnings by type and every cell it could
 
 **Dates.** The workbook has no dates. Charts place sets using a start date you set in Data (default: the START row of the overview sheet) and assume blocks follow each other week by week. Treat those dates as estimates.
 
+Newly logged sets use the **Actual session date**, initially today. Choose a different date explicitly to backfill a workout. Editing keeps the saved date. Save, edit and remove offer Undo for the latest set change; a later data change makes an older Undo unavailable.
+
+Unsaved set inputs and Coach requests/settings are kept on this device. After reopening, choose Resume for a set, or build a fresh Coach draft from the recovered inputs. Nothing is logged or added automatically. Cancel/Discard clears the applicable inputs; replacing data clears both drafts. Drafts are excluded from JSON backups. If storage is unavailable, recovery is only temporary and the app warns you.
+
+Workbook import and JSON restore show a preview with counts and replacement details before Apply. You can back up first or cancel. A preview becomes stale if training data changes; choose the file again.
+
+Data shows the loaded app version and update status. A ready update can wait until after your workout; **Apply update** reloads the app only when you choose it. Open online once to install the offline files.
+
+### Samsung workout check
+
+After this change is published, open the installed app online and check its version in Data. When upgrading from version 13, fully close the installed app and every browser tab for this site, then reopen it so version 14 can activate. Back up your data before testing. Check these on your phone:
+
+1. Open a workout and confirm the actual date is today; choose a past date and check the Backdated label.
+2. Open a set with the keyboard visible. Enter invalid reps, try Save, and confirm the error focuses Reps without losing your weight.
+3. Correct and save, tap Undo, then save again. Check the next set, timer, and form controls remain reachable.
+4. Leave an unsaved set, close/reopen the app, then Resume or Discard. Try the same with a Coach request; it must not add a block by itself.
+5. Turn on airplane mode and reopen. Confirm the workout and saved data still load. Reconnect, preview a backup, then Cancel and confirm your records are unchanged.
+6. If Data offers an update, leave it waiting during a set; apply it after the workout and confirm the data remains.
+
+Browser checks do not verify the Samsung keyboard, home-screen lifecycle, vibration or screen wake lock. Those need this physical-device pass.
+
 ## Maths and rules (so you can check them)
 
 - Weights are stored as entered with their unit; all maths is in kg with `1 lb = 0.45359237 kg`.

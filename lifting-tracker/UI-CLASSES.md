@@ -50,3 +50,4 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - Barbell and plates: `.bb-*`, `.plate-*`, `.loading-text`. 3D bar: `.bb3d` (canvas box inside `.bb-stage`, made by `barbell3d.js`), `.bb3d-status`, `.bb3d-tip` (same look as the 3D map's).
 - Coach review: `.coach-headline`, `.coach-find`, `.sev-high`, `.sev-medium`, `.sev-good`. `details.coach-find` folds a finding to one line: `<summary>` holds the title and its `.pill`; the evidence, "Do this", confidence and action button follow inside the `details`.
 - Sheets and toasts: created by `openSheet()` and `toast()` in `src/ui/dom.js`; don't build them by hand.
+- `.train-session-date` uses the shared `.field` layout for the actual workout date. Recovery messages use `.banner` and `.pill`; field errors use `.tone-bad`. Rest timers sit below sheet backdrops so form controls remain reachable.

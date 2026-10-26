@@ -2,8 +2,9 @@
 // Only same-origin GET requests are handled; nothing is ever sent to another site.
 // The 3D library (vendor/three) and body model (assets/body.glb), about 2.4 MB, are not installed up front: the fetch
 // handler caches them the first time a 3D view opens, and they work offline from then on.
-const VERSION = 'lt-v13';
+const VERSION = 'lt-v14';
 const SHELL = [
+  'src/ui/updates.js', 'src/ui/drafts.js',
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'styles/app.css',
   'data/exercises.json', 'data/plates.json',
   'src/ui/app.js', 'src/ui/state.js', 'src/ui/dom.js', 'src/ui/charts.js', 'src/ui/heatmap.js', 'src/ui/heatmap-body.js', 'src/ui/share-heatmap.js', 'src/ui/share-image.js', 'src/ui/share-progress.js', 'src/ui/summary.js','assets/body-front.webp', 'assets/body-back.webp', 'src/ui/barbell.js', 'src/ui/example-data.js', 'src/ui/rest-timer.js',
@@ -15,7 +16,10 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)));
+});
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'ACTIVATE_UPDATE') e.waitUntil(self.skipWaiting());
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

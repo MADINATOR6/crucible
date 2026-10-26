@@ -10,6 +10,7 @@ import { esc, toast, download, todayIso } from './dom.js';
 import { openStore } from '../store/db.js';
 import { buildBackup } from '../store/backup.js';
 import { keepSummaryFresh } from './summary.js';
+import { createUpdates } from './updates.js';
 
 const ICON = {
   train: '<path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/>',
@@ -76,9 +77,12 @@ async function main() {
 
   // The service worker is skipped on localhost while developing, unless asked for with ?sw=1.
   const isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && (!isLocal || location.search.includes('sw=1'))) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  ui.updates = createUpdates({ serviceWorker: navigator.serviceWorker,
+    enabled: location.protocol.startsWith('http') && (!isLocal || location.search.includes('sw=1')),
+    online: () => navigator.onLine !== false, reload: () => location.reload(),
+    onChange: () => { if (current()[0] === 'data') render(); },
+  });
+  ui.updates.check();
   // Friendly messages for rejected writes (for example a validation error from logging a set).
   window.addEventListener('unhandledrejection', (e) => {
     e.preventDefault();

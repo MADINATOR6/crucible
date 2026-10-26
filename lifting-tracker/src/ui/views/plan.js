@@ -25,6 +25,49 @@ const FOCI = [
   { id: 'deload', label: 'Deload', blurb: 'An easy block to recover.' },
 ];
 const LIFTS = ['squat', 'bench', 'deadlift'];
+const coachSource = (programme) => JSON.stringify([programme.importedAt, programme.blocks.map((b) => [b.id, b.number, b.weeks.length])]);
+const oneOf = (v, values) => values.includes(v);
+const optionalNumber = (v, lo, hi, integer = false) => v === null || (Number.isFinite(v) && v >= lo && v <= hi && (!integer || Number.isInteger(v)));
+
+function coachInputs(app, p) {
+  return { source: coachSource(app.programme), unit: app.settings.unit, text: p.text.slice(0, 5000), settings: {
+    focus: p.focus, weeks: p.weeks, days: p.days, progression: p.progression, rotate: p.rotate, stance: p.stance,
+    emphasis: p.emphasis, layoffWeeks: p.layoffWeeks, checkIn: p.checkIn, deloadWeek: p.deloadWeek,
+    style: p.style, topReps: p.topReps, topRpe: p.topRpe, backoff: { ...p.backoff }, setsAcross: { ...p.setsAcross },
+    rpeCap: p.rpeCap, accessories: p.accessories, variations: p.variations, overrides: { ...p.overrides },
+  } };
+}
+
+function recoveredCoachInputs(app, saved) {
+  const v = saved?.value, s = v?.settings;
+  if (!v || v.source !== coachSource(app.programme) || v.unit !== app.settings.unit || typeof v.text !== 'string' || v.text.length > 5000 || !s || typeof s !== 'object') return null;
+  if (!oneOf(s.focus, FOCI.map((x) => x.id)) || !optionalNumber(s.weeks, 3, 8, true) || !optionalNumber(s.days, 1, 7, true) ||
+      !oneOf(s.progression, ['standard', 'conservative', 'aggressive']) || !oneOf(s.rotate, [null, 0, 0.3, 0.7]) ||
+      !oneOf(s.stance, ['auto', 'sumo', 'conventional']) || !oneOf(s.emphasis, LIFTS) || !optionalNumber(s.layoffWeeks, 1, 52, true) ||
+      typeof s.checkIn !== 'boolean' || !oneOf(s.deloadWeek, ['auto', 'none', 'last', 'all']) ||
+      !oneOf(s.style, ['auto', 'top-single', 'top-set', 'sets-across', 'singles', 'heavy-light']) ||
+      !optionalNumber(s.topReps, 1, 6, true) || !optionalNumber(s.topRpe, 7, 9.5) || (s.topRpe != null && s.topRpe * 2 !== Math.round(s.topRpe * 2)) ||
+      !optionalNumber(s.rpeCap, 6, 10) || !oneOf(s.accessories, ['normal', 'more', 'minimal', 'none']) ||
+      !oneOf(s.variations, ['keep', 'competition-only']) || !s.backoff || typeof s.backoff !== 'object' || !s.setsAcross || typeof s.setsAcross !== 'object') return null;
+  const backoff = {}, setsAcross = {}, overrides = {};
+  for (const [key, lo, hi, integer] of [['sets', 1, 6, true], ['reps', 1, 10, true], ['drop', 0.03, 0.30, false]]) {
+    if (s.backoff[key] != null) { if (!optionalNumber(s.backoff[key], lo, hi, integer)) return null; backoff[key] = s.backoff[key]; }
+  }
+  for (const [key, lo, hi] of [['sets', 2, 10], ['reps', 1, 12]]) {
+    if (s.setsAcross[key] != null) { if (!optionalNumber(s.setsAcross[key], lo, hi, true)) return null; setsAcross[key] = s.setsAcross[key]; }
+  }
+  if (!s.overrides || typeof s.overrides !== 'object') return null;
+  for (const lift of LIFTS) {
+    const o = s.overrides[lift];
+    if (!o) continue;
+    if (!Number.isFinite(o.value) || !oneOf(o.unit, ['kg', 'lb']) || convert(o.value, o.unit, 'kg') < 20 || convert(o.value, o.unit, 'kg') > 600) return null;
+    overrides[lift] = { value: o.value, unit: o.unit };
+  }
+  return { text: v.text, focus: s.focus, weeks: s.weeks, days: s.days, progression: s.progression, rotate: s.rotate, stance: s.stance,
+    emphasis: s.emphasis, layoffWeeks: s.layoffWeeks, checkIn: s.checkIn, deloadWeek: s.deloadWeek, style: s.style,
+    topReps: s.topReps, topRpe: s.topRpe, backoff, setsAcross, rpeCap: s.rpeCap, accessories: s.accessories,
+    variations: s.variations, overrides };
+}
 
 function optionText({ key, value }) {
   if (value == null) return 'Automatic';
@@ -173,8 +216,18 @@ function blockAsText(block, unit) {
 
 export function planView(app, ui) {
   const unit = app.settings.unit;
+  const keptMessage = app.store?.persistent === false ? 'Inputs are temporary and will be lost when you close this tab.' : 'Inputs kept on this device; no block was added.';
   ui.plan ||= { text: '', interpretedText: null, editedAfterRequest: false, settingsOpen: false, focus: 'strength', weeks: null, days: null, progression: 'standard', rotate: null, stance: 'auto', emphasis: 'bench', layoffWeeks: 4, checkIn: true, deloadWeek: 'auto', style: 'auto', topReps: null, topRpe: null, backoff: {}, setsAcross: {}, rpeCap: null, accessories: 'normal', variations: 'keep', seed: 'a', overrides: {}, understood: null, result: null, error: '', week: 1, revise: null, extras: [], applied: [] };
   const p = ui.plan;
+  if (!p.draftChecked && !app.usingExample) {
+    p.draftChecked = true;
+    const saved = app.getDraft?.('coach');
+    if (saved) {
+      const inputs = recoveredCoachInputs(app, saved);
+      if (inputs) { Object.assign(p, inputs); p.draftStatus = 'recovered'; }
+      else p.draftStatus = 'stale';
+    }
+  }
   if (p.revise) { // an old revision must never be applied to a block that has since been removed or replaced
     const cur = app.programme.blocks.find((b) => b.number === p.revise.number);
     if (!cur?.generated || app.blockToken(p.revise.number) !== p.revise.baseToken) p.revise = null;
@@ -235,6 +288,7 @@ export function planView(app, ui) {
 
   const html = `
     <div class="topbar"><div><h1>Coach</h1><p class="muted small">Describe what you need, review a draft built from your training, then choose whether to add it.</p></div></div>
+    ${p.draftStatus ? `<div class="banner mb-4" role="status"><span id="coach-draft-status"><b>UNSAVED Coach inputs</b> · ${p.draftStatus === 'stale' ? 'Saved inputs no longer match this programme.' : p.draftStatus === 'recovered' ? 'Recovered inputs. Build a fresh draft from current training data.' : p.draftStatus === 'error' ? 'Could not keep unsaved inputs on this device.' : keptMessage}</span><button class="btn small ghost" id="discard-coach-draft">Discard</button></div>` : '<p id="coach-draft-status" class="small muted" role="status"></p>'}
     <p class="small muted">1 Describe → 2 Review draft → 3 Add to programme</p>
 
     ${coachCard(review, p)}
@@ -282,6 +336,13 @@ export function planView(app, ui) {
     ${generatedBlocks.length ? `<div class="card mt-4"><div class="card-h"><h2>Your generated blocks</h2></div><ol class="list">${generatedBlocks.map((b) => `<li class="list-row"><span class="main"><b>Block ${b.number}</b> ${esc(b.name)} <small>${esc(b.generated.focus)}, ${b.weeks.length} weeks</small></span><span class="row"><button class="btn small" data-revise="${b.number}">Re-load remaining weeks</button><button class="btn small ghost" data-remove="${b.number}">Remove</button></span></li>`).join('')}</ol>${p.revise ? reviseHtml(p.revise, unit) : ''}</div>` : ''}`;
 
   function bind(root, rerender) {
+    const persist = () => {
+      if (!app.saveDraft) { p.draftStatus = 'error'; root.querySelector('#coach-draft-status').textContent = 'Could not keep unsaved inputs on this device.'; return; }
+      const value = coachInputs(app, p);
+      p._draftWrite = (p._draftWrite || Promise.resolve()).then(() => app.saveDraft('coach', value))
+        .then(() => { p.draftStatus = 'unsaved'; root.querySelector('#coach-draft-status')?.replaceChildren?.('UNSAVED Coach inputs · ' + keptMessage); })
+        .catch(() => { p.draftStatus = 'error'; root.querySelector('#coach-draft-status')?.replaceChildren?.('Could not keep unsaved inputs on this device.'); });
+    };
     const set = (patch) => {
       if (['minimal', 'none'].includes(patch.accessories)) {
         patch.extras = [];
@@ -289,14 +350,19 @@ export function planView(app, ui) {
       }
       Object.assign(p, patch); rerender();
     };
-    const edit = (patch) => { p.text = root.querySelector('#ask-text')?.value ?? p.text; if (p.understood) p.editedAfterRequest = true; set({ ...patch, result: null, error: '' }); };
+    const edit = (patch) => { p.text = root.querySelector('#ask-text')?.value ?? p.text; if (p.understood) p.editedAfterRequest = true; set({ ...patch, result: null, error: '' }); persist(); };
+    root.querySelector('#discard-coach-draft')?.addEventListener('click', async (e) => {
+      e.currentTarget.disabled = true;
+      try { await p._draftWrite; await app.clearDraft('coach'); ui.plan = null; rerender(); }
+      catch (err) { toast(`Could not discard unsaved inputs: ${err?.message || err}`, 4200); e.currentTarget.disabled = false; }
+    });
     root.querySelector('#coach-settings details').addEventListener('toggle', (e) => { p.settingsOpen = e.target.open; });
-    root.querySelector('#ask-text').addEventListener('input', (e) => { p.text = e.target.value; p.result = null; p.resultSource = null; root.querySelector('#draft-preview')?.remove(); });
+    root.querySelector('#ask-text').addEventListener('input', (e) => { p.text = e.target.value; p.result = null; p.resultSource = null; root.querySelector('#draft-preview')?.remove(); persist(); });
     root.querySelector('#ask').addEventListener('submit', (e) => {
       e.preventDefault();
       const text = root.querySelector('#ask-text').value.trim();
       p.text = text;
-      if (!text) { p.understood = null; p.interpretedText = null; p.editedAfterRequest = false; generate(); return; }
+      if (!text) { p.understood = null; p.interpretedText = null; p.editedAfterRequest = false; persist(); generate(); return; }
       if (text !== p.interpretedText || !p.understood) {
         const r = mods.interpretRequest(text), o = r.options;
         p.understood = r; p.interpretedText = text; p.editedAfterRequest = false;
@@ -308,6 +374,7 @@ export function planView(app, ui) {
           rpeCap: o.rpeCap ?? p.rpeCap, accessories: o.accessories ?? p.accessories, variations: o.variations ?? p.variations });
         if (['minimal', 'none'].includes(p.accessories)) { p.extras = []; p.applied = p.applied.filter((id) => review?.findings.find((f) => f.id === id)?.action?.type !== 'addExercise'); }
       }
+      persist();
       generate();
     });
     root.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
@@ -328,7 +395,7 @@ export function planView(app, ui) {
       p.undo ||= {};
       if (p.applied.includes(id)) { // undo: put every setting this action touched back as it was
         Object.assign(p, p.undo[id] || {}); delete p.undo[id];
-        p.applied = p.applied.filter((x) => x !== id); if (p.understood) p.editedAfterRequest = true; generate(); return;
+        p.applied = p.applied.filter((x) => x !== id); if (p.understood) p.editedAfterRequest = true; persist(); generate(); return;
       }
       // Actions that set the block's focus exclude each other; the newest one wins and the older one is dropped.
       const group = (x) => (x.type === 'emphasis' || x.type === 'focus' ? 'focus' : x.type === 'addExercise' ? `x:${x.exerciseId}` : x.type);
@@ -346,10 +413,11 @@ export function planView(app, ui) {
       else if (a.type === 'rotate') p.rotate = a.value;
       else if (a.type === 'addExercise') { p.accessories = 'normal'; p.extras = [...p.extras.filter((x) => x.exerciseId !== a.exerciseId), { exerciseId: a.exerciseId, sets: a.sets, reps: a.reps, rpe: a.rpe }]; }
       if (p.understood) p.editedAfterRequest = true;
+      persist();
       generate();
     }));
     root.querySelectorAll('[data-focus]').forEach((b) => b.addEventListener('click', () => edit({ focus: b.dataset.focus, applied: [], extras: [] })));
-    const changed = () => { p.result = null; p.error = ''; p.text = root.querySelector('#ask-text')?.value ?? p.text; if (p.understood) p.editedAfterRequest = true; rerender(); };
+    const changed = () => { p.result = null; p.error = ''; p.text = root.querySelector('#ask-text')?.value ?? p.text; if (p.understood) p.editedAfterRequest = true; persist(); rerender(); };
     const num = (id) => { const v = parseInt(root.querySelector(id)?.value, 10); return Number.isFinite(v) ? v : null; };
     root.querySelector('#p-weeks').addEventListener('change', () => { const v = num('#p-weeks'); p.weeks = v == null ? null : Math.min(8, Math.max(3, v)); changed(); });
     root.querySelector('#p-days').addEventListener('change', () => { p.days = num('#p-days'); changed(); });
@@ -410,8 +478,11 @@ export function planView(app, ui) {
       try {
         const block = { ...R.block, generated: { ...R.block.generated, rationale: R.rationale, warnings: R.warnings } };
         await app.addBlock(block);
+        await p._draftWrite;
+        let cleared = true; try { await app.clearDraft('coach'); } catch { cleared = false; }
+        if (cleared) p.draftStatus = null;
         ui.train = { block: block.number, week: 1, day: 1 }; ui.plan.result = null;
-        toast(`Block ${block.number} added to your programme`);
+        toast(`Block ${block.number} added to your programme${cleared ? '' : ' · unsaved inputs could not be cleared'}`);
         location.hash = '#train';
       } catch (err) { toast(err.message || String(err), 4200); e.target.disabled = false; }
     });

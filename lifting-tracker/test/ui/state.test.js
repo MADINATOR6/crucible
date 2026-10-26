@@ -92,16 +92,87 @@ test('log-as-planned uses custom exercise names and the minimum load range', asy
   assert.equal(set.rpe, null);
 });
 
-test('log-as-planned defaults to an estimated past/today date, otherwise today; explicit date wins', async () => {
+test('new log-as-planned defaults today regardless of estimated date; edits keep their date', async () => {
   const app = await plannedApp();
   const today = todayIso();
   for (const estimated of [null, addDays(today, -10), today, addDays(today, 10)]) {
     app.dateFor = () => estimated;
     const { set } = await logPlanned(app);
-    assert.equal(app.sessions.find((s) => s.id === set.sessionId).date, estimated && estimated <= today ? estimated : today);
+    assert.equal(app.sessions.find((s) => s.id === set.sessionId).date, today);
   }
   const { set } = await logPlanned(app, { date: '2026-01-01' });
   assert.equal(app.sessions.find((s) => s.id === set.sessionId).date, '2026-01-01');
+  const edited = await logPlanned(app);
+  assert.equal(app.sessions.find((s) => s.id === edited.set.sessionId).date, '2026-01-01');
+});
+
+test('Undo restores insert, edit across dates, and delete exactly in memory and storage', async () => {
+  const app = await plannedApp();
+  const snapshot = async () => ({ sets: structuredClone(app.sets), sessions: structuredClone(app.sessions), prs: structuredClone(app.prs()),
+    storedSets: await app.store.getAll('sets'), storedSessions: await app.store.getAll('sessions') });
+  const empty = await snapshot();
+  const inserted = await app.logSet({ date: '2026-01-01', programmeRef: ref, plannedRef: planned, exerciseId: 'low_bar_squat', weight: { value: 100, unit: 'kg' }, reps: 5 }, { withUndo: true });
+  await app.undoSetChange(inserted.undoToken);
+  assert.deepEqual(await snapshot(), empty);
+  await log(app);
+  const beforeEdit = await snapshot();
+  const edited = await app.logSet({ date: '2026-10-02', programmeRef: ref, plannedRef: planned, exerciseId: 'low_bar_squat', weight: { value: 160, unit: 'kg' }, reps: 3 }, { withUndo: true });
+  assert.equal(app.sessions.length, 1);
+  await app.undoSetChange(edited.undoToken);
+  assert.deepEqual(await snapshot(), beforeEdit);
+  const deleted = await app.deleteSet(app.sets[0].id, { withUndo: true });
+  assert.equal(app.sessions.length, 0);
+  await app.undoSetChange(deleted.undoToken);
+  assert.deepEqual(await snapshot(), beforeEdit);
+  await assert.rejects(() => app.undoSetChange(deleted.undoToken), /no longer/);
+});
+
+test('stale Undo cannot overwrite newer writes or replaced data; failed Undo can be retried', async () => {
+  const app = await plannedApp();
+  const a = await logPlanned(app);
+  const b = await logPlanned(app, { date: '2026-01-01' });
+  await assert.rejects(() => app.undoSetChange(a.undoToken), /no longer/);
+  const saved = structuredClone([app.sets, app.sessions]);
+  const real = app.store.deleteAndPut;
+  app.store.deleteAndPut = async () => { throw new Error('quota'); };
+  await assert.rejects(() => app.undoSetChange(b.undoToken), /quota/);
+  assert.deepEqual([app.sets, app.sessions], saved);
+  app.store.deleteAndPut = real;
+  await app.undoSetChange(b.undoToken);
+  const c = await logPlanned(app);
+  await app.setProgramme(app.programme);
+  await assert.rejects(() => app.undoSetChange(c.undoToken), /no longer/);
+});
+
+test('drafts recover across reload, are cloned and bounded, omitted from backup, cleared on replacement', async () => {
+  const app = await plannedApp();
+  const revision = app.dataRevision;
+  await app.saveDraft('set', { fields: { w: '123.' } });
+  await app.saveDraft('coach', { text: 'four days' });
+  assert.equal(app.dataRevision, revision);
+  const draft = app.getDraft('set'); draft.value.fields.w = '999';
+  assert.equal(app.getDraft('set').value.fields.w, '123.');
+  await app.reload();
+  assert.equal(app.getDraft('coach').value.text, 'four days');
+  assert.ok(!JSON.stringify(await app.exportBackup()).includes('four days'));
+  assert.throws(() => app.saveDraft('set', { text: 'x'.repeat(24001) }), /too large/);
+  await app.setProgramme(app.programme);
+  assert.equal(app.getDraft('set'), null);
+  assert.equal(await app.store.get('meta', 'draft:coach'), null);
+});
+
+test('preview revision is checked inside the write queue, settings do not invalidate it', async () => {
+  const app = await plannedApp();
+  const revision = app.dataRevision;
+  await app.saveSettings({ theme: 'dark' });
+  assert.equal(app.dataRevision, revision);
+  const pending = log(app);
+  const replacement = app.setProgramme(app.programme, { expectedRevision: revision });
+  await pending;
+  await assert.rejects(() => replacement, /changed since/);
+  const backup = JSON.stringify(await app.exportBackup());
+  await assert.rejects(() => app.importBackup(backup, { expectedRevision: revision }), /changed since/);
+  assert.equal(app.sets.length, 1);
 });
 
 test('a double tap on Save logs one set, not two', async () => {

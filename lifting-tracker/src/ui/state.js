@@ -27,7 +27,7 @@ export async function createApp() {
   const app = {
     store, catalogue, platesData, persisted,
     settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [],
-    listeners: new Set(), cache: new Map(),
+    listeners: new Set(), cache: new Map(), dataRevision: 0,
   };
   const byId = new Map(catalogue.exercises.map((e) => [e.id, e]));
   app.exercise = (id) => byId.get(id) || null;
@@ -40,17 +40,48 @@ export async function createApp() {
   // Writes run one at a time, so a double tap can never interleave two read-modify-write sequences.
   let queue = Promise.resolve();
   const enqueue = (fn) => { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; };
+  let undo = null;
+  const drafts = new Map();
+  const draftKeys = ['draft:set', 'draft:coach'];
+  const dataChanged = (invalidate = true) => { app.dataRevision++; if (invalidate) undo = null; app.changed(); };
+  const checkRevision = (expected) => {
+    if (expected != null && expected !== app.dataRevision) throw new RangeError('Your training data changed since this preview. Choose the file again.');
+  };
+  function draftValue(value) {
+    if (!value || Object.getPrototypeOf(value) !== Object.prototype) throw new RangeError('Invalid draft.');
+    const text = JSON.stringify(value);
+    if (text.length > 24000) throw new RangeError('Draft is too large to recover.');
+    return JSON.parse(text);
+  }
+  const draftKey = (kind) => {
+    if (!['set', 'coach'].includes(kind)) throw new RangeError('Unknown draft.');
+    return 'draft:' + kind;
+  };
+  app.getDraft = (kind) => structuredClone(drafts.get(draftKey(kind)) || null);
+  app.saveDraft = (kind, value) => {
+    const key = draftKey(kind), envelope = { value: draftValue(value), savedAt: new Date().toISOString() };
+    return enqueue(async () => { await store.put('meta', { key, value: envelope }); drafts.set(key, envelope); });
+  };
+  app.clearDraft = (kind) => enqueue(async () => { const key = draftKey(kind); await store.delete('meta', key); drafts.delete(key); });
 
   async function load() {
-    const [settings, programme, sessions, sets, bodyweights] = await Promise.all([
+    const [settings, programme, sessions, sets, bodyweights, setDraft, coachDraft] = await Promise.all([
       store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'),
+      ...draftKeys.map((key) => store.get('meta', key)),
     ]);
     app.settings = sanitizeSettings(settings?.value);
     app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights;
     const clean = sanitizeProgramme(programme?.value);
     if (clean) { app.programme = clean; app.usingExample = !!clean.isExample; }
     else { app.programme = buildExampleProgramme(); app.usingExample = true; }
-    app.changed();
+    drafts.clear();
+    [setDraft, coachDraft].forEach((record, i) => {
+      try {
+        const envelope = record?.value;
+        if (envelope && Number.isFinite(Date.parse(envelope.savedAt))) drafts.set(draftKeys[i], { value: draftValue(envelope.value), savedAt: envelope.savedAt });
+      } catch { /* malformed drafts never prevent opening the app */ }
+    });
+    dataChanged();
   }
 
   app.reload = () => enqueue(load);
@@ -62,12 +93,14 @@ export async function createApp() {
     app.changed();
   });
 
-  app.setProgramme = (programme) => enqueue(async () => {
+  app.setProgramme = (programme, { expectedRevision } = {}) => enqueue(async () => {
+    checkRevision(expectedRevision);
     const clean = sanitizeProgramme(programme);
     if (!clean) throw new Error('That is not a programme.');
-    if (!clean.isExample) await store.put('meta', { key: 'programme', value: clean });
+    await store.deleteAndPut({ meta: [...draftKeys, ...(clean.isExample ? ['programme'] : [])] },
+      clean.isExample ? {} : { meta: [{ key: 'programme', value: clean }] });
     app.programme = clean; app.usingExample = !!clean.isExample;
-    app.changed();
+    drafts.clear(); dataChanged();
   });
 
   // Generated blocks: appended to (or replaced in) the athlete's own programme, never the example one.
@@ -75,7 +108,7 @@ export async function createApp() {
     const next = sanitizeProgramme({ ...app.programme, blocks });
     if (!next) throw new Error('That is not a valid programme.');
     await store.put('meta', { key: 'programme', value: next });
-    app.programme = next; app.changed();
+    app.programme = next; dataChanged();
     return next;
   };
   app.addBlock = (block) => enqueue(async () => {
@@ -112,7 +145,7 @@ export async function createApp() {
     app.programme = next;
     app.sessions = app.sessions.map((s) => sessions.find((x) => x.id === s.id) || s);
     app.sets = app.sets.map((s) => sets.find((x) => x.id === s.id) || s);
-    app.changed();
+    dataChanged();
     return next;
   });
 
@@ -218,7 +251,7 @@ export async function createApp() {
   });
 
   // ---- logging ----
-  app.logAsPlanned = async ({ programmeRef, plannedRef, date }) => {
+  app.logAsPlanned = ({ programmeRef, plannedRef, date }) => enqueue(async () => {
     const day = app.programme?.blocks.find((b) => b.number === programmeRef?.blockNumber)
       ?.weeks.find((w) => w.number === programmeRef?.weekNumber)
       ?.days.find((d) => d.number === programmeRef?.dayNumber);
@@ -228,17 +261,18 @@ export async function createApp() {
     const values = plannedValues(planned);
     if (!values) throw new RangeError('This set has no planned weight or reps: open it to log.');
     const today = todayIso();
-    const estimated = app.dateFor(programmeRef);
+    const existing = app.loggedFor({ ...programmeRef, ...plannedRef });
+    const savedDate = app.sessions.find((s) => s.id === existing?.sessionId)?.date;
     const prKey = (x) => `${x.exerciseId}|${x.type}|${x.date}|${x.order}|${x.value}`;
     const before = new Set(app.prs().map(prKey));
-    const set = await app.logSet({
-      programmeRef, plannedRef, date: date ?? (estimated && estimated <= today ? estimated : today),
+    const { set, undoToken } = await logSet({
+      programmeRef, plannedRef, date: date ?? savedDate ?? today,
       exerciseId: entry.exerciseId || 'custom:' + entry.name, ...values,
-    });
-    return { set, newPRs: app.prs().filter((x) => !before.has(prKey(x))) };
-  };
+    }, { withUndo: true });
+    return { set, undoToken, newPRs: app.prs().filter((x) => !before.has(prKey(x))) };
+  });
 
-  app.logSet = (input) => enqueue(async () => {
+  const logSet = async (input, { withUndo = false } = {}) => {
     const { date, programmeRef = null, plannedRef = null, exerciseId, weight, reps, rpe = null, isWarmup = false, note = '' } = input;
     if (!isStrictDate(date)) throw new RangeError('Choose a valid date.');
     if (!weight || !Number.isFinite(weight.value) || weight.value < 0 || weight.value >= 1e5 || !isUnit(weight.unit)) throw new RangeError('Enter a realistic weight.');
@@ -256,35 +290,61 @@ export async function createApp() {
       : { id: uuid(), sessionId: session.id, exerciseId, order: inSession, weight, reps, rpe, isWarmup, plannedRef: plannedRef ?? null, note, createdAt: now, updatedAt: now };
     const oldSessionId = existing && existing.sessionId !== session.id ? existing.sessionId : null;
     const orphaned = oldSessionId && !app.sets.some((s) => s.id !== rec.id && s.sessionId === oldSessionId) ? oldSessionId : null;
+    const receipt = beforeChange(rec.id, [session.id, existing?.sessionId].filter(Boolean));
     await store.deleteAndPut(orphaned ? { sessions: [orphaned] } : {}, { sessions: [session], sets: [rec] }); // one transaction
     if (isNewSession) app.sessions.push(session);
     if (orphaned) app.sessions = app.sessions.filter((s) => s.id !== orphaned);
     const i = app.sets.findIndex((s) => s.id === rec.id);
     if (i >= 0) app.sets[i] = rec; else app.sets.push(rec);
-    app.changed();
-    return rec;
-  });
+    finishChange(receipt);
+    return withUndo ? { set: rec, undoToken: receipt.token } : rec;
+  };
+  app.logSet = (input, options) => enqueue(() => logSet(input, options));
 
-  app.deleteSet = (id) => enqueue(async () => {
+  app.deleteSet = (id, { withUndo = false } = {}) => enqueue(async () => {
     const target = app.sets.find((s) => s.id === id);
     if (!target) return;
     const lastInSession = !app.sets.some((s) => s.id !== id && s.sessionId === target.sessionId);
+    const receipt = beforeChange(id, [target.sessionId]);
     await store.deleteAndPut({ sets: [id], ...(lastInSession ? { sessions: [target.sessionId] } : {}) }, {});
     app.sets = app.sets.filter((s) => s.id !== id);
     if (lastInSession) app.sessions = app.sessions.filter((s) => s.id !== target.sessionId);
-    app.changed();
+    finishChange(receipt);
+    return withUndo ? { removed: target, undoToken: receipt.token } : undefined;
+  });
+
+  function beforeChange(id, sessionIds) {
+    return { token: uuid(), id, set: structuredClone(app.sets.find((s) => s.id === id) || null),
+      index: app.sets.findIndex((s) => s.id === id), sessionIds: [...new Set(sessionIds)],
+      sessions: app.sessions.flatMap((s, index) => sessionIds.includes(s.id) ? [{ record: structuredClone(s), index }] : []) };
+  }
+  function finishChange(receipt) {
+    // Publish the receipt before subscribers see the successful write.
+    receipt.revision = app.dataRevision + 1; undo = receipt; dataChanged(false);
+  }
+  app.undoSetChange = (token) => enqueue(async () => {
+    if (!undo || undo.token !== token || undo.revision !== app.dataRevision) throw new RangeError('That change can no longer be undone.');
+    const receipt = undo;
+    await store.deleteAndPut({ sets: [receipt.id], sessions: receipt.sessionIds },
+      { sets: receipt.set ? [receipt.set] : [], sessions: receipt.sessions.map((s) => s.record) });
+    app.sets = app.sets.filter((s) => s.id !== receipt.id);
+    if (receipt.set) app.sets.splice(receipt.index, 0, receipt.set);
+    app.sessions = app.sessions.filter((s) => !receipt.sessionIds.includes(s.id));
+    for (const s of receipt.sessions) app.sessions.splice(s.index, 0, s.record);
+    dataChanged();
   });
 
   app.addBodyweight = (date, weight, calories = null) => enqueue(async () => {
     if (!isStrictDate(date) || !weight || !(weight.value > 20 && weight.value < 500) || !isUnit(weight.unit)) throw new RangeError('Enter a realistic bodyweight and date.');
     const rec = { id: uuid(), date, weight, calories, createdAt: new Date().toISOString() };
-    await store.put('bodyweights', rec); app.bodyweights.push(rec); app.changed();
+    await store.put('bodyweights', rec); app.bodyweights.push(rec); dataChanged();
   });
-  app.deleteBodyweight = (id) => enqueue(async () => { await store.delete('bodyweights', id); app.bodyweights = app.bodyweights.filter((b) => b.id !== id); app.changed(); });
+  app.deleteBodyweight = (id) => enqueue(async () => { await store.delete('bodyweights', id); app.bodyweights = app.bodyweights.filter((b) => b.id !== id); dataChanged(); });
 
   // ---- backup ----
   app.exportBackup = () => buildBackup(store);
-  app.importBackup = (text) => enqueue(async () => {
+  app.importBackup = (text, { expectedRevision } = {}) => enqueue(async () => {
+    checkRevision(expectedRevision);
     const v = validateBackup(text);
     if (!v.ok) return v;
     await store.replaceAll(v.snapshot);
@@ -292,7 +352,10 @@ export async function createApp() {
     return v;
   });
   app.resetAll = () => enqueue(async () => { await store.clearAll(); await load(); });
-  app.useExample = () => enqueue(async () => { await store.delete('meta', 'programme'); app.programme = buildExampleProgramme(); app.usingExample = true; app.changed(); });
+  app.useExample = () => enqueue(async () => {
+    await store.deleteAndPut({ meta: ['programme', ...draftKeys] }, {});
+    app.programme = buildExampleProgramme(); app.usingExample = true; drafts.clear(); dataChanged();
+  });
 
   await load();
   return app;

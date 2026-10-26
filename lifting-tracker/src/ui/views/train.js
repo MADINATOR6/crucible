@@ -9,10 +9,49 @@ import { startRest, suggestedRest } from '../rest-timer.js';
 import { backupReminder } from '../../store/backup.js';
 import { addDays } from '../../core/weeks.js';
 import { saveBackup } from './data.js';
+import { setDraftToken } from '../drafts.js';
+import { isStrictDate } from '../../store/programme-schema.js';
 
 const repsText = (s) => (s.repsMin == null ? (s.repsRaw ? esc(s.repsRaw) : '–') : s.repsMin === s.repsMax ? String(s.repsMin) : `${s.repsMin}–${s.repsMax}`);
 const sameDay = (a, b) => !!a && !!b && a.blockNumber === b.blockNumber && a.weekNumber === b.weekNumber && a.dayNumber === b.dayNumber;
 const shortDate = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+const dateStatus = (date) => !date ? 'Choose an actual date' : date < todayIso() ? 'Backdated session' : date > todayIso() ? 'Future session' : 'Training today';
+
+function receipt(app, message, undoToken) {
+  toast(message, 8000, undoToken ? { label: 'Undo', onClick: async () => {
+    try { await app.undoSetChange(undoToken); toast('Change undone'); }
+    catch (err) { toast(`Could not undo: ${err?.message || err}`, 5000); }
+  } } : undefined);
+}
+
+const rawField = (value, max = 64) => typeof value === 'string' && value.length <= max ? value : null;
+function recoverSetDraft(app) {
+  const saved = app.getDraft?.('set');
+  const draft = saved?.value;
+  if (!draft || !['planned', 'quick'].includes(draft.kind) || draft.unit !== app.settings.unit || !draft.fields || typeof draft.fields !== 'object') return saved ? { stale: true } : null;
+  const fields = {};
+  for (const key of ['w', 'r', 'e', 'd', 'ex']) {
+    fields[key] = rawField(draft.fields[key] ?? '', key === 'ex' ? 120 : 64);
+    if (fields[key] == null) return { stale: true };
+  }
+  if (typeof draft.fields.wu !== 'boolean') return { stale: true };
+  fields.wu = draft.fields.wu;
+  if (draft.kind === 'quick') {
+    if (!app.catalogue.exercises.some((e) => e.id === fields.ex && e.id === draft.exerciseId)) return { stale: true };
+    return { kind: 'quick', fields };
+  }
+  const ref = draft.programmeRef, plannedRef = draft.plannedRef;
+  if (!ref || !plannedRef || ![ref.blockNumber, ref.weekNumber, ref.dayNumber, plannedRef.entryIndex, plannedRef.setIndex].every(Number.isInteger)) return { stale: true };
+  const block = app.programme.blocks.find((b) => b.number === ref.blockNumber);
+  const week = block?.weeks.find((w) => w.number === ref.weekNumber);
+  const day = week?.days.find((d) => d.number === ref.dayNumber);
+  const entry = day?.entries[plannedRef.entryIndex];
+  if (!entry || !entry.sets[plannedRef.setIndex] || entry.exerciseId !== draft.exerciseId) return { stale: true };
+  const logged = app.loggedFor({ ...ref, ...plannedRef });
+  const token = setDraftToken(app.programme, ref, plannedRef, logged);
+  if (!token || draft.sourceToken !== token) return { stale: true };
+  return { kind: 'planned', block, week, day, ...plannedRef, fields };
+}
 
 function keepScreenAwake(root, app) {
   if (!app.settings.keepAwake || !navigator.wakeLock) return;
@@ -74,6 +113,8 @@ export function trainView(app, ui) {
   const week = block.weeks.find((w) => w.number === ui.train.week);
   const day = week?.days.find((d) => d.number === ui.train.day);
   const dayRef = day && { blockNumber: block.number, weekNumber: week.number, dayNumber: day.number };
+  const dateKey = dayRef && `${dayRef.blockNumber}:${dayRef.weekNumber}:${dayRef.dayNumber}`;
+  if (ui.train.dateKey !== dateKey) Object.assign(ui.train, { dateKey, actualDate: todayIso() });
   const est = !app.datesKnown() || !week ? '' : app.dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day?.number || 1 });
   const fmtLoad = (l) => (l ? formatWeight(l, unit) : '');
   const prog = { done: 0, total: 0 };
@@ -89,6 +130,7 @@ export function trainView(app, ui) {
   const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
   const loggedSessionIds = new Set(app.sets.map((s) => s.sessionId));
   const reminder = backupReminder({ ...app.settings, today: todayIso(), loggedDates: app.sessions.filter((s) => loggedSessionIds.has(s.id)).map((s) => s.date) });
+  const draft = recoverSetDraft(app);
 
   const header = `
     <div class="topbar train-top">
@@ -103,7 +145,9 @@ export function trainView(app, ui) {
     </div>
     ${!app.usingExample && reminder.due ? `<div class="banner mb-4"><span>${reminder.sessions} sessions since your last backup${app.settings.lastBackupAt ? '.' : ', and no backup yet.'}</span><div class="actions"><button class="btn small primary" id="backup-now">Back up</button><button class="btn small ghost" id="backup-later">Later</button></div></div>` : ''}
     ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small" href="#data">Import</a></div>` : ''}
-    ${day ? `<div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
+    ${draft ? `<div class="banner mb-4" role="status"><span><b>UNSAVED set inputs</b> · ${draft.stale ? 'This draft no longer matches the programme or set.' : 'Ready to resume; nothing was logged.'}</span><div class="actions">${draft.stale ? '' : '<button class="btn small primary" id="resume-draft">Resume</button>'}<button class="btn small ghost" id="discard-draft">Discard</button></div></div>` : ''}
+    ${day ? `<label class="field train-session-date"><span>Actual session date</span><input id="session-date" type="date" value="${esc(ui.train.actualDate)}"><small id="session-date-status" class="muted">${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${esc(shortDate(est))}` : ''}</small></label>
+    <div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
   const focus = current ? `<section class="card train-focus" aria-label="Current set">
     <span class="eyebrow train-focus-kicker">Current set · ${prog.total - prog.done} remaining</span>
@@ -154,6 +198,19 @@ export function trainView(app, ui) {
     root.querySelector('#backup-later')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.saveSettings({ backupSnoozeUntil: addDays(todayIso(), 3) })));
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
     root.querySelector('#pick')?.addEventListener('click', () => openDayPicker(app, ui, blocks, rerender));
+    root.querySelector('#resume-draft')?.addEventListener('click', () => {
+      if (draft.kind === 'quick') { openQuickLog(app, draft.fields); return; }
+      Object.assign(ui.train, { block: draft.block.number, week: draft.week.number, day: draft.day.number,
+        dateKey: `${draft.block.number}:${draft.week.number}:${draft.day.number}`, actualDate: isStrictDate(draft.fields.d) ? draft.fields.d : todayIso() });
+      rerender();
+      openLogSheet(app, ui, draft, draft.fields);
+    });
+    root.querySelector('#discard-draft')?.addEventListener('click', (e) => guarded(e.currentTarget, async () => { await app.clearDraft('set'); rerender(); }));
+    root.querySelector('#session-date')?.addEventListener('change', (e) => {
+      if (!e.target.value) { e.target.value = ui.train.actualDate; return; }
+      ui.train.actualDate = e.target.value;
+      root.querySelector('#session-date-status').textContent = `${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${shortDate(est)}` : ''}`;
+    });
     root.querySelectorAll('[data-focus-log]').forEach((b) => b.addEventListener('click', () => {
       const [entryIndex, setIndex] = b.dataset.focusLog.split(':').map(Number);
       openLogSheet(app, ui, { block, week, day, entryIndex, setIndex });
@@ -167,12 +224,9 @@ export function trainView(app, ui) {
       if (b.getAttribute('aria-pressed') === 'true' || !app.logAsPlanned) { openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si }); return; }
       guarded(b, async () => {
         try {
-          const r = await app.logAsPlanned({ programmeRef: dayRef, plannedRef: { entryIndex: ei, setIndex: si } });
+          const r = await app.logAsPlanned({ programmeRef: dayRef, plannedRef: { entryIndex: ei, setIndex: si }, date: ui.train.actualDate });
           try { if (app.settings.vibrate) navigator.vibrate?.(30); } catch { /* not supported */ }
-          toast(r.newPRs.length ? `New PR! ${r.newPRs.map((x) => prLabel(x, unit)).join(', ')}` : `Set ${si + 1} done as planned`, 8000,
-            { label: 'Undo', onClick: async () => {
-              try { await app.deleteSet(r.set.id); toast(`Set ${si + 1} unmarked`); } catch (err) { toast(`Could not undo: ${err?.message || err}. Open the set to remove it.`, 5000); }
-            } });
+          receipt(app, r.newPRs.length ? `New PR! ${r.newPRs.map((x) => prLabel(x, unit)).join(', ')}` : `Set ${si + 1} done as planned`, r.undoToken);
           startRest(suggestedRest(app.exercise(day.entries[ei].exerciseId)), { vibrate: app.settings.vibrate });
         } catch (err) {
           // No planned weight or reps: the set needs the full form.
@@ -243,36 +297,54 @@ function suggestedWeight(app, entry, set, unit) {
   return w ? round1(convert(w.value, w.unit, unit)) : '';
 }
 
-function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
+function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recovered = null) {
   const entry = day.entries[entryIndex];
   const set = entry.sets[setIndex];
   const unit = app.settings.unit;
   const ref = { blockNumber: block.number, weekNumber: week.number, dayNumber: day.number };
   const plannedRef = { entryIndex, setIndex };
   const logged = app.loggedFor({ ...ref, ...plannedRef });
+  const sourceToken = setDraftToken(app.programme, ref, plannedRef, logged);
   const exName = app.exerciseName(entry.exerciseId, entry.name);
-  const defW = logged ? round1(convert(logged.weight.value, logged.weight.unit, unit)) : suggestedWeight(app, entry, set, unit);
-  const defReps = logged ? logged.reps : (set.actualReps ?? (set.repsMin === set.repsMax ? set.repsMin : set.repsMax) ?? '');
-  const defRpe = logged ? (logged.rpe ?? '') : (set.actualRpe ?? set.targetRpe ?? '');
-  const date = logged ? app.sessions.find((s) => s.id === logged.sessionId)?.date : (app.dateFor(ref) && app.dateFor(ref) <= todayIso() ? app.dateFor(ref) : todayIso());
+  const defW = recovered?.w ?? (logged ? round1(convert(logged.weight.value, logged.weight.unit, unit)) : suggestedWeight(app, entry, set, unit));
+  const defReps = recovered?.r ?? (logged ? logged.reps : (set.actualReps ?? (set.repsMin === set.repsMax ? set.repsMin : set.repsMax) ?? ''));
+  const defRpe = recovered?.e ?? (logged ? (logged.rpe ?? '') : (set.actualRpe ?? set.targetRpe ?? ''));
+  const date = recovered?.d ?? (logged ? app.sessions.find((s) => s.id === logged.sessionId)?.date : (ui.train.actualDate || todayIso()));
 
   const sheet = openSheet(`
     <div class="card-h"><h2>${esc(exName)}</h2><span class="pill">Set ${setIndex + 1}</span></div>
+    ${recovered ? '<p class="pill">UNSAVED · recovered inputs</p>' : ''}
     <p class="muted small">Plan: ${repsText(set)} reps${set.targetRpe != null ? ` @ RPE ${set.targetRpe}` : ''}${set.load ? ` · ${formatWeight(set.load, unit)}` : ''}</p>
     <div id="bb" class="bb-stage mt-3 mb-3"></div><p id="bb-text" class="loading-text"></p>
     <div class="grid-3 mt-3">
-      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"></label>
-      <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="0" inputmode="numeric" value="${esc(defReps)}"></label>
-      <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(defRpe)}"></label>
+      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"><small class="tone-bad" data-error="w"></small></label>
+      <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="0" inputmode="numeric" value="${esc(defReps)}"><small class="tone-bad" data-error="r"></small></label>
+      <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(defRpe)}"><small class="tone-bad" data-error="e"></small></label>
     </div>
     <p id="est" class="small muted mt-2"></p>
-    <label class="field mt-3"><span>Date</span><input id="d" type="date" value="${esc(date)}"></label>
+    <label class="field mt-3"><span>Actual date</span><input id="d" type="date" value="${esc(date)}"><small class="tone-bad" data-error="d"></small><small class="muted" id="date-status">${dateStatus(date)}</small></label>
+    <p id="draft-status" class="small muted" role="status">${recovered ? 'Recovered inputs were not logged.' : ''}</p>
     <div class="row spread mt-4">
       <div class="row">${logged ? '<button class="btn ghost" id="del">Remove</button>' : ''}<button class="btn ghost" id="onbar">Open in Plates</button></div>
       <div class="row"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>
     </div>`);
   const el = sheet.el;
   const q = (s) => el.querySelector(s);
+  const invalid = (id, message) => { q(`[data-error="${id}"]`).textContent = message; q(`#${id}`).focus(); };
+  let pending = Promise.resolve();
+  const keepDraft = () => {
+    const value = { kind: 'planned', unit, programmeRef: ref, plannedRef, exerciseId: entry.exerciseId,
+      sourceToken, fields: { w: q('#w').value, r: q('#r').value, e: q('#e').value, d: q('#d').value, ex: '', wu: false } };
+    pending = pending.then(() => app.saveDraft('set', value)).then(() => { q('#draft-status').textContent = app.store?.persistent === false ? 'UNSAVED inputs are temporary and will be lost when you close this tab.' : 'UNSAVED inputs kept on this device.'; })
+      .catch(() => { q('#draft-status').textContent = 'Could not keep unsaved inputs on this device.'; });
+  };
+  const clearDraft = async () => {
+    await pending;
+    const saved = app.getDraft?.('set')?.value;
+    if (saved?.kind === 'planned' && saved.sourceToken === sourceToken &&
+      saved.programmeRef?.blockNumber === ref.blockNumber && saved.programmeRef?.weekNumber === ref.weekNumber && saved.programmeRef?.dayNumber === ref.dayNumber &&
+      saved.plannedRef?.entryIndex === entryIndex && saved.plannedRef?.setIndex === setIndex) await app.clearDraft('set');
+  };
   const refresh = () => {
     const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10);
     if (Number.isFinite(w) && w > 0) {
@@ -286,20 +358,32 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }) {
     }
   };
   ['#w', '#r'].forEach((s) => q(s).addEventListener('input', refresh)); refresh();
-  q('#cancel').addEventListener('click', sheet.close);
-  q('#onbar').addEventListener('click', () => { const w = parseFloat(q('#w').value); if (!(w > 0)) { toast('Enter a weight first'); return; } ui.plates = { side: [], target: String(w), top: '', autoload: true }; sheet.close(); location.hash = '#plates'; });
-  q('#del')?.addEventListener('click', () => guarded(q('#del'), async () => { await app.deleteSet(logged.id); sheet.close(); toast('Logged set removed'); }));
+  ['w', 'r', 'e', 'd'].forEach((id) => q(`#${id}`).addEventListener('input', () => { q(`[data-error="${id}"]`).textContent = ''; keepDraft(); }));
+  q('#d').addEventListener('change', () => { q('#date-status').textContent = dateStatus(q('#d').value); });
+  q('#cancel').addEventListener('click', () => guarded(q('#cancel'), async () => { await clearDraft(); sheet.close(); app.changed?.(); }));
+  q('#onbar').addEventListener('click', () => { const w = Number(q('#w').value); if (!(w > 0)) { invalid('w', 'Enter a weight first'); return; } ui.plates = { side: [], target: String(w), top: '', autoload: true }; sheet.close(); location.hash = '#plates'; });
+  q('#del')?.addEventListener('click', () => guarded(q('#del'), async () => {
+    const r = await app.deleteSet(logged.id, { withUndo: true });
+    let cleared = true; try { await clearDraft(); } catch { cleared = false; }
+    sheet.close(); app.changed?.(); receipt(app, `Logged set removed${cleared ? '' : ' · unsaved copy could not be cleared'}`, r.undoToken);
+  }));
   q('#save').addEventListener('click', () => guarded(q('#save'), async () => {
-    const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10), rpe = q('#e').value === '' ? null : parseFloat(q('#e').value), d = q('#d').value;
-    if (!(Number.isFinite(w) && w >= 0 && w < 1e5) || !Number.isInteger(r) || r < 0 || !d) { toast('Enter a weight, reps and date'); return; }
-    if (rpe != null && !(rpe >= 1 && rpe <= 11)) { toast('RPE must be between 1 and 11'); return; }
+    const w = q('#w').value === '' ? NaN : Number(q('#w').value), r = q('#r').value === '' ? NaN : Number(q('#r').value), rpe = q('#e').value === '' ? null : Number(q('#e').value), d = q('#d').value;
+    if (!(Number.isFinite(w) && w >= 0 && w < 1e5)) { invalid('w', 'Enter a realistic weight'); return; }
+    if (!Number.isInteger(r) || r < 0 || r > 1000) { invalid('r', 'Enter whole reps'); return; }
+    if (rpe != null && !(Number.isFinite(rpe) && rpe >= 1 && rpe <= 11)) { invalid('e', 'RPE must be between 1 and 11'); return; }
+    if (!d) { invalid('d', 'Choose an actual date'); return; }
     const weight = { value: w, unit };
     const before = new Set(app.prs().map(prKey));
     const exerciseId = entry.exerciseId || ('custom:' + entry.name);
-    await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId, weight, reps: r, rpe, note: '' });
+    let saved;
+    try { saved = await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId, weight, reps: r, rpe, note: '' }, { withUndo: true }); }
+    catch (err) { const id = /date/i.test(err.message) ? 'd' : /rpe/i.test(err.message) ? 'e' : /rep/i.test(err.message) ? 'r' : /weight|load/i.test(err.message) ? 'w' : null; if (id) { invalid(id, err.message); return; } throw err; }
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
+    let cleared = true; try { await clearDraft(); } catch { cleared = false; }
     sheet.close();
-    toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
+    app.changed?.();
+    receipt(app, `${fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : logged ? 'Set updated' : 'Set saved'}${cleared ? '' : ' · unsaved copy could not be cleared'}`, saved.undoToken);
     startRest(suggestedRest(app.exercise(entry.exerciseId)), { vibrate: app.settings.vibrate });
   }));
 }
@@ -312,31 +396,51 @@ async function guarded(button, fn) {
 }
 
 /** Log a set that is not part of the coach's programme (any catalogue exercise). */
-function openQuickLog(app) {
+function openQuickLog(app, recovered = null) {
   const unit = app.settings.unit;
   const options = [...app.catalogue.exercises].sort((a, b) => a.name.localeCompare(b.name));
   const sheet = openSheet(`
     <div class="card-h"><h2>Quick log</h2><span class="pill">outside the programme</span></div>
-    <label class="field"><span>Exercise</span><select id="ex">${options.map((e) => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</select></label>
+    ${recovered ? '<p class="pill">UNSAVED · recovered inputs</p>' : ''}
+    <label class="field"><span>Exercise</span><select id="ex">${options.map((e) => `<option value="${esc(e.id)}" ${recovered?.ex === e.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select></label>
     <div class="grid-3 mt-3">
-      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal"></label>
-      <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="1" inputmode="numeric"></label>
-      <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal"></label>
+      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(recovered?.w ?? '')}"><small class="tone-bad" data-error="w"></small></label>
+      <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="1" inputmode="numeric" value="${esc(recovered?.r ?? '')}"><small class="tone-bad" data-error="r"></small></label>
+      <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(recovered?.e ?? '')}"><small class="tone-bad" data-error="e"></small></label>
     </div>
-    <label class="row mt-3"><input id="wu" type="checkbox"> Warm-up set (not counted for PRs or volume)</label>
-    <label class="field mt-3"><span>Date</span><input id="d" type="date" value="${todayIso()}"></label>
+    <label class="row mt-3"><input id="wu" type="checkbox" ${recovered?.wu ? 'checked' : ''}> Warm-up set (not counted for PRs or volume)</label>
+    <label class="field mt-3"><span>Actual date</span><input id="d" type="date" value="${esc(recovered?.d ?? todayIso())}"><small class="tone-bad" data-error="d"></small><small class="muted" id="date-status">${dateStatus(recovered?.d ?? todayIso())}</small></label>
+    <p id="draft-status" class="small muted" role="status">${recovered ? 'Recovered inputs were not logged.' : ''}</p>
     <div class="row spread mt-4"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>`);
   const q = (s) => sheet.el.querySelector(s);
-  q('#cancel').addEventListener('click', sheet.close);
+  const invalid = (id, message) => { q(`[data-error="${id}"]`).textContent = message; q(`#${id}`).focus(); };
+  let pending = Promise.resolve();
+  const keepDraft = () => {
+    const fields = { w: q('#w').value, r: q('#r').value, e: q('#e').value, d: q('#d').value, ex: q('#ex').value, wu: q('#wu').checked };
+    pending = pending.then(() => app.saveDraft('set', { kind: 'quick', unit, programmeRef: null, plannedRef: null, exerciseId: fields.ex, fields }))
+      .then(() => { q('#draft-status').textContent = app.store?.persistent === false ? 'UNSAVED inputs are temporary and will be lost when you close this tab.' : 'UNSAVED inputs kept on this device.'; })
+      .catch(() => { q('#draft-status').textContent = 'Could not keep unsaved inputs on this device.'; });
+  };
+  const clearDraft = async () => { await pending; if (app.getDraft?.('set')?.value?.kind === 'quick') await app.clearDraft('set'); };
+  ['w', 'r', 'e', 'd'].forEach((id) => q(`#${id}`).addEventListener('input', () => { q(`[data-error="${id}"]`).textContent = ''; keepDraft(); }));
+  ['ex', 'wu'].forEach((id) => q(`#${id}`).addEventListener('change', keepDraft));
+  q('#d').addEventListener('change', () => { q('#date-status').textContent = dateStatus(q('#d').value); });
+  q('#cancel').addEventListener('click', () => guarded(q('#cancel'), async () => { await clearDraft(); sheet.close(); app.changed?.(); }));
   q('#save').addEventListener('click', () => guarded(q('#save'), async () => {
-    const w = parseFloat(q('#w').value), r = parseInt(q('#r').value, 10), rpe = q('#e').value === '' ? null : parseFloat(q('#e').value);
-    if (!(Number.isFinite(w) && w >= 0 && w < 1e5) || !Number.isInteger(r) || r < 1 || !q('#d').value) { toast('Enter a weight, reps and date'); return; }
-    if (rpe != null && !(rpe >= 1 && rpe <= 11)) { toast('RPE must be between 1 and 11'); return; }
+    const w = q('#w').value === '' ? NaN : Number(q('#w').value), r = q('#r').value === '' ? NaN : Number(q('#r').value), rpe = q('#e').value === '' ? null : Number(q('#e').value);
+    if (!(Number.isFinite(w) && w >= 0 && w < 1e5)) { invalid('w', 'Enter a realistic weight'); return; }
+    if (!Number.isInteger(r) || r < 1 || r > 1000) { invalid('r', 'Enter whole reps'); return; }
+    if (rpe != null && !(Number.isFinite(rpe) && rpe >= 1 && rpe <= 11)) { invalid('e', 'RPE must be between 1 and 11'); return; }
+    if (!q('#d').value) { invalid('d', 'Choose an actual date'); return; }
     const before = new Set(app.prs().map(prKey));
-    await app.logSet({ date: q('#d').value, programmeRef: null, plannedRef: null, exerciseId: q('#ex').value, weight: { value: w, unit }, reps: r, rpe, isWarmup: q('#wu').checked });
+    let saved;
+    try { saved = await app.logSet({ date: q('#d').value, programmeRef: null, plannedRef: null, exerciseId: q('#ex').value, weight: { value: w, unit }, reps: r, rpe, isWarmup: q('#wu').checked }, { withUndo: true }); }
+    catch (err) { const id = /date/i.test(err.message) ? 'd' : /rpe/i.test(err.message) ? 'e' : /rep/i.test(err.message) ? 'r' : /weight|load/i.test(err.message) ? 'w' : null; if (id) { invalid(id, err.message); return; } throw err; }
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
+    let cleared = true; try { await clearDraft(); } catch { cleared = false; }
     sheet.close();
-    toast(fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved');
+    app.changed?.();
+    receipt(app, `${fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : 'Set saved'}${cleared ? '' : ' · unsaved copy could not be cleared'}`, saved.undoToken);
     if (!q('#wu')?.checked) startRest(suggestedRest(app.exercise(q('#ex')?.value)), { vibrate: app.settings.vibrate });
   }));
 }

@@ -1,8 +1,9 @@
 // Data view: import the coach's workbook, settings, backup/restore, reset.
 import { esc, openSheet, toast, download, todayIso } from '../dom.js';
-import { setsToCsv } from '../../store/backup.js';
+import { setsToCsv, validateBackup } from '../../store/backup.js';
 import { mondayOf } from '../../core/weeks.js';
 import { setWeeklySummary } from '../summary.js';
+import { APP_VERSION } from '../updates.js';
 
 const WARNING_HELP = {
   reps_date_converted: 'Excel turned a rep range into a date; converted back (day = low, month = high).',
@@ -46,12 +47,59 @@ export async function saveBackup(app, share = false) {
   toast(shared ? 'Backup shared' : 'Backup downloaded');
 }
 
+const plannedSets = (programme) => (programme?.blocks || []).reduce((total, block) => total + block.weeks.reduce((weeks, week) => weeks + week.days.reduce((days, day) => days + day.entries.reduce((entries, entry) => entries + entry.sets.length, 0), 0), 0), 0);
+const counts = (programme) => ({ blocks: programme?.blocks?.length || 0, sets: plannedSets(programme) });
+const updateText = {
+  checking: 'Checking for an update…', current: 'This is the latest version available to this device.',
+  available: 'An update is ready. You can apply it when you finish your workout.',
+  reload: 'Another window updated the app. Reload when you finish your workout to use the new version.',
+  offline: 'Offline. The installed version is still available.', error: 'Could not check for updates. Try again later.',
+  unsupported: 'Update checks are not available in this browser.', development: 'Update checks are off on this development server.',
+};
+
+function openReview(app, ui, { title, details, source, apply, done }) {
+  const sheet = openSheet(`<h2>${esc(title)}</h2>${details}<p class="small muted mt-3">Your current data stays in place until you choose Apply.</p>
+    <div id="review-error" class="tone-bad mt-3" role="alert"></div>
+    <div class="actions mt-4"><button class="btn" id="review-backup">Back up current data first</button><button class="btn ghost" id="review-cancel">Cancel</button><button class="btn primary" id="review-apply">Apply</button></div>`);
+  const q = (selector) => sheet.el.querySelector(selector);
+  let writing = false, backingUp = false, stale = false;
+  q('#review-cancel').addEventListener('click', () => { if (!writing && !backingUp) sheet.close(); });
+  q('#review-backup').addEventListener('click', async (event) => {
+    if (backingUp || writing) return;
+    const button = event.currentTarget;
+    backingUp = true; button.disabled = true; q('#review-apply').disabled = true;
+    try { await saveBackup(app, true); } catch (err) { q('#review-error').textContent = `Could not back up: ${err?.message || err}`; }
+    finally { backingUp = false; button.disabled = false; if (!stale) q('#review-apply').disabled = false; }
+  });
+  q('#review-apply').addEventListener('click', async () => {
+    if (writing || backingUp || stale) return;
+    const button = q('#review-apply');
+    if (app.dataRevision !== source.revision || app.programme !== source.programme) {
+      stale = true;
+      button.disabled = true;
+      q('#review-error').textContent = 'Your training data changed since this preview. Choose the file again for a fresh preview.';
+      return;
+    }
+    writing = true; button.disabled = true; q('#review-error').textContent = '';
+    try {
+      await apply();
+      sheet.close(); ui.train = null; ui.muscles = null; ui.plan = null; done();
+    } catch (err) {
+      q('#review-error').textContent = `Could not apply: ${err?.message || err}. Your current data was kept.`;
+      button.disabled = false;
+    } finally { writing = false; }
+  });
+  return sheet;
+}
+
 export function dataView(app, ui) {
   const p = app.programme;
   const rep = p?.report;
   const s = app.settings;
   const startDefault = s.programmeStart || (app.blockStarts().get(p?.blocks?.[0]?.number) ?? '');
   const warnTypes = rep ? Object.entries(rep.warningsByType || {}).sort((a, b) => b[1] - a[1]) : [];
+  const updates = ui.updates;
+  const updateStatus = updates?.status || 'unsupported';
 
   const html = `
     <div class="topbar"><div><h1>Data</h1><p class="muted small">Everything stays on this device. Nothing is uploaded.</p></div>${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>
@@ -90,7 +138,13 @@ export function dataView(app, ui) {
       <p class="small muted">${s.lastBackupAt ? `Last backup: ${esc(new Date(s.lastBackupAt + 'T12:00:00').toLocaleDateString(undefined, { dateStyle: 'long' }))}` : 'No backup yet'}</p>
       <div class="actions">${canShareBackup() ? '<button class="btn primary" id="share-backup">Share backup</button>' : ''}<button class="btn" id="export-json">Export backup (JSON)</button><button class="btn" id="export-csv">Export sets (CSV)</button>
         <label class="btn">Restore backup<input id="import-json" type="file" accept="application/json,.json" class="visually-hidden"></label></div>
+      <div id="restore-status" class="small mt-3" role="alert"></div>
       <p class="small muted mt-3">Storage: ${app.store.persistent ? 'saved on this device' : '<b class="tone-warn">not saved (private window or blocked storage)</b>'}${app.persisted === true ? ' · protected from automatic clearing' : app.persisted === false ? ' · the browser may clear it under storage pressure; export backups' : ''}.</p>
+    </div>
+
+    <div class="card"><div class="card-h"><h2>App version</h2><span class="pill">${esc(APP_VERSION)}</span></div>
+      <p class="small muted">${esc(updateText[updateStatus] || updateText.error)}</p>
+      <div class="actions"><button class="btn" id="check-update" ${updateStatus === 'checking' || updateStatus === 'unsupported' || updateStatus === 'development' ? 'disabled' : ''}>Check for updates</button>${['available', 'reload'].includes(updateStatus) ? `<button class="btn primary" id="apply-update">${updateStatus === 'reload' ? 'Reload app' : 'Apply update and reload'}</button>` : ''}</div>
     </div>
 
     <div class="card"><div class="card-h"><h2>Danger zone</h2></div>
@@ -101,22 +155,28 @@ export function dataView(app, ui) {
     const status = root.querySelector('#import-status');
     root.querySelector('#xlsx').addEventListener('change', async (e) => {
       const file = e.target.files?.[0]; if (!file) return;
+      const source = { revision: app.dataRevision, programme: app.programme };
       status.textContent = 'Reading workbook…';
       try {
         const { importProgramme } = await import('../../import/programme.js');
         const bytes = new Uint8Array(await file.arrayBuffer());
         const prog = await importProgramme(bytes, { catalogue: app.catalogue, fileName: file.name });
-        await app.setProgramme(prog);
-        toast(`Imported ${prog.report.blocks} blocks, ${prog.report.sets} sets`);
+        const old = counts(app.programme), incoming = counts(prog);
+        const warnings = Object.entries(prog.report?.warningsByType || {}).sort((a, b) => b[1] - a[1]);
+        const warningDetails = warnings.length ? `<ul class="bullets">${warnings.map(([type, count]) => `<li>${count} × ${esc(WARNING_HELP[type] || type)}</li>`).join('')}</ul>` : '<p>Warnings: none.</p>';
+        const details = `<p class="muted small">${esc(file.name)} was read on this device. Review it before replacing the programme.</p>
+          <p><b>Planned programme:</b> ${old.blocks} blocks and ${old.sets} planned sets → ${incoming.blocks} blocks and ${incoming.sets} planned sets.</p>
+          <p><b>Kept:</b> ${app.sets.length} logged sets, ${app.sessions.length} logged sessions, ${app.bodyweights.length} bodyweights, and your settings.</p>
+          <p><b>Warnings:</b></p>${warningDetails}${prog.report?.unparsedCells?.length ? `<p>${prog.report.unparsedCells.length} cells not understood.</p>` : ''}`;
+        openReview(app, ui, { title: 'Import workbook?', details, source,
+          apply: () => app.setProgramme(prog, { expectedRevision: source.revision }), done: () => { toast(`Imported ${incoming.blocks} blocks, ${incoming.sets} planned sets`); rerender(); } });
         status.textContent = '';
-        ui.train = null; ui.muscles = null;
-        rerender();
       } catch (err) {
         status.innerHTML = `<b class="tone-bad">Could not import:</b> ${esc(err.message || err)}`;
       }
       e.target.value = '';
     });
-    root.querySelector('#use-example')?.addEventListener('click', async () => { await app.useExample(); ui.train = null; ui.muscles = null; toast('Showing example data'); });
+    root.querySelector('#use-example')?.addEventListener('click', async () => { await app.useExample(); ui.train = null; ui.muscles = null; ui.plan = null; toast('Showing example data'); });
     root.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => app.saveSettings({ unit: b.dataset.unit })));
     root.querySelectorAll('[data-theme]').forEach((b) => b.addEventListener('click', async () => { await app.saveSettings({ theme: b.dataset.theme }); }));
     root.querySelectorAll('[data-block-start]').forEach((inp) => inp.addEventListener('change', () => {
@@ -135,23 +195,36 @@ export function dataView(app, ui) {
     });
     root.querySelector('#import-json').addEventListener('change', async (e) => {
       const file = e.target.files?.[0]; if (!file) return;
-      if (file.size > 100 * 1024 * 1024) { toast('That file is too large to be a backup'); e.target.value = ''; return; }
-      const text = await file.text(); e.target.value = '';
-      const sheet = openSheet(`<h2>Restore backup?</h2><p class="muted small">This replaces everything on this device with the contents of <b>${esc(file.name)}</b>.</p><div id="msg"></div><div class="row spread mt-4"><button class="btn ghost" id="no">Cancel</button><button class="btn primary" id="yes">Replace my data</button></div>`);
-      sheet.el.querySelector('#no').addEventListener('click', sheet.close);
-      sheet.el.querySelector('#yes').addEventListener('click', async () => {
-        let r;
-        try { r = await app.importBackup(text); } catch (err) { r = { ok: false, errors: [`Could not write to storage: ${err?.message || err}`] }; }
-        if (!r.ok) { sheet.el.querySelector('#msg').innerHTML = `<ul>${r.errors.map((x) => `<li class="tone-bad">${esc(x)}</li>`).join('')}</ul><p class="small muted">Nothing was changed.</p>`; return; }
-        sheet.close(); toast(`Restored ${r.counts.sets} sets`); ui.train = null; ui.muscles = null;
-      });
+      const restoreStatus = root.querySelector('#restore-status');
+      restoreStatus.textContent = 'Reading backup…';
+      const source = { revision: app.dataRevision, programme: app.programme };
+      try {
+        if (file.size > 100 * 1024 * 1024) throw new Error('That file is too large to be a backup.');
+        const text = await file.text();
+        const validation = validateBackup(text);
+        if (!validation.ok) throw new Error(validation.errors.join(' '));
+        const incomingProgramme = validation.snapshot.meta.find((x) => x.key === 'programme')?.value || null;
+        const old = counts(app.programme), incoming = counts(incomingProgramme);
+        const details = `<p class="muted small">${esc(file.name)} passed backup validation. Applying replaces all local app data.</p>
+          <p><b>Planned programme:</b> ${old.blocks} blocks and ${old.sets} planned sets → ${incoming.blocks} blocks and ${incoming.sets} planned sets${incomingProgramme ? '' : ' (example programme will be shown)'}.</p>
+          <p><b>Logged sets:</b> ${app.sets.length} current → ${validation.counts.sets} in backup. <b>Sessions:</b> ${app.sessions.length} → ${validation.counts.sessions}. <b>Bodyweights:</b> ${app.bodyweights.length} → ${validation.counts.bodyweights}.</p>
+          <p><b>Settings:</b> replaced with the backup settings, or reset to defaults if absent. No current logged records are kept.</p>
+          <p><b>Warnings:</b> none from validation.</p>`;
+        openReview(app, ui, { title: 'Restore backup?', details, source,
+          apply: async () => { const result = await app.importBackup(text, { expectedRevision: source.revision }); if (!result.ok) throw new Error(result.errors.join(' ')); },
+          done: () => toast(`Restored ${validation.counts.sets} logged sets`) });
+        restoreStatus.textContent = '';
+      } catch (err) { restoreStatus.innerHTML = `<b class="tone-bad">Could not preview backup:</b> ${esc(err?.message || err)}`; }
+      e.target.value = '';
     });
+    root.querySelector('#check-update')?.addEventListener('click', async () => { if (!updates?.check) return; await updates.check(); rerender(); });
+    root.querySelector('#apply-update')?.addEventListener('click', async () => { if (!updates?.apply) return; await updates.apply(); rerender(); });
     root.querySelector('#wipe').addEventListener('click', () => {
       const sheet = openSheet(`<h2>Delete everything?</h2><p>This removes your programme, logged sets and bodyweights from this device. It cannot be undone, so export a backup first.</p><label class="field"><span>Type DELETE to confirm</span><input id="c" autocomplete="off"></label><div class="row spread mt-4"><button class="btn ghost" id="no">Cancel</button><button class="btn danger" id="yes" disabled>Delete all</button></div>`);
       const c = sheet.el.querySelector('#c'), y = sheet.el.querySelector('#yes');
       c.addEventListener('input', () => { y.disabled = c.value.trim() !== 'DELETE'; });
       sheet.el.querySelector('#no').addEventListener('click', sheet.close);
-      y.addEventListener('click', async () => { await app.resetAll(); sheet.close(); ui.train = null; ui.muscles = null; toast('All data deleted'); });
+      y.addEventListener('click', async () => { await app.resetAll(); sheet.close(); ui.train = null; ui.muscles = null; ui.plan = null; toast('All data deleted'); });
     });
   }
   return { html, bind };
