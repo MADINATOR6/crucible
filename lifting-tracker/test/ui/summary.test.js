@@ -31,5 +31,10 @@ test('share background and weekly summary settings are whitelisted', () => {
   assert.equal(sanitizeSettings({ shareBg: 'neon' }).shareBg, 'transparent');
   assert.equal(sanitizeSettings({ shareBarEnd: 'left' }).shareBarEnd, 'left');
   assert.equal(sanitizeSettings({ shareBarEnd: 'up' }).shareBarEnd, 'right');
+  for (const bad of [['lose'], { toString: null }, '__proto__', 'constructor']) {
+    const s = sanitizeSettings({ goal: bad, goalPace: bad, everyday: bad });
+    assert.deepEqual([s.goal, s.goalPace, s.everyday], ['maintain', 'hold', 'mixed']);
+  }
+  assert.equal(sanitizeSettings({ goal: 'lose', goalPace: ['fast'] }).goalPace, 'gentle');
   assert.equal(sanitizeSettings({ weeklySummary: 'yes' }).weeklySummary, false);
 });

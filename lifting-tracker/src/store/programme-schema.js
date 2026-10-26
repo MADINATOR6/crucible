@@ -141,11 +141,16 @@ export const DEFAULT_SETTINGS = Object.freeze({
   goal: 'maintain', goalPace: 'hold', // eating target (src/core/targets.js)
 });
 
-/** Cardio and work entries for the daily energy estimate; unknown kinds and malformed rows are dropped. */
+/** A key of `table`, never an inherited or non-string one (an array like ["lose"] would otherwise pass). */
+const keyOf = (table, v) => typeof v === 'string' && Object.hasOwn(table, v);
+export const MAX_ACTIVITIES = 20000;
+
+/** Cardio and work entries for the daily energy estimate; unknown kinds, malformed rows and repeated ids are dropped. */
 export function sanitizeActivities(list) {
   if (!Array.isArray(list)) return [];
-  return list.slice(0, 20000).filter((a) => isObj(a) && typeof a.id === 'string' && a.id && a.id.length <= 100 && isStrictDate(a.date)
-    && Object.hasOwn(ACTIVITIES, a.kind) && Number.isFinite(a.minutes) && a.minutes > 0 && a.minutes <= 1440)
+  const ids = new Set();
+  return list.slice(0, MAX_ACTIVITIES).filter((a) => isObj(a) && typeof a.id === 'string' && a.id && a.id.length <= 100 && !ids.has(a.id) && ids.add(a.id)
+    && isStrictDate(a.date) && keyOf(ACTIVITIES, a.kind) && Number.isFinite(a.minutes) && a.minutes > 0 && a.minutes <= 1440)
     .map((a) => ({ id: a.id, date: a.date, kind: a.kind, minutes: a.minutes, createdAt: String(a.createdAt ?? '') }));
 }
 
@@ -162,8 +167,8 @@ export function sanitizeSettings(s) {
   if (Number.isInteger(s.birthYear) && s.birthYear >= 1900 && s.birthYear <= 2100) out.birthYear = s.birthYear;
   if (num(s.bodyFatPct) !== null && s.bodyFatPct >= 3 && s.bodyFatPct <= 60) out.bodyFatPct = s.bodyFatPct;
   if (num(s.sleepHours) !== null && s.sleepHours >= 3 && s.sleepHours <= 14) out.sleepHours = s.sleepHours;
-  if (Object.hasOwn(EVERYDAY, s.everyday)) out.everyday = s.everyday;
-  if (Object.hasOwn(PACES, s.goal)) { out.goal = s.goal; out.goalPace = Object.hasOwn(PACES[s.goal], s.goalPace) ? s.goalPace : Object.keys(PACES[s.goal])[0]; }
+  if (keyOf(EVERYDAY, s.everyday)) out.everyday = s.everyday;
+  if (keyOf(PACES, s.goal)) { out.goal = s.goal; out.goalPace = keyOf(PACES[s.goal], s.goalPace) ? s.goalPace : Object.keys(PACES[s.goal])[0]; }
   if (s.unit === 'kg' || s.unit === 'lb') out.unit = s.unit;
   if (['system', 'dark', 'light'].includes(s.theme)) out.theme = s.theme;
   out.collar = s.collar !== false;

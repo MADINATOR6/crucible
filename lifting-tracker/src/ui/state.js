@@ -1,7 +1,7 @@
 // Application state: loads storage, owns settings/programme/logs, and derives set events, PRs and dates.
 import { openStore, requestPersistence, uuid } from '../store/db.js';
 import { buildBackup, validateBackup } from '../store/backup.js';
-import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities } from '../store/programme-schema.js';
+import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES } from '../store/programme-schema.js';
 import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
@@ -9,7 +9,7 @@ import { nextSession, plannedValues } from '../core/session.js';
 import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
 import { sessionCalories, weightOn, restingKcal, dayEnergy } from '../core/calories.js';
-import { maintenance, target } from '../core/targets.js';
+import { maintenance, target, kcalPerKg } from '../core/targets.js';
 import { buildExampleProgramme } from './example-data.js';
 import { todayIso } from './dom.js';
 
@@ -270,11 +270,12 @@ export async function createApp() {
     const s = app.settings, body = bodyOn(today);
     const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)).map((date) => { const e = app.dayEnergy(date); return { date, kcal: e ? (e.total[0] + e.total[1]) / 2 : null }; });
     const pts = app.bodyweightPoints();
-    const m = maintenance({ days, intake: pts.filter((p) => p.kcal > 0).map((p) => ({ date: p.x, kcal: p.kcal })), weights: pts, today });
+    const m = maintenance({ days, intake: pts.filter((p) => p.kcal > 0).map((p) => ({ date: p.x, kcal: p.kcal })), weights: pts, today, perKg: kcalPerKg(body) });
     return { maintenance: m, target: target({ maintenanceKcal: m.kcal, weightKg: body.weightKg, goal: s.goal, pace: s.goalPace, restKcal: restingKcal(body), sex: s.sex, bodyFatPct: s.bodyFatPct }) };
   };
   const saveActivities = async (next) => { await store.put('meta', { key: 'activities', value: next }); app.activities = next; dataChanged(false); };
   app.addActivity = (date, kind, minutes) => enqueue(async () => {
+    if (app.activities.length >= MAX_ACTIVITIES) throw new RangeError('Activity log is full. Export a backup, then remove old entries.');
     const [clean] = sanitizeActivities([{ id: uuid(), date, kind, minutes, createdAt: new Date().toISOString() }]);
     if (!clean) throw new RangeError('Choose an activity and a time between 1 minute and 24 hours.');
     await saveActivities([...app.activities, clean]);

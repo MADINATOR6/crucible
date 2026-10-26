@@ -14,6 +14,12 @@ const mid = ([lo, hi]) => (lo + hi) / 2;
 const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${Math.round(m % 60) ? ` ${Math.round(m % 60)} min` : ''}` : `${Math.round(m)} min`);
 const weekday = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short' });
 const GROUPS = [...new Set(Object.values(ACTIVITIES).map((a) => a.group))];
+/** "Nursing shift, typical (rounds…)" → "Typical shift"; other labels lose only their bracketed detail. */
+const short = (kind) => {
+  const label = ACTIVITIES[kind].label.replace(/ \(.*\)$/, '');
+  const shift = label.match(/^Nursing shift, (\w+)/);
+  return shift ? `${shift[1][0].toUpperCase()}${shift[1].slice(1)} shift` : label;
+};
 
 /** Seven bars, one per day ending on `date`; the chosen day is solid and every bar selects its day. */
 function weekChart(week, date) {
@@ -37,13 +43,15 @@ export function bodyView(app, ui) {
   const entries = app.activities.filter((a) => a.date === b.date);
   const bw = app.bodyweightPoints();
   const missing = !bw.length ? 'Add a bodyweight below to see your daily energy.' : 'Add your height, birth year and sex (or body fat %) under Your details to see your daily energy.';
+  // Your last few distinct activities (kind and length), newest first, for one-tap logging.
+  const recent = [...new Map([...app.activities].sort((x, y) => (x.createdAt < y.createdAt ? 1 : -1)).map((a) => [`${a.kind}|${a.minutes}`, a])).values()].slice(0, 4);
   const del = (a) => `<button type="button" class="btn ghost small" data-del-act="${esc(a.id)}" aria-label="Remove ${esc(ACTIVITIES[a.kind].label)}">×</button>`;
 
   let rows = '';
   if (day) {
     const all = mid(day.total), row = (label, sub, k, extra = '') => `<li class="list-row energy-row"><span class="main"><span>${esc(label)}<small>${esc(sub)}</small></span><svg class="ebar" width="100%" height="5" aria-hidden="true"><rect width="${Math.max(2, (mid(k) / all) * 100).toFixed(1)}%" height="5" rx="2.5"/></svg></span><span class="trail">${span(k)}</span>${extra}</li>`;
     rows = [
-      ...day.parts.map((p) => row(p.label.replace(/ \(.*\)$/, ''), dur(p.minutes), p.kcal, p.id ? del(entries.find((a) => a.id === p.id)) : '')),
+      ...day.parts.map((p) => row(p.id ? short(entries.find((a) => a.id === p.id).kind) : p.label, dur(p.minutes), p.kcal, p.id ? del(entries.find((a) => a.id === p.id)) : '')),
       row('Everyday movement', `${dur(day.everyday.minutes)} awake · ${(EVERYDAY[s.everyday] ?? EVERYDAY.mixed).label.toLowerCase()}`, [day.everyday.kcal, day.everyday.kcal]),
       row('Sleep', `${dur(day.sleep.minutes)} at resting burn`, [day.sleep.kcal, day.sleep.kcal]),
       row('Digestion', 'about 10% of the day', day.digestion),
@@ -81,8 +89,8 @@ export function bodyView(app, ui) {
         ${!m.measured ? '<p class="small muted mt-2">Log what you eat with your weigh-ins below. After 2 weeks (14 days of intake, 8 weigh-ins) maintenance is measured from your real weight change instead of estimated.</p>' : ''}`
       : `<p class="muted">${esc(missing)}</p>`}
       <details class="fold mt-3"><summary>How this target works</summary><div class="small muted">
-        <p><b>Maintenance</b> is the average of your last 7 days of estimated energy. Once you log intake for 2 weeks, it switches to the measured method: average calories eaten minus your weight trend (a robust Theil–Sen line through 28 days of weigh-ins) × 7,700 kcal per kg. This corrects the estimate for your own metabolism.</p>
-        <p><b>Pace</b>: losing 0.5–1% of bodyweight a week helps keep muscle (Helms, Aragon &amp; Fitschen 2014); gaining 0.25–0.5% a week suits novice and intermediate lifters (Iraki et al. 2019). Each kg is about 7,700 kcal (Hall 2008).</p>
+        <p><b>Maintenance</b> is the average of your last 7 days of estimated energy. Once you log intake for 2 weeks, it switches to the measured method: average calories eaten minus your weight trend (a robust Theil–Sen line through 28 days of weigh-ins) × the energy per kg below. This corrects the estimate for your own metabolism.</p>
+        <p><b>Pace</b>: losing 0.5–1% of bodyweight a week helps keep muscle (Helms, Aragon &amp; Fitschen 2014); gaining 0.25–0.5% a week suits novice and intermediate lifters (Iraki et al. 2019). <b>Energy per kg</b> depends on how lean you are (Hall 2008): part of each kg is lean tissue, which holds far less energy than fat. ${s.bodyFatPct && t ? `For you that is ${kcal(t.perKg)} kcal per kg.` : 'Without a body fat % the 7,700 kcal rule is used, which overstates it for lean lifters; add one under Your details.'}</p>
         <p><b>Protein</b> 1.6–2.2 g/kg (Morton et al. 2018), or 2.3–3.1 g per kg of lean mass when cutting with a known body fat % (Helms 2014). <b>Fat</b> 0.5–1.5 g/kg (Iraki 2019), or 15–30% of calories when cutting (Helms 2014). <b>Carbs</b> are the rest; at least 3 g/kg fuels training.</p>
         <p>The target never drops below your resting burn or 1,500 kcal (men) / 1,200 kcal (women). Weigh in under the same conditions, judge progress over 2–3 weeks, not day to day. This is general guidance, not medical advice; see a dietitian for health conditions.</p></div></details>
     </section>`;
@@ -91,8 +99,10 @@ export function bodyView(app, ui) {
     <section class="card energy-card mt-4">
       <div class="card-h"><h2>Daily energy</h2><input id="energy-date" class="energy-date" type="date" value="${esc(b.date)}" max="${today}" aria-label="Day"></div>
       ${day ? `<div class="energy-hero"><b class="figure">${span(day.total)}<small>kcal</small></b><span class="muted small">estimated burn ${b.date === today ? 'today' : `on ${esc(longDate(b.date))}`}</span></div>
+        ${day.overMinutes ? `<p class="small tone-warn mb-2">Sleep and logged activities add up to ${dur(1440 + day.overMinutes)}, more than a day. Check for a duplicate entry (remove it with ×).</p>` : ''}
         <ul class="list energy">${rows}</ul>`
         : `<p class="muted">${esc(missing)}</p>${entries.length ? `<ul class="list energy">${entries.map((a) => `<li class="list-row"><span class="main">${esc(ACTIVITIES[a.kind].label)}<small>${dur(a.minutes)}</small></span>${del(a)}</li>`).join('')}</ul>` : ''}`}
+      ${recent.length ? `<div class="field mt-3"><span>Quick add${b.date === today ? '' : ` to ${esc(shortDate(b.date))}`}</span><div class="chips">${recent.map((a) => `<button type="button" class="chip" data-quick="${esc(a.kind)}|${a.minutes}" aria-label="Add ${esc(ACTIVITIES[a.kind].label)}, ${dur(a.minutes)}">+ ${esc(short(a.kind))} · ${dur(a.minutes)}</button>`).join('')}</div></div>` : ''}
       <form id="act-form" class="act-form mt-3">
         <label class="field"><span>Add cardio, sport or a work shift</span><select name="kind" required><option value="">Choose an activity…</option>${GROUPS.map((g) => `<optgroup label="${esc(g)}">${Object.entries(ACTIVITIES).filter(([, a]) => a.group === g).map(([k, a]) => `<option value="${k}">${esc(a.label)}</option>`).join('')}</optgroup>`).join('')}</select></label>
         <div class="act-time"><label class="field"><span>Hours</span><input name="h" type="number" min="0" max="24" step="1" inputmode="numeric" placeholder="0"></label><label class="field"><span>Minutes</span><input name="m" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="30"></label><button class="btn primary" type="submit">Add</button></div>
@@ -117,7 +127,7 @@ export function bodyView(app, ui) {
       <div class="field mt-2"><span>Everyday movement outside logged activities</span><div class="seg" role="group" aria-label="Everyday movement">${Object.entries(EVERYDAY).map(([k, v]) => `<button data-everyday="${k}" aria-pressed="${s.everyday === k}">${v.label}</button>`).join('')}</div></div>
       <div class="field mt-2"><span>Sex (also your IPF GL category)</span><div class="seg" role="group" aria-label="Sex">${[['male', 'Male'], ['female', 'Female'], ['', 'Not set']].map(([v, t]) => `<button data-sex="${v}" aria-pressed="${(s.sex || '') === v}">${t}</button>`).join('')}</div></div>
       <details class="fold mt-3"><summary>How these estimates work</summary><div class="small muted">
-        <p><b>Activities</b> use the 2024 Adult Compendium of Physical Activities: each one's MET (effort as a multiple of rest) × 3.5 ml O₂/kg/min × bodyweight × time, at about 5 kcal per litre of oxygen. Lifting is 3.5–6 METs (codes 02054, 02052, 02050), banded by your session's RPE, timed from when you logged its sets. A nursing shift is 2.3, 3.3 or 4.5 METs (codes 11650, 11610, 11630); enter the hours on your feet.</p>
+        <p><b>Activities</b> use the 2024 Adult Compendium of Physical Activities: each one's MET (effort as a multiple of rest) × 3.5 ml O₂/kg/min × bodyweight × time, at about 5 kcal per litre of oxygen. Lifting is 3.5–6 METs (codes 02054, 02052, 02050), banded by your session's RPE, timed from when you logged its sets. A nursing shift is a whole-shift average: quiet 1.8, typical 2.3 or busy 3.3 METs (codes 11600, 11650, 11610), because measured ward nurses are active for only about a quarter of a shift (Chappel et al. 2023). Enter the full shift length.</p>
         <p><b>Resting burn</b> uses the ten Haaf &amp; Weijs (2014) equation for athletes, the most precise in a 2023 meta-analysis: lean mass when you give a body fat %, otherwise weight, height, age and sex.</p>
         <p><b>A day</b> = sleep at resting burn + logged activities + the rest of your waking time as everyday movement + digestion (about 10%). Everyday movement is every awake minute you didn't log, at the level you pick: mostly sitting 1.3, mixed 1.5 or on your feet 1.8 METs (Compendium 07026, 07022, 11600). It is the least certain part of the day, which is why the goal card switches to your measured maintenance once you log intake. Without heart rate data, expect roughly ±30% on activities and ±10% on resting burn.</p></div></details>
     </section>`;
@@ -135,8 +145,15 @@ export function bodyView(app, ui) {
       const f = new FormData(e.target), minutes = (Number(f.get('h')) || 0) * 60 + (Number(f.get('m')) || 0);
       if (!(minutes > 0 && minutes <= 1440)) { toast('Enter a time between 1 minute and 24 hours'); return; }
       await app.addActivity(b.date, String(f.get('kind')), minutes);
-      toast(`Added ${ACTIVITIES[f.get('kind')].label.split(',')[0].toLowerCase()}, ${dur(minutes)}`);
+      const added = app.activities.at(-1);
+      toast(`Added ${short(String(f.get('kind'))).toLowerCase()}, ${dur(minutes)}`, 4200, { label: 'Undo', onClick: () => app.deleteActivity(added.id) });
     });
+    root.querySelectorAll('[data-quick]').forEach((btn) => btn.addEventListener('click', async () => {
+      const [kind, minutes] = btn.dataset.quick.split('|');
+      await app.addActivity(b.date, kind, Number(minutes));
+      const added = app.activities.at(-1);
+      toast(`Added ${short(kind).toLowerCase()}, ${dur(Number(minutes))}`, 4200, { label: 'Undo', onClick: () => app.deleteActivity(added.id) });
+    }));
     root.querySelectorAll('[data-del-act]').forEach((btn) => btn.addEventListener('click', async () => {
       const a = app.activities.find((x) => x.id === btn.dataset.delAct);
       if (!a) return;

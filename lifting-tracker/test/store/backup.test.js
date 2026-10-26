@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateBackup, setsToCsv, backupReminder } from '../../src/store/backup.js';
+import { validateBackup, setsToCsv, backupReminder, BACKUP_VERSION } from '../../src/store/backup.js';
 import { canShareBackup, saveBackup } from '../../src/ui/views/data.js';
 import { todayIso } from '../../src/ui/dom.js';
 
@@ -84,6 +84,17 @@ test('cardio and work entries restore with the backup; a malformed entry rejects
   const bad = validateBackup(JSON.stringify(b));
   assert.equal(bad.ok, false); assert.match(bad.errors.join(' '), /1 activity entries are malformed/);
   b.activities = 'lots'; assert.equal(validateBackup(JSON.stringify(b)).ok, false);
+  b.activities = [{ id: 'c1', date: '2026-10-01', kind: 'shift', minutes: 480 }, { id: 'c1', date: '2026-10-02', kind: 'walk', minutes: 30 }];
+  assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /repeat an id/, 'duplicate ids would let one delete remove both');
+  b.activities = Array.from({ length: 20001 }, (_, i) => ({ id: `a${i}`, date: '2026-10-01', kind: 'walk', minutes: 10 }));
+  assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /more than 20000/);
+});
+
+test('backups are format 2 so older apps refuse them instead of dropping activities; format 1 still restores', () => {
+  assert.equal(BACKUP_VERSION, 2);
+  assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: 1 })).ok, true);
+  assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: 2 })).ok, true);
+  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 3 })).errors[0], /newer version/);
 });
 
 test('rejects non-JSON, foreign files and newer schemas without throwing', () => {

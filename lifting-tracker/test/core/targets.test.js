@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { maintenance, target, KCAL_PER_KG } from '../../src/core/targets.js';
+import { maintenance, target, kcalPerKg, KCAL_PER_KG } from '../../src/core/targets.js';
 
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
 const iso = (d) => new Date(Date.UTC(2026, 9, d)).toISOString().slice(0, 10); // synthetic October 2026
@@ -19,6 +19,8 @@ test('measured maintenance = mean intake minus the weight trend × 7,700 kcal/kg
   near(m.kcal, m.measured.kcal, 1e-9);
   const few = maintenance({ days: [], intake: intake.slice(0, 10), weights, today: iso(28) });
   assert.equal(few.measured, null, 'fewer than 14 days of intake');
+  const sameDay = maintenance({ days: [], intake: Array.from({ length: 14 }, () => ({ date: iso(28), kcal: 2800 })), weights, today: iso(28) });
+  assert.equal(sameDay.measured, null, 'fourteen entries on one date are one day of intake');
 });
 
 test('goal target: pace as % of bodyweight per week at 7,700 kcal/kg, with protein, fat and carbs', () => {
@@ -33,6 +35,21 @@ test('goal target: pace as % of bodyweight per week at 7,700 kcal/kg, with prote
   const lean = target({ maintenanceKcal: 3000, weightKg: 80, goal: 'lose', pace: 'steady', bodyFatPct: 15 });
   near(lean.protein.lo, 2.3 * 68); near(lean.protein.hi, 3.1 * 68);
   assert.equal(target({ maintenanceKcal: 3000, weightKg: 80, goal: 'maintain', pace: 'hold' }).change, 0);
+});
+
+test('energy per kg of change follows Hall 2008: lean bodies need less than the 7,700 rule', () => {
+  near(kcalPerKg({ weightKg: 84, bodyFatPct: 15 }), 5993.2, 0.5); // 12.6 kg fat: 45% of a change is lean tissue
+  near(kcalPerKg({ weightKg: 100, bodyFatPct: 30 }), 7478.0, 0.5); // 30 kg fat: close to the rule, as Hall notes
+  assert.equal(kcalPerKg({ weightKg: 84 }), KCAL_PER_KG, 'no body fat %: the rule');
+  const t = target({ maintenanceKcal: 3000, weightKg: 84, goal: 'lose', pace: 'steady', bodyFatPct: 15 });
+  near(t.change, -(0.42 * t.perKg) / 7); near(t.kgPerWeek, -0.42);
+  assert.equal(target({ maintenanceKcal: 3000, weightKg: 84, goal: 'lose', pace: '__proto__' }).change, -(0.0025 * 84 * KCAL_PER_KG) / 7, 'unknown pace falls back to the first');
+});
+
+test('protein and fat never add up to more than the calorie target', () => {
+  const t = target({ maintenanceKcal: 1500, weightKg: 100, goal: 'maintain', pace: 'hold', restKcal: 1395.104, sex: 'female', bodyFatPct: 60 });
+  assert.ok(t.protein.g * 4 + t.fat.g * 9 + t.carbs.g * 4 <= t.kcal + 1e-6, 'macros fit the target');
+  assert.ok(t.fat.g >= t.fat.lo && t.protein.g >= t.protein.lo);
 });
 
 test('never below resting burn or the 1,500 / 1,200 kcal floor', () => {

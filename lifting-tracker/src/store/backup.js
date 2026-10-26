@@ -1,9 +1,11 @@
 // JSON backup/restore and CSV export. Restore validates and sanitises everything first and applies in one
 // transaction, so a bad or hostile file never leaves the database half-written or the app unable to start.
-import { SCHEMA_VERSION } from './db.js';
-import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities } from './programme-schema.js';
+import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES } from './programme-schema.js';
 
 const APP = 'lifting-tracker';
+// Backup file format, separate from the IndexedDB version. 2 adds cardio/work `activities`: apps that only know 1
+// refuse a 2 ("newer version") instead of restoring it and silently dropping the activities.
+export const BACKUP_VERSION = 2;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_RECORDS = 200000;
 
@@ -20,7 +22,7 @@ export async function buildBackup(store) {
     store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'),
   ]);
   return {
-    app: APP, schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(),
+    app: APP, schemaVersion: BACKUP_VERSION, exportedAt: new Date().toISOString(),
     settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights, activities: activities?.value ?? [],
   };
 }
@@ -40,7 +42,7 @@ export function validateBackup(text) {
   const errors = [];
   if (!isObj(json) || json.app !== APP) return { ok: false, errors: ['This is not a Lifting Tracker backup (missing app marker).'] };
   if (!Number.isInteger(json.schemaVersion) || json.schemaVersion < 1) errors.push('Missing or invalid schemaVersion.');
-  else if (json.schemaVersion > SCHEMA_VERSION) errors.push(`Backup is from a newer version (schema ${json.schemaVersion}); this app understands up to ${SCHEMA_VERSION}.`);
+  else if (json.schemaVersion > BACKUP_VERSION) errors.push(`Backup is from a newer version (schema ${json.schemaVersion}); this app understands up to ${BACKUP_VERSION}.`);
   for (const k of ['sessions', 'sets', 'bodyweights']) {
     if (!Array.isArray(json[k])) errors.push(`"${k}" must be a list.`);
     else if (json[k].length > MAX_RECORDS) errors.push(`"${k}" has too many records.`);
@@ -105,9 +107,10 @@ export function validateBackup(text) {
   }
   if (json.settings != null && !isObj(json.settings)) errors.push('settings is malformed.');
   // Cardio/work entries arrived after schema 1 backups, so they are optional; a present list must be well formed.
-  if (json.activities != null && (!Array.isArray(json.activities) || json.activities.length > MAX_RECORDS)) errors.push('"activities" must be a list.');
+  if (json.activities != null && !Array.isArray(json.activities)) errors.push('"activities" must be a list.');
+  else if (json.activities?.length > MAX_ACTIVITIES) errors.push(`"activities" has more than ${MAX_ACTIVITIES} entries.`);
   const activities = sanitizeActivities(json.activities);
-  if (Array.isArray(json.activities) && activities.length !== json.activities.length) errors.push(`${json.activities.length - activities.length} activity entries are malformed.`);
+  if (Array.isArray(json.activities) && json.activities.length <= MAX_ACTIVITIES && activities.length !== json.activities.length) errors.push(`${json.activities.length - activities.length} activity entries are malformed or repeat an id.`);
   if (errors.length) return { ok: false, errors: errors.slice(0, 20).concat(errors.length > 20 ? [`…and ${errors.length - 20} more.`] : []) };
   const settings = json.settings ? sanitizeSettings(json.settings) : null;
   const snapshot = {

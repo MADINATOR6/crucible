@@ -39,12 +39,15 @@ export function sessionMinutes(timestamps) {
 const localDate = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 /**
- * Estimate for one session. `sets` are its logged sets ({ createdAt, rpe, isWarmup }); only sets logged on the session's
- * own date count, so a backfilled workout (typed in later) gets no estimate. Returns { minutes, total: [lo, hi],
+ * Estimate for one session. `sets` are its logged sets ({ createdAt, rpe, isWarmup }); timing starts with the first set
+ * logged on the session's own date, so a backfilled workout (typed in on a later day) gets no estimate. Returns { minutes, total: [lo, hi],
  * active: [lo, hi] | null } in kcal, or null when the time or bodyweight is unknown.
  */
 export function sessionCalories({ date, sets, weightKg, heightCm = null, age = null, sex = null, bodyFatPct = null }) {
-  const live = sets.filter((s) => s.createdAt && localDate(s.createdAt) === date);
+  // Live sets start on the session's own date; a session running past midnight keeps sets up to 6 h after its first.
+  const onDay = sets.map((s) => Date.parse(s.createdAt)).filter((t, i) => Number.isFinite(t) && localDate(sets[i].createdAt) === date);
+  const start = onDay.length ? Math.min(...onDay) : null;
+  const live = start == null ? [] : sets.filter((s) => { const t = Date.parse(s.createdAt); return t >= start && t <= start + 6 * 3600000; });
   const minutes = sessionMinutes(live.map((s) => s.createdAt));
   if (!minutes || !(weightKg > 0)) return null;
   const rpes = live.filter((s) => !s.isWarmup && Number.isFinite(s.rpe)).map((s) => s.rpe);
@@ -57,8 +60,8 @@ export function sessionCalories({ date, sets, weightKg, heightCm = null, age = n
 
 /**
  * Activities you can log for a day, each one 2024 Compendium code (pacompendium.com). Speeds converted from mph.
- * Work levels map a nursing shift onto the occupation codes: 11650 patient care, 11610 standing work that names
- * nursing patient care, 11630 moderate/heavy standing work with lifting over 50 lb (patient transfers).
+ * Work levels map a nursing shift onto the occupation codes: 11600 light standing tasks, 11650 patient care, 11610
+ * standing work that names nursing patient care.
  */
 export const ACTIVITIES = {
   'walk-slow': { group: 'Walk & run', label: 'Walking, slow 3.2–3.9 km/h', met: 2.8, code: '17152' },
@@ -91,9 +94,11 @@ export const ACTIVITIES = {
   'netball': { group: 'Outdoors & sports', label: 'Netball', met: 7.0, code: '15477' },
   'tennis': { group: 'Outdoors & sports', label: 'Tennis', met: 6.8, code: '15675' },
   'badminton': { group: 'Outdoors & sports', label: 'Badminton, social', met: 5.5, code: '15030' },
-  'shift-light': { group: 'Work', label: 'Nursing shift, light (charting, meds, patient care)', met: 2.3, code: '11650' },
-  'shift': { group: 'Work', label: 'Nursing shift, normal (on your feet, patient care)', met: 3.3, code: '11610' },
-  'shift-tough': { group: 'Work', label: 'Nursing shift, tough (transfers, heavy lifting)', met: 4.5, code: '11630' },
+  // Whole-shift averages, not the peak task: accelerometry puts ward nurses' active time at about 27% of a shift
+  // (Chappel et al. 2023, J Act Sedentary Sleep Behav 2:27), so a typical shift ≈ 0.27 × 3.5 + 0.73 × 1.8 ≈ 2.3 METs.
+  'shift-light': { group: 'Work', label: 'Nursing shift, quiet (mostly charting and meds)', met: 1.8, code: '11600' },
+  'shift': { group: 'Work', label: 'Nursing shift, typical (rounds and patient care)', met: 2.3, code: '11650' },
+  'shift-tough': { group: 'Work', label: 'Nursing shift, busy (on your feet, transfers)', met: 3.3, code: '11610' },
 };
 
 /** Untracked waking time, by lifestyle: Compendium 07026 sitting (1.3), 07022/07041 sitting and standing, fidgeting
@@ -119,10 +124,12 @@ export function dayEnergy({ weightKg, restKcal, sleepHours = 8, everyday = 'mixe
     if (def && a.minutes > 0) parts.push({ id: a.id, group: def.group, label: def.label, minutes: a.minutes, kcal: [perMin(def.met) * a.minutes, perMin(def.met) * a.minutes] });
   }
   const sleepMin = Math.min(1440, sleepHours * 60);
-  const awake = Math.max(0, 1440 - sleepMin - parts.reduce((a, p) => a + p.minutes, 0)); // ponytail: logged time beyond the waking day is not trimmed
+  const logged = parts.reduce((a, p) => a + p.minutes, 0);
+  const awake = Math.max(0, 1440 - sleepMin - logged);
+  const overMinutes = Math.max(0, sleepMin + logged - 1440); // more than 24 h: usually a duplicate entry, shown to the user
   const sum = (i) => restMin * sleepMin + perMin(everydayMet) * awake + parts.reduce((a, p) => a + p.kcal[i], 0);
   const total = [0, 1].map((i) => sum(i) / (1 - TEF));
-  return { sleep: { minutes: sleepMin, kcal: restMin * sleepMin }, everyday: { minutes: awake, kcal: perMin(everydayMet) * awake, met: everydayMet }, parts, digestion: total.map((t) => t * TEF), total };
+  return { overMinutes, sleep: { minutes: sleepMin, kcal: restMin * sleepMin }, everyday: { minutes: awake, kcal: perMin(everydayMet) * awake, met: everydayMet }, parts, digestion: total.map((t) => t * TEF), total };
 }
 
 /** Bodyweight (kg) on a date: the latest weigh-in on or before it, else the first one after. */

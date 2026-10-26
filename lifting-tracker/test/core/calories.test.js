@@ -36,6 +36,13 @@ test('session calories: total from MET × weight × time, active subtracts the r
   assert.equal(noBody.active, null, 'active needs height, age and sex');
 });
 
+test('a session that runs past midnight keeps its time; sets typed in the next afternoon do not count', () => {
+  const sets =[new Date(2026, 9, 26, 23, 50), new Date(2026, 9, 27, 0, 0), new Date(2026, 9, 27, 0, 10)].map((d) => ({ createdAt: d.toISOString(), rpe: 8, isWarmup: false }));
+  assert.equal(sessionCalories({ date: '2026-10-26', sets, weightKg: 85 }).minutes, 30);
+  const afternoon = [...sets, { createdAt: new Date(2026, 9, 27, 15, 0).toISOString(), rpe: 8, isWarmup: false }];
+  assert.equal(sessionCalories({ date: '2026-10-26', sets: afternoon, weightKg: 85 }).minutes, 30);
+});
+
 test('no estimate for a backfilled workout, a single set or an unknown bodyweight', () => {
   assert.equal(sessionCalories({ date: '2026-10-20', sets: sets([0, 10, 20]), weightKg: 85 }), null);
   assert.equal(sessionCalories({ date: '2026-10-26', sets: sets([0]), weightKg: 85 }), null);
@@ -45,13 +52,16 @@ test('no estimate for a backfilled workout, a single set or an unknown bodyweigh
 test('a day adds sleep, logged activities, everyday movement for the rest of the waking day, and digestion', () => {
   const d = dayEnergy({ weightKg: 80, restKcal: 2000, sleepHours: 8, lifting: [{ minutes: 60, total: [420, 504] }], activities: [{ id: 'a', kind: 'shift', minutes: 480 }] });
   near(d.sleep.kcal, 2000 / 3); // 8 h at resting burn
-  near(d.parts[1].kcal[0], 480 * 3.3 * 1.4); // shift: MET × 3.5 × 80 kg ÷ 200 per minute
+  near(d.parts[1].kcal[0], 480 * 2.3 * 1.4); // typical shift: MET × 3.5 × 80 kg ÷ 200 per minute
   assert.equal(d.everyday.minutes, 1440 - 480 - 60 - 480);
   near(d.everyday.kcal, 420 * 1.5 * 1.4);
-  near(d.total[0], (2000 / 3 + 882 + 420 + 2217.6) / 0.9);
+  near(d.total[0], (2000 / 3 + 882 + 420 + 1545.6) / 0.9);
   near(d.total[1] - d.total[0], 84 / 0.9, 'the range comes from the lifting MET band');
   near(d.digestion[0], d.total[0] * 0.1);
   near(dayEnergy({ weightKg: 80, restKcal: 2000, everyday: 'feet' }).everyday.kcal, 960 * 1.8 * 1.4); // 16 h awake on your feet
+  assert.equal(d.overMinutes, 0);
+  const twice = dayEnergy({ weightKg: 80, restKcal: 2000, activities: [{ id: 'a', kind: 'shift', minutes: 600 }, { id: 'b', kind: 'shift', minutes: 600 }] });
+  assert.equal(twice.overMinutes, 480 + 1200 - 1440, 'a duplicated shift overbooks the day and is reported');
   assert.equal(dayEnergy({ weightKg: 80, restKcal: null }), null, 'needs a resting burn');
   assert.equal(dayEnergy({ weightKg: 80, restKcal: 2000, activities: [{ kind: 'unknown', minutes: 30 }] }).parts.length, 0);
 });
