@@ -32,7 +32,8 @@ Add a dev, test, lint, typecheck or build command only after it has run successf
 # Claude Code Plugins
 
 - Claude-only, official marketplace only. The project `.claude/settings.json` enables `security-guidance@claude-plugins-official` with `ENABLE_CODE_SECURITY_REVIEW=0`: only the free per-edit pattern check runs (no model call). The end-of-turn and commit reviews each spend extra Opus usage; set the variable to `1` for a one-off security pass, or use the built-in `/security-review` before a push under `lifting-tracker/`. Needs a git repo, pip and network on first run (venv in `~/.claude/security/`). Codex needs no equivalent: its verifier role already covers risky diffs.
-- Evaluated, not adopted (JetBrains paired A/B tests, Jul 2026): `caveman` (advertised -65%, measured -8.5%), `rtk` (+7.6% cost at low effort). `superpowers` overlaps ccx. `ponytail` measured -10% cost per task (advertised -20%): optional, user-level only, copy its install line from github.com/DietrichGebert/ponytail and A/B it on one task first.
+- Evaluated, not adopted (JetBrains paired A/B tests, Jul 2026): `caveman` (advertised -65%, measured -8.5%), `rtk` (+7.6% cost at low effort). `superpowers` overlaps ccx.
+- `ponytail@ponytail` (github.com/DietrichGebert/ponytail, MIT; the project settings declare the marketplace and enable it): the minimum-code rule set. JetBrains measured -10% cost per task (advertised -20%), quality unchanged within noise. Third-party hooks (need Node on PATH), unpinned. `/ponytail band` shows per-task cost; if it skips part of a multi-step request or cost does not drop, disable it with `/plugin disable ponytail@ponytail`. Codex has its own plugin, user-level: `codex plugin marketplace add DietrichGebert/ponytail`, then `codex plugin add ponytail@ponytail`.
 - Cheaper than any plugin: disable user-level MCP servers and plugins unrelated to this repo; each connected server adds baseline context.
 
 # External Tools
