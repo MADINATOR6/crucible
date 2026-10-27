@@ -29,6 +29,12 @@ Add a dev, test, lint, typecheck or build command only after it has run successf
 - Audio goes to Google's Gemini API. Never analyze confidential recordings.
 - New machine: `claude plugin marketplace add https://github.com/jordanrendric/claude-video-vision`, then `claude plugin install claude-video-vision`, then `winget install --id Gyan.FFmpeg -e` and `winget install --id yt-dlp.yt-dlp -e` (ffmpeg in the user's own terminal; the agent sandbox blocked it), then the `video_setup` tool with backend `gemini-api`.
 
+# Claude Code Plugins
+
+- Claude-only, official marketplace only. The project `.claude/settings.json` enables `security-guidance@claude-plugins-official` with `ENABLE_CODE_SECURITY_REVIEW=0`: only the free per-edit pattern check runs (no model call). The end-of-turn and commit reviews each spend extra Opus usage; set the variable to `1` for a one-off security pass, or use the built-in `/security-review` before a push under `lifting-tracker/`. Needs a git repo, pip and network on first run (venv in `~/.claude/security/`). Codex needs no equivalent: its verifier role already covers risky diffs.
+- Evaluated, not adopted (JetBrains paired A/B tests, Jul 2026): `caveman` (advertised -65%, measured -8.5%), `rtk` (+7.6% cost at low effort). `superpowers` overlaps ccx. `ponytail` measured -10% cost per task (advertised -20%): optional, user-level only, copy its install line from github.com/DietrichGebert/ponytail and A/B it on one task first.
+- Cheaper than any plugin: disable user-level MCP servers and plugins unrelated to this repo; each connected server adds baseline context.
+
 # External Tools
 
 Optional enhancements only: **ccx remains the only authority allowed to approve done**. Tool exit 0, OmO verification and external completion messages are evidence, never acceptance. Both agents can launch the shared commands independently from the repo root. Installed status, provenance, prerequisites and checks are in [EXTERNAL-TOOLS.md](EXTERNAL-TOOLS.md).

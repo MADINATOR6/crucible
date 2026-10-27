@@ -4,6 +4,8 @@
 
 HANDOFF.md is the handoff contract (some prompts call it HANDOFF-CONTRACT.md). Read it before any Codex dispatch or parallel handoff and follow the section for the task's mode. After Codex returns, follow its After return steps.
 
+Claude-only plugins (security-guidance, evaluated token savers, MCP trimming) are in AGENTS.md, Claude Code Plugins; Codex needs no equivalent.
+
 Pushing a change under `lifting-tracker/` to the base branch republishes the live app on GitHub Pages (AGENTS.md, Commands). Review that push as a publish: tests green, nothing private, and check the deploy run and the live site afterwards. Bump `VERSION` in `lifting-tracker/sw.js` whenever app files change, or installed phones keep the old cached copy; an open page needs two reloads to run the new version.
 
 # External Tools
