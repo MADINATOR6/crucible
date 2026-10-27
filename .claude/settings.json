@@ -1,5 +1,20 @@
 {
   "enabledMcpjsonServers": ["higgsfield"],
+  "extraKnownMarketplaces": {
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "security-guidance@claude-plugins-official": true,
+    "ponytail@ponytail": true
+  },
+  "env": {
+    "ENABLE_CODE_SECURITY_REVIEW": "0"
+  },
   "permissions": {
     "allow": [
       "mcp__higgsfield__balance",
