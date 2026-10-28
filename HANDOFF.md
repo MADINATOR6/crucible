@@ -124,6 +124,7 @@ Follow HANDOFF.md, Media task: Media-maker instruction (it takes precedence over
 Goal: <what the clip shows and what it is for>
 Project: <slug> (the only write location: media-out/higgsfield/<slug>/)
 References: <file paths or Higgsfield job/upload ids; consent for any face>
+Previz: <optional: media-out/higgsfield/<slug>/previz/<name>.mp4, the approved Blender playblast for camera and timing (playbook 4b); the Prompt binds it by number>
 Settings: <model, mode, aspect, resolution, duration, audio; draft or final>
 Prompt: <verbatim, with timed beats: 0-2s: ...>
 Beats: <what must be on screen when>
@@ -143,12 +144,12 @@ Make the media the task file describes. Claude owns intake, approvals, review, c
 3. Before every paid call: quote it with `higgsfield generate cost <model> <same flags>` (free), then run `scripts/higgsfield.ps1 summary -Project <p> -Budget <cap> -Task <ID> -Next <quote>`. Exit 1 means the call would exceed the cap: stop and report. Never raise a cap or switch models to fit one.
 4. Drafts first: `--draft true` where the model offers it, else the lowest resolution, one output. Produce only what the task file asks for in this dispatch; a final needs its own dispatch.
 5. Regenerate only a failed shot, with a plain-English correction, at most once per dispatch.
-6. Pass job or upload ids for existing media. Upload only files the task file names; never private data or faces of people who have not agreed.
+6. Pass job or upload ids for existing media. Upload only files the task file names; never private data or faces of people who have not agreed. A `Previz:` playblast is such a file: pass it as `--video-references <path>` (the CLI uploads local paths), subject images as `--image-references`, and use the Prompt exactly as written. Claude owns the Blender blockout; never rebuild or alter it, and report a bad playblast instead of compensating in the prompt.
 7. Generate with `--wait --json`. Download every result into the project folder (curl.exe -L -o media-out/higgsfield/<p>/<name> <url>); never overwrite a file.
 8. One ledger line per job, with the charged credits: scripts/higgsfield.ps1 log -Project <p> -Task <ID> -Kind image|video|audio|upscale|other -Model <m> -Credits <n> -Job <id> -File <path> -Prompt "<short>".
 9. Edits (cuts, sound mix, end cards): ffmpeg into new files in the project folder; never modify the source files.
 10. Never publish, post, share, deploy, delete Higgsfield assets, or change the workspace or plan. Never run `ccx` commands: the launcher already checked and consumed this dispatch's approvals, and with full access a stray `ccx gate` opens a request nobody asked for. The CLI's higgsfield-* skills are reference material; this instruction wins where they differ.
-11. ffprobe each deliverable (ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact <file>), check each beat against the task file, run `higgsfield account status` again (media-generate), and reply with the Media report format.
+11. ffprobe each deliverable (ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact <file>), check each beat against the task file, and with a `Previz:` playblast grab start, middle and end frames of both (ffmpeg, new PNGs in the project folder) and note camera direction, subject placement and drift per timestamp in the report's Beats, run `higgsfield account status` again (media-generate), and reply with the Media report format.
 ```
 
 ### Media report format
