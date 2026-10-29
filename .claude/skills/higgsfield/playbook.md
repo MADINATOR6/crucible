@@ -88,6 +88,16 @@ Cost: Blender and the analysis are free; only the Higgsfield draft and final spe
 
 Prompt writing, planning and iteration through Claude uses Claude tokens. The in-app Higgsfield assistant spends Higgsfield credits on every chat message. Keep planning, prompt drafting and story work in Claude and send only generation calls to Higgsfield.
 
+## 8. Real places and products: enhance, never invent
+
+Applies whenever the media shows a real place, property, product or business that a customer could book, buy or visit (listings, menus, ads, before/after).
+
+- **Allowed:** upscaling, sharpening, denoising, exposure, white balance, colour, straightening, and removing temporary clutter that isn't part of what is sold (a bin, a car, a stray towel).
+- **Never:** add, remove or resize features or amenities; hide damage, wear or flaws; change views, sky or surroundings in a way a guest would see differently; put food, people or stock on display that isn't really there.
+- **No invented footage.** Do not generate walkthroughs, flyovers or camera moves through spaces that no source photo or video shows. Image-to-video is fine for motion inside one frame's space (a slow push-in on a single real photo), but not for joining photos into a tour.
+- **Check against the source.** Before delivery, compare every output side by side with its source and record any change beyond the allowed list in the report. If the brief asks for something on the never list, stop and report; do not soften it into a smaller invention.
+- Why: Airbnb may require hosts to remove AI content that edits flaws, hides damage, adds amenities or otherwise materially misrepresents a listing (Airbnb statement to CBC, 2026), and misleading images can breach consumer law (in Australia, Australian Consumer Law s18; have a lawyer confirm how it applies to a contractor). This rule applies on top of the privacy rules, never instead of them.
+
 ## Verified on the live MCP (2026-10-24 smoke test, 5 credits)
 
 - Hero `gpt_image_2` 16:9 (default 1k, low quality): 0.5 credits. Character sheet from the hero as a reference (`medias: [{value: <hero job id>, role: "image"}]`): 0.5 credits, came back as clean front/back/face panels on grey.
@@ -130,4 +140,4 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 
 ## Sources
 
-`Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.
+`Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24. Section 8 comes from reviewing `vOBKA8n15vg` (Iman Gadzhi, a Higgsfield investor; 2026-10-29, transcript only), whose AI-enhanced Airbnb walkthroughs it rules out, and from Airbnb's statement in https://www.cbc.ca/radio/costofliving/artificial-intelligence-airbnb-photos-9.7371277.
