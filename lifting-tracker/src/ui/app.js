@@ -30,7 +30,7 @@ function applyTheme(theme) {
 
 /** Recovery tools that do not depend on any parsed data, shown whenever the app cannot render. */
 function emergencyHtml() {
-  return `<div class="card" style="margin-top:14px"><h2>Recovery</h2><p class="muted small">Your data is untouched. You can save a raw copy of it, or delete it and start fresh.</p><div class="row"><button class="btn" id="em-export">Download raw data</button><button class="btn" id="em-wipe" style="border-color:var(--bad);color:var(--bad)">Delete all data</button></div></div>`;
+  return `<div class="card mt-4"><h2>Recovery</h2><p class="muted small">Your data is untouched. You can save a raw copy of it, or delete it and start fresh.</p><div class="row"><button class="btn" id="em-export">Download raw data</button><button class="btn danger" id="em-wipe">Delete all data</button></div></div>`;
 }
 function bindEmergency(root) {
   root.querySelector('#em-export')?.addEventListener('click', async () => { try { const s = await openStore(); download(`lifting-tracker-raw-${todayIso()}.json`, JSON.stringify(await buildBackup(s))); } catch (err) { toast('Could not read storage: ' + (err.message || err)); } });
@@ -66,7 +66,7 @@ async function main() {
     const savedView = keepScroll ? captureView(view) : null;
     let out;
     try { out = fn(app, ui); } catch (err) { console.error(err); out = { html: `<div class="card"><h2>Something went wrong</h2><p class="muted">${esc(err.message || err)}</p></div>${emergencyHtml()}`, bind: bindEmergency }; }
-    const storageWarning = app.store.persistent ? '' : '<div class="banner" role="alert" style="margin-bottom:14px"><span><b>Storage is unavailable</b> (private window or blocked site data). Anything you log will be lost when you close this tab. Use a normal window and export backups.</span></div>';
+    const storageWarning = app.store.persistent ? '' : '<div class="banner mb-4" role="alert"><span><b>Storage is unavailable</b> (private window or blocked site data). Anything you log will be lost when you close this tab. Use a normal window and export backups.</span></div>';
     view.innerHTML = storageWarning + out.html;
     try { out.bind(view, () => render()); } catch (err) { console.error(err); }
     restoreView(view, savedView);

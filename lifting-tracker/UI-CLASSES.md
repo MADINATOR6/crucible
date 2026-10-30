@@ -4,6 +4,8 @@ Views (`src/ui/**`) build markup only from the classes below. `styles/app.css` i
 
 Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4, 8, 12, 16, 20, 24, 32) and `--t-xs` to `--t-2xl` (12, 13, 15, 17, 20, 24, 32 px). `--tap` is the 44 px minimum touch target.
 
+Control borders use `--line-ctl`; decorative dividers keep `--line`. Green text uses `--good-text`, green fills use `--good`. `--example-ink` is the ink on the example pill. Floating toast/timer surfaces override `--focus` locally. `.toast-dismiss` gives the toast close button a 44 px width.
+
 ## Headings and text
 - `h1`: page title, the only all-caps heading. One per view.
 - `h2`, `h3`: section and item headings, sentence case.

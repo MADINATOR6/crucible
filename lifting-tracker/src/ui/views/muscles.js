@@ -145,7 +145,7 @@ export function musclesView(app, ui) {
     bindShareBg(root, app);
     root.querySelectorAll('[data-share-map]').forEach((b) => b.addEventListener('click', () => shareHeatmapImage({ data, bands, title: label, subtitle: `${total} ${recovery ? 'weighted' : 'working'} sets`, bg: app.settings.shareBg, save: b.dataset.shareMap === 'save' })
       .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); })));
-    const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: `smooth` })); };
+    const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })); };
     const id = ++mountId;
     leaveObserver?.disconnect();
     if (m.view === '3d') {
