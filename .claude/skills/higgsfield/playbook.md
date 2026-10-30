@@ -128,6 +128,19 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 - **Check sound sync locally.** `generate_audio` put the loudness peak on the sneeze both times. Check it with ffmpeg `astats` per half second before sending audio anywhere.
 - **Cost of the review loop:** one draft plus one round of fix notes fit a 60 cap (15 + 35). The final is a fresh render; finalizing the draft itself needs `draft_job_id` and the 1080p price.
 
+## Real-estate and listing reels (from four reference tutorials, 2026-10-30)
+
+Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `y31BN4FEdwc`, EditorLab `OKwlVvXcbK8` (transcripts and sampled frames; all Higgsfield affiliate content, so the tool pitch is ignored).
+
+- **Audit the photos before any credits.** Consistent lighting and angles, high resolution, no screenshots, text, watermarks or contact details. Bad photos, not prompts, cause most failures.
+- **Order them as a route:** exterior, entrance, living, kitchen, bedroom, outdoor, and finish outside again.
+- **Moves that work:** dolly (straight push), axis lock (truck), crane (up or down), orbit. Moves that don't: "drone" (looks piloted) and "slow luxurious" (no energy). Small, believable motion beats dramatic motion. Image-to-video models drift toward handheld wobble, so ask for a stable, straight line.
+- **Cut hard on motion.** Generated clips accelerate, then decelerate and "die" at the end: trim before the slow-down and hard-cut into the next moving shot. Dissolves and one-take morph transitions make walls and furniture appear or disappear.
+- **Paid generation per photo:** one photo per clip (or overlapping pairs 1+2, 2+3 for a continuous walk), 3-5 s, model Kling 3.0 or Seedance, prompt = the move plus preservation: "preserve the exact architecture, layout, furniture, materials, colours, windows and lighting; straight lines; no objects appear, disappear, move or change shape". Check doors, windows, rooflines and furniture in every take; regenerate only the failed one.
+- **Finish:** music with cuts on the beat, then location and a clear call to action at the end.
+- **Never** use virtual staging or AI people in a live listing's video: it misrepresents the stay.
+- **Free (ffmpeg) version of the same rules:** `media-out/higgsfield/whyte-pyne/build-reel2.ps1` applies route order, push/truck/crane moves at constant speed, hard cuts via concat, 2.5 s shots (4 beats at 96 BPM) and an exterior bookend with the call to action. Overlaying a looped still on a shot needs `shortest=1`, or every shot stretches to the still's length.
+
 ## Zero-credit listing reel (2026-10-30, WP-REEL-1, 0 credits)
 
 - **"Free models" means the unlim allowance.** `models_explore` `unlim: true` lists the models that can run free, but its top-level `unlim.available` says whether this account can use them now; on the Pro plan it read `false`. Show the user both before promising anything free.
