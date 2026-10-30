@@ -114,7 +114,10 @@ async function createViewer() {
     for (const entry of placed.plates) {
       const p = opts.plates[entry.index], r = entry.diameter/2, h = entry.thickness/2, lip = 0.003 * Math.min(1, entry.diameter/0.45), width = 0.012 * Math.min(1, entry.diameter/0.45);
       const paint = material({ color: p.colour || '#555555', roughness: 0.6, metalness: 0.05 });
-      const lipPaint = material({ color: p.colour || '#555555', roughness: 0.35, metalness: 0.1 }); // the raised rim, a little glossier
+      const edgeColour = new T.Color(p.colour || '#555555');
+      const brightness = 0.2126 * edgeColour.r + 0.7152 * edgeColour.g + 0.0722 * edgeColour.b;
+      edgeColour.lerp(new T.Color('#aeb8c6'), Math.max(0, 0.18 - brightness));
+      const lipPaint = material({ color: edgeColour, roughness: 0.35, metalness: 0.1 }); // lift dark rims without changing the plate face
       const label = texture((ctx) => {
         const c = new T.Color(p.colour || '#555555');
         ctx.fillStyle = 0.2126*c.r + 0.7152*c.g + 0.0722*c.b < 0.35 ? '#ffffff' : '#101114';

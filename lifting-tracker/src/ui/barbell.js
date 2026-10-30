@@ -6,14 +6,21 @@ import { convert } from '../core/units.js';
 let uid = 0;
 
 function luminance(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(hex || '');
   if (!m) return 0;
-  const n = parseInt(m[1], 16);
+  const n = parseInt(m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1], 16);
   const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
   return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
 }
 
 const fmt = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100));
+
+export function plateInk(colour) {
+  const light = luminance(colour);
+  return 1.05 / (light + 0.05) >= (light + 0.05) / (luminance('#101114') + 0.05) ? '#ffffff' : '#101114';
+}
+
+const rimOpacity = (colour) => 0.12 + 0.6 * (1 - luminance(colour));
 
 // Typical competition discs: [kg, diameter mm, thickness mm]. Used when a plate has no drawHeightMm/thicknessMm.
 const SIZES = [[25, 450, 27], [20, 450, 22.5], [15, 450, 21], [10, 450, 21], [5, 230, 21.5], [2.5, 190, 16], [1.25, 160, 12], [1, 145, 10], [0.5, 130, 8], [0.25, 110, 6]];
@@ -63,14 +70,14 @@ export function renderBarbell({ plates = [], collar = false, justAdded = -1 } = 
 
   // `shown`: the face is the outermost, or the next plate is small enough to leave its printing visible.
   const plateSvg = ({ p, i, r, x: px, t }, shown) => {
-    const dark = luminance(p.colour) < 0.35;
-    const ink = dark ? '#ffffff' : '#111214';
+    const ink = plateInk(p.colour);
     const rim = Math.min(12, r * 0.09), hub = Math.min(45, r * 0.3);
     const fx = (px + t) * CX;
     const label = fmt(p.value);
-    const print = shown && r >= 70
+    // At the 310 px phone stage, omit print whose rendered height is below 9 px.
+    const print = shown && r * 0.34 * 310 / (X1 - X0) >= 9
       ? `<g transform="translate(${fx} 0) scale(${SX} 1)" fill="${ink}" font-family="Bahnschrift, 'Arial Narrow', system-ui, sans-serif" font-weight="800" text-anchor="middle" dominant-baseline="central">
-          <text y="${-r * 0.56}" font-size="${r * 0.34}">${label}</text><text y="${r * 0.6}" font-size="${r * 0.15}" letter-spacing="${r * 0.02}">${p.unit.toUpperCase()}</text></g>`
+          <text y="${-r * 0.56}" font-size="${r * 0.34}">${label}</text>${r * 0.15 * 310 / (X1 - X0) >= 9 ? `<text y="${r * 0.6}" font-size="${r * 0.15}" letter-spacing="${r * 0.02}">${p.unit.toUpperCase()}</text>` : ''}</g>`
       : '';
     const anim = i === justAdded ? ' bb-pop' : '';
     return `<g class="bb-plate${anim}" data-index="${i}" tabindex="0" role="button" aria-label="Remove ${label} ${p.unit} plate" style="cursor:pointer;transform-origin:${(px + t / 2) * CX}px 0px">
@@ -83,6 +90,7 @@ export function renderBarbell({ plates = [], collar = false, justAdded = -1 } = 
       ${face(px + t, hub, `fill="url(#${id}-chrome)" stroke="rgba(0,0,0,.45)" stroke-width="1"`)}
       ${print}
       <path d="${cyl(px, px + t, r)}" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="1.2"/>
+      ${face(px + t, r - 1.5, `fill="none" stroke="white" stroke-opacity="${rimOpacity(p.colour)}" stroke-width="2"`)}
     </g>`;
   };
 
@@ -141,7 +149,7 @@ export function renderEndView({ plates = [], collar = false } = {}) {
   let prev = Infinity;
   const discs = plates.map((p, i) => {
     const r = prev = Math.max(34, Math.min((plateSize(p).d / 2) * scale, prev - step));
-    const txt = luminance(p.colour) < 0.35 ? '#fff' : '#101114';
+    const txt = plateInk(p.colour);
     const ringW = Math.min(16, Math.max(9, r * 0.14));
     const print = i === plates.length - 1 && r >= 50
       ? `<g fill="${txt}" font-family="Bahnschrift, 'Arial Narrow', system-ui, sans-serif" font-weight="800" text-anchor="middle" dominant-baseline="central">
@@ -151,6 +159,7 @@ export function renderEndView({ plates = [], collar = false } = {}) {
       : '';
     return `<g><circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.colour}" stroke="rgba(0,0,0,.55)" stroke-width="1.6"/>
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-rim)"/>
+      <circle cx="${cx}" cy="${cy}" r="${r - 1.5}" fill="none" stroke="white" stroke-opacity="${rimOpacity(p.colour)}" stroke-width="1.5"/>
       <circle cx="${cx}" cy="${cy}" r="${Math.max(6, r - ringW)}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"/>${print}</g>`;
   }).join('');
   return `<svg class="bb-svg" viewBox="0 0 340 340" role="img" aria-label="End view of the loaded bar">

@@ -226,10 +226,18 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 .plate-btn { display: grid; justify-items: center; gap: 4px; background: none; border: 0; cursor: pointer; padding: 4px; min-width: 56px; }
 .plate-btn .disc { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 15px; box-shadow: inset 0 0 0 4px rgba(0,0,0,.28), inset 0 0 0 6px rgba(255,255,255,.1), 0 3px 8px rgba(0,0,0,.4); transition: transform .12s ease; }
 .plate-btn:hover .disc { transform: scale(1.08); } .plate-btn:active .disc { transform: scale(.94); }
-.plate-btn small { color: var(--muted); font-size: 11px; }
-.plate-btn[disabled] { opacity: .35; pointer-events: none; }
+.plate-btn small { color: var(--muted); font-size: var(--t-xs); }
+.plate-btn[disabled] { opacity: .5; pointer-events: none; }
+.plate-btn[disabled] .disc { outline: 1px dashed currentColor; outline-offset: 2px; }
 .plate-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.loading-text { font-family: var(--font-display); font-size: 22px; text-align: center; letter-spacing: .03em; }
+.loading-text { font-family: var(--font-display); font-size: var(--t-md); text-align: center; letter-spacing: .03em; text-wrap: balance; }
+.bb-toolbar { display: grid; gap: var(--s-2); justify-items: start; }
+.bb-hint { min-height: 3em; line-height: 1.5; }
+@media (max-width: 719px) {
+  .bb-stage { padding: 4px; }
+  .bb-stage > .bb-svg { height: auto; aspect-ratio: 780 / 518; object-fit: contain; }
+  .bb-stage > .bb3d { margin: -4px; } /* keeps its taller box: the 3D camera is framed for it */
+}
 
 /* ---------- Charts ---------- */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
@@ -449,7 +457,7 @@ body:has(.rest-timer) .toast { bottom: calc(var(--nav-h) + 78px + env(safe-area-
 .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .filters b { font-family: var(--font-display); font-weight: 650; font-size: var(--t-sm); white-space: nowrap; }
 .list-row .lead .pill { padding: 2px 8px; font-size: var(--t-xs); }
-.sheet .loading-text { font-size: 18px; }
+.sheet .loading-text { font-size: var(--t-md); }
 input[type="checkbox"] { width: 20px; height: 20px; flex: none; min-height: 0; accent-color: var(--accent); }
 .medal.plain { background: var(--surface-3); color: var(--text); }
 

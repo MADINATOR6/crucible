@@ -356,7 +356,7 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
       try {
         const { side, text } = describeLoad(app, { value: w, unit });
         q('#bb').innerHTML = renderBarbell({ plates: side, collar: app.settings.collar });
-        q('#bb-text').textContent = text;
+        q('#bb-text').textContent = text.replaceAll(' × ', '\u00a0×\u00a0');
       } catch { /* plates unavailable */ }
       const e1 = Number.isFinite(r) ? estimate1RM(toKg({ value: w, unit }), r) : null;
       q('#est').textContent = e1 ? `Estimated 1RM ≈ ${formatWeight({ value: e1, unit: 'kg' }, unit)} (Epley, an approximation)` : (Number.isFinite(r) && r > 12 ? 'Over 12 reps: no 1RM estimate.' : '');
