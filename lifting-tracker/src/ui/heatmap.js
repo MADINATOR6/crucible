@@ -92,7 +92,7 @@ export function renderMuscleList(data, selected, prev = null, { bands = BANDS, z
   return `<ol class="hm-list">${rows.map(({ id, n }) => {
     const band = bandFor(n, bands);
     const delta = prev ? Math.round((n - (prev[id] ?? 0)) * 10) / 10 : null;
-    const dhtml = delta == null ? '' : delta === 0 ? '<span class="hm-delta flat" title="No change on the previous week">·</span>'
+    const dhtml = delta == null ? '' : delta === 0 ? '<span class="hm-delta flat" title="No change on the previous week">±0</span>'
       : `<span class="hm-delta ${delta > 0 ? 'up' : 'down'}" title="${delta > 0 ? '+' : ''}${fmtSets(delta)} on the previous week">${delta > 0 ? '▲' : '▼'} ${fmtSets(Math.abs(delta))}</span>`;
     return `<li><button class="hm-row${selected === id ? ' is-selected' : ''}" data-muscle="${id}" type="button">
       <span class="hm-row-name">${MUSCLE_LABELS[id]}</span>

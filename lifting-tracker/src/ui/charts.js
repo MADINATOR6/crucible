@@ -41,7 +41,7 @@ export function lineChart({ series, unit = '', height = 220, title, zeroBased = 
   const grid = [], yLabels = [];
   for (let v = y0; v <= y1 + 1e-9; v += step) {
     grid.push(`<line class="grid-line" x1="0" x2="100" y1="${Y(v)}" y2="${Y(v)}" vector-effect="non-scaling-stroke"/>`);
-    yLabels.push(`<span style="top:${Y(v)}%">${Math.round(v * 10) / 10}</span>`);
+    yLabels.push(`<span style="top:${Y(v)}%">${Math.round(v * 10) / 10}${v + step > y1 + 1e-9 && unit ? ` ${esc(unit)}` : ''}</span>`);
   }
   const ticks = [];
   for (let i = 0; i < 5; i++) {
@@ -70,7 +70,9 @@ export function lineChart({ series, unit = '', height = 220, title, zeroBased = 
     ? `<span class="mark-meet" style="left:${X(dayNum(m.x))}%"><b>${esc(m.label)}</b></span>`
     : `<span class="mark-pr" style="left:${X(dayNum(m.x))}%;top:${Y(m.y)}%" aria-hidden="true">★</span>`).join('');
   const tipData = tips.filter((t) => inX(t.x)).map((t) => ({ p: +X(dayNum(t.x)).toFixed(2), l: t.lines }));
-  const legend = series.filter((s) => s.label).length > 1 ? `<div class="legend">${series.filter((s) => s.label).map((s) => `<span class="s-${s.id}"><i></i>${esc(s.label)}</span>`).join('')}</div>` : '';
+  const seriesLegend = series.filter((s) => s.label).length > 1 ? series.filter((s) => s.label).map((s) => `<span class="s-${s.id}"><i></i>${esc(s.label)}</span>`).join('') : '';
+  const prLegend = markers.some((m) => m.kind === 'pr' && inX(m.x)) ? '<span>★ PR</span>' : '';
+  const legend = seriesLegend || prLegend ? `<div class="legend">${seriesLegend}${prLegend}</div>` : '';
   return `<figure class="chart-wrap" style="--chart-h:${height}px"><div class="chart-y">${yLabels.join('')}</div>`
     + `<div class="chart-area"${tipData.length ? ` tabindex="0" data-tips="${esc(JSON.stringify(tipData))}" aria-label="${esc(title)}. Use the arrow keys to read each point."` : ''}>`
     + `<svg class="chart-plot" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title>${bandSvg}${grid.join('')}${lines}</svg>`

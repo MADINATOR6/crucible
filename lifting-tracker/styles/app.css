@@ -96,6 +96,7 @@ button { font: inherit; color: inherit; }
 .rail { display: none; }
 main.main { padding: 20px var(--gutter) calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); max-width: 1100px; width: 100%; margin: 0 auto; } /* element-scoped: .list-row uses .main too */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.topbar p { font-size: var(--t-sm); line-height: 1.35; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
 .brand svg { width: 28px; height: 28px; }
 .brand small { display: block; font-size: var(--t-xs); letter-spacing: .14em; color: var(--muted); font-weight: 600; }
@@ -204,7 +205,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 :root[data-theme="light"] .hm-pill circle { fill: rgba(23, 24, 27, .86); }
 .hm-legend { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; padding: 0; margin: 14px 0 0; font-size: 13px; }
 .hm-legend li { display: flex; align-items: center; gap: 8px; }
-.hm-legend .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line-strong); flex: none; }
+.hm-legend .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line-ctl); flex: none; }
 .hm-legend span { color: var(--muted); }
 .hm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .hm-row { width: 100%; display: grid; grid-template-columns: 110px 1fr 38px 78px; align-items: center; gap: 10px; background: none; border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; cursor: pointer; text-align: left; }
@@ -305,8 +306,8 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 11px 0; min-h
 .hm-region.is-selected { stroke: var(--text); stroke-width: 2; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--text) 45%, transparent)); }
 .hm-list .hm-row { grid-template-columns: 112px 1fr 38px 54px 74px; }
 .hm-bar { position: relative; height: 10px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: block; }
-.hm-bar .zone { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--good) 22%, transparent); border-left: 1px dashed color-mix(in srgb, var(--good) 60%, transparent); border-right: 1px dashed color-mix(in srgb, var(--good) 60%, transparent); }
-.hm-bar .fill { position: absolute; left: 0; top: 2px; bottom: 2px; border-radius: 99px; display: block; height: auto; }
+.hm-bar .zone { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--good) 22%, transparent); border-left: 1px dashed var(--good-text); border-right: 1px dashed var(--good-text); }
+.hm-bar .fill { position: absolute; left: 0; top: 2px; bottom: 2px; border: 1px solid var(--line-ctl); border-radius: 99px; display: block; height: auto; }
 .hm-bar .fill.band-0 { background: transparent; }
 .hm-bar .fill.band-1 { background: var(--b1); } .hm-bar .fill.band-2 { background: var(--b2); } .hm-bar .fill.band-3 { background: var(--b3); } .hm-bar .fill.band-4 { background: var(--b4); } .hm-bar .fill.band-5 { background: var(--b5); }
 .hm-delta { font-size: 12px; font-weight: 650; text-align: right; letter-spacing: .02em; }
@@ -564,7 +565,7 @@ body:has(#ask) .coach-headline { font-weight: 500; color: var(--text-2); }
 .chart-area:focus-visible { box-shadow: 0 0 0 2px var(--focus); }
 .chart-plot .band { fill: var(--surface-2); } .chart-plot .band.alt { fill: var(--surface-3); opacity: .55; }
 .band-label { position: absolute; top: 2px; margin-left: 4px; font-size: 10.5px; font-weight: 650; color: var(--muted); pointer-events: none; }
-.chart-plot .faint .dot { stroke-width: 5; opacity: .3; }
+.chart-plot .faint .dot { stroke-width: 5; opacity: .55; } /* "faded" is the meaning (light days, out of the trend); smaller size too */
 .chart-plot .range { fill: var(--c); opacity: .16; }
 .mark-meet { position: absolute; top: 0; bottom: 0; border-left: 1.5px dashed var(--text-2); pointer-events: none; }
 .mark-meet b { position: absolute; top: 2px; right: 4px; font-size: 10.5px; color: var(--text-2); white-space: nowrap; }
@@ -615,7 +616,7 @@ table.load .swatch { margin-right: 4px; }
 .wk-chart { display: block; width: 100%; height: auto; }
 .wk-bar { cursor: pointer; }
 .wk-bar:focus-visible .wk-fill { stroke: var(--focus); stroke-width: 2px; vector-effect: non-scaling-stroke; }
-.wk-fill { fill: var(--accent); opacity: .4; transition: opacity .15s; }
+.wk-fill { fill: var(--accent); opacity: .75; transition: opacity .15s; }
 .wk-bar.is-on .wk-fill, .wk-bar:hover .wk-fill, .wk-bar:focus-visible .wk-fill { opacity: 1; }
 .wk-val { fill: var(--text); font-size: 11px; font-weight: 650; text-anchor: middle; font-variant-numeric: tabular-nums; }
 .wk-day { fill: var(--muted); font-size: 11px; text-anchor: middle; }

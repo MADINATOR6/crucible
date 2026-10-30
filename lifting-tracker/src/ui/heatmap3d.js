@@ -120,8 +120,8 @@ async function createViewer() {
     last = { data, selected, bands };
     const css = getComputedStyle(document.documentElement);
     const palette = Object.fromEntries([0, 1, 2, 3, 4, 5].map((n) => [n, css.getPropertyValue(`--b${n}`).trim()]));
-    // Skin follows the theme; the grooves between muscles are near-black in both, like an anatomy chart's outlines.
-    const skin = css.getPropertyValue('--surface-3').trim() || '#808080', groove = '#0b0c0e';
+    // Computed colour-scheme also follows the system theme when no theme is selected.
+    const skin = css.getPropertyValue('--surface-3').trim() || '#808080', groove = css.colorScheme === 'light' ? css.getPropertyValue('--line-strong').trim() : '#0b0c0e';
     for (const mesh of meshes) {
       const id = meshMuscleId(mesh.name);
       mesh.material.color.set(id && id !== 'body' ? colourFor(data[id] ?? 0, palette, bands) : mesh.name.startsWith('body_groove') ? groove : skin);
