@@ -128,6 +128,15 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 - **Check sound sync locally.** `generate_audio` put the loudness peak on the sneeze both times. Check it with ffmpeg `astats` per half second before sending audio anywhere.
 - **Cost of the review loop:** one draft plus one round of fix notes fit a 60 cap (15 + 35). The final is a fresh render; finalizing the draft itself needs `draft_job_id` and the 1080p price.
 
+## Zero-credit listing reel (2026-10-30, WP-REEL-1, 0 credits)
+
+- **"Free models" means the unlim allowance.** `models_explore` `unlim: true` lists the models that can run free, but its top-level `unlim.available` says whether this account can use them now; on the Pro plan it read `false`. Show the user both before promising anything free.
+- **When nothing is free, a media-edit reel from the real photos still works:** pans and zooms, crossfades, text cards, no AI fill. For a property it is also the honest choice, since generated rooms would misrepresent the stay.
+- **ffmpeg 9 on this host:** `-filter_complex_script` is gone (use `-/filter_complex <file>`); fontconfig is missing, so every `drawtext` needs an explicit `fontfile`; Segoe UI lacks U+2605 (star), and seguisym.ttf covers it plus Latin. `textfile=` with `expansion=none` avoids filtergraph escaping.
+- **Too-wide photos:** a 9:16 crop of a 2:1 photo cuts the subject; lay the whole photo over a blurred copy instead.
+- **Screens in listing photos:** a TV showing a broadcast reads as a censor box when blurred; filling the screen's four corners with near-black (geq) looks like a TV that is switched off. Measure the corners on a `drawgrid` crop at 1:1, not from a downscaled view.
+- **Codex's sandbox cannot read `%LOCALAPPDATA%\Microsoft\WinGet\Links`,** so it finds no ffmpeg; see FRICTION.md (2026-10-30).
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.
