@@ -2,7 +2,28 @@
 
 How work passes between Claude Code and Codex. This is the handoff contract (some prompts call it HANDOFF-CONTRACT.md). AGENTS.md is authoritative for workflow; the task file (TASK.md unless the launcher names another) defines the current task's scope. Neither agent shares conversation history with the other: everything needed to continue lives in the repo.
 
+## Codex plans, Claude implements (default for code tasks since 2026-11-01)
+
+1. [ ] Claude writes a short plan brief, `tasks/<ID>-plan.md`: goal, user requirements, known constraints, relevant paths. No solution.
+2. [ ] `ccx task add -Id <ID> ... -Owner claude -TaskFile tasks/<ID>.md`.
+3. [ ] `scripts\codex-dispatch.ps1 -Role research -TaskFile tasks/<ID>-plan.md` (read-only). The brief's first line: `Follow HANDOFF.md, Planner instruction (it replaces the Researcher instruction for this task).` While Codex's sandbox cannot start processes (FRICTION.md), this needs `-Sandbox danger-full-access` under a `codex-full-access` approval; otherwise Claude plans and records why.
+4. [ ] Claude checks the plan against the code, records disagreements and decisions, and writes `tasks/<ID>.md` in the usual task-file shape. At most two challenge rounds with Codex.
+5. [ ] Claude implements inside the allowlist and runs the Verify commands.
+6. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> -Role verify` → `ccx verify -TaskId <ID>` → `ccx task review -Id <ID> -Result pass|changes -By codex` → `ccx task done -Id <ID>` → commit.
+
+### Planner instruction (Codex)
+
+```text
+Plan the task the brief describes. Claude implements, reviews your plan and owns commits.
+1. Never edit, create or delete repository files. Read AGENTS.md, the brief and only the source the plan needs.
+2. Give: Goal; Approach (steps in order); Write allowlist (exact paths); Out of scope; Done When (each item checkable); Verify (commands that exist in this repo, never invented); Stop conditions; Risks.
+3. Ground every claim about the code in path:line. Mark anything unverified UNKNOWN / CHECKED / NEEDED. Prefer the smallest correct change.
+4. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), then the plan. No code beyond short snippets.
+```
+
 ## Dispatch mode (Claude launches Codex)
+
+Codex as implementer is now the exception (media tasks, or when the user asks for it); the steps below still apply then.
 
 ### Claude checklist
 1. [ ] `git status` clean or pre-existing paths recorded; task file filled and committed-or-saved; note HEAD.
