@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { trainView } from '../../src/ui/views/train.js';
+import { trainView, lastPerformance } from '../../src/ui/views/train.js';
 
 function fixture({ completed = [], logged = [], entries = true } = {}) {
   const sets = entries ? [
@@ -30,7 +30,7 @@ test('Train focuses the first unfinished set with its prescription and next cont
   assert.match(html, /Squat · Set 1/);
   assert.match(html, /100 kg × 3 reps<small>RPE 8<\/small>/);
   assert.match(html, /Next: Squat, set 2/);
-  assert.match(html, /<details class="train-overview"[^>]*>/);
+  assert.match(html, /<details class="train-overview(?: [^"]*)?"[^>]*>/);
   assert.equal((html.match(/data-focus-log="0:0"/g) || []).length, 2, 'card and sticky action use the same set');
   assert.match(html, /id="pick"/);
   assert.match(html, /id="quick"/);
@@ -58,7 +58,7 @@ test('Train reports complete and empty sessions without a logging action', () =>
     const { html } = trainView(app, ui);
     assert.match(html, new RegExp(expected));
     assert.doesNotMatch(html, /data-focus-log=/);
-    assert.match(html, /<details class="train-overview"[^>]* open>/);
+    assert.match(html, /<details class="train-overview(?: [^"]*)?"[^>]* open>/);
   }
 });
 
@@ -72,4 +72,16 @@ test('both focus actions bind to the existing log-sheet action', () => {
   };
   bind(root, () => {});
   assert.ok(buttons.every((button) => button.type === 'click' && typeof button.handler === 'function'));
+});
+
+
+test('last performance uses actual dates and working sets, respects backfill, and converts units in the workout', () => {
+  const { app, ui } = fixture();
+  app.sessions = [{ id: 'old', date: '2020-01-01' }, { id: 'future', date: '2099-01-01' }];
+  const good = { id: 'good', sessionId: 'old', exerciseId: 'squat', isWarmup: false, reps: 5, weight: { value: 220, unit: 'lb' }, rpe: 8 };
+  app.sets = [good, { ...good, id: 'warmup', isWarmup: true, order: 9 }, { ...good, id: 'future', sessionId: 'future' }];
+  assert.equal(lastPerformance(app, 'squat', '2020-01-02').id, 'good');
+  assert.equal(lastPerformance(app, 'squat', '2019-01-01'), null);
+  assert.equal(lastPerformance(app, 'squat', '2020-01-02', 'good'), null);
+  assert.match(trainView(app, ui).html, /Last logged: 99.8 kg × 5 @ RPE 8/);
 });

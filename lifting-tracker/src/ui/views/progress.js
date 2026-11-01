@@ -36,7 +36,7 @@ export function progressView(app, ui) {
   const unit = app.settings.unit;
   const toU = (kg) => round1(convert(kg, 'kg', unit));
   const pg = (ui.progress ||= {});
-  pg.maxReps ??= 12; pg.variants ??= true; pg.range ||= '6m'; pg.tab ||= 'strength';
+  pg.maxReps ??= 12; pg.variants ??= true; pg.range ||= '6m'; pg.tab ||= 'strength'; pg.source ||= 'all';
   const { meetDate, sex } = app.settings;
   const today = todayIso();
   const tabs = `<div class="seg view-tabs mb-3" role="group" aria-label="Progress section">${[['strength', 'Strength'], ['body', 'Body & energy']].map(([k, t]) => `<button data-view-tab="${k}" aria-pressed="${pg.tab === k}">${t}</button>`).join('')}</div>`;
@@ -49,7 +49,9 @@ export function progressView(app, ui) {
 
   // Working sets per lift. With variants on, high bar, paused, tempo and similar versions count towards the lift.
   const sets = { squat: [], bench: [], deadlift: [] };
-  for (const e of workingSets(app.events())) {
+  const events = app.events();
+  const chartEvents = pg.source === 'logged' ? events.filter((e) => e.source === 'logged') : events;
+  for (const e of workingSets(chartEvents)) {
     const ex = app.exercise(e.exerciseId);
     if (!ex?.lift || !sets[ex.lift] || !(ex.competition || pg.variants) || e.reps > pg.maxReps) continue;
     sets[ex.lift].push({ date: e.date, weightKg: e.weightKg, reps: e.reps, rpe: e.rpe ?? null });
@@ -176,11 +178,15 @@ export function progressView(app, ui) {
     for (const e of evs) { const ex = app.exercise(e.exerciseId); const v = setE1rm(e.weightKg, e.reps, e.rpe)?.value; if (ex?.competition && ex.lift && v != null && (best[ex.lift] == null || v > best[ex.lift])) best[ex.lift] = v; }
     return { b, sets: evs.length, weeks: b.weeks.length, best };
   });
-  const datesEst = app.usingExample || !(app.programme?.blocks || []).length ? '' : 'Programme dates are estimates until you set a start date in Data.';
+  const datesEst = app.usingExample || !(app.programme?.blocks || []).length ? '' : 'Imported workout dates are inferred from block starts and day settings; they are estimates, even after setting a start date. Logged sessions use the actual date you chose.';
 
   const html = `
-    ${header("Estimated max from each session's best set, using the RPE chart when the set has an RPE. Faded dots are light days, left out of the trend.")}
-    <div class="seg mb-3" role="group" aria-label="Time range">${Object.keys(RANGES).map((k) => `<button data-range="${k}" aria-pressed="${pg.range === k}">${RANGE_LABEL[k]}</button>`).join('')}</div>
+    ${header('Estimated max per session. Faded dots are light days, left out of the trend.')}
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Time range">${Object.keys(RANGES).map((k) => `<button data-range="${k}" aria-pressed="${pg.range === k}">${RANGE_LABEL[k]}</button>`).join('')}</div>
+      <div class="seg" role="group" aria-label="Strength chart data"><button data-source="all" aria-pressed="${pg.source === 'all'}">All history</button><button data-source="logged" aria-pressed="${pg.source === 'logged'}">Logged only</button></div>
+    </div>
+    <p class="small muted mb-3">${pg.source === 'logged' ? 'Strength charts, totals, training load and easier-at-the-same-weight signals use actual logged sessions only.' : 'Strength charts combine logged sessions with imported history, whose dates are estimated.'} Coach notes, records and workbook comparisons below use the full history.</p>
     <div class="stats3">${lifts.map(tile).join('')}</div>
     <details class="options mb-4"><summary>Options · ${pg.variants ? 'with variants' : 'competition only'} · up to ${pg.maxReps} reps${meetDate ? ' · meet ' + shortDate(meetDate) : ''}</summary><div class="options-body">
       <div class="field"><span>Lifts counted</span><div class="seg" role="group" aria-label="Which lifts count"><button data-variants="1" aria-pressed="${pg.variants}">With variants</button><button data-variants="0" aria-pressed="${!pg.variants}">Competition only</button></div></div>
@@ -220,6 +226,7 @@ export function progressView(app, ui) {
       if (!d?.points.length) { toast('No sessions in this range to share'); return; }
       shareLiftImage({ ...d, bg: app.settings.shareBg, save: b.hasAttribute('data-save') }).catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); });
     }));
+    root.querySelectorAll('[data-source]').forEach((b) => b.addEventListener('click', () => { pg.source = b.dataset.source; rerender(); }));
     root.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => { pg.range = b.dataset.range; rerender(); }));
     root.querySelectorAll('[data-variants]').forEach((b) => b.addEventListener('click', () => { pg.variants = b.dataset.variants === '1'; rerender(); }));
     root.querySelectorAll('[data-maxreps]').forEach((b) => b.addEventListener('click', () => { pg.maxReps = Number(b.dataset.maxreps); rerender(); }));

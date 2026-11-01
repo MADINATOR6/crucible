@@ -11,12 +11,17 @@ class Element extends EventTarget {
     this.classList = { add() {}, remove() {} };
   }
   setAttribute(key, value) { this.attrs[key] = value; }
+  removeAttribute(key) { delete this.attrs[key]; }
   hasAttribute(key) { return key in this.attrs; }
   getAttribute(key) { return this.attrs[key] ?? null; }
   append(child) { this.children.push(child); }
   remove() { this.isConnected = false; }
   focus(options) { this.focused = options; }
   querySelector() { return null; }
+  querySelectorAll() { return []; }
+  contains(el) { return this.children.includes(el); }
+  getClientRects() { return [1]; }
+  closest() { return null; }
   setPointerCapture() {}
 }
 function pointer(el, type, x, y, over = {}) {
@@ -53,11 +58,13 @@ test('horizontal swipes dismiss either way; vertical, short and cancelled drags 
 
 function documentHarness() {
   const nodes = [], text = new Element(), prev = globalThis.document;
-  globalThis.document = { activeElement: null, body: { append: (el) => nodes.push(el) }, addEventListener() {}, removeEventListener() {},
+  const listeners = new Map();
+  globalThis.document = { activeElement: null, body: { append: (el) => nodes.push(el) },
+    addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener: (type) => listeners.delete(type),
     querySelector: (selector) => nodes.findLast((el) => el.isConnected && selector === '.' + el.className) || null,
     querySelectorAll: () => [], getElementById: (id) => nodes.findLast((el) => el.isConnected && el.id === id) || null,
     createElement: () => { const el = new Element(); el.querySelector = () => text; el.firstElementChild = text; return el; } };
-  return { nodes, restore: () => { globalThis.document = prev; } };
+  return { nodes, text, listeners, restore: () => { globalThis.document = prev; } };
 }
 
 test('swiping or closing a toast dismisses it without running Undo; tapping Undo still runs it', () => {
@@ -110,4 +117,84 @@ test('closing a sheet focuses a replacement control, never a detached node or a 
     const sheet = openSheet('<p>Example</p>'); before.isConnected = false; sheet.close();
     assert.equal(before.focused, undefined); assert.deepEqual(after.focused, { preventScroll: true });
   } finally { h.restore(); }
+});
+
+test('sheet traps Tab in both directions, gives an empty sheet a focus target, and Escape restores focus', () => {
+  const h = documentHarness(), before = new Element(), first = new Element(), last = new Element();
+  try {
+    document.activeElement = before;
+    h.text.querySelectorAll = () => [first, last];
+    h.text.children = [first, last];
+    first.focus = () => { document.activeElement = first; };
+    last.focus = () => { document.activeElement = last; };
+    const sheet = openSheet('<button>First</button><button>Last</button>');
+    assert.equal(document.activeElement, first);
+    const key = (keyName, shiftKey = false) => { const e = new Event('keydown', { cancelable: true }); Object.assign(e, { key: keyName, shiftKey }); h.listeners.get('keydown')(e); return e; };
+    document.activeElement = last; assert.equal(key('Tab').defaultPrevented, true); assert.equal(document.activeElement, first);
+    assert.equal(key('Tab', true).defaultPrevented, true); assert.equal(document.activeElement, last);
+    document.activeElement = before; assert.equal(key('Tab').defaultPrevented, true); assert.equal(document.activeElement, first);
+    assert.equal(key('Escape').defaultPrevented, true); assert.equal(h.nodes.at(-1).isConnected, false);
+    assert.deepEqual(before.focused, { preventScroll: true });
+    sheet.close(); assert.equal(h.listeners.has('keydown'), false);
+    h.text.querySelectorAll = () => [];
+    let focusedEmpty = 0;
+    h.text.focus = () => { focusedEmpty++; };
+    const empty = openSheet('<div id="picker"></div>');
+    assert.equal(focusedEmpty, 1);
+    empty.close();
+  } finally { h.restore(); }
+});
+
+test('sheet uses its heading as the accessible dialog name', () => {
+  const h = documentHarness(), heading = new Element();
+  try {
+    h.text.querySelector = () => heading;
+    const sheet = openSheet('<h2>Edit set</h2>');
+    assert.equal(h.text.getAttribute('aria-labelledby'), heading.id);
+    assert.equal(h.text.getAttribute('aria-label'), null);
+    sheet.close();
+  } finally { h.restore(); }
+});
+
+test('a sheet populated after opening gains the new heading as its name', () => {
+  const h = documentHarness(), prior = globalThis.MutationObserver, heading = new Element();
+  let changed, disconnected = false;
+  globalThis.MutationObserver = class { constructor(fn) { changed = fn; } observe() {} disconnect() { disconnected = true; } };
+  try {
+    const sheet = openSheet('<div id="picker"></div>');
+    h.text.querySelector = () => heading;
+    changed();
+    assert.equal(h.text.getAttribute('aria-labelledby'), heading.id);
+    sheet.close(); assert.equal(disconnected, true);
+  } finally { globalThis.MutationObserver = prior; h.restore(); }
+});
+
+test('only the top nested sheet handles keyboard input and closing it restores focus inside its parent', () => {
+  const previous = globalThis.document, listeners = new Set(), backs = [];
+  const before = new Element(), outerButton = new Element(), innerButton = new Element();
+  let outerFocuses = 0;
+  outerButton.focus = () => { outerFocuses++; document.activeElement = outerButton; };
+  innerButton.focus = () => { document.activeElement = innerButton; };
+  before.focus = () => { document.activeElement = before; };
+  globalThis.document = { activeElement: before, body: { append() {} },
+    addEventListener: (_, fn) => listeners.add(fn), removeEventListener: (_, fn) => listeners.delete(fn),
+    createElement: () => {
+      const back = new Element(), dialog = new Element(), button = backs.length ? innerButton : outerButton;
+      dialog.children = [button]; dialog.querySelectorAll = () => [button];
+      back.firstElementChild = dialog;
+      back.remove = () => { back.isConnected = false; dialog.isConnected = false; };
+      backs.push(back); return back;
+    } };
+  const key = (name) => { const e = new Event('keydown', { cancelable: true }); Object.assign(e, { key: name, shiftKey: false });
+    for (const fn of [...listeners]) fn(e); return e; };
+  try {
+    openSheet('<button>Outer</button>');
+    openSheet('<button>Inner</button>');
+    assert.equal(document.activeElement, innerButton);
+    key('Tab'); assert.equal(outerFocuses, 1, 'parent must not handle inner Tab');
+    key('Escape'); assert.deepEqual(backs.map((b) => b.isConnected), [true, false]);
+    assert.equal(document.activeElement, outerButton);
+    key('Escape'); assert.deepEqual(backs.map((b) => b.isConnected), [false, false]);
+    assert.equal(document.activeElement, before); assert.equal(listeners.size, 0);
+  } finally { globalThis.document = previous; }
 });

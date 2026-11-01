@@ -16,7 +16,8 @@ function phone() {
   } };
 }
 
-test('Share image uses the share sheet; Save image always downloads a PNG instead', async () => {
+test('Share image uses the share sheet; Save image always downloads a PNG instead', async (t) => {
+  t.mock.method(globalThis, 'setTimeout', () => 0);
   const p = phone();
   try {
     await shareOut(p.canvas, 'bar-100kg.png', '100 kg');
@@ -27,6 +28,23 @@ test('Share image uses the share sheet; Save image always downloads a PNG instea
     assert.equal(p.shared.length, 1, 'saving never opens the share sheet');
     const a = p.made.find((e) => e.tag === 'a');
     assert.equal(a.download, 'bar-100kg.png'); assert.equal(a.clicked, 1);
+  } finally { p.restore(); }
+});
+
+test('sharing refusal falls back to download, cancellation does not, and null canvas output fails clearly', async (t) => {
+  t.mock.method(globalThis, 'setTimeout', () => 0);
+  const p = phone();
+  try {
+    navigator.share = async () => { throw new DOMException('Gesture expired', 'NotAllowedError'); };
+    await shareOut(p.canvas, 'lift.png', 'Lift');
+    assert.equal(p.made.filter((e) => e.tag === 'a').length, 1);
+    navigator.share = async () => { throw new DOMException('Cancelled', 'AbortError'); };
+    await shareOut(p.canvas, 'cancelled.png', 'Lift');
+    assert.equal(p.made.filter((e) => e.tag === 'a').length, 1);
+    await assert.rejects(shareOut({ toBlob: (cb) => cb(null) }, 'empty.png', 'Lift'), /could not create/);
+    delete navigator.share;
+    await shareOut(p.canvas, 'desktop.png', 'Lift');
+    assert.equal(p.made.filter((e) => e.tag === 'a').length, 2);
   } finally { p.restore(); }
 });
 

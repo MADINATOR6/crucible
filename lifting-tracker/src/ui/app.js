@@ -11,6 +11,7 @@ import { openStore } from '../store/db.js';
 import { buildBackup } from '../store/backup.js';
 import { keepSummaryFresh } from './summary.js';
 import { createUpdates } from './updates.js';
+import { restoreRest } from './rest-timer.js';
 
 const ICON = {
   train: '<path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/>',
@@ -76,6 +77,7 @@ async function main() {
   app.subscribe(() => { applyTheme(app.settings.theme); render(); });
   keepSummaryFresh(app);
   render({ keepScroll: false });
+  restoreRest();
 
   // The service worker is skipped on localhost while developing, unless asked for with ?sw=1.
   const isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);

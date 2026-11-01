@@ -33,6 +33,8 @@ Control borders use `--line-ctl`; decorative dividers keep `--line`. Green text 
 - `.filters`: one compact row of `.seg` and `<select>` controls; wraps onto a second line when narrow. Inside it, `.stepper` keeps a ‹ label › group together on one line.
 - `details.options` > `summary` + `.options-body`: settings folded under the content they change.
 - `.field` > `<span>` label + input/select. In a `.row`, add `.grow` to fields that share the width; `.row.end` lines a button up with the inputs.
+- `.num-step`: a number input with `−` and `+` buttons either side, for a value adjusted by hand mid-set. Children in order: `<button>`, `<input type="number">`, `<button>`; both buttons carry an `aria-label` naming the step. They set the input and dispatch its `input` event, so everything listening to typing follows unchanged.
+- `.log-fields`: the log-set sheet's field grid — two columns, with `.field.wide` spanning the row. The weight takes the wide row so it can carry a `.num-step`; reps and RPE share the next row.
 - `.check-btn` with `aria-pressed` and an `aria-label`: round one-tap action (log as planned).
 
 ## Lists and status

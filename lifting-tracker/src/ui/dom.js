@@ -70,23 +70,55 @@ export function toast(message, ms = 2600, action = null) {
 }
 
 /** Open a modal bottom sheet. `html` is trusted markup built with esc(). Returns { el, close }. */
+let sheetId = 0;
+const openSheets = [];
 export function openSheet(html, { onClose } = {}) {
   const back = document.createElement('div');
   back.className = 'sheet-backdrop';
-  back.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  back.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Dialog" tabindex="-1">${html}</div>`;
+  const dialog = back.firstElementChild;
   const prevFocus = document.activeElement;
   const prevKey = focusKey(prevFocus);
-  const close = () => {
-    back.remove(); document.removeEventListener('keydown', onKey);
-    const target = prevFocus?.isConnected === false ? findFocus(document, prevKey) : prevFocus;
-    target?.focus?.({ preventScroll: true }); onClose?.();
+  const nameDialog = () => {
+    const heading = dialog.querySelector('h1,h2,h3');
+    if (!heading) return;
+    if (!heading.id) heading.id = `sheet-title-${++sheetId}`;
+    dialog.setAttribute('aria-labelledby', heading.id);
+    dialog.removeAttribute?.('aria-label');
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  nameDialog();
+  // Some sheets populate their content immediately after openSheet returns.
+  const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(nameDialog);
+  observer?.observe(dialog, { childList: true, subtree: true });
+  const focusable = () => [...(dialog.querySelectorAll?.('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])') || [])]
+    .filter((el) => el.getClientRects().length && !el.closest('[hidden],[inert]'));
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    const wasTop = openSheets.at(-1) === back;
+    closed = true; observer?.disconnect(); back.remove(); document.removeEventListener('keydown', onKey);
+    openSheets.splice(openSheets.indexOf(back), 1);
+    const target = prevFocus?.isConnected === false ? findFocus(document, prevKey) : prevFocus;
+    const parent = openSheets.at(-1)?.firstElementChild;
+    if (wasTop) (parent && target && !parent.contains?.(target) ? parent : target || parent)?.focus?.({ preventScroll: true });
+    onClose?.();
+  };
+  const onKey = (e) => {
+    if (openSheets.at(-1) !== back) return;
+    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (e.key !== 'Tab') return;
+    const items = focusable();
+    if (!items.length) { e.preventDefault(); dialog.focus(); return; }
+    const first = items[0], last = items.at(-1), active = document.activeElement;
+    if (e.shiftKey && (active === first || !dialog.contains?.(active))) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (active === last || !dialog.contains?.(active))) { e.preventDefault(); first.focus(); }
+  };
   back.addEventListener('click', (e) => { if (e.target === back) close(); });
   document.addEventListener('keydown', onKey);
   document.body.append(back);
-  back.querySelector('input,select,button')?.focus?.();
-  return { el: back.firstElementChild, close };
+  openSheets.push(back);
+  (focusable()[0] || dialog).focus?.();
+  return { el: dialog, close };
 }
 
 export function download(filename, text, type = 'application/json') {

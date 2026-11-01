@@ -12,7 +12,7 @@ function fixture(draft = null) {
     ] }] }] }] },
     settings: { unit: 'kg', keepAwake: false, lastBackupAt: todayIso() },
     catalogue: { exercises: [{ id: 'squat', name: 'Squat' }] },
-    sets: [], sessions: [], usingExample: true,
+    sets: [], sessions: [], usingExample: true, dataRevision: 0,
     datesKnown: () => true, dateFor: () => '2020-01-06', nextSession: () => null,
     exercise: () => ({ name: 'Squat' }), loggedFor: () => null, getDraft: () => draft,
   };
@@ -42,7 +42,7 @@ function sheetDocument() {
       focus() { this.focused = true; }, remove() {} });
     return fields.get(selector);
   };
-  const sheet = { querySelector: field };
+  const sheet = { querySelector: field, querySelectorAll: () => [], setAttribute() {}, removeAttribute() {}, focus() {} };
   const back = { set innerHTML(value) { html = value; }, get firstElementChild() { return sheet; },
     querySelector: () => null, setAttribute() {}, append() {}, addEventListener() {}, remove() {} };
   const rest = { classList: { add() {}, remove() {} }, querySelector: () => ({ textContent: '' }), remove() {} };
@@ -54,6 +54,44 @@ function sheetDocument() {
     } };
   return { document, field, html: () => html, toastAction: () => toastAction };
 }
+
+test('Use last numbers fills weight and reps, converts units, and leaves effort for the new set', () => {
+  const { app, ui } = fixture();
+  app.sessions = [{ id: 'old', date: '2020-01-01' }];
+  app.sets = [{ id: 'previous', sessionId: 'old', exerciseId: 'squat', isWarmup: false, weight: { value: 220, unit: 'lb' }, reps: 5, rpe: 9 }];
+  app.exerciseName = () => 'Squat'; app.saveDraft = async () => {};
+  const fake = sheetDocument(), prior = globalThis.document;
+  globalThis.document = fake.document;
+  try {
+    const button = control(); button.dataset = { focusLog: '0:0' };
+    const view = trainView(app, ui);
+    view.bind(rootFor({ '[data-focus-log]': [button] }), () => {});
+    button.fire('click');
+    assert.match(fake.html(), /Use last numbers/);
+    fake.field('#use-last').fire('click');
+    assert.equal(fake.field('#w').value, 99.8);
+    assert.equal(fake.field('#r').value, 5);
+    assert.equal(fake.field('#e').value, '');
+    assert.equal(fake.field('#e').focused, true);
+  } finally { globalThis.document = prior; }
+});
+
+test('an open set form refuses to save after its programme source changes', async () => {
+  const { app, ui } = fixture();
+  app.exerciseName = () => 'Squat';
+  let saves = 0; app.logSet = async () => { saves++; };
+  const fake = sheetDocument(), prior = globalThis.document;
+  globalThis.document = fake.document;
+  try {
+    const button = control(); button.dataset = { focusLog: '0:0' };
+    trainView(app, ui).bind(rootFor({ '[data-focus-log]': [button] }), () => {});
+    button.fire('click');
+    app.programme.blocks[0].weeks[0].days[0].entries[0].exerciseId = 'bench';
+    await fake.field('#save').fire('click');
+    assert.equal(saves, 0);
+    assert.equal(fake.field('#save').disabled, false);
+  } finally { globalThis.document = prior; }
+});
 
 test('new selected session date defaults to today, not the old planned date', () => {
   const { app, ui } = fixture();
@@ -176,7 +214,7 @@ test('editing a logged set keeps its stored date and ordinary Save exposes recei
     fake.field('#save').fire('click');
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(input.date, '2020-02-03');
-    assert.deepEqual(options, { withUndo: true });
+    assert.deepEqual(options, { withUndo: true, expectedRevision: 0 });
     assert.equal(typeof fake.toastAction(), 'function');
     fake.toastAction()();
     await new Promise((resolve) => setImmediate(resolve));

@@ -83,7 +83,7 @@ Data shows the loaded app version and update status. A ready update can wait unt
 
 ### Samsung workout check
 
-After this change is published, open the installed app online and check its version in Data. When upgrading from version 13, fully close the installed app and every browser tab for this site, then reopen it so version 14 can activate. Back up your data before testing. Check these on your phone:
+After a release is published, open the installed app online and check its version in Data. Apply an offered update after your workout; if an older installation cannot offer updates, close every browser tab and installed window for this site, then reopen online. Back up your data before testing. Check these on your phone:
 
 1. Open a workout and confirm the actual date is today; choose a past date and check the Backdated label.
 2. Open a set with the keyboard visible. Enter invalid reps, try Save, and confirm the error focuses Reps without losing your weight.
@@ -102,7 +102,7 @@ Browser checks do not verify the Samsung keyboard, home-screen lifecycle, vibrat
 - Weeks run Monday to Sunday.
 - Hard sets per muscle: a primary mover counts 1 per set, a secondary mover 0.5. These weights are estimates, not research. Edit them in `data/exercises.json` (the same file defines exercise names, aliases and coaching-cue patterns for the importer).
 - Plate colours: 25, 20 and 15 kg follow the IPF Technical Rulebook (red, blue, yellow); 10 kg and under may be any colour, so those are convention and editable in `data/plates.json`. Competition collars are 2.5 kg each (the rulebook gives bar plus collars as 25 kg for the 20 kg bar). Check the rules of the federation you compete in.
-- Competition scores (Wilks, DOTS, IPF GL) are not included until their coefficients are verified from an official source.
+- IPF GL points are available in Progress when bodyweight and sex are set. Wilks and DOTS are not included.
 
 ## Privacy
 
@@ -124,3 +124,25 @@ test/        node:test suites
 ```
 
 See `ARCHITECTURE.md` for the data model and the verified facts about the workbook layout.
+
+
+## Cross-device quality update (lt-v21)
+
+The same static app targets current Chrome, Edge and Firefox on Windows/macOS, Safari on Mac/iPhone/iPad, and Chrome/Samsung Internet on Android. Core logging, charts and JSON backup do not require installation, notifications, vibration, wake lock, 3D or file sharing. Those optional features depend on browser support. If file sharing fails, image export offers a normal download; check browser downloads or the Files app on Apple devices. Private browsing and blocked storage can prevent persistence; heed the in-app storage warning.
+
+- Train shows your last actual working set for the same exercise, up to the selected date. The log sheet's **Use last numbers** copies its weight and reps with unit conversion. Enter the new effort yourself: old RPE is deliberately not copied. Nothing saves until **Save set**. A form whose source set changed is refused.
+- Progress offers **All history** or **Logged sessions only** for strength charts, totals, weekly load and same-weight effort comparisons. Coach notes, personal records and workbook comparisons still use full history, as labelled. Imported dates remain estimates after assigning a block start.
+- A running rest timer resumes after reloading the same tab where session storage is available. Dismissing it clears recovery; expired alarms are not replayed. Closing a tab or an OS killing the browser may discard session storage.
+- Sheets support keyboard Tab/Shift-Tab, Escape and focus return. Phone controls use at least 16px text to avoid iPhone form zoom. Safe-area spacing and landscape are supported. Installation remains optional.
+
+### Installation and device verification
+
+Serve over HTTPS for installation and offline use. On iPhone/iPad use Safari's Share menu, **Add to Home Screen**; on Android use the browser's install option. On PC/Mac use a normal browser tab or its install option if offered. Devices keep separate data; transfer JSON backups deliberately. No cloud sync is added.
+
+Before calling a release verified on a device, run the Samsung workout check above plus these checks on that device: portrait and landscape at 320px and wider; 200% desktop zoom; keyboard-only navigation and dialog close/focus return; input with the on-screen keyboard visible; log/edit/Undo; reload during rest; export and restore a synthetic backup; reopen offline after installing the cache online. Check Safari/iOS file export via Files. Native keyboard, OS lifecycle and notifications require physical hardware, not just responsive emulation.
+
+For the real-IndexedDB concurrency smoke page, start the dev server and open `/test/browser/storage.html` on localhost. It uses a separate synthetic database and never opens the athlete database. It is a manual browser check, separate from `node --test`. Browser automation was disabled in the implementation session, so this page and physical-device checks were not executed there.
+
+Further product work remains separate: flexible session scheduling/substitutions, personal coaching calibration, readiness tracking, a consolidated meet workflow, nutrition logging refinements and conflict-aware device sync. No training or nutrition formulas changed in this update.
+
+When another tab changed training data and a stale action is refused, the app refreshes before reporting the conflict. Review values before retrying; reopen a changed set or recreate an import preview from the file. If the refresh fails, reload the page as the message instructs. Cross-tab notifications also refresh supported browsers automatically, but delivery is asynchronous.

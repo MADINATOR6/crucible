@@ -17,6 +17,16 @@ const sameDay = (a, b) => !!a && !!b && a.blockNumber === b.blockNumber && a.wee
 const shortDate = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 const dateStatus = (date) => !date ? 'Choose an actual date' : date < todayIso() ? 'Backdated session' : date > todayIso() ? 'Future session' : 'Training today';
 
+/** Most recent actual working set, never inferred from workbook dates. */
+export function lastPerformance(app, exerciseId, date, excludeId = null) {
+  const sessions = new Map((app.sessions || []).map((s) => [s.id, s]));
+  return (app.sets || []).filter((s) => s.id !== excludeId && s.exerciseId === exerciseId && s.isWarmup === false &&
+    s.reps > 0 && s.weight?.value > 0 && isStrictDate(sessions.get(s.sessionId)?.date) && sessions.get(s.sessionId).date <= date)
+    .map((s) => ({ ...s, date: sessions.get(s.sessionId).date }))
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.order || 0) - (a.order || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0] || null;
+}
+const performanceText = (s, unit) => `${formatWeight(s.weight, unit)} × ${s.reps}${s.rpe != null ? ` @ RPE ${s.rpe}` : ''} · ${shortDate(s.date)}`;
+
 function receipt(app, message, undoToken) {
   toast(message, 8000, undoToken ? { label: 'Undo', onClick: async () => {
     try { await app.undoSetChange(undoToken); toast('Change undone'); }
@@ -138,7 +148,7 @@ export function trainView(app, ui) {
   const header = `
     <div class="topbar train-top">
       <div class="train-title">
-        <span class="eyebrow">${label}${est ? ` · ${esc(shortDate(est))}` : ''}${app.usingExample ? ' · <span class="pill example">Example</span>' : ''}</span>
+        <span class="eyebrow">${label}${est ? ` · ${esc(shortDate(est))}` : ''}${app.usingExample ? ' · <span class="pill example">Example data</span>' : ''}</span>
         <button class="day-switch" id="pick" aria-haspopup="dialog" aria-label="Choose another day. Showing block ${block.number}, week ${week?.number ?? '–'}, day ${day?.number ?? '–'}">
           <h1>${week ? `Week ${week.number} · Day ${day?.number ?? '–'}` : `Block ${block.number}`}</h1><span class="caret" aria-hidden="true">▾</span>
         </button>
@@ -149,20 +159,25 @@ export function trainView(app, ui) {
     ${!app.usingExample && reminder.due ? `<div class="banner mb-4"><span>${reminder.sessions} sessions since your last backup${app.settings.lastBackupAt ? '.' : ', and no backup yet.'}</span><div class="actions"><button class="btn small primary" id="backup-now">Back up</button><button class="btn small ghost" id="backup-later">Later</button></div></div>` : ''}
     ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small" href="#data">Import</a></div>` : ''}
     ${draft ? `<div class="banner mb-4" role="status"><span><b>UNSAVED set inputs</b> · ${draft.stale ? 'This draft no longer matches the programme or set.' : 'Ready to resume; nothing was logged.'}</span><div class="actions">${draft.stale ? '' : '<button class="btn small primary" id="resume-draft">Resume</button>'}<button class="btn small ghost" id="discard-draft">Discard</button></div></div>` : ''}
-    ${day ? `<label class="field train-session-date"><span>Actual session date</span><input id="session-date" type="date" value="${esc(ui.train.actualDate)}"><small id="session-date-status" class="muted">${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${esc(shortDate(est))}` : ''}</small></label>
-    <div class="progress mb-4" aria-label="${prog.done} of ${prog.total} sets done"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>
-    ${cal ? `<p class="small muted mb-4 train-kcal">${Math.round(cal.minutes)} min · about ${kcal(cal.total[0])}–${kcal(cal.total[1])} kcal${cal.active ? ` (${kcal(cal.active[0])}–${kcal(cal.active[1])} active)` : ''} · <a href="#progress" data-to-body>details</a></p>` : ''}` : ''}`;
+    ${day ? `<div class="progress mb-4" role="progressbar" aria-valuenow="${prog.done}" aria-valuemin="0" aria-valuemax="${prog.total}" aria-valuetext="${prog.done} of ${prog.total} sets done" aria-label="Session progress"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
+  // Session date and the calorie line sit after the current set: they are reference, not the next action.
+  const sessionMeta = !day ? '' : `
+    <label class="field train-session-date mt-4"><span>Actual session date</span><input id="session-date" type="date" value="${esc(ui.train.actualDate)}"><small id="session-date-status" class="muted small">${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${esc(shortDate(est))}` : ''}</small></label>
+    ${cal ? `<p class="small muted mt-2 mb-0 train-kcal">${Math.round(cal.minutes)} min · about ${kcal(cal.total[0])}–${kcal(cal.total[1])} kcal${cal.active ? ` (${kcal(cal.active[0])}–${kcal(cal.active[1])} active)` : ''} · <a href="#progress" data-to-body>details</a></p>` : ''}`;
+
+  const previous = current ? lastPerformance(app, current.entry.exerciseId, ui.train.actualDate) : null;
   const focus = current ? `<section class="card train-focus" aria-label="Current set">
     <span class="eyebrow train-focus-kicker">Current set · ${prog.total - prog.done} remaining</span>
     <h2 class="train-focus-lift">${esc(ex(app, current.entry))} · Set ${current.setIndex + 1}</h2>
     <p class="train-focus-prescription">${current.set.load ? formatWeight(current.set.load, unit) : current.set.loadRange ? esc(`${current.set.loadRange.min}–${current.set.loadRange.max} ${current.set.loadRange.unit}`) : 'Weight not set'} × ${current.set.repsMin == null && !current.set.repsRaw ? 'Reps not set' : `${repsText(current.set)} reps`}${current.set.targetRpe != null ? `<small>RPE ${esc(current.set.targetRpe)}</small>` : ''}</p>
+    ${previous ? `<p class="small muted">Last logged: ${esc(performanceText(previous, unit))}</p>` : ''}
     <p class="muted small train-focus-context">${openSets[1] ? `Next: ${esc(ex(app, openSets[1].entry))}, set ${openSets[1].setIndex + 1}` : 'Last set of this session'}</p>
     <div class="train-focus-actions"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set</button></div>
   </section><div class="train-sticky-action"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set · ${esc(ex(app, current.entry))}</button></div>`
     : day ? `<section class="card train-focus"><h2>${prog.total ? 'Session complete' : 'No sets planned'}</h2><p class="muted">${prog.total ? `All ${prog.total} planned sets are done.` : 'Choose another day or use Quick log.'}</p></section>` : '';
 
-  let body = focus;
+  let body = focus + sessionMeta;
   if (!week) body += `<div class="empty card"><p>No weeks were found for this block.</p></div>`;
   if (day) {
     const workout = day.entries.map((e, ei) => {
@@ -175,8 +190,9 @@ export function trainView(app, ui) {
         <ol class="list mt-3">${e.sets.map((s, si) => setRow(app, unit, { ...dayRef, entryIndex: ei, setIndex: si }, s, name, fmtLoad)).join('')}</ol>
         ${notes}
       </section>`;
-    }).join('') || '<div class="empty card"><p>No exercises on this day.</p></div>';
-    body += `<details class="train-overview" data-keep-open="workout-${dateKey}" ${current ? '' : 'open'}><summary>Full workout · ${prog.done} of ${prog.total} sets done</summary>${workout}</details>`;
+    }).join('') || '<div class="empty"><p>No exercises on this day.</p></div>';
+    // The count is already in the progress bar and the focus card's kicker; the summary just names the fold.
+    body += `<details class="train-overview options" data-keep-open="workout-${dateKey}" ${current ? '' : 'open'}><summary>Full workout</summary><div class="options-body">${workout}</div></details>`;
     const t = week.target;
     body += `<details class="options mt-4" data-keep-open="week-${block.number}:${week.number}"><summary>Week ${week.number} details</summary><div class="options-body">
       <div class="grid-3">
@@ -297,6 +313,24 @@ function openDayPicker(app, ui, blocks, rerender) {
   (host.querySelector('[data-d][aria-pressed="true"]') || host.querySelector('button'))?.focus();
 }
 
+/** One nudge of the weight field: the smallest jump most gyms can actually make. */
+const stepFor = (unit) => (unit === 'lb' ? 5 : 2.5);
+
+/** Wire −/+ to a number input so they behave exactly like typing into it. */
+function bindStep(q, id, step, min = 0) {
+  const input = q(`#${id}`);
+  for (const [suffix, sign] of [['-down', -1], ['-up', 1]]) {
+    q(`#${id}${suffix}`)?.addEventListener('click', () => {
+      const now = parseFloat(input.value);
+      const next = Math.max(min, round1((Number.isFinite(now) ? now : 0) + sign * step));
+      if (next === now) return;
+      input.value = next;
+      // The same event typing fires, so draft keeping, the plate preview and the 1RM line all follow.
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+}
+
 function suggestedWeight(app, entry, set, unit) {
   const w = set.actualLoad || set.load || (set.loadRange ? { value: set.loadRange.min, unit: set.loadRange.unit } : null);
   return w ? round1(convert(w.value, w.unit, unit)) : '';
@@ -315,19 +349,21 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
   const defReps = recovered?.r ?? (logged ? logged.reps : (set.actualReps ?? (set.repsMin === set.repsMax ? set.repsMin : set.repsMax) ?? ''));
   const defRpe = recovered?.e ?? (logged ? (logged.rpe ?? '') : (set.actualRpe ?? set.targetRpe ?? ''));
   const date = recovered?.d ?? (logged ? app.sessions.find((s) => s.id === logged.sessionId)?.date : (ui.train.actualDate || todayIso()));
+  const previous = lastPerformance(app, entry.exerciseId, date, logged?.id);
 
   const sheet = openSheet(`
     <div class="card-h"><h2>${esc(exName)}</h2><span class="pill">Set ${setIndex + 1}</span></div>
     ${recovered ? '<p class="pill">UNSAVED · recovered inputs</p>' : ''}
     <p class="muted small">Plan: ${repsText(set)} reps${set.targetRpe != null ? ` @ RPE ${set.targetRpe}` : ''}${set.load ? ` · ${formatWeight(set.load, unit)}` : ''}</p>
-    <div id="bb" class="bb-stage mt-3 mb-3"></div><p id="bb-text" class="loading-text"></p>
-    <div class="grid-3 mt-3">
-      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"><small class="tone-bad" data-error="w"></small></label>
+    ${previous ? `<p class="small muted">Last logged: ${esc(performanceText(previous, unit))}</p><button class="btn small ghost" id="use-last">Use last numbers</button>` : ''}
+    <div class="log-fields mt-3">
+      <label class="field wide"><span>Weight (${esc(unit)})</span><div class="num-step"><button type="button" id="w-down" aria-label="Decrease weight by ${stepFor(unit)} ${esc(unit)}">−</button><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"><button type="button" id="w-up" aria-label="Increase weight by ${stepFor(unit)} ${esc(unit)}">+</button></div><small class="tone-bad" data-error="w"></small></label>
       <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="0" inputmode="numeric" value="${esc(defReps)}"><small class="tone-bad" data-error="r"></small></label>
       <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(defRpe)}"><small class="tone-bad" data-error="e"></small></label>
     </div>
     <p id="est" class="small muted mt-2"></p>
-    <label class="field mt-3"><span>Actual date</span><input id="d" type="date" value="${esc(date)}"><small class="tone-bad" data-error="d"></small><small class="muted" id="date-status">${dateStatus(date)}</small></label>
+    <div id="bb" class="bb-stage mt-3"></div><p id="bb-text" class="loading-text"></p>
+    <label class="field mt-3"><span>Actual date</span><input id="d" type="date" value="${esc(date)}"><small class="tone-bad" data-error="d"></small><small class="muted small" id="date-status">${dateStatus(date)}</small></label>
     <p id="draft-status" class="small muted" role="status">${recovered ? 'Recovered inputs were not logged.' : ''}</p>
     <div class="row spread mt-4">
       <div class="row">${logged ? '<button class="btn ghost" id="del">Remove</button>' : ''}<button class="btn ghost" id="onbar">Open in Plates</button></div>
@@ -335,6 +371,11 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
     </div>`);
   const el = sheet.el;
   const q = (s) => el.querySelector(s);
+  const checkSource = () => {
+    if (setDraftToken(app.programme, ref, plannedRef, app.loggedFor({ ...ref, ...plannedRef })) !== sourceToken) {
+      throw new RangeError('This set changed while the form was open. Close it and open the current set again.');
+    }
+  };
   const invalid = (id, message) => { q(`[data-error="${id}"]`).textContent = message; q(`#${id}`).focus(); };
   let pending = Promise.resolve();
   const keepDraft = () => {
@@ -362,17 +403,26 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
       q('#est').textContent = e1 ? `Estimated 1RM ≈ ${formatWeight({ value: e1, unit: 'kg' }, unit)} (Epley, an approximation)` : (Number.isFinite(r) && r > 12 ? 'Over 12 reps: no 1RM estimate.' : '');
     }
   };
+  q('#use-last')?.addEventListener('click', () => {
+    q('#w').value = round1(convert(previous.weight.value, previous.weight.unit, unit));
+    q('#r').value = previous.reps; q('#e').value = '';
+    ['w', 'r', 'e'].forEach((id) => { q(`[data-error="${id}"]`).textContent = ''; });
+    refresh(); keepDraft(); q('#e').focus();
+  });
   ['#w', '#r'].forEach((s) => q(s).addEventListener('input', refresh)); refresh();
   ['w', 'r', 'e', 'd'].forEach((id) => q(`#${id}`).addEventListener('input', () => { q(`[data-error="${id}"]`).textContent = ''; keepDraft(); }));
+  bindStep(q, 'w', stepFor(unit));
   q('#d').addEventListener('change', () => { q('#date-status').textContent = dateStatus(q('#d').value); });
   q('#cancel').addEventListener('click', () => guarded(q('#cancel'), async () => { await clearDraft(); sheet.close(); app.changed?.(); }));
   q('#onbar').addEventListener('click', () => { const w = Number(q('#w').value); if (!(w > 0)) { invalid('w', 'Enter a weight first'); return; } ui.plates = { side: [], target: String(w), top: '', autoload: true }; sheet.close(); location.hash = '#plates'; });
   q('#del')?.addEventListener('click', () => guarded(q('#del'), async () => {
+    checkSource();
     const r = await app.deleteSet(logged.id, { withUndo: true });
     let cleared = true; try { await clearDraft(); } catch { cleared = false; }
     sheet.close(); app.changed?.(); receipt(app, `Logged set removed${cleared ? '' : ' · unsaved copy could not be cleared'}`, r.undoToken);
   }));
   q('#save').addEventListener('click', () => guarded(q('#save'), async () => {
+    checkSource();
     const w = q('#w').value === '' ? NaN : Number(q('#w').value), r = q('#r').value === '' ? NaN : Number(q('#r').value), rpe = q('#e').value === '' ? null : Number(q('#e').value), d = q('#d').value;
     if (!(Number.isFinite(w) && w >= 0 && w < 1e5)) { invalid('w', 'Enter a realistic weight'); return; }
     if (!Number.isInteger(r) || r < 0 || r > 1000) { invalid('r', 'Enter whole reps'); return; }
@@ -382,7 +432,7 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
     const before = new Set(app.prs().map(prKey));
     const exerciseId = entry.exerciseId || ('custom:' + entry.name);
     let saved;
-    try { saved = await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId, weight, reps: r, rpe, note: '' }, { withUndo: true }); }
+    try { saved = await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId, weight, reps: r, rpe, note: '' }, { withUndo: true, expectedRevision: app.dataRevision }); }
     catch (err) { const id = /date/i.test(err.message) ? 'd' : /rpe/i.test(err.message) ? 'e' : /rep/i.test(err.message) ? 'r' : /weight|load/i.test(err.message) ? 'w' : null; if (id) { invalid(id, err.message); return; } throw err; }
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     let cleared = true; try { await clearDraft(); } catch { cleared = false; }
@@ -408,13 +458,13 @@ function openQuickLog(app, recovered = null) {
     <div class="card-h"><h2>Quick log</h2><span class="pill">outside the programme</span></div>
     ${recovered ? '<p class="pill">UNSAVED · recovered inputs</p>' : ''}
     <label class="field"><span>Exercise</span><select id="ex">${options.map((e) => `<option value="${esc(e.id)}" ${recovered?.ex === e.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select></label>
-    <div class="grid-3 mt-3">
-      <label class="field"><span>Weight (${esc(unit)})</span><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(recovered?.w ?? '')}"><small class="tone-bad" data-error="w"></small></label>
+    <div class="log-fields mt-3">
+      <label class="field wide"><span>Weight (${esc(unit)})</span><div class="num-step"><button type="button" id="w-down" aria-label="Decrease weight by ${stepFor(unit)} ${esc(unit)}">−</button><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(recovered?.w ?? '')}"><button type="button" id="w-up" aria-label="Increase weight by ${stepFor(unit)} ${esc(unit)}">+</button></div><small class="tone-bad" data-error="w"></small></label>
       <label class="field"><span>Reps</span><input id="r" type="number" step="1" min="1" inputmode="numeric" value="${esc(recovered?.r ?? '')}"><small class="tone-bad" data-error="r"></small></label>
       <label class="field"><span>RPE</span><input id="e" type="number" step="0.5" min="1" max="11" inputmode="decimal" value="${esc(recovered?.e ?? '')}"><small class="tone-bad" data-error="e"></small></label>
     </div>
     <label class="row mt-3"><input id="wu" type="checkbox" ${recovered?.wu ? 'checked' : ''}> Warm-up set (not counted for PRs or volume)</label>
-    <label class="field mt-3"><span>Actual date</span><input id="d" type="date" value="${esc(recovered?.d ?? todayIso())}"><small class="tone-bad" data-error="d"></small><small class="muted" id="date-status">${dateStatus(recovered?.d ?? todayIso())}</small></label>
+    <label class="field mt-3"><span>Actual date</span><input id="d" type="date" value="${esc(recovered?.d ?? todayIso())}"><small class="tone-bad" data-error="d"></small><small class="muted small" id="date-status">${dateStatus(recovered?.d ?? todayIso())}</small></label>
     <p id="draft-status" class="small muted" role="status">${recovered ? 'Recovered inputs were not logged.' : ''}</p>
     <div class="row spread mt-4"><button class="btn ghost" id="cancel">Cancel</button><button class="btn primary" id="save">Save set</button></div>`);
   const q = (s) => sheet.el.querySelector(s);
@@ -428,6 +478,7 @@ function openQuickLog(app, recovered = null) {
   };
   const clearDraft = async () => { await pending; if (app.getDraft?.('set')?.value?.kind === 'quick') await app.clearDraft('set'); };
   ['w', 'r', 'e', 'd'].forEach((id) => q(`#${id}`).addEventListener('input', () => { q(`[data-error="${id}"]`).textContent = ''; keepDraft(); }));
+  bindStep(q, 'w', stepFor(unit));
   ['ex', 'wu'].forEach((id) => q(`#${id}`).addEventListener('change', keepDraft));
   q('#d').addEventListener('change', () => { q('#date-status').textContent = dateStatus(q('#d').value); });
   q('#cancel').addEventListener('click', () => guarded(q('#cancel'), async () => { await clearDraft(); sheet.close(); app.changed?.(); }));

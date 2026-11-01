@@ -81,7 +81,7 @@ body {
 /* Only the page title shouts in capitals; section and item headings use sentence case. */
 h1, h2, h3, .display { font-family: var(--font-display); letter-spacing: .01em; margin: 0; line-height: 1.1; font-weight: 700; }
 h1, .display { text-transform: uppercase; letter-spacing: .02em; line-height: 1.05; }
-h1 { font-size: clamp(26px, 6vw, 36px); }
+h1 { font-size: clamp(24px, 5.4vw, 34px); }
 h2 { font-size: var(--t-lg); } h3 { font-size: var(--t-md); color: var(--text); font-weight: 650; }
 p { margin: 0 0 .6em; }
 a { color: var(--accent); }
@@ -94,15 +94,19 @@ button { font: inherit; color: inherit; }
 /* ---------- Shell ---------- */
 .shell { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100dvh; }
 .rail { display: none; }
-main.main { padding: 20px var(--gutter) calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); max-width: 1100px; width: 100%; margin: 0 auto; } /* element-scoped: .list-row uses .main too */
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.topbar p { font-size: var(--t-sm); line-height: 1.35; }
+main.main { padding: calc(20px + env(safe-area-inset-top)) calc(var(--gutter) + env(safe-area-inset-right)) calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)) calc(var(--gutter) + env(safe-area-inset-left)); max-width: 1100px; width: 100%; margin: 0 auto; } /* element-scoped: .list-row uses .main too */
+/* flex-start, not center: the pill and actions line up with the h1 whatever length the description is. */
+.topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
+.topbar p { font-size: var(--t-sm); line-height: 1.35; max-width: 54ch; margin-bottom: 0; }
+/* The title block stacks its own heading and description; `.topbar p` has no bottom margin, so the gap lives here. */
+.topbar > :first-child { display: grid; gap: var(--s-1); min-width: 0; }
+.topbar .pill { margin-top: var(--s-1); }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
 .brand svg { width: 28px; height: 28px; }
 .brand small { display: block; font-size: var(--t-xs); letter-spacing: .14em; color: var(--muted); font-weight: 600; }
 
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+  position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   display: grid; grid-template-columns: repeat(5, 1fr); background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(14px); border-top: 1px solid var(--line); z-index: 20;
 }
@@ -116,7 +120,7 @@ main.main { padding: 20px var(--gutter) calc(var(--nav-h) + 28px + env(safe-area
   .shell { grid-template-columns: 220px minmax(0, 1fr); }
   .rail { display: flex; flex-direction: column; gap: 6px; padding: 24px 14px; border-right: 1px solid var(--line); position: sticky; top: 0; height: 100dvh; background: var(--bg-2); }
   .tabbar { display: none; }
-  main.main { padding: 28px 36px 60px; }
+  main.main { padding: calc(28px + env(safe-area-inset-top)) calc(36px + env(safe-area-inset-right)) 60px calc(36px + env(safe-area-inset-left)); }
   .rail .tab { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--r-sm); font-size: 13px; }
   .rail .tab[aria-current="page"] { background: var(--accent-soft); }
   .rail .brand { padding: 4px 8px 20px; }
@@ -125,7 +129,7 @@ main.main { padding: 20px var(--gutter) calc(var(--nav-h) + 28px + env(safe-area
 /* ---------- Primitives ---------- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s-4); box-shadow: var(--shadow); }
 .card + .card { margin-top: var(--s-4); }
-.card-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-3); }
+.card-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; margin-bottom: var(--s-3); }
 .grid { display: grid; gap: var(--s-4); }
 @media (min-width: 720px) { .grid.cols-2 { grid-template-columns: 1fr 1fr; } .grid.cols-3 { grid-template-columns: repeat(3, 1fr); } }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -157,7 +161,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 .banner { padding: 10px 14px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--warn) 16%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); font-size: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 
 .stat { display: grid; gap: 2px; }
-.stat b { font-family: var(--font-display); font-size: 34px; line-height: 1; letter-spacing: .01em; }
+.stat b { font-family: var(--font-display); font-size: var(--t-2xl); line-height: 1; letter-spacing: .01em; } /* one headline-number size, shared with .figure */
 .stat span { font-size: var(--t-xs); color: var(--muted); font-weight: 650; }
 .stat > span::first-letter { text-transform: uppercase; }
 .stat small { color: var(--muted); }
@@ -258,8 +262,8 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 .feed .medal { width: 34px; height: 34px; border-radius: 50%; background: var(--good); color: #001008; display: grid; place-items: center; font-weight: 800; font-family: var(--font-display); }
 
 /* ---------- Sheets / toasts ---------- */
-.sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); z-index: 40; display: flex; align-items: flex-end; justify-content: center; animation: fade .15s ease; }
-.sheet { width: min(100%, 560px); max-height: 92dvh; overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 22px 22px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); animation: rise .2s cubic-bezier(.2,.8,.2,1); }
+.sheet-backdrop { position: fixed; inset: 0; padding-top: env(safe-area-inset-top); background: rgba(0,0,0,.55); backdrop-filter: blur(3px); z-index: 40; display: flex; align-items: flex-end; justify-content: center; animation: fade .15s ease; }
+.sheet { width: min(100%, 560px); max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top))); overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 22px 22px 0 0; padding: 18px calc(16px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); animation: rise .2s cubic-bezier(.2,.8,.2,1); }
 @media (min-width: 720px) { .sheet-backdrop { align-items: center; } .sheet { border-radius: 22px; } }
 @keyframes rise { from { translate: 0 24px; opacity: 0; } to { translate: none; opacity: 1; } } /* translate, not transform, so centring and swipe offsets survive */
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
@@ -276,6 +280,8 @@ details.fold summary { cursor: pointer; font-weight: 650; padding: 11px 0; min-h
 .warnlist { max-height: 260px; overflow: auto; font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* Safari zooms the page when a focused form control is smaller than 16px. */
+@supports (-webkit-touch-callout: none) { input, select, textarea { font-size: 16px !important; } }
 
 /* Three compact stat tiles in a row, also on phones */
 .stats3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -537,13 +543,18 @@ details.coach-find[open] > summary::after { transform: rotate(180deg); }
 .train-overview > summary::after { content: '▾'; margin-left: auto; color: var(--muted); }
 .train-overview[open] > summary::after { transform: rotate(180deg); }
 .train-overview .cue { line-height: 1.5; }
-.train-sticky-action { position: fixed; inset: auto 0 calc(var(--nav-h) + env(safe-area-inset-bottom)) 0; z-index: 25; padding: var(--s-3) var(--gutter); background: var(--bg); border-top: 1px solid var(--line); display: none; }
+.train-sticky-action { position: fixed; inset: auto 0 calc(var(--nav-h) + env(safe-area-inset-bottom)) 0; z-index: 25; padding: var(--s-3) calc(var(--gutter) + env(safe-area-inset-right)) var(--s-3) calc(var(--gutter) + env(safe-area-inset-left)); background: var(--bg); border-top: 1px solid var(--line); display: none; }
 .train-sticky-action.is-visible { display: block; } /* train.js shows it once the card's Log set button scrolls away */
 .train-sticky-action .btn { display: block; width: 100%; min-height: 56px; line-height: 56px; font-size: var(--t-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
-body:has(.train-sticky-action) main.main { padding-bottom: calc(var(--nav-h) + 180px + env(safe-area-inset-bottom)); }
-body:has(.train-sticky-action) .rest-timer { bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom)); }
-body:has(.train-sticky-action) .toast { bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom)); }
-body:has(.train-sticky-action):has(.rest-timer) .toast { bottom: calc(var(--nav-h) + 160px + env(safe-area-inset-bottom)); }
+/* Reserve exactly the bar's own height (--s-3 + 56 + --s-3), not a guess: the old 180px left a dead
+   screenful below the last control. The reserve stays keyed on the bar's presence, never on
+   .is-visible — removing page height would scroll the card's Log set button back into view, hide the
+   bar and restore the height, oscillating through the observer in views/train.js. The floating
+   toast and timer do not change scroll height, so they can follow .is-visible safely. */
+body:has(.train-sticky-action) main.main { padding-bottom: calc(var(--nav-h) + 88px + env(safe-area-inset-bottom)); } /* measured bar height 83px */
+body:has(.train-sticky-action.is-visible) .rest-timer { bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom)); }
+body:has(.train-sticky-action.is-visible) .toast { bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom)); }
+body:has(.train-sticky-action.is-visible):has(.rest-timer) .toast { bottom: calc(var(--nav-h) + 160px + env(safe-area-inset-bottom)); }
 body:has(#ask) .topbar p { max-width: 62ch; }
 body:has(#ask) #ask .btn { min-height: 48px; }
 body:has(#ask) .chip { min-height: 44px; }
@@ -554,10 +565,10 @@ body:has(#ask) .coach-headline { font-weight: 500; color: var(--text-2); }
   .app-toolbar { padding: var(--s-3) 36px 0; justify-content: flex-end; }
   .app-toolbar .brand { display: none; }
   .train-sticky-action, .train-sticky-action.is-visible { display: none; }
-  body:has(.train-sticky-action) main.main { padding-bottom: 100px; }
-  body:has(.train-sticky-action) .rest-timer { bottom: 24px; }
-  body:has(.train-sticky-action) .toast { bottom: 24px; }
-  body:has(.train-sticky-action):has(.rest-timer) .toast { bottom: 96px; }
+  body:has(.train-sticky-action) main.main { padding-bottom: 60px; } /* the bar is hidden here, so only the normal page tail */
+  body:has(.train-sticky-action.is-visible) .rest-timer { bottom: 24px; }
+  body:has(.train-sticky-action.is-visible) .toast { bottom: 24px; }
+  body:has(.train-sticky-action.is-visible):has(.rest-timer) .toast { bottom: 96px; }
 }
 
 /* Progress charts: bands, markers, light-day dots, projection range, crosshair and tooltip */
@@ -627,6 +638,19 @@ table.load .swatch { margin-right: 4px; }
 .view-tabs button small { font-weight: 500; margin-left: 2px; }
 .macros .stat { background: var(--surface-2); border-radius: 12px; padding: 10px; }
 .macros .figure { font-size: clamp(22px, 6.5vw, 30px); }
+/* Log-set fields: the weight spans the row so it can carry −/+, reps and RPE share the next row.
+   Three across (the old .grid-3) left each field about 107 px on a phone, too narrow for a stepper. */
+.log-fields { display: grid; gap: var(--s-3); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.log-fields > .field.wide { grid-column: 1 / -1; }
+
+/* Weight with −/+ beside it: adjusting a load mid-set no longer needs the on-screen keypad.
+   Both buttons are full 44 px taps and the input keeps the middle, so the digits stay readable. */
+.num-step { display: grid; grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap); gap: var(--s-2); align-items: stretch; }
+.num-step input { text-align: center; padding-left: var(--s-1); padding-right: var(--s-1); }
+.num-step button { min-height: var(--tap); padding: 0; border-radius: 12px; border: 1px solid var(--line-ctl); background: var(--surface-2); color: var(--text); font-family: var(--font-display); font-size: var(--t-lg); line-height: 1; cursor: pointer; }
+.num-step button:hover { background: var(--surface-3); border-color: var(--line-strong); }
+.num-step button:active { transform: translateY(1px) scale(.98); }
+
 .weigh-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); align-items: end; }
 .weigh-form .field:last-of-type { grid-column: 1; }
 @media (min-width: 700px) { .weigh-form { grid-template-columns: 1fr 1fr 1fr auto; } .weigh-form .field:last-of-type { grid-column: auto; } }

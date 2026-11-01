@@ -1,5 +1,5 @@
 // Application state: loads storage, owns settings/programme/logs, and derives set events, PRs and dates.
-import { openStore, requestPersistence, uuid } from '../store/db.js';
+import { openStore, requestPersistence, staleDataError, uuid } from '../store/db.js';
 import { buildBackup, validateBackup } from '../store/backup.js';
 import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, MAX_INTAKE } from '../store/programme-schema.js';
 import { isUnit, toKg } from '../core/units.js';
@@ -41,11 +41,29 @@ export async function createApp() {
 
   // Writes run one at a time, so a double tap can never interleave two read-modify-write sequences.
   let queue = Promise.resolve();
-  const enqueue = (fn) => { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; };
+  const enqueue = (fn) => {
+    const run = queue.then(async () => {
+      try { return await fn(); }
+      catch (error) {
+        if (error?.code === 'STALE_DATA') {
+          try { await load(); }
+          catch { error.message = 'Data changed in another tab. Reload this page, then review and try again.'; }
+        }
+        throw error;
+      }
+    });
+    queue = run.catch(() => {});
+    return run;
+  };
   let undo = null;
+  let programmeSnapshot = 'null';
   const drafts = new Map();
   const draftKeys = ['draft:set', 'draft:coach'];
-  const dataChanged = (invalidate = true) => { app.dataRevision++; if (invalidate) undo = null; app.changed(); };
+  const channel = store.persistent && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lifting-tracker-changes') : null;
+  channel?.unref?.();
+  channel?.addEventListener('message', () => { enqueue(load).catch(console.error); });
+  const announce = () => channel?.postMessage('changed');
+  const dataChanged = (invalidate = true, notify = true) => { app.dataRevision++; if (invalidate) undo = null; app.changed(); if (notify) announce(); };
   const checkRevision = (expected) => {
     if (expected != null && expected !== app.dataRevision) throw new RangeError('Your training data changed since this preview. Choose the file again.');
   };
@@ -74,6 +92,7 @@ export async function createApp() {
     app.settings = sanitizeSettings(settings?.value);
     app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights; app.activities = sanitizeActivities(activities?.value); app.intake = sanitizeIntake(intake?.value);
     const clean = sanitizeProgramme(programme?.value);
+    programmeSnapshot = JSON.stringify(programme?.value ?? null);
     if (clean) { app.programme = clean; app.usingExample = !!clean.isExample; }
     else { app.programme = buildExampleProgramme(); app.usingExample = true; }
     drafts.clear();
@@ -83,41 +102,69 @@ export async function createApp() {
         if (envelope && Number.isFinite(Date.parse(envelope.savedAt))) drafts.set(draftKeys[i], { value: draftValue(envelope.value), savedAt: envelope.savedAt });
       } catch { /* malformed drafts never prevent opening the app */ }
     });
-    dataChanged();
+    dataChanged(true, false);
   }
 
   app.reload = () => enqueue(load);
 
-  app.saveSettings = (patch) => enqueue(async () => {
-    const next = sanitizeSettings({ ...app.settings, ...patch });
-    await store.put('meta', { key: 'settings', value: next });
+  const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const mergeSetting = (base, changed, current, key) => {
+    if (['meals', 'customFoods'].includes(key) && Array.isArray(changed)) {
+      const before = new Map((base || []).map((row) => [row.id, row]));
+      const after = new Map(changed.map((row) => [row.id, row]));
+      const merged = (current || []).filter((row) => !before.has(row.id) || after.has(row.id));
+      for (const [id, row] of after) {
+        if (before.has(id) && sameValue(before.get(id), row)) continue;
+        const index = merged.findIndex((entry) => entry.id === id);
+        if (index < 0) merged.push(row); else merged[index] = row;
+      }
+      return merged;
+    }
+    if (changed && typeof changed === 'object' && !Array.isArray(changed)) {
+      const merged = { ...(current || {}) };
+      for (const field of new Set([...Object.keys(base || {}), ...Object.keys(changed)])) {
+        if (!(field in changed)) { delete merged[field]; continue; }
+        if (!sameValue(base?.[field], changed[field])) merged[field] = mergeSetting(base?.[field], changed[field], current?.[field], field);
+      }
+      return merged;
+    }
+    return changed;
+  };
+  app.saveSettings = (patch) => {
+    const base = structuredClone(app.settings);
+    return enqueue(async () => {
+    const next = await store.updateMeta('settings', (current) => {
+      const latest = sanitizeSettings(current);
+      return sanitizeSettings({ ...latest, ...Object.fromEntries(Object.entries(patch).map(([key, value]) => [key, mergeSetting(base[key], value, latest[key], key)])) });
+    });
     app.settings = next;
-    app.changed();
-  });
+    app.changed(); announce();
+    });
+  };
 
   app.setProgramme = (programme, { expectedRevision } = {}) => enqueue(async () => {
     checkRevision(expectedRevision);
     const clean = sanitizeProgramme(programme);
     if (!clean) throw new Error('That is not a programme.');
-    await store.deleteAndPut({ meta: [...draftKeys, ...(clean.isExample ? ['programme'] : [])] },
-      clean.isExample ? {} : { meta: [{ key: 'programme', value: clean }] });
+    await store.replaceProgramme(programmeSnapshot, clean.isExample ? null : clean, draftKeys);
+    programmeSnapshot = JSON.stringify(clean.isExample ? null : clean);
     app.programme = clean; app.usingExample = !!clean.isExample;
     drafts.clear(); dataChanged();
   });
 
   // Generated blocks: appended to (or replaced in) the athlete's own programme, never the example one.
-  const writeBlocks = async (blocks) => {
-    const next = sanitizeProgramme({ ...app.programme, blocks });
-    if (!next) throw new Error('That is not a valid programme.');
-    await store.put('meta', { key: 'programme', value: next });
-    app.programme = next; dataChanged();
-    return next;
-  };
   app.addBlock = (block) => enqueue(async () => {
-    if (app.usingExample) throw new RangeError('Import your workbook first: generated blocks are added to your own programme.');
     if (!block || !Number.isInteger(block.number)) throw new RangeError('The block has no number.');
-    if (app.programme.blocks.some((b) => b.number === block.number)) throw new RangeError(`Block ${block.number} already exists.`);
-    return writeBlocks([...app.programme.blocks, block]);
+    const next = await store.updateMeta('programme', (current) => {
+      const programme = sanitizeProgramme(current);
+      if (!programme || programme.isExample) throw new RangeError('Import your workbook first: generated blocks are added to your own programme.');
+      if (programme.blocks.some((b) => b.number === block.number)) throw new RangeError(`Block ${block.number} already exists.`);
+      const changed = sanitizeProgramme({ ...programme, blocks: [...programme.blocks, block] });
+      if (!changed) throw new Error('That is not a valid programme.');
+      return changed;
+    });
+    programmeSnapshot = JSON.stringify(next); app.programme = next; app.usingExample = false; dataChanged();
+    return next;
   });
   // Only a generated block can be replaced, and only by a generated block with the same number (a revised copy).
   // A block's token changes on every replacement, so `expectedToken` (from app.blockToken, taken when the revision
@@ -125,13 +172,20 @@ export async function createApp() {
   const tokenOf = (b) => (b?.generated ? `${b.generated.at}#${b.generated.rev ?? 0}` : null);
   app.blockToken = (number) => tokenOf(app.programme?.blocks.find((b) => b.number === number));
   app.replaceBlock = (block, { expectedToken = null } = {}) => enqueue(async () => {
-    if (app.usingExample) throw new RangeError('Import your workbook first.');
-    const current = app.programme.blocks.find((b) => b.number === block?.number);
-    if (!current?.generated) throw new RangeError('Only generated blocks can be replaced.');
-    if (!block.generated) throw new RangeError('The replacement is not a generated block.');
-    if (expectedToken && tokenOf(current) !== expectedToken) throw new RangeError('That block has changed since the revision was made. Re-load it again.');
-    const next = { ...block, generated: { ...block.generated, at: current.generated.at, rev: (current.generated.rev ?? 0) + 1 } };
-    return writeBlocks(app.programme.blocks.map((b) => (b.number === block.number ? next : b)));
+    const next = await store.updateMeta('programme', (raw) => {
+      const programme = sanitizeProgramme(raw);
+      if (!programme || programme.isExample) throw new RangeError('Import your workbook first.');
+      const current = programme.blocks.find((b) => b.number === block?.number);
+      if (!current?.generated) throw new RangeError('Only generated blocks can be replaced.');
+      if (!block.generated) throw new RangeError('The replacement is not a generated block.');
+      if (expectedToken && tokenOf(current) !== expectedToken) throw new RangeError('That block has changed since the revision was made. Re-load it again.');
+      const revised = { ...block, generated: { ...block.generated, at: current.generated.at, rev: (current.generated.rev ?? 0) + 1 } };
+      const changed = sanitizeProgramme({ ...programme, blocks: programme.blocks.map((b) => (b.number === block.number ? revised : b)) });
+      if (!changed) throw new Error('That is not a valid programme.');
+      return changed;
+    });
+    programmeSnapshot = JSON.stringify(next); app.programme = next; dataChanged();
+    return next;
   });
   // Removing a generated block keeps what was logged against it, as free-standing sets in your history (they must
   // not attach themselves to whichever block later takes the same number).
@@ -143,7 +197,8 @@ export async function createApp() {
     const sets = app.sets.filter((s) => ids.has(s.sessionId) && s.plannedRef).map((s) => ({ ...s, plannedRef: null, updatedAt: new Date().toISOString() }));
     const next = sanitizeProgramme({ ...app.programme, blocks: app.programme.blocks.filter((x) => x.number !== number) });
     if (!next) throw new Error('That is not a valid programme.');
-    await store.putAll({ meta: [{ key: 'programme', value: next }], sessions, sets });
+    await store.replaceProgramme(programmeSnapshot, next, [], { sessions, sets, check: checkCurrent });
+    programmeSnapshot = JSON.stringify(next);
     app.programme = next;
     app.sessions = app.sessions.map((s) => sessions.find((x) => x.id === s.id) || s);
     app.sets = app.sets.map((s) => sets.find((x) => x.id === s.id) || s);
@@ -288,23 +343,21 @@ export async function createApp() {
     }
     return m;
   });
-  const saveIntake = async (next) => { await store.put('meta', { key: 'intake', value: next }); app.intake = next; dataChanged(false); };
+  const saveIntake = async (change) => { const next = await store.updateMeta('intake', (current) => change(sanitizeIntake(current))); app.intake = next; dataChanged(false); };
   app.addIntake = (date, label, totals) => enqueue(async () => {
-    if (app.intake.length >= MAX_INTAKE) throw new RangeError('Food log is full. Export a backup, then remove old entries.');
     const [clean] = sanitizeIntake([{ id: uuid(), date, label, ...totals, createdAt: new Date().toISOString() }]);
     if (!clean) throw new RangeError('That food entry is not valid.');
-    await saveIntake([...app.intake, clean]);
+    await saveIntake((current) => { if (current.length >= MAX_INTAKE) throw new RangeError('Food log is full. Export a backup, then remove old entries.'); return [...current, clean]; });
     return clean;
   });
-  app.deleteIntake = (id) => enqueue(() => saveIntake(app.intake.filter((e) => e.id !== id)));
-  const saveActivities = async (next) => { await store.put('meta', { key: 'activities', value: next }); app.activities = next; dataChanged(false); };
+  app.deleteIntake = (id) => enqueue(() => saveIntake((current) => current.filter((e) => e.id !== id)));
+  const saveActivities = async (change) => { const next = await store.updateMeta('activities', (current) => change(sanitizeActivities(current))); app.activities = next; dataChanged(false); };
   app.addActivity = (date, kind, minutes) => enqueue(async () => {
-    if (app.activities.length >= MAX_ACTIVITIES) throw new RangeError('Activity log is full. Export a backup, then remove old entries.');
     const [clean] = sanitizeActivities([{ id: uuid(), date, kind, minutes, createdAt: new Date().toISOString() }]);
     if (!clean) throw new RangeError('Choose an activity and a time between 1 minute and 24 hours.');
-    await saveActivities([...app.activities, clean]);
+    await saveActivities((current) => { if (current.length >= MAX_ACTIVITIES) throw new RangeError('Activity log is full. Export a backup, then remove old entries.'); return [...current, clean]; });
   });
-  app.deleteActivity = (id) => enqueue(() => saveActivities(app.activities.filter((a) => a.id !== id)));
+  app.deleteActivity = (id) => enqueue(() => saveActivities((current) => current.filter((a) => a.id !== id)));
 
   // ---- logging ----
   app.logAsPlanned = ({ programmeRef, plannedRef, date }) => enqueue(async () => {
@@ -328,7 +381,8 @@ export async function createApp() {
     return { set, undoToken, newPRs: app.prs().filter((x) => !before.has(prKey(x))) };
   });
 
-  const logSet = async (input, { withUndo = false } = {}) => {
+  const logSet = async (input, { withUndo = false, expectedRevision } = {}) => {
+    if (expectedRevision != null && expectedRevision !== app.dataRevision) throw new RangeError('Training data changed while saving. Reopen the set and try again.');
     const { date, programmeRef = null, plannedRef = null, exerciseId, weight, reps, rpe = null, isWarmup = false, note = '' } = input;
     if (!isStrictDate(date)) throw new RangeError('Choose a valid date.');
     if (!weight || !Number.isFinite(weight.value) || weight.value < 0 || weight.value >= 1e5 || !isUnit(weight.unit)) throw new RangeError('Enter a realistic weight.');
@@ -347,7 +401,7 @@ export async function createApp() {
     const oldSessionId = existing && existing.sessionId !== session.id ? existing.sessionId : null;
     const orphaned = oldSessionId && !app.sets.some((s) => s.id !== rec.id && s.sessionId === oldSessionId) ? oldSessionId : null;
     const receipt = beforeChange(rec.id, [session.id, existing?.sessionId].filter(Boolean));
-    await store.deleteAndPut(orphaned ? { sessions: [orphaned] } : {}, { sessions: [session], sets: [rec] }); // one transaction
+    await store.deleteAndPut(orphaned ? { sessions: [orphaned] } : {}, { sessions: [session], sets: [rec] }, checkCurrent); // one transaction
     if (isNewSession) app.sessions.push(session);
     if (orphaned) app.sessions = app.sessions.filter((s) => s.id !== orphaned);
     const i = app.sets.findIndex((s) => s.id === rec.id);
@@ -362,7 +416,7 @@ export async function createApp() {
     if (!target) return;
     const lastInSession = !app.sets.some((s) => s.id !== id && s.sessionId === target.sessionId);
     const receipt = beforeChange(id, [target.sessionId]);
-    await store.deleteAndPut({ sets: [id], ...(lastInSession ? { sessions: [target.sessionId] } : {}) }, {});
+    await store.deleteAndPut({ sets: [id], ...(lastInSession ? { sessions: [target.sessionId] } : {}) }, {}, checkCurrent);
     app.sets = app.sets.filter((s) => s.id !== id);
     if (lastInSession) app.sessions = app.sessions.filter((s) => s.id !== target.sessionId);
     finishChange(receipt);
@@ -382,7 +436,7 @@ export async function createApp() {
     if (!undo || undo.token !== token || undo.revision !== app.dataRevision) throw new RangeError('That change can no longer be undone.');
     const receipt = undo;
     await store.deleteAndPut({ sets: [receipt.id], sessions: receipt.sessionIds },
-      { sets: receipt.set ? [receipt.set] : [], sessions: receipt.sessions.map((s) => s.record) });
+      { sets: receipt.set ? [receipt.set] : [], sessions: receipt.sessions.map((s) => s.record) }, checkCurrent);
     app.sets = app.sets.filter((s) => s.id !== receipt.id);
     if (receipt.set) app.sets.splice(receipt.index, 0, receipt.set);
     app.sessions = app.sessions.filter((s) => !receipt.sessionIds.includes(s.id));
@@ -398,18 +452,31 @@ export async function createApp() {
   app.deleteBodyweight = (id) => enqueue(async () => { await store.delete('bodyweights', id); app.bodyweights = app.bodyweights.filter((b) => b.id !== id); dataChanged(); });
 
   // ---- backup ----
+  const sameRows = (a, b) => JSON.stringify([...a].sort((x, y) => String(x.id).localeCompare(String(y.id))))
+    === JSON.stringify([...b].sort((x, y) => String(x.id).localeCompare(String(y.id))));
+  const checkCurrent = (current) => {
+    const meta = new Map(current.meta.map((row) => [row.key, row.value]));
+    const same = JSON.stringify(sanitizeSettings(meta.get('settings'))) === JSON.stringify(app.settings)
+      && JSON.stringify(meta.get('programme') ?? null) === programmeSnapshot
+      && JSON.stringify(sanitizeIntake(meta.get('intake'))) === JSON.stringify(app.intake)
+      && JSON.stringify(sanitizeActivities(meta.get('activities'))) === JSON.stringify(app.activities)
+      && sameRows(current.sessions, app.sessions) && sameRows(current.sets, app.sets)
+      && sameRows(current.bodyweights, app.bodyweights);
+    if (!same) throw staleDataError();
+  };
   app.exportBackup = () => buildBackup(store);
   app.importBackup = (text, { expectedRevision } = {}) => enqueue(async () => {
     checkRevision(expectedRevision);
     const v = validateBackup(text);
     if (!v.ok) return v;
-    await store.replaceAll(v.snapshot);
+    await store.replaceAll(v.snapshot, checkCurrent);
     await load();
     return v;
   });
-  app.resetAll = () => enqueue(async () => { await store.clearAll(); await load(); });
+  app.resetAll = () => enqueue(async () => { await store.clearAll(checkCurrent); await load(); });
   app.useExample = () => enqueue(async () => {
-    await store.deleteAndPut({ meta: ['programme', ...draftKeys] }, {});
+    await store.replaceProgramme(programmeSnapshot, null, draftKeys);
+    programmeSnapshot = 'null';
     app.programme = buildExampleProgramme(); app.usingExample = true; drafts.clear(); dataChanged();
   });
 

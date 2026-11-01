@@ -13,6 +13,17 @@ globalThis.fetch = async (path) => {
   return { ok: true, status: 200, json: async () => JSON.parse(text) };
 };
 
+test('a form save queued behind a reload rejects its old revision before writing', async () => {
+  const app = await createApp();
+  const revision = app.dataRevision;
+  const reload = app.reload();
+  const save = app.logSet({ date: '2026-10-01', exerciseId: 'low_bar_squat', weight: { value: 100, unit: 'kg' }, reps: 3 }, { expectedRevision: revision });
+  await reload;
+  await assert.rejects(save, /changed while saving/);
+  assert.equal(app.sets.length, 0);
+  assert.equal((await app.store.getAll('sets')).length, 0);
+});
+
 const ref = { blockNumber: 1, weekNumber: 1, dayNumber: 1 };
 const planned = { entryIndex: 0, setIndex: 0 };
 const log = (app, over = {}) => app.logSet({ date: '2026-10-01', programmeRef: ref, plannedRef: planned, exerciseId: 'low_bar_squat', weight: { value: 140, unit: 'kg' }, reps: 5, rpe: 7, ...over });
