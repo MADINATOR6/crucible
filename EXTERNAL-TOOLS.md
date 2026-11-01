@@ -86,7 +86,7 @@ OmO is Codex-only. Claude independently uses GJC, Claw, the same Markdown librar
 
 ## Workflow and checks
 
-Optional task/handoff `tool: none|gjc|claw|claude-red|omo`: first four for both agents, `omo` for Codex runtime. Metadata only; invoke manually. A proper ccx routing adapter would need ownership, budgets, captures and approvals; this integration leaves routing unchanged.
+Optional task/handoff `tool: none|gjc|claw|claude-red|rea|omo`: all except `omo` for both agents, `omo` for Codex runtime. Metadata only; invoke manually. A proper ccx routing adapter would need ownership, budgets, captures and approvals; this integration leaves routing unchanged.
 
 Claude plans a scoped task; Codex implements/verifies; Claude reviews; ccx verifies/reviews/approves done. Parallel tasks retain separate owned worktrees. Repository-writing harness trials require a separate task, isolated worktree and exact allowlist under HANDOFF.md. Never start a new repository-writing harness session in the base checkout; only version/help inspection runs from the repo root. Wrappers do not enforce filesystem isolation.
 
@@ -100,6 +100,7 @@ Both agents use the same selection rules. Start with `tool: none`; an optional h
 | --- | --- | --- |
 | `none` | Ordinary implementation, review, tests and deterministic work | Normal Claude/Codex dispatch through ccx |
 | `gjc` | A task owner wants to evaluate a separately scoped implementation harness | Normal implementation; no recursive harness dispatch |
+| `rea` | Evidence about an authorized application or binary without its source | Ordinary source inspection; use `node scripts/test-rea.mjs` for Rea readiness |
 | `claw` | A focused read-only second opinion on a diff or design is useful and API cost is authorized | Normal cross-model review; a Claw opinion never replaces required reviewers |
 | `claude-red` | One reviewed Markdown module directly fits the authorized task | Use the normal task brief; omit unrelated modules |
 | `omo` | A longer Codex session benefits from its approved orchestration skills | Ordinary Codex; Claude uses native planning/skills/review |
@@ -111,7 +112,7 @@ Both agents use the same selection rules. Start with `tool: none`; an optional h
 5. The normal agent reviews the result, runs the task's tests and completes the existing ccx verify/review/done sequence. If the enhancement fails, record the reason, use `tool: none` and continue normal dispatch. Do not add retries, models, automatic routing or permissions to compensate.
 
 ```text
-tool: none | gjc | claw | claude-red | omo   (select exactly one)
+tool: none | gjc | claw | claude-red | rea | omo   (select exactly one)
 Goal: <one concrete result>
 Worktree / baseline: <approved task directory and commit>
 May read: <explicit paths; exclude private data>
@@ -148,3 +149,21 @@ Windows Restricted policy blocks direct `.ps1` launchers; the explicit per-proce
 ### Remaining interactive proof
 
 OmO's profile, manifest, hook files, doctor and CLI startup checks pass. A fresh interactive session still needs the user's normal startup hook review and a harmless selected OmO workflow before claiming its hooks executed. Neither help output nor pre-approved files prove that. No external library contents or repository-writing harness trial have been executed as part of installation or this readiness work.
+
+## Rea (reverse engineering)
+
+Source: [morluto/rea](https://github.com/morluto/rea), MIT. Added 2026-10-28. Both project MCP configurations launch the same Windows stdio command:
+
+```powershell
+npx.cmd --yes --package=node@24.22.1 --package=rea-agents@6.8.0 -- rea mcp
+```
+
+The compatible Node runtime and Rea live in npm's cache, outside Git. Global Node remains unchanged. The first launch needs npm registry access; prewarm/check it with the same command ending in `--version` instead of `mcp`. Restart Claude/Codex in this trusted repo and approve the project MCP normally. Existing sessions do not acquire new tools automatically. Codex has a 120-second startup timeout and a 180-second tool timeout. A cold install can take longer: finish the version check before restarting. Clearing npm's cache requires a fresh download. This is a Windows configuration, matching the existing repo environment.
+
+Do not run Rea's global `setup` here: these project configs intentionally avoid user-level registration or skill installation. Shared investigation instructions live in AGENTS.md and CLAUDE.md. Start with `binary_session {}` to discover actual session capabilities. Static JavaScript analysis works without a native engine. Hopper/Ghidra/IDA and other optional external engines have not been installed or verified. No analysis engine is silently downloaded by these configuration changes.
+
+Analyze only authorized targets. Start static; runtime execution, attachment, capture, extraction and writes need explicit task scope and normal permissions. Do not use private workbook/course data, credentials or unrelated personal files. Analysis is local, but returned findings enter the agent's model context. No new auto-allow rules are installed. Rea never replaces ccx review or acceptance.
+
+Verification: `node scripts/test-rea.mjs` checks both registrations, shared instruction symmetry, server version and MCP tool discovery, then analyzes its own temporary synthetic JavaScript target without running it. It needs the cached packages or registry access; it uses no credentials, model providers or real targets. The older provider-free inventory remains unchanged; run this dedicated check for Rea readiness. Task and current evidence: `tasks/REA-1.md`.
+
+Removal: remove only `mcpServers.rea` from `.mcp.json` and `[mcp_servers.rea]` from `.codex/config.toml`, and update both shared instruction files together. Cached npm packages can remain; no global registration was created. Upgrades must deliberately update both version pins and rerun the check.

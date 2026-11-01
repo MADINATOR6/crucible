@@ -3,6 +3,21 @@
     "higgsfield": {
       "type": "http",
       "url": "https://mcp.higgsfield.ai/mcp"
+    },
+    "rea": {
+      "type": "stdio",
+      "command": "cmd.exe",
+      "args": [
+        "/d",
+        "/c",
+        "npx.cmd",
+        "--yes",
+        "--package=node@24.22.1",
+        "--package=rea-agents@6.8.0",
+        "--",
+        "rea",
+        "mcp"
+      ]
     }
   }
 }
