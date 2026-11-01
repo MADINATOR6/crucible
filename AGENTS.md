@@ -102,8 +102,9 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 
 # Roles
 
-- **Claude Code:** architecture audits, planning, ambiguous or cross-cutting design, migrations, task specs, risky-diff review, final acceptance, commits to the base branch, push, mirror sync; media producer and reviewer (intake, brief, spend approval, review, delivery, lessons), not the generator or editor unless the user says so for that job.
-- **Codex:** implementation of well-specified tasks (modules, refactors, tests, debugging), independent verification and research (read-only roles in HANDOFF.md), running checks, reporting evidence; media maker: generates through Higgsfield and edits with ffmpeg in media tasks (HANDOFF.md, Media task).
+- **Codex (planner):** plans code work: requirements, approach, write allowlist, Done When, Verify commands and stop conditions, returned as a plan report (HANDOFF.md, Planner instruction). It runs read-only through the existing `-Role research` launcher and never edits files. Codex also does independent verification and research and reviews Claude's implementation; media maker: generates through Higgsfield and edits with ffmpeg in media tasks (HANDOFF.md, Media task).
+- **Claude Code (implementer):** turns Codex's plan into the task file after critiquing it, implements (modules, refactors, tests, debugging), runs checks, final acceptance, commits to the base branch, push, mirror sync; media producer and reviewer (intake, brief, spend approval, review, delivery, lessons), not the generator or editor unless the user says so for that job.
+- Role swap (user decision 2026-11-01): Codex plans, Claude implements, for code tasks. ccx code is unchanged: register tasks with `-Owner claude` (owner overrides the type's default agent), get the plan with `codex-dispatch.ps1 -Role research -TaskFile <plan brief>`, and record Codex's review of the diff (`-Role verify`) as `ccx task review -By codex`. Media tasks keep their existing split. If Codex is deferred (usage limit) or its sandbox cannot start processes, Claude writes the plan itself and says so, or asks the user.
 - **design-expert** (`.claude/agents/design-expert.md`): Claude-only UI/UX review and fixes in `lifting-tracker/src/ui` and `lifting-tracker/styles`.
 - **video-expert** (`.claude/agents/video-expert.md`): Claude-only reviewer of media output (ffprobe, contact sheets, claude-video-vision); no generation or editing; writes review artifacts only to gitignored `media-out/`.
 - **generalist** (`.claude/agents/generalist.md`): Claude-only all-round helper for work no specialist fits; hands off to the specialists.
@@ -113,15 +114,15 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 
 Pick one per task. Record the task once: in the task file (default TASK.md) for Dispatch, in the handoff note for Parallel (do not edit TASK.md on task branches). All commit and push steps anywhere in this file follow the selected mode's ownership.
 
-- **Dispatch (default):** Claude writes the task file and launches Codex with the launcher in HANDOFF.md. Codex edits the working tree only: no staging, commits, branches or worktrees. Claude verifies and commits.
+- **Dispatch (default):** Claude launches Codex as planner with the launcher in HANDOFF.md, saves the reviewed plan as the task file, implements it, has Codex verify, and commits. Codex never edits, stages or commits in this flow.
 - **Parallel:** the user runs both tools at once on separate tasks. Each works in its own worktree on its own branch (`claude/<task>`, `codex/<task>`), commits only there, never to the base branch, and never edits files the other task owns. Hand off only committed work, with a note in `handoffs/` (see HANDOFF.md). Claude reviews and merges; the user may assign review the other way.
 
 # Routing
 
 - Trivial (typo, rename, formatting, tiny isolated change): one agent → change → targeted check → commit by the mode's commit owner. No plan.
-- Normal and clear: short task spec (goal, write allowlist, Done When, stop conditions) → Codex implements → verify → commit.
-- Complex or ambiguous: Claude plans → task spec → Codex implements → verify → commit.
-- Risky (see Risky Changes): as complex, plus Claude reviews the task spec, the diff, changed files and relevant tests, and a Codex verifier run tries to break it (file-system changes also get a read-only dry run on the real target) → fix → final verification → commit.
+- Normal and clear: Claude writes the short task spec itself (goal, write allowlist, Done When, stop conditions) → Claude implements → verify → Codex reviews → commit.
+- Complex or ambiguous: Codex plans → Claude critiques the plan and writes the task spec → Claude implements → verify → Codex reviews → commit.
+- Risky (see Risky Changes): as complex, plus a Codex verifier run tries to break the diff, changed files and relevant tests (file-system changes also get a read-only dry run on the real target) → fix → final verification → commit.
 - Deterministic work (git state, search, lint, tests, health) goes to the tool, never a model. `ccx route` applies these tiers from `ccx/policy.json` (OMNIROUTE): it returns agent, model, effort, budget and required verification for a task's type, class and risk.
 
 # Control Plane
@@ -221,7 +222,7 @@ Log real friction in FRICTION.md: date, symptom, cost, fix proposal, count. Coun
 - Progress notes: MEMORY.md is required for unattended sessions and any session expected to run over about an hour. Short attended sessions rely on `ccx status` and git.
 - User decisions (2026-10-01):
   - A Codex verifier runs only on risky work (see Routing).
-  - When Codex fails a task twice, Claude finishes it (policy `maxDispatches` 2, then `task escalate`). Usage-limit exits never count as failures.
+  - When Codex fails a task twice, Claude finishes it (policy `maxDispatches` 2, then `task escalate`). Usage-limit exits never count as failures. (Since 2026-11-01 Claude implements code tasks; if Claude's implementation fails verification twice, stop and ask the user per Failure Handling.)
 
 # Definition of Done
 
