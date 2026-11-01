@@ -36,7 +36,7 @@ jobs:
         working-directory: lifting-tracker
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
           npx playwright test
       - name: Keep the failing run's traces
         if: failure()

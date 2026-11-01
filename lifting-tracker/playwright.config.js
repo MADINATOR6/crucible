@@ -8,7 +8,8 @@ const baseURL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
-  // One app, one browser profile per worker: running these in parallel buys nothing and makes storage shared state.
+  // Each test gets its own browser context and storage anyway; one worker because a handful of short tests against
+  // one dev server gain nothing from parallelism, and serial output is easier to read.
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
@@ -17,8 +18,9 @@ export default defineConfig({
   use: { baseURL, trace: 'retain-on-failure' },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    // The athlete's phone. Add devices['iPhone 13'] (WebKit) when an iOS-only bug needs reproducing.
     { name: 'android', use: { ...devices['Pixel 5'] } },
+    // Safari's engine, where iPhone bugs actually appear. Not a real iPhone: the device checks in README still apply.
+    { name: 'ios', use: { ...devices['iPhone 13'] } },
   ],
   webServer: { command: `node dev-server.mjs ${PORT}`, url: `${baseURL}/`, reuseExistingServer: !process.env.CI, stdout: 'ignore' },
 });
