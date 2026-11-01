@@ -32,6 +32,18 @@ Open `http://127.0.0.1:5173/`. Tests (from the `lifting-tracker` folder):
 cd lifting-tracker && node --test
 ```
 
+Those run in Node against stub elements. The browser smoke tests drive the real app in a real browser (Chrome and a phone-sized viewport) over the example data, and cover what the Node suites cannot: IndexedDB, event wiring, layout and the service worker. They need `@playwright/test`, a development-only dependency — the app itself still ships with no build step and one runtime dependency.
+
+```bash
+cd lifting-tracker && npm install && npx playwright install chromium
+```
+
+```bash
+cd lifting-tracker && npx playwright test
+```
+
+They start their own dev server on port 5174, and `.github/workflows/pages.yml` runs them before publishing.
+
 ## Coach: the block generator and training review
 
 Open **Coach** from the main navigation. It does three things.

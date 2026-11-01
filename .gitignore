@@ -21,6 +21,7 @@ lifting-tracker/private/
 __pycache__/
 # Video agent outputs (never commit media)
 media-out/
+nursing-a2/
 !finance-shorts/.env.example
 # finance-shorts: venv, downloaded footage/voice/charts, rendered videos
 finance-shorts/.venv/
@@ -30,3 +31,7 @@ finance-shorts/output/
 instagram/.venv/
 instagram/output/
 lifting-tracker/data/private/
+# Playwright: the browser test dependency and its run output (the app itself still has no build step)
+node_modules/
+lifting-tracker/test-results/
+lifting-tracker/playwright-report/

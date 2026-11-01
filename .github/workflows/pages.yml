@@ -31,6 +31,20 @@ jobs:
       - name: Test
         working-directory: lifting-tracker
         run: node --test
+      # Stub elements cannot show whether the real app still works: these drive it in a real browser.
+      - name: Browser smoke test
+        working-directory: lifting-tracker
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - name: Keep the failing run's traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: lifting-tracker/test-results
+          retention-days: 7
       - name: Collect the app's runtime files
         working-directory: lifting-tracker
         run: |

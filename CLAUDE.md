@@ -6,7 +6,7 @@ HANDOFF.md is the handoff contract (some prompts call it HANDOFF-CONTRACT.md). R
 
 Since 2026-11-01 Codex plans and Claude implements code tasks (AGENTS.md Roles; HANDOFF.md, Codex plans, Claude implements). Critique Codex's plan before writing it into the task file; never implement a plan you have not checked against the code.
 
-Pushing a change under `lifting-tracker/` to the base branch republishes the live app on GitHub Pages (AGENTS.md, Commands). Review that push as a publish: tests green, nothing private, and check the deploy run and the live site afterwards. Bump `VERSION` in `lifting-tracker/sw.js` whenever app files change, and `APP_VERSION` in `src/ui/updates.js` to match, or installed phones keep the old cached copy. Reloading does not pick the new version up: see the service-worker update path in AGENTS.md, Commands, and check the live site that way.
+Pushing a change under `lifting-tracker/` to the base branch republishes the live app on GitHub Pages (AGENTS.md, Commands). Review that push as a publish: both suites green (`node --test` and the browser smoke tests, AGENTS.md Commands), nothing private, and check the deploy run and the live site afterwards. Bump `VERSION` in `lifting-tracker/sw.js` whenever app files change, and `APP_VERSION` in `src/ui/updates.js` to match, or installed phones keep the old cached copy. Reloading does not pick the new version up: see the service-worker update path in AGENTS.md, Commands, and check the live site that way.
 
 # External Tools
 
