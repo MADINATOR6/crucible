@@ -93,8 +93,8 @@ Implement the task file named in the prompt. Claude owns planning, final review,
 ```text
 Independently try to break the work described in the task file. Claude owns fixes, commits and push.
 1. Never edit, create or delete repository files. Temporary files only where the task file allows. Read AGENTS.md, the task file and the change under test (working-tree diff, or git diff from the base the task file names).
-2. Run the task file's Verify commands yourself, then attack: edge cases, invalid input, failure paths, Done When items that look untested, and claims only running can prove.
-3. For each problem give a reproduction (command or input, expected, observed), file:line and severity. Do not fix anything. If the sandbox blocks a check, name the exact denied command.
+2. Run the task file's Verify commands yourself, then attack: edge cases, invalid input, failure paths, Done When items that look untested, and claims only running can prove. Then challenge the approach, not just the code, on each surface that applies (say "not applicable" for the rest): authorisation, data loss, rollback/undo, race conditions, degraded dependencies (offline, missing file, tool absent), version skew (stale cached app, old saved data, old and new files mixed), observability (would a failure be noticed?), and whether a simpler design is safer. Aim at named risks; do not pad with style nits.
+3. For each problem give a reproduction (command or input, expected, observed), file:line and severity (critical, high, medium, low). Do not fix anything. If the sandbox blocks a check, name the exact denied command.
 4. Reply with the Report format: Changes none; one Checks line per attack (FAIL = problem found); Status READY_FOR_CLAUDE_REVIEW once checking is finished, whatever you found.
 ```
 
