@@ -325,11 +325,14 @@ export async function createApp() {
     const s = app.settings, body = bodyOn(today);
     const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)).map((date) => { const e = app.dayEnergy(date); return { date, kcal: e ? (e.total[0] + e.total[1]) / 2 : null }; });
     const pts = app.bodyweightPoints();
-    // A day's food log total wins over calories typed with a weigh-in for the same date. Today is still being
-    // eaten, so only finished days of the food log count.
-    const logged = new Map([...app.intakeTotals()].filter(([date]) => date < today));
-    const typed = pts.filter((p) => p.kcal > 0 && !logged.has(p.x)).map((p) => ({ date: p.x, kcal: p.kcal }));
-    const intake = [...typed, ...[...logged].map(([date, t]) => ({ date, kcal: t.kcal }))].sort((a, b) => (a.date < b.date ? -1 : 1));
+    // Only a finished day counts: today is still being eaten, whether it was logged or typed with a weigh-in.
+    // Calories typed with a weigh-in are a claim about that whole day, so they win over the day's food log,
+    // which may be half a day (breakfast logged, the rest not) with nothing in it to say which. A fragment
+    // counted as a whole day drags maintenance down to a figure the athlete would then eat to. The food log
+    // still feeds any date with no figure typed for it, where its completeness is equally unknown.
+    const totals = new Map([...app.intakeTotals()].filter(([date]) => date < today).map(([date, t]) => [date, t.kcal]));
+    for (const p of pts) if (p.kcal > 0 && p.x < today) totals.set(p.x, p.kcal);
+    const intake = [...totals].map(([date, kcal]) => ({ date, kcal })).sort((a, b) => (a.date < b.date ? -1 : 1));
     const m = maintenance({ days, intake, weights: pts, today, perKg: kcalPerKg(body) });
     return { maintenance: m, target: target({ maintenanceKcal: m.kcal, weightKg: body.weightKg, goal: s.goal, pace: s.goalPace, restKcal: restingKcal(body), sex: s.sex, bodyFatPct: s.bodyFatPct }) };
   };

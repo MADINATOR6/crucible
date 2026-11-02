@@ -218,6 +218,42 @@ test('re-logging a planned set on another date moves it and cleans the old sessi
   assert.deepEqual(app.sets.map((s) => s.order).sort(), [0, 1]);
 });
 
+const EATING_TODAY = '2026-11-03';
+/** Finished days at a flat 84 kg (so the weight trend is zero and measured maintenance is the mean intake). */
+async function eatingDays({ days = 15, typed = null, logged = null }) {
+  const app = await plannedApp(); // a real programme, so the example's own bodyweight log is out of the way
+  for (let i = days; i >= 1; i--) {
+    const date = addDays(EATING_TODAY, -i);
+    await app.addBodyweight(date, { value: 84, unit: 'kg' }, typed);
+    if (logged != null) await app.addIntake(date, 'Breakfast', { kcal: logged, protein: 30, fat: 15, carbs: 50 });
+  }
+  return app;
+}
+const measuredOn = (app) => app.eatingTarget(EATING_TODAY).maintenance.measured;
+
+test('a part-logged food day cannot override the calories typed for that day', async () => {
+  // Breakfast logged, 2,800 typed with the weigh-in: the day is the typed total, not the 500 kcal fragment.
+  const both = measuredOn(await eatingDays({ typed: 2800, logged: 500 }));
+  assert.equal(both.days, 15);
+  assert.equal(Math.round(both.kcal), 2800, 'the 500 kcal breakfast is not the day total');
+  // Nothing in a food log says whether it is a whole day, so size cannot decide it: a fragment the size of a
+  // real day's eating must not win either.
+  assert.equal(Math.round(measuredOn(await eatingDays({ typed: 2800, logged: 1600 })).kcal), 2800);
+  // So the typed figure always wins, even where the food log is in fact the fuller record of the day.
+  assert.equal(Math.round(measuredOn(await eatingDays({ typed: 2400, logged: 2900 })).kcal), 2400);
+});
+
+test('today is still being eaten, so its calories do not count either way', async () => {
+  for (const partial of [{ typed: 500 }, { logged: 500 }]) {
+    const app = await eatingDays({ typed: 2800 });
+    await app.addBodyweight(EATING_TODAY, { value: 84, unit: 'kg' }, partial.typed ?? null);
+    if (partial.logged) await app.addIntake(EATING_TODAY, 'Breakfast', { kcal: partial.logged, protein: 30, fat: 15, carbs: 50 });
+    const m = measuredOn(app);
+    assert.equal(m.days, 15, JSON.stringify(partial));
+    assert.equal(Math.round(m.kcal), 2800, JSON.stringify(partial));
+  }
+});
+
 test('rejects impossible input and stores nothing', async () => {
   const app = await createApp();
   const bad = [{ weight: { value: Infinity, unit: 'kg' } }, { weight: { value: 1e9, unit: 'kg' } }, { weight: { value: 100, unit: 'st' } }, { reps: 2.5 }, { reps: -1 }, { rpe: 12 }, { date: '2026-02-30' }, { exerciseId: '' }];
