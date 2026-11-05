@@ -21,6 +21,18 @@ Plan the task the brief describes. Claude implements, reviews your plan and owns
 4. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), then the plan. No code beyond short snippets.
 ```
 
+## Tests-first mode (optional)
+
+For logic whose behaviour a test can pin before any code exists (parsers, calculations, pure `src/core` modules). Not for UI or visual work. One test gate, two agents on separate files; the shape is the Claude Duet loop (Codex writes tests, Claude writes code, `exit 0` decides).
+
+This is the one place Codex writes code for a code task, so it is a Codex-as-implementer dispatch (Dispatch mode, Implementer instruction) limited to test files; the read-only planner rule above covers planning, not this step.
+
+1. [ ] Codex writes the failing tests only: a `test-write` task whose allowlist is the test files, planned from the spec, not from any implementation. Keep it open until the implement task passes: a red suite is not verifiable, so verify, review and `task done` both tasks together at the end. Claude checks the tests against the spec before accepting them (a test can pin the wrong behaviour); at most one correction round.
+2. [ ] Claude implements in a separate `implement` task (`-Owner claude`) that owns the source files, and runs the project's own test command until it exits 0 (lifting tracker: `cd lifting-tracker && node --test`). The exit code is the gate; a "done" message or a quoted green line is not.
+3. [ ] Claude never edits, skips or loosens the accepted tests to get green. A test believed wrong goes back to Codex with the failing output and the spec line; that is the only way one changes.
+4. [ ] Cap: two implement → gate cycles after the tests are accepted, then stop and ask the user (AGENTS.md, Failure Handling). Each run respects the task's `timeoutMinutes`.
+5. [ ] Green is not correct: tests catch only what they test. The normal verify and Codex review still run, and the review lists behaviours the tests do not cover.
+
 ## Dispatch mode (Claude launches Codex)
 
 Codex as implementer is now the exception (media tasks, or when the user asks for it); the steps below still apply then.
