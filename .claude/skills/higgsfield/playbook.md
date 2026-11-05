@@ -175,6 +175,8 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Set reachable pass rules:** a brief that fails any changed TV picture or soft small lettering stops the job on takes the user would accept. Fail on melted machines, warped walls, people or new rooms in the frame, and garbled lettering that is the shot's subject.
 - **A pilot gate must not end the task:** shots 1 and 10 first caught problems cheaply, but "stop if a pilot fails" used up both of the task's dispatches. Have Claude review the pilot and give the go-ahead in a new task.
 - **Very dark photos stay very dark:** the leg press crop came out at about a third of the average brightness of the other gym shots. Lift exposure in the crop or in the edit.
+- **Keep the source frame rate:** Kling outputs 24 fps. Converting to 30 repeats frames and reads as unsteady. Stabilise each raw take (vidstab smoothing about 30, optzoom=0, zoom about 4) before cropping or grading.
+- **Uniform look on mixed sources:** per-shot exposure and white-balance fixes first, then one shared grade (SNAP-5, `build-polish.ps1`). Compare `signalstats` per shot. A cast in one photo, like the blue "feeling" wall, is what breaks the match.
 - **Free options checked the same day:** Hugging Face ZeroGPU without login ran out after about three runs (Wan 2.2 was far steadier than LTX-2.3 but 832x480, 16 fps). Supercomputer's Free Mode is text only. This laptop (4 GB VRAM, 7 GB RAM) cannot run these models.
 
 ## Sources
