@@ -177,6 +177,8 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Very dark photos stay very dark:** the leg press crop came out at about a third of the average brightness of the other gym shots. Lift exposure in the crop or in the edit.
 - **Keep the source frame rate:** Kling outputs 24 fps. Converting to 30 repeats frames and reads as unsteady. Stabilise each raw take (vidstab smoothing about 30, optzoom=0, zoom about 4) before cropping or grading.
 - **Uniform look on mixed sources:** per-shot exposure and white-balance fixes first, then one shared grade (SNAP-5, `build-polish.ps1`). Compare `signalstats` per shot. A cast in one photo, like the blue "feeling" wall, is what breaks the match.
+- **Tiny figures hide in gym crops:** two crops with small reflected figures got past a by-eye check and were uploaded (SNAP-6). Zoom to 1:1 on mirrors and far edges before any upload.
+- **Reels from 16:9 takes:** a 1680-wide window over a darkened blurred copy keeps machines whole and fits the safe area; cropping to full 9:16 cuts machines off. Concat with `h264_metadata` to keep SAR 1:1 and BT.709 tags. 24 to 30 fps by `minterpolate` (mci) held up on these takes, and half speed gives a fast push-in more screen time.
 - **Free options checked the same day:** Hugging Face ZeroGPU without login ran out after about three runs (Wan 2.2 was far steadier than LTX-2.3 but 832x480, 16 fps). Supercomputer's Free Mode is text only. This laptop (4 GB VRAM, 7 GB RAM) cannot run these models.
 
 ## Sources
