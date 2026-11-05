@@ -168,6 +168,15 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Check motion without watching:** per-frame `signalstats` YDIF per shot, mean against standard deviation, shows a steady move or a jitter.
 - **Codex and ffmpeg:** see FRICTION.md (2026-11-05) for the task-local copy that avoids full access.
 
+## Filmed-style tour from photos (2026-11-05, SNAP-3 and SNAP-4, 87.5 credits)
+
+- **Kling 3.0 pro from one photo per shot gives real parallax:** 1080p, 7 credits per 4 s, 8.75 per 5 s, sound off, quotes unchanged with a start image. Machines stayed solid, and hard cuts between spaces hold together as a tour.
+- **It invents at the edges:** people in mirrors, a new doorway at a frame edge, new pictures on TVs. "No people appear" and a corrective retake did not stop it (two takes, same figure). Cropping up to 15% in the edit is free and worked, so allow that before any retake.
+- **Set reachable pass rules:** a brief that fails any changed TV picture or soft small lettering stops the job on takes the user would accept. Fail on melted machines, warped walls, people or new rooms in the frame, and garbled lettering that is the shot's subject.
+- **A pilot gate must not end the task:** shots 1 and 10 first caught problems cheaply, but "stop if a pilot fails" used up both of the task's dispatches. Have Claude review the pilot and give the go-ahead in a new task.
+- **Very dark photos stay very dark:** the leg press crop came out at about a third of the average brightness of the other gym shots. Lift exposure in the crop or in the edit.
+- **Free options checked the same day:** Hugging Face ZeroGPU without login ran out after about three runs (Wan 2.2 was far steadier than LTX-2.3 but 832x480, 16 fps). Supercomputer's Free Mode is text only. This laptop (4 GB VRAM, 7 GB RAM) cannot run these models.
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24. Section 8 comes from reviewing `vOBKA8n15vg` (Iman Gadzhi, a Higgsfield investor; 2026-10-29, transcript only), whose AI-enhanced Airbnb walkthroughs it rules out, and from Airbnb's statement in https://www.cbc.ca/radio/costofliving/artificial-intelligence-airbnb-photos-9.7371277.
