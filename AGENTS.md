@@ -239,4 +239,5 @@ Log real friction in FRICTION.md: date, symptom, cost, fix proposal, count. Coun
 - Requested behaviour works and appropriate verification passes with evidence.
 - No known regression; scope respected.
 - Risky work received a Claude diff review.
+- Reports pass HANDOFF.md's Judge checklist: no weakened tests, no unrun "done" claims, `INTENT:` and `TWINS:` lines where it requires them. Codex follows the checklist from HANDOFF.md; Claude also has `/fable-judge`.
 - Handoff or report written if another agent or the user continues the work.
