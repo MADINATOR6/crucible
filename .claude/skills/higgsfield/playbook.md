@@ -160,6 +160,14 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Screens in listing photos:** a TV showing a broadcast reads as a censor box when blurred; filling the screen's four corners with near-black (geq) looks like a TV that is switched off. Measure the corners on a `drawgrid` crop at 1:1, not from a downscaled view.
 - **Codex's sandbox cannot read `%LOCALAPPDATA%\Microsoft\WinGet\Links`,** so it finds no ffmpeg; see FRICTION.md (2026-10-30).
 
+## Zero-credit gym reel (2026-11-05, SNAP-1, 0 credits)
+
+- **AI-tour reference reels:** the examples were labelled AI content and showed imagined houses. For a real gym, keep their pacing, hard cuts and moody grade, and keep every shot inside one real photo (section 8). Their aerial openers and fly-throughs stay out.
+- **Branded floors break lower-third cards:** white text landed on the white turf lettering, and red on red failed too. Show the branding clean first, then dim the whole frame to about 30% and centre the text. It costs one extra second.
+- **Grain drives file size:** `noise=alls=5`, crf 18 and no cap gave 31 Mbit/s (90 MB for 23 s). `noise=alls=3`, crf 20 and `-maxrate 12M` gave 3.5 Mbit/s (10 MB for 24 s), with no loss visible in a 1:1 crop. Always set a maxrate.
+- **Check motion without watching:** per-frame `signalstats` YDIF per shot, mean against standard deviation, shows a steady move or a jitter.
+- **Codex and ffmpeg:** see FRICTION.md (2026-11-05) for the task-local copy that avoids full access.
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24. Section 8 comes from reviewing `vOBKA8n15vg` (Iman Gadzhi, a Higgsfield investor; 2026-10-29, transcript only), whose AI-enhanced Airbnb walkthroughs it rules out, and from Airbnb's statement in https://www.cbc.ca/radio/costofliving/artificial-intelligence-airbnb-photos-9.7371277.
