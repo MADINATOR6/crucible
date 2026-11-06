@@ -188,6 +188,8 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Upscaling shows what was hidden:** a person on the gym floor became obvious only after upscaling. Zoom to 1:1 again after upscaling, and compare with the source before calling something a person: a wall print in a mirror and a bench leg both looked like people in frames.
 - **Extending a wide photo:** a dark ceiling can be padded on, but blurring the photo's top rows smears any light cut by that edge into a vertical streak. Paint the light and its glow out before padding.
 - **Size:** a 29 s master at CRF 16 with light grain came to 36 MiB. A two-pass copy at 7.9 Mbps fits the 30 MiB send limit at SSIM 0.99 against the master.
+- **Kling on the same stills (SNAP-7, 14 credits):** kling3_0 pro at 9:16 from upscaled, retouched 1080x1920 start images came back sharper than the local render, with real parallax and no cropping. A forward glide invented nothing. A sideways track invented a door, wall camera and light switch once it passed the photo's edge, so prefer forward moves on real places and check where a track ends. Kling moved about 4 times faster than the local shots: half speed plus `minterpolate` to 60 fps matched the pace and showed no ghosting in the frames checked.
+- **`--wait` can time out on a job that still completes and charges:** run `generate get <id>` before any resubmit.
 
 ## Sources
 
