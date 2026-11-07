@@ -190,6 +190,7 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Size:** a 29 s master at CRF 16 with light grain came to 36 MiB. A two-pass copy at 7.9 Mbps fits the 30 MiB send limit at SSIM 0.99 against the master.
 - **Kling on the same stills (SNAP-7, 14 credits):** kling3_0 pro at 9:16 from upscaled, retouched 1080x1920 start images came back sharper than the local render, with real parallax and no cropping. A forward glide invented nothing. A sideways track invented a door, wall camera and light switch once it passed the photo's edge, so prefer forward moves on real places and check where a track ends. Kling moved about 4 times faster than the local shots: half speed plus `minterpolate` to 60 fps matched the pace and showed no ghosting in the frames checked.
 - **`--wait` can time out on a job that still completes and charges:** run `generate get <id>` before any resubmit.
+- **Genjutsu on real places (2026-11-07, 2 free generations, 0 credits):** motion transfer with a local render as the reference video and the same retouched photo as the image copied the camera move and invented nothing. Genjutsu Lite is an edit model: the same inputs with "change nothing, make it look like sharp real footage" also stayed faithful. Free generations are website-only here and top out at 720p; the Generate button must say "Free" before pressing it, because changing quality can switch the free toggle off (28 to 80 credits shown). Reference videos must be at least 4 s, and 720p output needs upscaling in the edit.
 
 ## Sources
 
