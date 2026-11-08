@@ -59,3 +59,7 @@ Claude initial review requested changes to flag forwarding and UTF-8 piping. Rep
 Final native-wrapper runs: GJC version, Claw version/help, Codex help, and real synthetic Claude loader all exit 0. Final Claude loader output: SYNTHETIC_CLAUDE_LOADER_OK. Receipts integration-native-0 through integration-native-4.
 
 Final verification summary: 137 applicable checks passed across five suites, one host junction skip; no unresolved failures. Both actual Claude review and independent Codex verifier PASS. The final delivery sequence is ccx verify -> ccx task done -> L3 local-commit gate -> one scoped local commit. No push or mirror sync. The ccx state and Git history record those delivery actions after this snapshot.
+
+## Status: crucible-monitor (2026-11-09)
+
+Separate task, recorded in `handoffs/COLLAB.md` (not registered in ccx). Implementation complete in `tools/crucible-monitor/`; `node --test` 20/20 pass; interactive and real-checkout smoke checks done on Windows. Independent Codex review: two cycles, three findings fixed, signed off with caveats (COLLAB.md R1, R2). No commit, push or sync.
