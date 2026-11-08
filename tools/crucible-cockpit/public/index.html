@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="cockpit-token" content="__COCKPIT_TOKEN__">
+  <title>Crucible Cockpit</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v10M7.5 9.5 12 12l4.5-2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      <div><div class="brand-name">CRUCIBLE</div><div class="brand-sub">cockpit</div></div>
+    </div>
+    <div class="task-block">
+      <div class="label">Active task</div>
+      <div class="task-title" id="task-title">Loading…</div>
+      <div class="task-meta" id="task-meta"></div>
+    </div>
+    <div class="allow-block">
+      <div class="label">Write allowlist</div>
+      <div class="chips" id="allowlist"></div>
+    </div>
+    <div class="budget-block" id="budget"></div>
+    <div class="live" id="live"><span class="dot"></span><span id="live-text">connecting</span></div>
+  </header>
+
+  <main class="cockpit">
+    <section class="pane pane-agents" aria-labelledby="agents-h">
+      <h2 id="agents-h" class="pane-title">Agents &amp; roles</h2>
+      <div id="agents"></div>
+      <div class="card subtle">
+        <div class="card-head">Git</div>
+        <div id="git" class="mono small"></div>
+      </div>
+    </section>
+
+    <section class="pane pane-loop" aria-labelledby="loop-h">
+      <h2 id="loop-h" class="pane-title">Handoff loop</h2>
+      <div class="card loop-card">
+        <div class="loop-summary" id="loop-summary"></div>
+        <div class="loop-phase" id="loop-phase"></div>
+        <ol class="pipeline" id="pipeline"></ol>
+      </div>
+      <div id="flags" class="flags"></div>
+      <div class="card">
+        <div class="card-head">Task queue <span class="muted" id="queue-count"></span></div>
+        <ul class="tasks" id="tasks"></ul>
+      </div>
+      <div class="card">
+        <div class="card-head">Recent decisions <span class="muted">COLLAB.md</span></div>
+        <ul class="decisions mono small" id="decisions"></ul>
+      </div>
+    </section>
+
+    <section class="pane pane-comms" aria-labelledby="comms-h">
+      <h2 id="comms-h" class="pane-title">Comms &amp; approvals</h2>
+      <div class="card">
+        <div class="card-head">Human approval center <span class="badge" id="review-count"></span></div>
+        <p class="fine">A decision here is written to <code>handoffs/APPROVALS.md</code> for the agents to read. It is not a ccx approval: pushes and other L4 actions still need <code>ccx gate</code> and your approval in chat or your own terminal.</p>
+        <div id="review"></div>
+        <details class="log">
+          <summary>Decision log</summary>
+          <ul class="mono small" id="decision-log"></ul>
+        </details>
+      </div>
+      <div class="card">
+        <div class="card-head">Q&amp;A feed <span class="muted" id="qa-meta"></span></div>
+        <div class="feed" id="feed"></div>
+        <form class="ask" id="ask-form" autocomplete="off">
+          <div class="ask-row">
+            <label>To <select name="to"><option>Claude</option><option>Codex</option></select></label>
+            <input name="title" maxlength="160" placeholder="Question title" required>
+          </div>
+          <textarea name="body" maxlength="2000" rows="2" placeholder="Details (one paragraph)"></textarea>
+          <div class="ask-row end"><span class="form-msg" id="ask-msg" role="status"></span><button type="submit">Ask</button></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="health" id="health"></footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
