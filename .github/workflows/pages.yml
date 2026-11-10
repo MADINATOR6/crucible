@@ -19,7 +19,10 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: that label moved to Ubuntu 26.04, where the pinned Playwright (1.56.1) cannot
+    # install its browsers, so the smoke test failed before it ran. Move both together: upgrade
+    # @playwright/test to a release that supports the newer image, then change this line.
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
