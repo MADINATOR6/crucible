@@ -90,10 +90,28 @@ test('cardio and work entries restore with the backup; a malformed entry rejects
   assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /more than 20000/);
 });
 
-test('backups are format 3 so older apps refuse them instead of dropping activities or food; 1 and 2 still restore', () => {
-  assert.equal(BACKUP_VERSION, 3);
-  for (const v of [1, 2, 3]) assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: v })).ok, true, `format ${v}`);
-  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 4 })).errors[0], /newer version/);
+test('backups are format 4 so older apps refuse them instead of dropping activities, food or confirmed days; 1 to 3 still restore', () => {
+  assert.equal(BACKUP_VERSION, 4);
+  for (const v of [1, 2, 3, 4]) assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: v })).ok, true, `format ${v}`);
+  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 5 })).errors[0], /newer version/);
+});
+
+test('confirmed days restore with the backup; a bad one is dropped rather than refusing the whole file', () => {
+  const b = good();
+  b.finishedDays = [{ date: '2026-10-01', kcal: 2450 }];
+  const r = validateBackup(JSON.stringify(b));
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.snapshot.meta.find((m) => m.key === 'finishedDays').value, b.finishedDays);
+  // A backup from before this existed restores with nothing confirmed, which is the safe direction.
+  delete b.finishedDays;
+  assert.equal(validateBackup(JSON.stringify(b)).snapshot.meta.find((m) => m.key === 'finishedDays'), undefined);
+  // Losing a confirmation costs one tap; refusing the file would cost the athlete their training history.
+  b.finishedDays = [{ date: 'whenever', kcal: 2450 }, { date: '2026-10-02', kcal: -5 }, { date: '2026-10-03', kcal: 2000 }, { date: '2026-10-03', kcal: 1 }];
+  const kept = validateBackup(JSON.stringify(b));
+  assert.equal(kept.ok, true);
+  assert.deepEqual(kept.snapshot.meta.find((m) => m.key === 'finishedDays').value, [{ date: '2026-10-03', kcal: 2000 }]);
+  b.finishedDays = 'all of them';
+  assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /"finishedDays" must be a list/);
 });
 
 test('the food log restores with the backup; a malformed or duplicate entry rejects the file', () => {

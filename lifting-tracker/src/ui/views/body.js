@@ -91,7 +91,7 @@ export function bodyView(app, ui) {
         ${!m.measured ? '<p class="small muted mt-2">Log what you eat with your weigh-ins below. After 2 weeks (14 days of intake, 8 weigh-ins) maintenance is measured from your real weight change instead of estimated.</p>' : ''}`
       : `<p class="muted">${esc(missing)}</p>`}
       <details class="fold mt-3"><summary>How this target works</summary><div class="small muted">
-        <p><b>Maintenance</b> is the average of your last 7 days of estimated energy. Once you log intake for 2 weeks, it switches to the measured method: average calories eaten minus your weight trend (a robust Theil–Sen line through 28 days of weigh-ins) × the energy per kg below. This corrects the estimate for your own metabolism.</p>
+        <p><b>Maintenance</b> is the average of your last 7 days of estimated energy. Once you have 2 weeks of days you have given it (calories typed with a weigh-in, or a food log you confirmed was the whole day), it switches to the measured method: average calories eaten minus your weight trend (a robust Theil–Sen line through 28 days of weigh-ins) × the energy per kg below. This corrects the estimate for your own metabolism.</p>
         <p><b>Pace</b>: losing 0.5–1% of bodyweight a week helps keep muscle (Helms, Aragon &amp; Fitschen 2014); gaining 0.25–0.5% a week suits novice and intermediate lifters (Iraki et al. 2019). <b>Energy per kg</b> depends on how lean you are (Hall 2008): part of each kg is lean tissue, which holds far less energy than fat. ${s.bodyFatPct && t ? `For you that is ${kcal(t.perKg)} kcal per kg.` : 'Without a body fat % the 7,700 kcal rule is used, which overstates it for lean lifters; add one under Your details.'}</p>
         <p><b>Protein</b> 1.6–2.2 g/kg (Morton et al. 2018), or 2.3–3.1 g per kg of lean mass when cutting with a known body fat % (Helms 2014). <b>Fat</b> 0.5–1.5 g/kg (Iraki 2019), or 15–30% of calories when cutting (Helms 2014). <b>Carbs</b> are the rest; at least 3 g/kg fuels training.</p>
         <p>The target never drops below your resting burn or 1,500 kcal (men) / 1,200 kcal (women). Weigh in under the same conditions, judge progress over 2–3 weeks, not day to day. This is general guidance, not medical advice; see a dietitian for health conditions.</p></div></details>
@@ -102,6 +102,14 @@ export function bodyView(app, ui) {
   const draft = (b.draft ||= [{ food: 'F002593', amount: 200, unit: 'g' }, { food: 'F007641', amount: 250, unit: 'g' }]);
   const eaten = app.intakeTotals().get(b.date) || { kcal: 0, protein: 0, fat: 0, carbs: 0 };
   const log = app.intake.filter((e) => e.date === b.date);
+  // Confirming the day is what lets its log stand in for a day's eating in the measured maintenance: nothing
+  // else can tell a finished log from a half-logged one. Today is still being eaten, so it has nothing to confirm.
+  const dayDone = app.dayFinished(b.date);
+  const confirm = b.date === today
+    ? '<p class="small muted mb-2">Once today is over you can confirm this log was the whole day.</p>'
+    : dayDone
+      ? `<div class="row mb-2"><span class="pill accent">Whole day confirmed</span><button type="button" class="btn ghost small" id="day-undone">Undo</button></div>`
+      : `<div class="row mb-2"><button type="button" class="btn ghost" id="day-done"${eaten.kcal > 0 ? '' : ' disabled'}>That was the whole day</button>${eaten.kcal > 0 ? '<span class="small muted">so it can measure your maintenance</span>' : '<span class="small muted">log what you ate that day first</span>'}</div>`;
   const dayWord = b.date === today ? 'today' : `on ${esc(shortDate(b.date))}`;
   const foodOptions = (sel) => `${FOOD_GROUPS.map((grp) => `<optgroup label="${esc(grp)}">${Object.entries(FOODS).filter(([, f]) => f.group === grp).map(([k, f]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup>`).join('')}${s.customFoods.length ? `<optgroup label="My foods">${s.customFoods.map((f) => `<option value="${esc(f.id)}"${f.id === sel ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup>` : ''}`;
   const unitOptions = (food, sel) => Object.keys(foods[food]?.units || { g: 1 }).map((u) => `<option value="${u}"${u === sel ? ' selected' : ''}>${UNITS[u].label}</option>`).join('');
@@ -114,6 +122,7 @@ export function bodyView(app, ui) {
       ${t ? `<div class="progress mb-3" aria-label="${g(eaten.kcal)} of ${g(t.kcal)} kcal eaten"><div class="progress-track"><i style="width:${Math.min(100, Math.round((eaten.kcal / t.kcal) * 100))}%"></i></div><span class="nowrap">${Math.round((eaten.kcal / t.kcal) * 100)}%</span></div>` : ''}
       ${s.meals.length ? `<div class="chips mb-2">${s.meals.map((m) => `<button type="button" class="chip" data-eat-meal="${esc(m.id)}">+ ${esc(m.name)} · ${kcal(mealTotal(m.items, foods).kcal)}</button>`).join('')}</div>` : ''}
       ${log.length ? `<ul class="list energy mb-2">${log.map((e) => `<li class="list-row"><span class="main">${esc(e.label)}<small>P ${g(e.protein)} · F ${g(e.fat)} · C ${g(e.carbs)} g</small></span><span class="trail">${kcal(e.kcal)}</span><button type="button" class="btn ghost small" data-del-food="${esc(e.id)}" aria-label="Remove ${esc(e.label)}">×</button></li>`).join('')}</ul>` : ''}
+      ${confirm}
       <details class="fold" data-keep-open="meal-builder"${s.meals.length ? '' : ' open'}><summary>Build a meal</summary>
         <div class="meal-rows">${draft.map((it, i) => `<div class="meal-row" data-row="${i}">
           <label class="field"><span class="visually-hidden">Food</span><select data-m="food">${foodOptions(it.food)}</select></label>
@@ -135,7 +144,7 @@ export function bodyView(app, ui) {
         </form>
         ${s.meals.length || s.customFoods.length ? `<ul class="list mt-3">${s.meals.map((m) => `<li class="list-row"><span class="main">${esc(m.name)}<small>saved meal</small></span><button type="button" class="btn ghost small" data-del-meal="${esc(m.id)}" aria-label="Delete meal ${esc(m.name)}">×</button></li>`).join('')}${s.customFoods.map((f) => `<li class="list-row"><span class="main">${esc(f.name)}<small>${g(f.kcal)} kcal/100 g</small></span><button type="button" class="btn ghost small" data-del-custom="${esc(f.id)}" aria-label="Delete food ${esc(f.name)}">×</button></li>`).join('')}</ul>` : ''}
       </details>
-      <p class="small muted mt-2">Values from the Australian Food Composition Database (FSANZ, Release 3.0), cooked as eaten: weigh meat, rice and vegetables after cooking. Curries and soups (sinigang, bulalo): add the meat, vegetables and rice separately; broth itself adds little unless it is fatty or has coconut milk. A tablespoon is the Australian 20 mL (honey ≈ 79 kcal); a cup is 250 mL. Save your usual plates and coffees as meals for one-tap logging. Finished days of this log feed the measured maintenance above, except where you typed that day's calories with the weigh-in: a figure you typed for the whole day wins, because a log can be half a day.</p>
+      <p class="small muted mt-2">Values from the Australian Food Composition Database (FSANZ, Release 3.0), cooked as eaten: weigh meat, rice and vegetables after cooking. Curries and soups (sinigang, bulalo): add the meat, vegetables and rice separately; broth itself adds little unless it is fatty or has coconut milk. A tablespoon is the Australian 20 mL (honey ≈ 79 kcal); a cup is 250 mL. Save your usual plates and coffees as meals for one-tap logging. A past day feeds the measured maintenance above only once you confirm its log was the whole day, since a log can just as easily be a logged breakfast and nothing else. Calories you typed with that date's weigh-in win over the log either way. Editing a confirmed day's food asks you to confirm it again.</p>
     </section>`;
 
   const html = `${goalCard}${mealsCard}
@@ -224,6 +233,11 @@ export function bodyView(app, ui) {
       const m = s.meals.find((x) => x.id === btn.dataset.eatMeal);
       if (m) eat(m.name, mealTotal(m.items, foods));
     }));
+    root.querySelector('#day-done')?.addEventListener('click', async () => {
+      await app.setDayFinished(b.date, true);
+      toast(`${shortDate(b.date)} confirmed: ${kcal(eaten.kcal)} kcal. Editing that day's food asks again.`, 5000);
+    });
+    root.querySelector('#day-undone')?.addEventListener('click', () => app.setDayFinished(b.date, false));
     root.querySelectorAll('[data-del-food]').forEach((btn) => btn.addEventListener('click', async () => {
       const e = app.intake.find((x) => x.id === btn.dataset.delFood);
       if (!e) return;

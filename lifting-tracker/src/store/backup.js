@@ -1,12 +1,13 @@
 // JSON backup/restore and CSV export. Restore validates and sanitises everything first and applies in one
 // transaction, so a bad or hostile file never leaves the database half-written or the app unable to start.
-import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, MAX_INTAKE } from './programme-schema.js';
+import { isStrictDate, isObj, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, sanitizeFinishedDays, MAX_INTAKE } from './programme-schema.js';
 
 const APP = 'lifting-tracker';
 // Backup file format, separate from the IndexedDB version. 2 adds cardio/work `activities`, 3 adds the food log
-// `intake`: an app that knows an older format refuses a newer file ("newer version") instead of restoring it and
-// silently dropping what it doesn't know.
-export const BACKUP_VERSION = 3;
+// `intake`, 4 adds `finishedDays` (which days the food log speaks for): an app that knows an older format refuses
+// a newer file ("newer version") instead of restoring it and silently dropping what it doesn't know. Dropping
+// `finishedDays` would quietly let an older app count part-logged days as whole ones again.
+export const BACKUP_VERSION = 4;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_RECORDS = 200000;
 
@@ -19,12 +20,12 @@ export function backupReminder({ lastBackupAt, backupSnoozeUntil, loggedDates, t
 }
 
 export async function buildBackup(store) {
-  const [settings, programme, sessions, sets, bodyweights, activities, intake] = await Promise.all([
-    store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'), store.get('meta', 'intake'),
+  const [settings, programme, sessions, sets, bodyweights, activities, intake, finishedDays] = await Promise.all([
+    store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'), store.get('meta', 'intake'), store.get('meta', 'finishedDays'),
   ]);
   return {
     app: APP, schemaVersion: BACKUP_VERSION, exportedAt: new Date().toISOString(),
-    settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights, activities: activities?.value ?? [], intake: intake?.value ?? [],
+    settings: settings?.value ?? null, programme: programme?.value ?? null, sessions, sets, bodyweights, activities: activities?.value ?? [], intake: intake?.value ?? [], finishedDays: finishedDays?.value ?? [],
   };
 }
 
@@ -116,10 +117,16 @@ export function validateBackup(text) {
   else if (json.intake?.length > MAX_INTAKE) errors.push(`"intake" has more than ${MAX_INTAKE} entries.`);
   const intake = sanitizeIntake(json.intake);
   if (Array.isArray(json.intake) && json.intake.length <= MAX_INTAKE && intake.length !== json.intake.length) errors.push(`${json.intake.length - intake.length} food log entries are malformed or repeat an id.`);
+  if (json.finishedDays != null && !Array.isArray(json.finishedDays)) errors.push('"finishedDays" must be a list.');
+  else if (json.finishedDays?.length > MAX_INTAKE) errors.push(`"finishedDays" has more than ${MAX_INTAKE} entries.`);
+  // Unlike food and training records, a bad confirmation is dropped rather than refusing the file: it is the
+  // athlete's claim about a day, re-made in one tap, and losing it only leaves that day unfinished. A
+  // confirmation whose day no longer adds up to it is inert anyway.
+  const finishedDays = sanitizeFinishedDays(json.finishedDays);
   if (errors.length) return { ok: false, errors: errors.slice(0, 20).concat(errors.length > 20 ? [`…and ${errors.length - 20} more.`] : []) };
   const settings = json.settings ? sanitizeSettings(json.settings) : null;
   const snapshot = {
-    meta: [...(settings ? [{ key: 'settings', value: settings }] : []), ...(programme ? [{ key: 'programme', value: programme }] : []), ...(activities.length ? [{ key: 'activities', value: activities }] : []), ...(intake.length ? [{ key: 'intake', value: intake }] : [])],
+    meta: [...(settings ? [{ key: 'settings', value: settings }] : []), ...(programme ? [{ key: 'programme', value: programme }] : []), ...(activities.length ? [{ key: 'activities', value: activities }] : []), ...(intake.length ? [{ key: 'intake', value: intake }] : []), ...(finishedDays.length ? [{ key: 'finishedDays', value: finishedDays }] : [])],
     sessions, sets, bodyweights,
   };
   return { ok: true, snapshot, counts: { sessions: sessions.length, sets: sets.length, bodyweights: bodyweights.length, activities: activities.length, intake: intake.length, hasProgramme: !!programme } };

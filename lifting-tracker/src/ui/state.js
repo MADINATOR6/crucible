@@ -1,7 +1,7 @@
 // Application state: loads storage, owns settings/programme/logs, and derives set events, PRs and dates.
 import { openStore, requestPersistence, staleDataError, uuid } from '../store/db.js';
 import { buildBackup, validateBackup } from '../store/backup.js';
-import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, MAX_INTAKE } from '../store/programme-schema.js';
+import { isStrictDate, sanitizeProgramme, sanitizeSettings, sanitizeActivities, MAX_ACTIVITIES, sanitizeIntake, sanitizeFinishedDays, MAX_INTAKE } from '../store/programme-schema.js';
 import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
@@ -28,7 +28,7 @@ export async function createApp() {
   const persisted = await requestPersistence();
   const app = {
     store, catalogue, platesData, persisted,
-    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [], activities: [], intake: [],
+    settings: sanitizeSettings(null), programme: null, usingExample: false, sessions: [], sets: [], bodyweights: [], activities: [], intake: [], finishedDays: [],
     listeners: new Set(), cache: new Map(), dataRevision: 0,
   };
   const byId = new Map(catalogue.exercises.map((e) => [e.id, e]));
@@ -85,12 +85,13 @@ export async function createApp() {
   app.clearDraft = (kind) => enqueue(async () => { const key = draftKey(kind); await store.delete('meta', key); drafts.delete(key); });
 
   async function load() {
-    const [settings, programme, sessions, sets, bodyweights, activities, intake, setDraft, coachDraft] = await Promise.all([
-      store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'), store.get('meta', 'intake'),
+    const [settings, programme, sessions, sets, bodyweights, activities, intake, finishedDays, setDraft, coachDraft] = await Promise.all([
+      store.get('meta', 'settings'), store.get('meta', 'programme'), store.getAll('sessions'), store.getAll('sets'), store.getAll('bodyweights'), store.get('meta', 'activities'), store.get('meta', 'intake'), store.get('meta', 'finishedDays'),
       ...draftKeys.map((key) => store.get('meta', key)),
     ]);
     app.settings = sanitizeSettings(settings?.value);
     app.sessions = sessions; app.sets = sets; app.bodyweights = bodyweights; app.activities = sanitizeActivities(activities?.value); app.intake = sanitizeIntake(intake?.value);
+    app.finishedDays = sanitizeFinishedDays(finishedDays?.value);
     const clean = sanitizeProgramme(programme?.value);
     programmeSnapshot = JSON.stringify(programme?.value ?? null);
     if (clean) { app.programme = clean; app.usingExample = !!clean.isExample; }
@@ -327,10 +328,10 @@ export async function createApp() {
     const pts = app.bodyweightPoints();
     // Only a finished day counts: today is still being eaten, whether it was logged or typed with a weigh-in.
     // Calories typed with a weigh-in are a claim about that whole day, so they win over the day's food log,
-    // which may be half a day (breakfast logged, the rest not) with nothing in it to say which. A fragment
-    // counted as a whole day drags maintenance down to a figure the athlete would then eat to. The food log
-    // still feeds any date with no figure typed for it, where its completeness is equally unknown.
-    const totals = new Map([...app.intakeTotals()].filter(([date]) => date < today).map(([date, t]) => [date, t.kcal]));
+    // which may be half a day (breakfast logged, the rest not). The log speaks for a day only once the
+    // athlete has confirmed it is the whole day (app.dayFinished), because nothing else can tell a finished
+    // log from a fragment, and a fragment counted as a day drags maintenance down to a figure to eat to.
+    const totals = new Map([...app.intakeTotals()].filter(([date]) => date < today && app.dayFinished(date)).map(([date, t]) => [date, t.kcal]));
     for (const p of pts) if (p.kcal > 0 && p.x < today) totals.set(p.x, p.kcal);
     const intake = [...totals].map(([date, kcal]) => ({ date, kcal })).sort((a, b) => (a.date < b.date ? -1 : 1));
     const m = maintenance({ days, intake, weights: pts, today, perKg: kcalPerKg(body) });
@@ -345,6 +346,33 @@ export async function createApp() {
       m.set(e.date, t);
     }
     return m;
+  });
+  /**
+   * Is this date's food log the whole day? True only while the day still adds up to the total the athlete
+   * confirmed, so adding or removing food takes the day back to unfinished without touching the marker.
+   */
+  // A tolerance, not rounding: the same entries summed in another order (delete, then Undo) differ in the last
+  // float digit, and rounding can put those two sums either side of a cent.
+  const sameKcal = (a, b) => Math.abs(a - b) < 0.005;
+  app.dayFinished = (date) => {
+    const mark = app.finishedDays.find((d) => d.date === date);
+    return !!mark && sameKcal(mark.kcal, app.intakeTotals().get(date)?.kcal ?? 0);
+  };
+  /** Confirm this date's food log as the whole day, or take the confirmation back. */
+  app.setDayFinished = (date, finished, today = todayIso()) => enqueue(async () => {
+    if (!isStrictDate(date)) throw new RangeError('That is not a date.');
+    if (finished && date >= today) throw new RangeError('A day can be confirmed once it is over.');
+    const total = app.intakeTotals().get(date)?.kcal ?? 0;
+    if (finished && !(total > 0)) throw new RangeError('Log what you ate that day first.');
+    // The same check a reload and a restore apply, so a marker that saves is a marker that comes back.
+    if (finished && !sanitizeFinishedDays([{ date, kcal: total }]).length) throw new RangeError('That total is too large to confirm.');
+    const next = await store.updateMeta('finishedDays', (current) => {
+      const rest = sanitizeFinishedDays(current).filter((d) => d.date !== date);
+      if (!finished) return rest;
+      if (rest.length >= MAX_INTAKE) throw new RangeError('Too many confirmed days. Export a backup, then remove old food entries.');
+      return [...rest, { date, kcal: total }];
+    });
+    app.finishedDays = next; dataChanged(false);
   });
   const saveIntake = async (change) => { const next = await store.updateMeta('intake', (current) => change(sanitizeIntake(current))); app.intake = next; dataChanged(false); };
   app.addIntake = (date, label, totals) => enqueue(async () => {
@@ -463,6 +491,7 @@ export async function createApp() {
       && JSON.stringify(meta.get('programme') ?? null) === programmeSnapshot
       && JSON.stringify(sanitizeIntake(meta.get('intake'))) === JSON.stringify(app.intake)
       && JSON.stringify(sanitizeActivities(meta.get('activities'))) === JSON.stringify(app.activities)
+      && JSON.stringify(sanitizeFinishedDays(meta.get('finishedDays'))) === JSON.stringify(app.finishedDays)
       && sameRows(current.sessions, app.sessions) && sameRows(current.sets, app.sets)
       && sameRows(current.bodyweights, app.bodyweights);
     if (!same) throw staleDataError();

@@ -187,6 +187,20 @@ export function sanitizeIntake(list) {
     .map((e) => ({ id: e.id, date: e.date, label: shortName(e.label), kcal: e.kcal, protein: e.protein, fat: e.fat, carbs: e.carbs, createdAt: String(e.createdAt ?? '') }));
 }
 
+/**
+ * Days the athlete has confirmed their food log is the whole day: { date, kcal }, where `kcal` is the day's
+ * log total at the moment of confirming. The total is the confirmation: a day only counts as finished while
+ * its log still adds up to it, so editing the food takes the day back to unfinished with nothing to clear.
+ */
+const MAX_DAY_KCAL = 200000; // a day is several entries of up to 20,000 each, so its total needs more room than one entry
+export function sanitizeFinishedDays(list) {
+  if (!Array.isArray(list)) return [];
+  const dates = new Set();
+  return list.slice(0, MAX_INTAKE).filter((d) => isObj(d) && isStrictDate(d.date) && !dates.has(d.date) && dates.add(d.date)
+    && nutr(d.kcal, MAX_DAY_KCAL) !== null)
+    .map((d) => ({ date: d.date, kcal: d.kcal }));
+}
+
 /** Whitelist and coerce settings (never trust stored or restored values). */
 export function sanitizeSettings(s) {
   const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays }, customFoods: [], meals: [] };

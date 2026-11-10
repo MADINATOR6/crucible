@@ -220,12 +220,13 @@ test('re-logging a planned set on another date moves it and cleans the old sessi
 
 const EATING_TODAY = '2026-11-03';
 /** Finished days at a flat 84 kg (so the weight trend is zero and measured maintenance is the mean intake). */
-async function eatingDays({ days = 15, typed = null, logged = null }) {
+async function eatingDays({ days = 15, typed = null, logged = null, confirm = false }) {
   const app = await plannedApp(); // a real programme, so the example's own bodyweight log is out of the way
   for (let i = days; i >= 1; i--) {
     const date = addDays(EATING_TODAY, -i);
     await app.addBodyweight(date, { value: 84, unit: 'kg' }, typed);
     if (logged != null) await app.addIntake(date, 'Breakfast', { kcal: logged, protein: 30, fat: 15, carbs: 50 });
+    if (confirm) await app.setDayFinished(date, true);
   }
   return app;
 }
@@ -241,6 +242,79 @@ test('a part-logged food day cannot override the calories typed for that day', a
   assert.equal(Math.round(measuredOn(await eatingDays({ typed: 2800, logged: 1600 })).kcal), 2800);
   // So the typed figure always wins, even where the food log is in fact the fuller record of the day.
   assert.equal(Math.round(measuredOn(await eatingDays({ typed: 2400, logged: 2900 })).kcal), 2400);
+});
+
+test('a food log speaks for a day only once the athlete confirms it was the whole day', async () => {
+  // Fifteen days of breakfast-only logs are not fifteen days of eating until someone says so.
+  assert.equal(measuredOn(await eatingDays({ logged: 2600 })), null);
+  const confirmed = measuredOn(await eatingDays({ logged: 2600, confirm: true }));
+  assert.equal(confirmed.days, 15);
+  assert.equal(Math.round(confirmed.kcal), 2600);
+});
+
+test('editing a confirmed day takes it back to unconfirmed, and re-confirming is one call', async () => {
+  const app = await eatingDays({ days: 15, logged: 2600, confirm: true });
+  const day = addDays(EATING_TODAY, -3);
+  assert.equal(app.dayFinished(day), true);
+  // Nothing clears the confirmation: the day simply stops adding up to the total that was confirmed.
+  const extra = await app.addIntake(day, 'Dinner', { kcal: 900, protein: 50, fat: 20, carbs: 80 });
+  assert.equal(app.dayFinished(day), false);
+  assert.equal(measuredOn(app).days, 14, 'the edited day is out until it is confirmed again');
+  await app.setDayFinished(day, true);
+  assert.equal(app.dayFinished(day), true);
+  assert.equal(Math.round(measuredOn(app).kcal), Math.round((2600 * 14 + 3500) / 15));
+  // Removing that food puts the day back to the total that was confirmed before, which is still true.
+  await app.deleteIntake(extra.id);
+  assert.equal(app.dayFinished(day), false, 'the confirmation was for 3,500 kcal, not for 2,600');
+});
+
+test('a day with no food, today, or a stray date cannot be confirmed', async () => {
+  const app = await eatingDays({ days: 2, logged: 2600 });
+  await assert.rejects(() => app.setDayFinished(addDays(EATING_TODAY, -5), true), RangeError);
+  await assert.rejects(() => app.setDayFinished('2026-02-30', true), RangeError);
+  // Today is still being eaten and tomorrow has not happened: neither can be confirmed, whatever is logged.
+  await app.addIntake(EATING_TODAY, 'Breakfast', { kcal: 500, protein: 30, fat: 15, carbs: 50 });
+  await assert.rejects(() => app.setDayFinished(EATING_TODAY, true, EATING_TODAY), RangeError);
+  await assert.rejects(() => app.setDayFinished(EATING_TODAY, true, addDays(EATING_TODAY, -1)), RangeError);
+  assert.equal(app.dayFinished(EATING_TODAY), false);
+  assert.equal(app.eatingTarget(EATING_TODAY).maintenance.measured, null);
+});
+
+test('deleting a food and undoing it keeps the confirmation, whatever order the floats add up in', async () => {
+  const app = await eatingDays({ days: 1 });
+  const day = addDays(EATING_TODAY, -1), macros = { protein: 1, fat: 1, carbs: 1 };
+  await app.addIntake(day, 'A', { kcal: 300, ...macros });
+  const middle = await app.addIntake(day, 'B', { kcal: 10.015, ...macros });
+  await app.addIntake(day, 'C', { kcal: 900, ...macros });
+  await app.setDayFinished(day, true);
+  await app.deleteIntake(middle.id);
+  assert.equal(app.dayFinished(day), false);
+  await app.addIntake(day, 'B', { kcal: 10.015, ...macros }); // what Undo does: the entry goes back on the end
+  assert.equal(app.dayFinished(day), true);
+});
+
+test('a confirmed day bigger than one entry may be still comes back after a reload', async () => {
+  const app = await eatingDays({ days: 1 });
+  const day = addDays(EATING_TODAY, -1), macros = { protein: 1, fat: 1, carbs: 1 };
+  await app.addIntake(day, 'A', { kcal: 15000, ...macros });
+  await app.addIntake(day, 'B', { kcal: 10000, ...macros });
+  await app.setDayFinished(day, true);
+  await app.reload();
+  assert.equal(app.dayFinished(day), true);
+});
+
+test('confirmed days survive a reload and a backup round-trip', async () => {
+  const app = await eatingDays({ days: 15, logged: 2600, confirm: true });
+  const day = addDays(EATING_TODAY, -1);
+  await app.reload();
+  assert.equal(app.dayFinished(day), true);
+  assert.equal(measuredOn(app).days, 15);
+  const backup = await app.exportBackup();
+  await app.resetAll();
+  assert.equal(app.dayFinished(day), false);
+  assert.equal((await app.importBackup(JSON.stringify(backup))).ok, true);
+  assert.equal(app.dayFinished(day), true);
+  assert.equal(measuredOn(app).days, 15);
 });
 
 test('today is still being eaten, so its calories do not count either way', async () => {
