@@ -4,6 +4,7 @@ import { convert, formatWeight, round1, toKg } from '../../core/units.js';
 import { esc, toast, todayIso } from '../dom.js';
 import { renderHeatmap, renderLegend, renderMuscleList, fmtSets } from '../heatmap.js';
 import { coachReview, applyExtras, blockVolume } from '../../core/coach.js';
+import { estimate1RM } from '../../core/e1rm.js';
 
 let mods = null; // the planning modules are loaded on first use, so the rest of the app never depends on them
 async function loadMods() {
@@ -161,10 +162,13 @@ function templateFor(app, athlete, ui) {
 
 function learnTemplateFor(app, athlete) {
   const m = mods;
-  const blockNumber = pickTemplateBlock(app.programme);
+  // The analysis programme, not the stored one: the learner prefers a set's actual load to its planned one and
+  // keeps comments as cues, so with workbook history switched off it must see the plan only.
+  const programme = app.analysisProgramme();
+  const blockNumber = pickTemplateBlock(programme);
   if (blockNumber == null) return null;
   // The athlete's e1RM when that block was run: events up to the end of the block, else today's numbers.
-  const block = app.programme.blocks.find((b) => b.number === blockNumber);
+  const block = programme.blocks.find((b) => b.number === blockNumber);
   const lastWeek = block?.weeks.at(-1);
   const end = lastWeek ? app.dateFor({ blockNumber, weekNumber: lastWeek.number, dayNumber: lastWeek.days.at(-1)?.number ?? 1 }) : null;
   let reference = Object.fromEntries(LIFTS.map((f) => [f, athlete.lifts[f]?.e1rmKg ?? null]));
@@ -172,7 +176,7 @@ function learnTemplateFor(app, athlete) {
     const then = m.buildAthleteModel({ events: app.events().filter((e) => e.date <= end), catalogue: app.catalogue, asOf: end });
     reference = Object.fromEntries(LIFTS.map((f) => [f, then.lifts[f]?.e1rmKg ?? reference[f]]));
   }
-  return m.learnTemplate({ programme: app.programme, catalogue: app.catalogue, referenceE1rm: reference, blockNumber });
+  return m.learnTemplate({ programme, catalogue: app.catalogue, referenceE1rm: reference, blockNumber });
 }
 
 function optionsFrom(p) {
@@ -214,7 +218,88 @@ function blockAsText(block, unit) {
   return lines.join('\n');
 }
 
+/**
+ * A first block for an athlete with no programme to learn from: the strength they typed in, through the same
+ * generator, on the starter template. `e1rmKg` is { squat, bench, deadlift } in kg, null where they were not sure.
+ */
+export function starterBlock(m, catalogue, { e1rmKg, days, layoffWeeks = null }) {
+  const lift = (kg) => (kg == null ? { e1rmKg: null, n: 0, confidence: 'none' } : { e1rmKg: round1(kg), n: 0, confidence: 'low', basis: 'the starting estimate you entered' });
+  const athlete = { asOf: null, lifts: Object.fromEntries(LIFTS.map((f) => [f, lift(e1rmKg[f])])), rpeBias: { squat: 0, bench: 0, deadlift: 0 }, exercises: {} };
+  const made = m.generateBlock({ catalogue, template: m.starterTemplate(), athlete, blockNumber: 1, weeks: 4, daysPerWeek: days, rotate: 0, name: 'Starter block',
+    ...(layoffWeeks ? { focus: 'return', layoffWeeks } : { focus: 'strength', progression: 'conservative' }) });
+  // The generator's day notes and volume warnings compare with "your last block". A starter has none, so keep
+  // only what is true of it: how the loads were worked out, and which lifts were left blank.
+  return { ...made.block, generated: { ...made.block.generated,
+    rationale: [{ scope: 'block', text: 'Built from the numbers you entered: squat, bench and deadlift only, so you can learn the lifts and log some training. After a few weeks the Coach can build your next block from what you actually lifted, with accessories.' }, ...made.rationale.filter((r) => r.scope !== 'day')],
+    warnings: made.warnings.filter((w) => w.startsWith('No ')) } };
+}
+
+const STARTER_DAYS = [2, 3, 4];
+/** Read the setup form's typed values: { e1rmKg, days, layoffWeeks } or { error } naming the first field to fix. */
+export function starterInputs(s, unit) {
+  const e1rmKg = {};
+  for (const f of LIFTS) {
+    const w = String(s[f].w).trim(), r = String(s[f].r).trim();
+    if (!w && !r) { e1rmKg[f] = null; continue; }
+    const weight = Number(w), reps = r ? Number(r) : 1;
+    if (!w || !Number.isFinite(weight) || weight <= 0) return { error: `Enter the ${f} weight as a number, or clear its reps to skip the ${f}.`, field: `st-${f}-w` };
+    if (!Number.isInteger(reps) || reps < 1 || reps > 10) return { error: `${f[0].toUpperCase() + f.slice(1)} reps must be a whole number from 1 to 10.`, field: `st-${f}-r` };
+    const kg = estimate1RM(convert(weight, unit, 'kg'), reps);
+    if (!(kg <= 600)) return { error: `That ${f} weight is too heavy to be right. Check the number and the unit (${unit}).`, field: `st-${f}-w` };
+    e1rmKg[f] = kg;
+  }
+  const weeks = Number(String(s.weeks).trim());
+  if (s.away && !(Number.isInteger(weeks) && weeks >= 1 && weeks <= 52)) return { error: 'Weeks away must be a whole number from 1 to 52.', field: 'st-weeks' };
+  return { e1rmKg, days: STARTER_DAYS.includes(s.days) ? s.days : 3, layoffWeeks: s.away ? weeks : null };
+}
+
+/** Coach, before there is a programme: build a first block from a few numbers, or go and import a workbook. */
+function starterView(app, ui) {
+  const unit = app.settings.unit;
+  ui.start ||= { squat: { w: '', r: '' }, bench: { w: '', r: '' }, deadlift: { w: '', r: '' }, days: 3, away: false, weeks: '8', error: '' };
+  const s = ui.start;
+  const row = (f) => `<div class="log-fields mt-3">
+      <label class="field"><span>${f[0].toUpperCase() + f.slice(1)} weight (${esc(unit)})</span><input id="st-${f}-w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(s[f].w)}"></label>
+      <label class="field"><span>Reps</span><input id="st-${f}-r" type="number" step="1" min="1" max="10" inputmode="numeric" placeholder="1" value="${esc(s[f].r)}"></label>
+    </div>`;
+  const html = `<div class="topbar"><div><h1>Coach</h1><p class="muted small">No programme yet? Build your first block here.</p></div>${app.usingExample ? '<span class="pill example">Example data</span>' : ''}</div>
+    <div class="card" id="starter"><div class="card-h"><h2>Start without a workbook</h2></div>
+      <p class="muted small">New to lifting, or back after time off, with no coach's programme? Tell the app roughly how strong you are today and it builds four weeks of squat, bench and deadlift. Every weight can be changed as you train.</p>
+      <h3 class="mt-4">Your best recent set</h3>
+      <p class="muted small">A hard set you could repeat this week, for example 60 ${esc(unit)} for 5 reps. Not sure about a lift? Leave it blank and fill its weights in as you go.</p>
+      ${LIFTS.map(row).join('')}
+      <div class="field mt-4"><span>Training days a week</span><div class="seg" role="group" aria-label="Training days a week">${STARTER_DAYS.map((d) => `<button type="button" data-start-days="${d}" aria-pressed="${s.days === d}">${d}</button>`).join('')}</div></div>
+      <label class="row mt-4"><input id="st-away" type="checkbox" ${s.away ? 'checked' : ''}> I'm coming back from a break</label>
+      ${s.away ? `<label class="field mt-3"><span>Weeks away</span><input id="st-weeks" type="number" step="1" min="1" max="52" inputmode="numeric" value="${esc(s.weeks)}"></label>
+        <p class="muted small mt-2">Week 1 starts lighter than your numbers above and builds back to them by week 4.</p>` : ''}
+      <p id="st-error" class="tone-bad mt-3" role="alert">${esc(s.error)}</p>
+      <button class="btn primary mt-3" id="st-build" type="button">Build my first block</button>
+      <p class="small muted mt-4">Have a coach's workbook? <a href="#data">Import it in Data</a> instead.</p>
+    </div>`;
+  return { html, bind(root, rerender) {
+    const typed = (set) => (e) => { set(e.target.value); s.error = ''; root.querySelector('#st-error').textContent = ''; }; // a fixed field takes its error away
+    for (const f of LIFTS) for (const k of ['w', 'r']) root.querySelector(`#st-${f}-${k}`).addEventListener('input', typed((v) => { s[f][k] = v; }));
+    root.querySelector('#st-weeks')?.addEventListener('input', typed((v) => { s.weeks = v; }));
+    root.querySelectorAll('[data-start-days]').forEach((b) => b.addEventListener('click', () => { s.days = Number(b.dataset.startDays); rerender(); }));
+    root.querySelector('#st-away').addEventListener('change', (e) => { s.away = e.target.checked; rerender(); });
+    let building = false;
+    root.querySelector('#st-build').addEventListener('click', async () => {
+      if (building) return;
+      const input = starterInputs(s, unit);
+      if (input.error) { s.error = input.error; rerender(); document.getElementById(input.field)?.focus(); return; }
+      building = true;
+      try {
+        await app.startProgramme(starterBlock(await loadMods(), app.catalogue, input));
+        ui.start = null; ui.train = null; ui.muscles = null; ui.plan = null;
+        toast('Your first block is ready');
+        location.hash = '#train';
+      } catch (err) { building = false; s.error = `Could not build the block: ${err?.message || err}`; rerender(); }
+    });
+  } };
+}
+
 export function planView(app, ui) {
+  if (app.usingExample || !app.programme.blocks.some((b) => b.weeks.length)) return starterView(app, ui);
   const unit = app.settings.unit;
   const keptMessage = app.store?.persistent === false ? 'Inputs are temporary and will be lost when you close this tab.' : 'Inputs kept on this device; no block was added.';
   ui.plan ||= { text: '', interpretedText: null, editedAfterRequest: false, settingsOpen: false, focus: 'strength', weeks: null, days: null, progression: 'standard', rotate: null, stance: 'auto', emphasis: 'bench', layoffWeeks: 4, checkIn: true, deloadWeek: 'auto', style: 'auto', topReps: null, topRpe: null, backoff: {}, setsAcross: {}, rpeCap: null, accessories: 'normal', variations: 'keep', seed: 'a', overrides: {}, understood: null, result: null, error: '', week: 1, revise: null, extras: [], applied: [] };
@@ -231,10 +316,6 @@ export function planView(app, ui) {
   if (p.revise) { // an old revision must never be applied to a block that has since been removed or replaced
     const cur = app.programme.blocks.find((b) => b.number === p.revise.number);
     if (!cur?.generated || app.blockToken(p.revise.number) !== p.revise.baseToken) p.revise = null;
-  }
-  if (app.usingExample) {
-    return { html: `<div class="topbar"><div><h1>Coach</h1></div><span class="pill example">Example data</span></div>
-      <div class="card empty"><h2>Import your workbook first</h2><p>The block generator learns from your own recent training, so it needs your programme. Import your coach's workbook in Data, then come back.</p><a class="btn primary" href="#data">Go to Data</a></div>`, bind() {} };
   }
   if (!mods) return { html: '<div class="topbar"><div><h1>Coach</h1></div></div><p class="muted">Loading…</p>', bind(root, rerender) { loadMods().then(rerender).catch((err) => { root.innerHTML = `<div class="card"><h2>Could not load the planner</h2><p class="muted">${esc(err.message || err)}</p></div>`; }); } };
 

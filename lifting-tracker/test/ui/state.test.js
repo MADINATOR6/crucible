@@ -5,6 +5,10 @@ import { createApp } from '../../src/ui/state.js';
 import { buildBackup } from '../../src/store/backup.js';
 import { todayIso } from '../../src/ui/dom.js';
 import { addDays } from '../../src/core/weeks.js';
+import { buildExampleProgramme } from '../../src/ui/example-data.js';
+import { starterTemplate } from '../../src/core/template.js';
+import { generateBlock } from '../../src/core/generator.js';
+import { starterBlock } from '../../src/ui/views/plan.js';
 
 // The app state runs against the in-memory store here (no IndexedDB in Node), with the data catalogues
 // read from disk through a stubbed fetch.
@@ -389,4 +393,136 @@ test('a hostile unit or text in storage is neutralised on load', async () => {
   assert.equal(app.programme.blocks.length, 1);
   assert.equal(app.programme.blocks[0].weeks.length, 0, 'a week without a numeric number is dropped');
   assert.equal(typeof app.programme.blocks[0].name, 'string');
+});
+
+// ---- Starting without a workbook, and the workbook-history choice (LT-START-1) ----
+const starter = (app, over = {}) => starterBlock({ generateBlock, starterTemplate }, app.catalogue, { e1rmKg: { squat: 80, bench: 50, deadlift: 100 }, days: 3, ...over });
+const firstDay = (dayNumber = 1) => ({ blockNumber: 1, weekNumber: 1, dayNumber });
+
+test('starting without a workbook saves an owned programme with dates and no invented history', async () => {
+  const app = await createApp();
+  assert.equal(app.usingExample, true);
+  await app.startProgramme(starter(app), { today: '2026-11-11' }); // a Wednesday
+  assert.equal(app.usingExample, false);
+  assert.equal(app.programme.isExample, false);
+  assert.equal(app.programme.blocks[0].name, 'Starter block');
+  assert.deepEqual([app.events().length, app.prs().length, app.bodyweightPoints().length], [0, 0, 0]);
+  // Week 1 is the week they set it up in, and three days spread over Monday, Wednesday and Friday.
+  assert.deepEqual([1, 2, 3].map((d) => app.dateFor(firstDay(d))), ['2026-11-09', '2026-11-11', '2026-11-13']);
+  assert.deepEqual(app.nextSession(), firstDay());
+  await app.reload();
+  assert.equal(app.usingExample, false);
+  assert.equal(app.dateFor(firstDay()), '2026-11-09');
+  const backup = await app.exportBackup();
+  await app.resetAll();
+  assert.equal(app.usingExample, true);
+  assert.equal((await app.importBackup(JSON.stringify(backup))).ok, true);
+  assert.equal(app.usingExample, false);
+  assert.equal(app.athlete().lifts.squat.e1rmKg, 80, 'the typed strength comes back with the block');
+});
+
+test('sets logged on the example data are kept but cannot mark the starter block done', async () => {
+  const app = await createApp();
+  await log(app); // against the example's block 1, week 1, day 1, first set
+  assert.ok(app.loggedFor({ ...ref, ...planned }));
+  await app.startProgramme(starter(app));
+  assert.equal(app.sets.length, 1);
+  assert.equal(app.events().length, 1, 'it is still the athlete\'s history');
+  assert.equal(app.loggedFor({ ...ref, ...planned }), null);
+  assert.deepEqual(app.nextSession(), firstDay());
+  await app.reload();
+  assert.equal(app.loggedFor({ ...ref, ...planned }), null, 'detached in storage, not just in memory');
+});
+
+test('a starter only starts an example or empty programme, and only from a starter block', async () => {
+  const own = await plannedApp();
+  await assert.rejects(() => own.startProgramme(starter(own)), /already have a programme/);
+  assert.equal(own.programme.blocks[0].generated, undefined, 'the coach\'s programme is untouched');
+  const fresh = await createApp();
+  const learned = starter(fresh);
+  await assert.rejects(() => fresh.startProgramme({ ...learned, generated: { ...learned.generated, fromBlock: 3 } }), /not a starter block/);
+  await assert.rejects(() => fresh.startProgramme({ number: 1, weeks: [] }), /not a starter block/);
+  assert.equal(fresh.usingExample, true);
+});
+
+test('the starter and its dates are saved together, so it never inherits an earlier programme\'s dates', async () => {
+  const app = await createApp();
+  // Left over from a programme that was here before: block 1 pinned to February 2025, day 1 on a Tuesday.
+  await app.saveSettings({ programmeStart: '2025-02-03', blockStarts: { 1: '2025-02-03' }, dayWeekdays: { 1: 2 } });
+  const settingsBefore = JSON.stringify(app.settings);
+
+  // The write fails: neither half lands, in memory or in storage.
+  const real = app.store.replaceProgramme;
+  app.store.replaceProgramme = async () => { throw new Error('synthetic storage failure'); };
+  await assert.rejects(() => app.startProgramme(starter(app), { today: '2026-11-11' }), /synthetic storage failure/);
+  app.store.replaceProgramme = real;
+  assert.equal(app.usingExample, true);
+  assert.equal(JSON.stringify(app.settings), settingsBefore);
+  assert.equal(await app.store.get('meta', 'programme'), null);
+  // A settings step that throws inside the store leaves the programme unwritten too.
+  await assert.rejects(() => app.store.replaceProgramme('null', { blocks: [] }, [], { settings: () => { throw new Error('bad settings'); } }), /bad settings/);
+  assert.equal(await app.store.get('meta', 'programme'), null);
+
+  await app.startProgramme(starter(app), { today: '2026-11-11' });
+  assert.deepEqual([1, 2, 3].map((d) => app.dateFor(firstDay(d))), ['2026-11-09', '2026-11-11', '2026-11-13']);
+  assert.deepEqual(app.settings.blockStarts, {});
+  await app.reload();
+  assert.equal(app.dateFor(firstDay()), '2026-11-09', 'and the dates are in storage, not just in memory');
+});
+
+test('a programme with only an empty block can be started, matching what the Coach offers', async () => {
+  const app = await createApp();
+  await app.setProgramme({ blocks: [{ number: 1, weeks: [] }] });
+  assert.equal(app.usingExample, false);
+  await app.startProgramme(starter(app));
+  assert.equal(app.programme.blocks.length, 1);
+  assert.equal(app.programme.blocks[0].name, 'Starter block');
+});
+
+test('the strength typed at setup stands in until that lift is logged, one lift at a time', async () => {
+  const app = await createApp();
+  await app.startProgramme(starter(app));
+  assert.deepEqual([app.athlete().lifts.squat.e1rmKg, app.athlete().lifts.squat.n], [80, 0]);
+  await app.logSet({ date: todayIso(), programmeRef: firstDay(), plannedRef: planned, exerciseId: 'low_bar_squat', weight: { value: 100, unit: 'kg' }, reps: 5, rpe: 8 });
+  assert.equal(app.athlete().lifts.squat.n, 1);
+  assert.ok(app.athlete().lifts.squat.e1rmKg > 110);
+  assert.equal(app.athlete().lifts.bench.e1rmKg, 50);
+});
+
+const doneIn = (p) => p.blocks.flatMap((b) => b.weeks.flatMap((w) => w.days.flatMap((d) => d.entries.flatMap((e) => e.sets)))).filter((s) => s.completed).length;
+
+test('workbook history off: nothing the workbook says was done reaches the analysis, nothing is deleted, logged sets still count', async () => {
+  const app = await createApp();
+  await app.setProgramme({ ...buildExampleProgramme(), isExample: false }); // stands in for an imported workbook
+  const before = { events: app.events().length, bw: app.bodyweightPoints().length, done: doneIn(app.programme), next: app.nextSession() };
+  assert.ok(before.events > 0 && before.bw > 0 && before.done > 0);
+  assert.ok(app.athlete().lifts.squat.e1rmKg > 100);
+
+  await app.setWorkbookHistory(false);
+  assert.deepEqual([app.events().length, app.prs().length, app.bodyweightPoints().length, doneIn(app.analysisProgramme()), doneIn(app.programmeMerged())], [0, 0, 0, 0, 0]);
+  assert.equal(app.athlete().lifts.squat.e1rmKg, null);
+  assert.equal(doneIn(app.programme), before.done, 'the stored programme keeps every completion');
+  assert.deepEqual(app.nextSession(), before.next, 'Train still knows where the athlete is up to');
+
+  await app.logSet({ date: '2026-10-01', programmeRef: before.next, plannedRef: planned, exerciseId: 'low_bar_squat', weight: { value: 150, unit: 'kg' }, reps: 5, rpe: 8 });
+  assert.deepEqual(app.events().map((e) => e.source), ['logged']);
+  assert.equal(doneIn(app.programmeMerged()), 1);
+
+  await app.reload();
+  assert.equal(app.events().length, 1, 'the choice survives a reload');
+  const backup = await app.exportBackup();
+  await app.resetAll();
+  assert.equal((await app.importBackup(JSON.stringify(backup))).ok, true);
+  assert.equal(app.programme.workbookHistory, false);
+  assert.equal(app.events().length, 1, 'and a backup round-trip');
+
+  await app.setWorkbookHistory(true);
+  assert.equal(app.events().length, before.events + 1);
+  assert.equal(app.bodyweightPoints().length, before.bw);
+});
+
+test('the history choice belongs to an imported programme: the example has none to switch', async () => {
+  const app = await createApp();
+  await assert.rejects(() => app.setWorkbookHistory(false), /Import your workbook/);
+  assert.equal(app.usingExample, true);
 });

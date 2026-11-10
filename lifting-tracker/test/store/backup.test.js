@@ -90,10 +90,18 @@ test('cardio and work entries restore with the backup; a malformed entry rejects
   assert.match(validateBackup(JSON.stringify(b)).errors.join(' '), /more than 20000/);
 });
 
-test('backups are format 4 so older apps refuse them instead of dropping activities, food or confirmed days; 1 to 3 still restore', () => {
-  assert.equal(BACKUP_VERSION, 4);
-  for (const v of [1, 2, 3, 4]) assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: v })).ok, true, `format ${v}`);
-  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 5 })).errors[0], /newer version/);
+test('backups are format 5 so older apps refuse them instead of dropping activities, food, confirmed days or the history choice; 1 to 4 still restore', () => {
+  assert.equal(BACKUP_VERSION, 5);
+  for (const v of [1, 2, 3, 4, 5]) assert.equal(validateBackup(JSON.stringify({ ...good(), schemaVersion: v })).ok, true, `format ${v}`);
+  assert.match(validateBackup(JSON.stringify({ ...good(), schemaVersion: 6 })).errors[0], /newer version/);
+});
+
+test('the workbook-history choice restores with the programme; a programme saved before the choice existed keeps its history', () => {
+  const programmeIn = (file) => validateBackup(JSON.stringify(file)).snapshot.meta.find((x) => x.key === 'programme').value;
+  const blocks = [{ number: 1, weeks: [] }];
+  assert.equal(programmeIn({ ...good(), schemaVersion: 5, programme: { blocks, workbookHistory: false } }).workbookHistory, false);
+  assert.equal(programmeIn({ ...good(), schemaVersion: 4, programme: { blocks } }).workbookHistory, true);
+  assert.equal(programmeIn({ ...good(), schemaVersion: 5, programme: { blocks, workbookHistory: 'no' } }).workbookHistory, true, 'only a real false switches it off');
 });
 
 test('confirmed days restore with the backup; a bad one is dropped rather than refusing the whole file', () => {

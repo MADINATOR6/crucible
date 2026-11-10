@@ -126,6 +126,9 @@ export function sanitizeProgramme(p) {
   })) : [];
   return {
     schema: 1, isExample: bool(p.isExample), importedAt: text(p.importedAt, 40),
+    // The athlete's choice at import: does what the workbook says was done count in Progress and Coach? On unless
+    // they said no, so programmes saved before the choice existed keep their history.
+    workbookHistory: p.workbookHistory !== false,
     source: { fileName: text(isObj(p.source) ? p.source.fileName : '', 200), sheetCount: int(isObj(p.source) ? p.source.sheetCount : 0) ?? 0 },
     overview: { results }, blocks, report: cleanReport(p.report),
   };

@@ -6,8 +6,9 @@ const APP = 'lifting-tracker';
 // Backup file format, separate from the IndexedDB version. 2 adds cardio/work `activities`, 3 adds the food log
 // `intake`, 4 adds `finishedDays` (which days the food log speaks for): an app that knows an older format refuses
 // a newer file ("newer version") instead of restoring it and silently dropping what it doesn't know. Dropping
-// `finishedDays` would quietly let an older app count part-logged days as whole ones again.
-export const BACKUP_VERSION = 4;
+// `finishedDays` would quietly let an older app count part-logged days as whole ones again. 5 adds the programme's
+// `workbookHistory` choice: an older app would drop it and count workbook history the athlete had switched off.
+export const BACKUP_VERSION = 5;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const MAX_RECORDS = 200000;
 

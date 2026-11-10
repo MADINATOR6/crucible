@@ -188,6 +188,46 @@ export async function createApp() {
     programmeSnapshot = JSON.stringify(next); app.programme = next; dataChanged();
     return next;
   });
+  /**
+   * Start without a workbook: `block` (a starter block from the generator) becomes the athlete's own programme.
+   * Only from the example programme or an empty one, so it can never replace a coach's programme. Sets already
+   * logged are kept but let go of the example programme's sets, or a set logged against example block 1 would
+   * mark the starter's block 1 as done. The start week and training weekdays are saved in the same transaction:
+   * a starter saved without them would pick up the dates of whatever programme was here before.
+   */
+  const SPREAD = { 1: [1], 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6], 7: [1, 2, 3, 4, 5, 6, 7] };
+  app.startProgramme = (block, { today = todayIso() } = {}) => enqueue(async () => {
+    // "Empty" is the Coach's own test for offering the setup: no block with any weeks in it.
+    if (!app.usingExample && app.programme?.blocks.some((b) => b.weeks.length)) throw new RangeError('You already have a programme. Use the Coach to add a block to it.');
+    if (!block?.generated || block.generated.fromBlock != null) throw new RangeError('That is not a starter block.');
+    const next = sanitizeProgramme({ schema: 1, importedAt: new Date().toISOString(), source: { fileName: 'Starter', sheetCount: 0 }, overview: { results: [] }, blocks: [block] });
+    const days = Math.max(0, ...(next?.blocks[0]?.weeks.map((w) => w.days.length) ?? []));
+    if (!days) throw new Error('That is not a valid programme.');
+    const now = new Date().toISOString();
+    const sessions = app.sessions.filter((s) => s.programmeRef).map((s) => ({ ...s, programmeRef: null, updatedAt: now }));
+    const ids = new Set(sessions.map((s) => s.id));
+    const sets = app.sets.filter((s) => ids.has(s.sessionId) && s.plannedRef).map((s) => ({ ...s, plannedRef: null, updatedAt: now }));
+    const settings = await store.replaceProgramme(programmeSnapshot, next, draftKeys, { sessions, sets, check: checkCurrent,
+      settings: (current) => sanitizeSettings({ ...sanitizeSettings(current), programmeStart: mondayOf(today), blockStarts: {},
+        dayWeekdays: Object.fromEntries((SPREAD[days] || []).map((weekday, i) => [i + 1, weekday])) }) });
+    programmeSnapshot = JSON.stringify(next);
+    app.programme = next; app.usingExample = false; app.settings = settings;
+    app.sessions = app.sessions.map((s) => sessions.find((x) => x.id === s.id) || s);
+    app.sets = app.sets.map((s) => sets.find((x) => x.id === s.id) || s);
+    drafts.clear(); dataChanged();
+    return next;
+  });
+
+  /** The import choice, changed later in Data: does the workbook's own record of past weeks count in the analysis? */
+  app.setWorkbookHistory = (on) => enqueue(async () => {
+    const next = await store.updateMeta('programme', (current) => {
+      const programme = sanitizeProgramme(current);
+      if (!programme || programme.isExample) throw new RangeError('Import your workbook first.');
+      return { ...programme, workbookHistory: on === true };
+    });
+    programmeSnapshot = JSON.stringify(next); app.programme = next; dataChanged();
+  });
+
   // Removing a generated block keeps what was logged against it, as free-standing sets in your history (they must
   // not attach themselves to whichever block later takes the same number).
   app.removeBlock = (number) => enqueue(async () => {
@@ -258,9 +298,25 @@ export async function createApp() {
     return !!(set.completed || app.loggedFor(ref));
   });
 
+  /**
+   * The programme every analysis reads (Progress, Coach, Muscles, the athlete model). With workbook history
+   * switched off, the athlete's choice at import, what the workbook says was done is taken out: completions,
+   * actual results, comments on them and its bodyweight lines. The plan stays, Train still reads the stored
+   * programme, and sets logged in the app are overlaid afterwards as usual. Nothing is deleted.
+   */
+  app.analysisProgramme = () => memo('progAnalysis', () => {
+    if (app.programme?.workbookHistory !== false) return app.programme;
+    const p = structuredClone(app.programme);
+    for (const b of p.blocks) for (const w of b.weeks) {
+      w.bodyLog = [];
+      for (const d of w.days) for (const e of d.entries) for (const s of e.sets) Object.assign(s, { completed: false, actualRpe: null, actualReps: null, actualLoad: null, coachComment: null, athleteComment: null });
+    }
+    return p;
+  });
+
   /** Programme with logged-over sets switched to "not completed" so they are not double counted. */
   app.programmeForEvents = () => memo('progForEvents', () => {
-    const p = structuredClone(app.programme);
+    const p = structuredClone(app.analysisProgramme());
     for (const b of p.blocks) for (const w of b.weeks) for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
       if (app.loggedFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si })) s.completed = false;
     }));
@@ -269,7 +325,7 @@ export async function createApp() {
 
   /** The programme with sets logged in the app overlaid as done (with what was actually lifted). For reviews and revisions. */
   app.programmeMerged = () => memo('progMerged', () => {
-    const p = structuredClone(app.programme);
+    const p = structuredClone(app.analysisProgramme());
     for (const b of p.blocks) for (const w of b.weeks) for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
       const log = app.loggedFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si });
       if (!log || log.isWarmup) return;
@@ -279,7 +335,9 @@ export async function createApp() {
   });
 
   /** Athlete model (working e1RMs, stance, RPE bias), cached until the data changes. */
-  app.athlete = () => memo('athlete', () => buildAthleteModel({ events: app.events(), catalogue: app.catalogue, programme: app.programmeMerged(), dateFor: app.dateFor }));
+  app.athlete = () => memo('athlete', () => buildAthleteModel({ events: app.events(), catalogue: app.catalogue, programme: app.programmeMerged(), dateFor: app.dateFor,
+    // A starter block (generated with nothing to learn from) holds the strength the athlete typed in at setup.
+    starting: app.programme?.blocks.find((b) => b.generated && b.generated.fromBlock == null)?.generated.e1rmStart ?? null }));
 
   app.events = () => memo('events', () => {
     let progEvents = [];
@@ -298,7 +356,7 @@ export async function createApp() {
   app.bodyweightPoints = () => memo('bw', () => {
     const pts = [];
     const idx = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
-    for (const b of app.programme?.blocks || []) for (const w of b.weeks) {
+    for (const b of app.analysisProgramme()?.blocks || []) for (const w of b.weeks) {
       const start = app.dateFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: 1 });
       if (!start) continue;
       const weekStart = mondayOf(start);

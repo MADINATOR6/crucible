@@ -88,6 +88,22 @@ function slotOf(entry, dayNumber, position, byId, referenceE1rm) {
 }
 
 /**
+ * The template for an athlete with no programme to learn from: one day of squat, bench and deadlift, 3 × 5 at
+ * RPE 7, loads worked out from their e1RM (`k: 1`), no accessories and nothing copied from anyone else's training.
+ * The generator adds light days for more training days. `fromBlock: null` is what marks a block as a starter.
+ */
+export function starterTemplate() {
+  const slot = (position, exerciseId, name, family) => ({
+    slotId: `d1s${position}`, exerciseId, name, supersetGroup: null, tempo: null, cues: [],
+    role: 'main', family, scheme: 'straight', sets: 3, reps: 5, rpe: 7, loadKg: null, k: 1,
+  });
+  return { fromBlock: null, blockName: 'Starter', weeksInBlock: 4, daysPerWeek: 1, days: [{ number: 1, slots: [
+    slot(1, 'low_bar_squat', 'Low Bar Squat', 'squat'), slot(2, 'comp_bench', 'Competition Bench Press', 'bench'),
+    slot(3, 'conventional_deadlift', 'Conventional Deadlift', 'deadlift'),
+  ] }] };
+}
+
+/**
  * learnTemplate({ programme, catalogue, referenceE1rm: { squat, bench, deadlift }, blockNumber = null }) -> Template | null.
  * `referenceE1rm` is the athlete's e1RM per lift when that block was run (the caller computes it); without it every `k` is null.
  */

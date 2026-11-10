@@ -3,8 +3,8 @@
 import { expect, test } from '@playwright/test';
 
 // One marker per view that only that view renders, so a router that fell back to Train cannot pass.
-// Coach asks for a real workbook before it will plan anything, so on example data that notice is its view.
-const VIEWS = [['train', '.train-top'], ['plan', '.card.empty:has-text("Import your workbook first")'],
+// On example data Coach shows the starter setup (build a first block without a workbook), so that card is its view.
+const VIEWS = [['train', '.train-top'], ['plan', '#starter'],
   ['progress', '#meet-date'], ['muscles', 'h1:text-is("Muscles")'], ['plates', '#target'], ['data', '#export-json']];
 
 /** Console errors and uncaught exceptions for the whole test; the app reports real failures through both. */
@@ -78,6 +78,39 @@ test('every view renders, with no console errors, no sideways scroll and no requ
     expect(overflow, `#${tab} scrolls sideways`).toBeLessThanOrEqual(1);
   }
   expect(offDevice, 'the app must not talk to anything but this device').toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('an athlete with no workbook builds a starter programme, and it is still theirs after a reload', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  // The starter and its dates are one transaction in real IndexedDB: a settings step that throws must leave no
+  // programme behind. The Node suites only prove this against the in-memory store.
+  const leftBehind = await page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    try { await store.replaceProgramme('null', { blocks: [] }, [], { settings: () => { throw new Error('probe'); } }); }
+    catch { return (await store.get('meta', 'programme')) ?? null; }
+    return 'the write did not fail';
+  });
+  expect(leftBehind).toBeNull();
+  await page.locator('[data-tab="plan"]:visible').first().click();
+  const setup = page.locator('#starter');
+  await setup.locator('#st-squat-w').fill('80');
+  await setup.locator('#st-squat-r').fill('5');
+  await setup.locator('#st-bench-w').fill('50');
+  // Picking the days redraws the form: what was typed must still be there.
+  await setup.locator('[data-start-days="4"]').click();
+  await expect(setup.locator('#st-squat-w')).toHaveValue('80');
+  await setup.locator('#st-build').click();
+  // Straight to Train on their own block: no example label, the squat first, a load worked out from 80 × 5.
+  await expect(page.locator('.train-top')).toContainText('Starter block');
+  await expect(page.locator('.pill.example')).toHaveCount(0);
+  await expect(page.locator('.train-focus-lift')).toContainText('Low Bar Squat');
+  await expect(page.locator('.train-focus')).toContainText(/\d+(\.5)? kg/);
+  await page.reload();
+  await expect(page.locator('.train-top')).toContainText('Starter block');
+  await expect(page.locator('.pill.example')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
