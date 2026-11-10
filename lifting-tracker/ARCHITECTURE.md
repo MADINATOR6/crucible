@@ -64,6 +64,15 @@ Bodyweight{ id, date, weight: {value, unit}, calories: number|null, createdAt }
 ```
 Every record has a stable `id` (UUID), `createdAt`, `updatedAt` and the store carries `schemaVersion`.
 
+### Session swaps (settings)
+A logged set's `exerciseId` may differ from its planned entry's: that is a substitution. Three settings fields drive it (`core/swaps.js`, `core/session.js`, sanitised in `store/programme-schema.js`):
+```
+exerciseSwaps { [fromId]: toId }                                  standing swap, catalogue ids only
+sessionSwaps  { 'block:week:day:entry': { from, to, gen } }       one planned session; to === from opts out of a standing swap
+skippedDays   { 'block:week:day': { on: 'YYYY-MM-DD', gen } }     a closed day
+```
+`gen` is the block's identity: `generated.at`, `'example'` for example data, `''` when imported. A record whose `gen` or `from` no longer matches is ignored and pruned on the next write, so positional keys cannot attach to a replaced block. `app.exerciseFor(ref, entry)` resolves an entry (session swap, then standing swap, then the plan). `app.programmeMerged()` marks a substituted set `completed` with `swappedTo` and no actual load, reps or RPE, so the planned exercise is never credited with the substitute's numbers. `nextSession(programme, isDone, isSkipped)`: the anchor is the last day trained or skipped; a never-started, unskipped day earlier in the anchor's week comes first, then the first unfinished, unskipped day from the anchor on.
+
 ## Calculation contracts (core)
 - e1RM: Epley `w * (1 + reps / 30)`; `reps === 1` returns `w`; `reps` must be an integer 1..12, otherwise `null` ("cannot estimate"). It is an approximation and the UI says so.
 - Only working sets (`isWarmup === false`, reps >= 1, weight > 0) count for e1RM, PRs and volume.

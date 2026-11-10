@@ -45,6 +45,45 @@ test('gaps in older training are history: next is the first unfinished day from 
   assert.deepEqual(nextSession(programme, done({ '1.1': [true, true], '2.1': [true, true] })), { ...ref, weekNumber: 2, dayNumber: 2 });
 });
 
+test('a day trained out of order postpones the one before it; older weeks stay history', () => {
+  const week = (number) => ({ number, days: [day(1), day(2), day(3), day(4)] });
+  const programme = { blocks: [{ number: 1, weeks: [week(1), week(2)] }] };
+  const done = (...keys) => (r) => keys.includes(`${r.weekNumber}.${r.dayNumber}`);
+  const at = (weekNumber, dayNumber) => ({ ...ref, weekNumber, dayNumber });
+  // Day 3 was trained before day 2: day 2 is still owed, then day 4.
+  assert.deepEqual(nextSession(programme, done('1.1', '1.3')), at(1, 2));
+  assert.deepEqual(nextSession(programme, done('1.1', '1.3', '1.2')), at(1, 4));
+  // Two postponed days come back in order.
+  assert.deepEqual(nextSession(programme, done('1.4')), at(1, 1));
+  assert.deepEqual(nextSession(programme, done('1.4', '1.1')), at(1, 2));
+  // Once a later week has been started, the earlier week's gap is history.
+  assert.deepEqual(nextSession(programme, done('1.1', '1.3', '2.1')), at(2, 2));
+  // A partly done earlier day is not postponed: it was started, and stopped.
+  const partly = { blocks: [{ number: 1, weeks: [{ number: 1, days: [day(1, [{}, {}]), day(2), day(3)] }] }] };
+  assert.deepEqual(nextSession(partly, (r) => (r.dayNumber === 1 && r.setIndex === 0) || r.dayNumber === 2), at(1, 3));
+});
+
+test('a skipped day is closed: next moves on, and skipping counts as the latest activity', () => {
+  const week = (number) => ({ number, days: [day(1, [{}, {}]), day(2), day(3)] });
+  const programme = { blocks: [{ number: 1, weeks: [week(1), week(2)] }] };
+  const done = (...keys) => (r) => keys.includes(`${r.weekNumber}.${r.dayNumber}.${r.setIndex}`);
+  const skip = (...keys) => (r) => { assert.deepEqual(Object.keys(r), ['blockNumber', 'weekNumber', 'dayNumber']); return keys.includes(`${r.weekNumber}.${r.dayNumber}`); };
+  const at = (weekNumber, dayNumber) => ({ ...ref, weekNumber, dayNumber });
+  // Nothing trained yet: skipping day 1 moves to day 2.
+  assert.deepEqual(nextSession(programme, done(), skip('1.1')), at(1, 2));
+  // A postponed day that was skipped is not owed any more.
+  assert.deepEqual(nextSession(programme, done('1.1.0', '1.1.1', '1.3.0'), skip('1.2')), at(2, 1));
+  // "Skip the rest" closes a partly done day, which would otherwise stay next.
+  assert.deepEqual(nextSession(programme, done('1.1.0')), at(1, 1));
+  assert.deepEqual(nextSession(programme, done('1.1.0'), skip('1.1')), at(1, 2));
+  // Skipping ahead makes the skipped day the anchor, like training it would.
+  assert.deepEqual(nextSession(programme, done('1.1.0', '1.1.1'), skip('1.2', '1.3')), at(2, 1));
+  // Everything left is skipped: the answer is the programme's last day.
+  assert.deepEqual(nextSession(programme, done(), skip('1.1', '1.2', '1.3', '2.1', '2.2', '2.3')), at(2, 3));
+  // Without the third argument nothing is skipped.
+  assert.deepEqual(nextSession(programme, done()), at(1, 1));
+});
+
 test('empty programmes return null, empty days are skipped, and all-done uses the last day', () => {
   for (const programme of [null, { blocks: [] }, { blocks: [{ number: 1, weeks: [{ number: 1, days: [] }] }] }]) {
     assert.equal(nextSession(programme, () => false), null);

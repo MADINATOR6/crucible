@@ -538,6 +538,12 @@ details.coach-find[open] > summary::after { transform: rotate(180deg); }
 .train-focus-prescription small { display: block; font: 600 var(--t-lg)/1.5 var(--font-body); margin-top: var(--s-2); color: var(--text-2); }
 .train-focus-context { margin-bottom: var(--s-4); }
 .train-focus-actions .btn { width: 100%; min-height: 56px; font-size: var(--t-md); }
+/* Secondary session actions (swap, skip) sit under the main button, quiet but a full tap high. */
+.train-focus-more { margin-top: var(--s-3); justify-content: space-between; }
+.train-focus-more .btn { min-height: var(--tap); }
+.train-swap-note { margin-top: 0; }
+.chip:disabled { opacity: .45; cursor: not-allowed; }
+.list-row > button.main[aria-pressed="true"] { font-weight: 700; }
 .train-overview { margin-top: var(--s-5); }
 .train-overview > summary { min-height: 52px; display: flex; align-items: center; gap: var(--s-2); font-weight: 650; cursor: pointer; }
 .train-overview > summary::after { content: '▾'; margin-left: auto; color: var(--muted); }

@@ -5,6 +5,7 @@ A personal powerlifting tracker that follows your coach's programme. It works of
 ## What it does
 
 - **Train.** The next unfinished set is shown first with large weight, reps and target RPE, plus a Log set button above the mobile navigation. Logging advances the focus and starts the rest timer. Expand Full workout to see every exercise, edit a set or open warm-ups. **+ Log** records anything outside the programme.
+- **Swaps and skipped sessions.** Equipment taken, or a shift got in the way: **Swap exercise** replaces a planned exercise with a similar one for that session or every time it is planned, and **Skip session** closes a day so the next one comes up. Train the week's days in any order; a day you have not started stays owed until you train or skip it. Details under "Swaps and skipped sessions" below.
 - **Coach.** A primary tab for the training review and block builder: describe a request, review an unsaved draft, then add it to the programme. Editable choice chips and a comparison with the learned template show exactly what will change.
 - **Muscles.** A front/back body map coloured by weekly hard sets per muscle, with the number on every region (colour is only a guide). Tap a region to see which exercises contributed. Programme week or calendar week, done or planned. **3D** shows the same colours on a body you can turn and zoom; tap a muscle for its number and exercises. It falls back to the flat map where 3D isn't available.
 - **Share images.** Plates, Muscles and each Progress lift chart have a Share image button for an Instagram story: the loaded bar with just its total (its loaded end pointing right or left, picked beside the button), the front and back heat map with its week and colour key (1080 × 1920), or a lift's estimated max, kg per week and chart. No branding; the background is transparent (to sit on a photo), dark or light, picked beside the button. Share image opens the share sheet on Android (elsewhere the file downloads); **Save image** always saves the PNG to the phone's Downloads, transparency included.
@@ -92,6 +93,20 @@ Unsaved set inputs and Coach requests/settings are kept on this device. After re
 Workbook import and JSON restore show a preview with counts and replacement details before Apply. You can back up first or cancel. A preview becomes stale if training data changes; choose the file again.
 
 Data shows the loaded app version and update status. A ready update can wait until after your workout; **Apply update** reloads the app only when you choose it. Open online once to install the offline files.
+
+### Swaps and skipped sessions
+
+**Swap exercise** (on the current set, and on each exercise under Full workout) lists similar exercises first: the same movement, then exercises that train mostly the same muscles (the editable muscle lists in `data/exercises.json`; a lift from another family, such as a deadlift for a squat, is never suggested). Every catalogue exercise is under **All exercises**. Choose **This session** for that planned day only, or **Every time** for a standing swap wherever that exercise is planned, until you change it back.
+
+- Reps and target RPE stay as planned. The planned weight is for the planned exercise, so it is not shown or pre-filled: the form starts from your last logged set of the substitute, and the one-tap tick opens the form instead of logging the planned weight.
+- A set logged with a substitute ticks off the planned set, and its numbers count for the substitute everywhere (estimated max, PRs, muscles). Nothing is credited to the planned exercise, and the coach's review and block re-loading see the set as done without numbers for the planned lift.
+- Sets already logged keep the exercise they were logged with. To change one, open it, remove it and log it again.
+
+**Skip session** (or **Skip the rest** once a set is logged) closes a day. It deletes nothing, the day can still be logged, and **Un-skip** on that day reopens it. The coach's review still counts a skipped session as missed: a skip records a decision, it does not make the work done.
+
+**Next session.** The app offers the first unfinished day from the last day you trained or skipped. A day earlier in that same week that you never started is offered first, so training Day 3 before Day 2 brings Day 2 back afterwards. Gaps in older weeks are history and are not offered again. This is a change from earlier versions, which dropped a day once a later one had been trained.
+
+Swaps and skips are stored with your settings on the device and travel in the JSON backup. They belong to the block they were made in, so they do not follow a generated block that is removed and built again, or carry over from the example data to your own programme.
 
 ### Samsung workout check
 

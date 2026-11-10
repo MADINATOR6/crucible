@@ -11,6 +11,7 @@ import { addDays } from '../../core/weeks.js';
 import { saveBackup } from './data.js';
 import { setDraftToken } from '../drafts.js';
 import { isStrictDate } from '../../store/programme-schema.js';
+import { substitutes } from '../../core/swaps.js';
 
 const repsText = (s) => (s.repsMin == null ? (s.repsRaw ? esc(s.repsRaw) : '–') : s.repsMin === s.repsMax ? String(s.repsMin) : `${s.repsMin}–${s.repsMax}`);
 const sameDay = (a, b) => !!a && !!b && a.blockNumber === b.blockNumber && a.weekNumber === b.weekNumber && a.dayNumber === b.dayNumber;
@@ -25,6 +26,12 @@ export function lastPerformance(app, exerciseId, date, excludeId = null) {
     .map((s) => ({ ...s, date: sessions.get(s.sessionId).date }))
     .sort((a, b) => b.date.localeCompare(a.date) || (b.order || 0) - (a.order || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0] || null;
 }
+/** The exercise a planned entry resolves to once swaps are applied (the planned one when the app has no swaps). */
+function resolved(app, ref, entry) {
+  const plannedId = entry.exerciseId || 'custom:' + entry.name;
+  return app.exerciseFor?.(ref, entry) ?? { plannedId, id: plannedId, swapped: false, scope: null };
+}
+const isOpen = (app, ref, entry) => entry.sets.some((s, setIndex) => !s.completed && !app.loggedFor({ ...ref, setIndex }));
 const performanceText = (s, unit) => `${formatWeight(s.weight, unit)} × ${s.reps}${s.rpe != null ? ` @ RPE ${s.rpe}` : ''} · ${shortDate(s.date)}`;
 
 function receipt(app, message, undoToken) {
@@ -136,7 +143,14 @@ export function trainView(app, ui) {
   }));
   const current = openSets[0];
   const next = app.nextSession?.();
-  const label = sameDay(next, dayRef) ? (est === todayIso() ? 'Today' : 'Next up') : est && est < todayIso() ? 'Earlier session' : 'Session';
+  const skipped = dayRef ? app.skippedDay?.(dayRef) ?? null : null;
+  // An entry shows its swap only while it still has sets to do: finished work keeps the name it was done under.
+  const eff = (day?.entries || []).map((e, entryIndex) => {
+    const ref = { ...dayRef, entryIndex };
+    const r = isOpen(app, ref, e) ? resolved(app, ref, e) : { ...resolved(app, ref, e), swapped: false, scope: null, id: e.exerciseId || 'custom:' + e.name };
+    return { ...r, name: r.swapped ? app.exercise(r.id)?.name || r.id : ex(app, e) };
+  });
+  const label = sameDay(next, dayRef) ? (est === todayIso() ? 'Today' : 'Next up') : skipped ? 'Skipped session' : est && est < todayIso() ? 'Earlier session' : 'Session';
   const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
   const daySession = dayRef && app.sessions.find((s) => s.date === ui.train.actualDate && sameDay(s.programmeRef, dayRef));
   const cal = daySession && app.sessionCalories(daySession);
@@ -159,6 +173,7 @@ export function trainView(app, ui) {
     ${!app.usingExample && reminder.due ? `<div class="banner mb-4"><span>${reminder.sessions} sessions since your last backup${app.settings.lastBackupAt ? '.' : ', and no backup yet.'}</span><div class="actions"><button class="btn small primary" id="backup-now">Back up</button><button class="btn small ghost" id="backup-later">Later</button></div></div>` : ''}
     ${app.usingExample ? `<div class="banner mb-4"><span>This is <b>example data</b>. Import your coach's workbook to use your own.</span><a class="btn small" href="#data">Import</a></div>` : ''}
     ${draft ? `<div class="banner mb-4" role="status"><span><b>UNSAVED set inputs</b> · ${draft.stale ? 'This draft no longer matches the programme or set.' : 'Ready to resume; nothing was logged.'}</span><div class="actions">${draft.stale ? '' : '<button class="btn small primary" id="resume-draft">Resume</button>'}<button class="btn small ghost" id="discard-draft">Discard</button></div></div>` : ''}
+    ${skipped ? `<div class="banner mb-4" role="status"><span>Skipped on ${esc(shortDate(skipped.on))}${openSets.length ? ` · ${openSets.length} ${openSets.length === 1 ? 'set' : 'sets'} not done` : ''}. The next session has moved on.</span><div class="actions"><button class="btn small" id="unskip-day">Un-skip</button></div></div>` : ''}
     ${day ? `<div class="progress mb-4" role="progressbar" aria-valuenow="${prog.done}" aria-valuemin="0" aria-valuemax="${prog.total}" aria-valuetext="${prog.done} of ${prog.total} sets done" aria-label="Session progress"><div class="progress-track"><i style="width:${pct}%"></i></div><span class="nowrap">${prog.done} of ${prog.total} sets</span></div>` : ''}`;
 
   // Session date and the calorie line sit after the current set: they are reference, not the next action.
@@ -166,28 +181,33 @@ export function trainView(app, ui) {
     <label class="field train-session-date mt-4"><span>Actual session date</span><input id="session-date" type="date" value="${esc(ui.train.actualDate)}"><small id="session-date-status" class="muted small">${dateStatus(ui.train.actualDate)}${est ? ` · Planned ${esc(shortDate(est))}` : ''}</small></label>
     ${cal ? `<p class="small muted mt-2 mb-0 train-kcal">${Math.round(cal.minutes)} min · about ${kcal(cal.total[0])}–${kcal(cal.total[1])} kcal${cal.active ? ` (${kcal(cal.active[0])}–${kcal(cal.active[1])} active)` : ''} · <a href="#progress" data-to-body>details</a></p>` : ''}`;
 
-  const previous = current ? lastPerformance(app, current.entry.exerciseId, ui.train.actualDate) : null;
+  const cur = current ? eff[current.entryIndex] : null;
+  const previous = current ? lastPerformance(app, cur.id, ui.train.actualDate) : null;
+  const curReps = current && (current.set.repsMin == null && !current.set.repsRaw ? 'Reps not set' : `${repsText(current.set)} reps`);
   const focus = current ? `<section class="card train-focus" aria-label="Current set">
     <span class="eyebrow train-focus-kicker">Current set · ${prog.total - prog.done} remaining</span>
-    <h2 class="train-focus-lift">${esc(ex(app, current.entry))} · Set ${current.setIndex + 1}</h2>
-    <p class="train-focus-prescription">${current.set.load ? formatWeight(current.set.load, unit) : current.set.loadRange ? esc(`${current.set.loadRange.min}–${current.set.loadRange.max} ${current.set.loadRange.unit}`) : 'Weight not set'} × ${current.set.repsMin == null && !current.set.repsRaw ? 'Reps not set' : `${repsText(current.set)} reps`}${current.set.targetRpe != null ? `<small>RPE ${esc(current.set.targetRpe)}</small>` : ''}</p>
+    <h2 class="train-focus-lift">${esc(cur.name)} · Set ${current.setIndex + 1}</h2>
+    <p class="train-focus-prescription">${cur.swapped ? '' : `${current.set.load ? formatWeight(current.set.load, unit) : current.set.loadRange ? esc(`${current.set.loadRange.min}–${current.set.loadRange.max} ${current.set.loadRange.unit}`) : 'Weight not set'} × `}${curReps}${current.set.targetRpe != null ? `<small>RPE ${esc(current.set.targetRpe)}</small>` : ''}</p>
+    ${cur.swapped ? `<p class="small muted train-swap-note">Instead of ${esc(ex(app, current.entry))}${cur.scope === 'always' ? ' (every time)' : ''}. The planned weight does not carry over: pick yours.</p>` : ''}
     ${previous ? `<p class="small muted">Last logged: ${esc(performanceText(previous, unit))}</p>` : ''}
-    <p class="muted small train-focus-context">${openSets[1] ? `Next: ${esc(ex(app, openSets[1].entry))}, set ${openSets[1].setIndex + 1}` : 'Last set of this session'}</p>
+    <p class="muted small train-focus-context">${openSets[1] ? `Next: ${esc(eff[openSets[1].entryIndex].name)}, set ${openSets[1].setIndex + 1}` : 'Last set of this session'}</p>
     <div class="train-focus-actions"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set</button></div>
-  </section><div class="train-sticky-action"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set · ${esc(ex(app, current.entry))}</button></div>`
-    : day ? `<section class="card train-focus"><h2>${prog.total ? 'Session complete' : 'No sets planned'}</h2><p class="muted">${prog.total ? `All ${prog.total} planned sets are done.` : 'Choose another day or use Quick log.'}</p></section>` : '';
+    ${app.swapExercise || app.skipDay ? `<div class="row train-focus-more">${app.swapExercise ? `<button class="btn small ghost" data-swap="${current.entryIndex}">Swap exercise</button>` : ''}${app.skipDay && !skipped ? `<button class="btn small ghost" id="skip-day">${prog.done ? 'Skip the rest' : 'Skip session'}</button>` : ''}</div>` : ''}
+  </section><div class="train-sticky-action"><button class="btn primary" data-focus-log="${current.entryIndex}:${current.setIndex}">Log set · ${esc(cur.name)}</button></div>`
+    : day ? `<section class="card train-focus"><h2>${prog.total ? 'Session complete' : 'No sets planned'}</h2><p class="muted">${prog.total ? `All ${prog.total} planned sets are done.` : 'Choose another day or use Quick log.'}</p>${next && !sameDay(next, dayRef) ? `<div class="train-focus-actions"><button class="btn primary" id="go-next-session">Next session · Week ${next.weekNumber} Day ${next.dayNumber}</button></div>` : ''}</section>` : '';
 
   let body = focus + sessionMeta;
   if (!week) body += `<div class="empty card"><p>No weeks were found for this block.</p></div>`;
   if (day) {
     const workout = day.entries.map((e, ei) => {
-      const name = esc(ex(app, e));
+      const name = esc(eff[ei].name);
+      const open = isOpen(app, { ...dayRef, entryIndex: ei }, e);
       const notes = e.sets.map((s, si) => (s.athleteComment ? `<p class="cue">Set ${si + 1}: ${esc(s.athleteComment)}</p>` : '')).join('');
       return `<section class="card exercise">
-        <div class="card-h"><h3>${e.supersetGroup ? `<span class="pill">${esc(e.supersetGroup)}</span> ` : ''}${name}</h3>
-          <button class="btn small ghost" data-warm="${ei}" aria-label="Warm-up ladder for ${name}">Warm-up</button></div>
+        <div class="card-h"><h3>${e.supersetGroup ? `<span class="pill">${esc(e.supersetGroup)}</span> ` : ''}${name}${eff[ei].swapped ? ` <span class="pill accent">for ${esc(ex(app, e))}</span>` : ''}</h3>
+          <span class="row">${open && app.swapExercise ? `<button class="btn small ghost" data-swap="${ei}" aria-label="Swap ${name} for another exercise">Swap</button>` : ''}<button class="btn small ghost" data-warm="${ei}" aria-label="Warm-up ladder for ${name}">Warm-up</button></span></div>
         ${e.tempo ? `<p class="cue">Tempo ${esc(e.tempo)}</p>` : ''}${e.cues?.length ? `<p class="cue">${e.cues.map(esc).join(' · ')}</p>` : ''}${[...new Set(e.sets.map((x) => x.coachComment).filter(Boolean))].map((t) => `<p class="cue coach">${esc(t)}</p>`).join('')}
-        <ol class="list mt-3">${e.sets.map((s, si) => setRow(app, unit, { ...dayRef, entryIndex: ei, setIndex: si }, s, name, fmtLoad)).join('')}</ol>
+        <ol class="list mt-3">${e.sets.map((s, si) => setRow(app, unit, { ...dayRef, entryIndex: ei, setIndex: si }, s, name, fmtLoad, { swapped: eff[ei].swapped, plannedId: eff[ei].plannedId })).join('')}</ol>
         ${notes}
       </section>`;
     }).join('') || '<div class="empty"><p>No exercises on this day.</p></div>';
@@ -219,6 +239,22 @@ export function trainView(app, ui) {
     root.querySelector('#quick')?.addEventListener('click', () => openQuickLog(app));
     root.querySelector('[data-to-body]')?.addEventListener('click', () => { (ui.progress ||= {}).tab = 'body'; ui.body = { date: ui.train.actualDate }; });
     root.querySelector('#pick')?.addEventListener('click', () => openDayPicker(app, ui, blocks, rerender));
+    const goTo = (r) => { Object.assign(ui.train, { block: r.blockNumber, week: r.weekNumber, day: r.dayNumber }); rerender(); };
+    root.querySelector('#go-next-session')?.addEventListener('click', () => goTo(next));
+    root.querySelectorAll('[data-swap]').forEach((b) => b.addEventListener('click', () => {
+      const entryIndex = Number(b.dataset.swap);
+      openSwapSheet(app, ui, dayRef, entryIndex, day.entries[entryIndex]);
+    }));
+    root.querySelector('#skip-day')?.addEventListener('click', (e) => guarded(e.currentTarget, async () => {
+      await app.skipDay(dayRef, todayIso());
+      const after = app.nextSession?.();
+      if (after && !sameDay(after, dayRef)) goTo(after);
+      toast(`Week ${week.number} · Day ${day.number} skipped`, 6000, { label: 'Undo', onClick: async () => {
+        try { await app.unskipDay(dayRef); goTo(dayRef); toast('Skip undone'); }
+        catch (err) { toast(`Could not undo: ${err?.message || err}`, 5000); }
+      } });
+    }));
+    root.querySelector('#unskip-day')?.addEventListener('click', (e) => guarded(e.currentTarget, () => app.unskipDay(dayRef)));
     root.querySelector('#resume-draft')?.addEventListener('click', () => {
       if (draft.kind === 'quick') { openQuickLog(app, draft.fields); return; }
       Object.assign(ui.train, { block: draft.block.number, week: draft.week.number, day: draft.day.number,
@@ -242,7 +278,7 @@ export function trainView(app, ui) {
     }));
     root.querySelectorAll('[data-done]').forEach((b) => b.addEventListener('click', () => {
       const [ei, si] = b.dataset.done.split(':').map(Number);
-      if (b.getAttribute('aria-pressed') === 'true' || !app.logAsPlanned) { openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si }); return; }
+      if (b.getAttribute('aria-pressed') === 'true' || !app.logAsPlanned || eff[ei].swapped) { openLogSheet(app, ui, { block, week, day, entryIndex: ei, setIndex: si }); return; }
       guarded(b, async () => {
         try {
           const r = await app.logAsPlanned({ programmeRef: dayRef, plannedRef: { entryIndex: ei, setIndex: si }, date: ui.train.actualDate });
@@ -255,7 +291,7 @@ export function trainView(app, ui) {
         }
       });
     }));
-    root.querySelectorAll('[data-warm]').forEach((b) => b.addEventListener('click', () => openWarmups(app, day.entries[Number(b.dataset.warm)], week)));
+    root.querySelectorAll('[data-warm]').forEach((b) => b.addEventListener('click', () => openWarmups(app, ui, day.entries[Number(b.dataset.warm)], eff[Number(b.dataset.warm)])));
   }
   return { html: header + body, bind };
 }
@@ -263,14 +299,16 @@ export function trainView(app, ui) {
 const ex = (app, e) => app.exercise(e.exerciseId)?.name || e.name;
 
 /** One set as one line: number, what to do (or what was done), and a check that logs it as planned. */
-function setRow(app, unit, ref, s, name, fmtLoad) {
+function setRow(app, unit, ref, s, name, fmtLoad, { swapped = false, plannedId = null } = {}) {
   const logged = app.loggedFor(ref);
   const done = !!logged || !!s.completed;
-  const load = s.load ? fmtLoad(s.load) : s.loadRange ? esc(`${s.loadRange.min}–${s.loadRange.max} ${s.loadRange.unit}`) : '';
+  // A set logged with a substitute names it; an open set in a swapped entry shows reps only (the planned weight is not the substitute's).
+  const loggedSwap = logged?.exerciseId && plannedId && logged.exerciseId !== plannedId ? app.exercise(logged.exerciseId)?.name || 'swapped' : null;
+  const load = swapped && !done ? '' : s.load ? fmtLoad(s.load) : s.loadRange ? esc(`${s.loadRange.min}–${s.loadRange.max} ${s.loadRange.unit}`) : '';
   const plan = `${repsText(s)}${load ? ` × ${load}` : ' reps'}`;
   const rpe = (v) => (v != null ? `<small>@${esc(v)}</small>` : '');
   const text = logged
-    ? `${logged.reps} × ${formatWeight(logged.weight, unit)} ${rpe(logged.rpe)}`
+    ? `${logged.reps} × ${formatWeight(logged.weight, unit)} ${rpe(logged.rpe)}${loggedSwap ? `<small>${esc(loggedSwap)}</small>` : ''}`
     // The coach's sheet records the actual RPE against the planned load and reps unless the athlete wrote others in.
     : s.completed ? `${s.actualReps ?? repsText(s)}${s.actualLoad ? ` × ${fmtLoad(s.actualLoad)}` : load ? ` × ${load}` : ' reps'} ${rpe(s.actualRpe)}<small>workbook</small>`
     : `${plan} ${rpe(s.targetRpe)}`;
@@ -278,14 +316,15 @@ function setRow(app, unit, ref, s, name, fmtLoad) {
   return `<li class="list-row set-row${done ? ' is-done' : ''}">
     <span class="lead">${n}</span>
     <button class="main" data-set="${ref.entryIndex}:${ref.setIndex}" aria-label="Set ${n} of ${name}: ${done ? 'edit what you did' : 'log different numbers'}">${text}</button>
-    ${logged && s.load && (logged.reps !== s.repsMin || Math.abs(toKg(logged.weight) - toKg(s.load)) > 0.01) ? `<span class="trail">plan ${plan}</span>` : ''}
-    <button class="check-btn" data-done="${ref.entryIndex}:${ref.setIndex}" aria-pressed="${done}" aria-label="${done ? `Set ${n} done. Edit it` : `Mark set ${n} of ${name} done as planned`}">✓</button>
+    ${logged && !loggedSwap && s.load && (logged.reps !== s.repsMin || Math.abs(toKg(logged.weight) - toKg(s.load)) > 0.01) ? `<span class="trail">plan ${plan}</span>` : ''}
+    <button class="check-btn" data-done="${ref.entryIndex}:${ref.setIndex}" aria-pressed="${done}" aria-label="${done ? `Set ${n} done. Edit it` : swapped ? `Log set ${n} of ${name}` : `Mark set ${n} of ${name} done as planned`}">✓</button>
   </li>`;
 }
 
 /** Block, week and day in one sheet, with how much of each week is done. */
 function openDayPicker(app, ui, blocks, rerender) {
   let blockNo = ui.train.block;
+  const upNext = app.nextSession?.() ?? null;
   const sheet = openSheet('<div id="picker"></div>');
   const host = sheet.el.querySelector('#picker');
   const draw = () => {
@@ -295,7 +334,9 @@ function openDayPicker(app, ui, blocks, rerender) {
       ${blocks.length > 1 ? `<div class="chips" role="group" aria-label="Block">${blocks.map((b) => `<button class="chip" data-b="${b.number}" aria-pressed="${b.number === blockNo}">Block ${b.number}<small>${esc(b.name)}</small></button>`).join('')}</div>` : ''}
       <div class="stack">${block.weeks.map((w) => `<div><h3 class="mb-3">Week ${w.number}</h3><div class="picker-days">${w.days.map((d) => {
         const current = block.number === ui.train.block && w.number === ui.train.week && d.number === ui.train.day;
-        return `<button class="chip" data-w="${w.number}" data-d="${d.number}" aria-pressed="${current}">Day ${d.number}${done(w, d) ? '<small>✓</small>' : ''}</button>`;
+        const ref = { blockNumber: block.number, weekNumber: w.number, dayNumber: d.number };
+        const mark = done(w, d) ? '✓' : app.skippedDay?.(ref) ? 'skipped' : sameDay(upNext, ref) ? 'next' : '';
+        return `<button class="chip" data-w="${w.number}" data-d="${d.number}" aria-pressed="${current}">Day ${d.number}${mark ? `<small>${mark}</small>` : ''}</button>`;
       }).join('') || '<span class="muted small">No days</span>'}</div></div>`).join('') || '<p class="muted">No weeks were found for this block.</p>'}</div>`;
     host.querySelectorAll('[data-b]').forEach((b) => b.addEventListener('click', () => { blockNo = Number(b.dataset.b); draw(); }));
     host.querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', () => {
@@ -344,17 +385,24 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
   const plannedRef = { entryIndex, setIndex };
   const logged = app.loggedFor({ ...ref, ...plannedRef });
   const sourceToken = setDraftToken(app.programme, ref, plannedRef, logged);
-  const exName = app.exerciseName(entry.exerciseId, entry.name);
-  const defW = recovered?.w ?? (logged ? round1(convert(logged.weight.value, logged.weight.unit, unit)) : suggestedWeight(app, entry, set, unit));
+  const plannedName = app.exerciseName(entry.exerciseId, entry.name);
+  // A logged set keeps the exercise it was logged with; an open one follows the entry's swap.
+  const plan = resolved(app, { ...ref, entryIndex }, entry);
+  const exId = logged ? logged.exerciseId : plan.id;
+  const swapped = exId !== plan.plannedId;
+  const exName = swapped ? app.exerciseName(exId) : plannedName;
+  const lastSwap = swapped && !logged ? lastPerformance(app, exId, ui.train.actualDate || todayIso()) : null;
+  const defW = recovered?.w ?? (logged ? round1(convert(logged.weight.value, logged.weight.unit, unit))
+    : swapped ? (lastSwap ? round1(convert(lastSwap.weight.value, lastSwap.weight.unit, unit)) : '') : suggestedWeight(app, entry, set, unit));
   const defReps = recovered?.r ?? (logged ? logged.reps : (set.actualReps ?? (set.repsMin === set.repsMax ? set.repsMin : set.repsMax) ?? ''));
   const defRpe = recovered?.e ?? (logged ? (logged.rpe ?? '') : (set.actualRpe ?? set.targetRpe ?? ''));
   const date = recovered?.d ?? (logged ? app.sessions.find((s) => s.id === logged.sessionId)?.date : (ui.train.actualDate || todayIso()));
-  const previous = lastPerformance(app, entry.exerciseId, date, logged?.id);
+  const previous = lastPerformance(app, exId, date, logged?.id);
 
   const sheet = openSheet(`
     <div class="card-h"><h2>${esc(exName)}</h2><span class="pill">Set ${setIndex + 1}</span></div>
     ${recovered ? '<p class="pill">UNSAVED · recovered inputs</p>' : ''}
-    <p class="muted small">Plan: ${repsText(set)} reps${set.targetRpe != null ? ` @ RPE ${set.targetRpe}` : ''}${set.load ? ` · ${formatWeight(set.load, unit)}` : ''}</p>
+    <p class="muted small">Plan: ${repsText(set)} reps${set.targetRpe != null ? ` @ RPE ${set.targetRpe}` : ''}${set.load && !swapped ? ` · ${formatWeight(set.load, unit)}` : ''}${swapped ? ` · swapped from ${esc(plannedName)}` : ''}</p>
     ${previous ? `<p class="small muted">Last logged: ${esc(performanceText(previous, unit))}</p><button class="btn small ghost" id="use-last">Use last numbers</button>` : ''}
     <div class="log-fields mt-3">
       <label class="field wide"><span>Weight (${esc(unit)})</span><div class="num-step"><button type="button" id="w-down" aria-label="Decrease weight by ${stepFor(unit)} ${esc(unit)}">−</button><input id="w" type="number" step="0.5" min="0" inputmode="decimal" value="${esc(defW)}"><button type="button" id="w-up" aria-label="Increase weight by ${stepFor(unit)} ${esc(unit)}">+</button></div><small class="tone-bad" data-error="w"></small></label>
@@ -430,17 +478,66 @@ function openLogSheet(app, ui, { block, week, day, entryIndex, setIndex }, recov
     if (!d) { invalid('d', 'Choose an actual date'); return; }
     const weight = { value: w, unit };
     const before = new Set(app.prs().map(prKey));
-    const exerciseId = entry.exerciseId || ('custom:' + entry.name);
     let saved;
-    try { saved = await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId, weight, reps: r, rpe, note: '' }, { withUndo: true, expectedRevision: app.dataRevision }); }
+    try { saved = await app.logSet({ date: d, programmeRef: ref, plannedRef, exerciseId: exId, weight, reps: r, rpe, note: '' }, { withUndo: true, expectedRevision: app.dataRevision }); }
     catch (err) { const id = /date/i.test(err.message) ? 'd' : /rpe/i.test(err.message) ? 'e' : /rep/i.test(err.message) ? 'r' : /weight|load/i.test(err.message) ? 'w' : null; if (id) { invalid(id, err.message); return; } throw err; }
     const fresh = app.prs().filter((x) => !before.has(prKey(x)));
     let cleared = true; try { await clearDraft(); } catch { cleared = false; }
     sheet.close();
     app.changed?.();
     receipt(app, `${fresh.length ? `New PR! ${fresh.map((x) => prLabel(x, unit)).join(', ')}` : logged ? 'Set updated' : 'Set saved'}${cleared ? '' : ' · unsaved copy could not be cleared'}`, saved.undoToken);
-    startRest(suggestedRest(app.exercise(entry.exerciseId)), { vibrate: app.settings.vibrate });
+    startRest(suggestedRest(app.exercise(exId)), { vibrate: app.settings.vibrate });
   }));
+}
+
+/** Pick a substitute for a planned exercise: for this planned session only, or every time it is planned. */
+function openSwapSheet(app, ui, dayRef, entryIndex, entry) {
+  const ref = { ...dayRef, entryIndex };
+  const now = resolved(app, ref, entry);
+  const unit = app.settings.unit;
+  const plannedName = ex(app, entry);
+  const canAlways = !!app.exercise(now.plannedId);
+  let scope = now.scope === 'always' ? 'always' : 'session';
+  const similar = substitutes(app.catalogue, now.plannedId);
+  const shown = new Set([now.plannedId, ...similar.map((x) => x.id)]);
+  const others = app.catalogue.exercises.filter((e) => !shown.has(e.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const option = (x) => {
+    const last = lastPerformance(app, x.id, ui.train.actualDate || todayIso());
+    return `<li class="list-row"><button class="main" data-to="${esc(x.id)}" aria-pressed="${x.id === now.id}">${esc(x.name)}${last ? `<small>last ${esc(formatWeight(last.weight, unit))} × ${last.reps}</small>` : ''}</button>${x.id === now.id ? '<span class="trail">in use</span>' : ''}</li>`;
+  };
+  const sheet = openSheet(`
+    <div class="card-h"><h2>Swap exercise</h2><span class="pill">${esc(plannedName)}</span></div>
+    <p class="muted small">Sets you log count for the exercise you pick. Reps and RPE stay as planned; the planned weight does not carry over. Sets already logged keep their exercise.</p>
+    <div class="chips" role="group" aria-label="How long the swap lasts">
+      <button class="chip" data-scope="session" aria-pressed="${scope === 'session'}">This session</button>
+      <button class="chip" data-scope="always" aria-pressed="${scope === 'always'}" ${canAlways ? '' : 'disabled'}>Every time</button>
+    </div>
+    <p class="small muted" id="scope-note"></p>
+    ${now.swapped ? `<button class="btn mb-4" data-to="${esc(now.plannedId)}">Back to ${esc(plannedName)}</button>` : ''}
+    <h3 class="mb-3">Similar</h3>
+    ${similar.length ? `<ul class="list">${similar.map(option).join('')}</ul>` : '<p class="muted small">No close match in the catalogue. Pick from all exercises.</p>'}
+    <details class="options mt-4"><summary>All exercises</summary><div class="options-body"><ul class="list">${others.map(option).join('')}</ul></div></details>
+    <div class="row spread mt-4"><span></span><button class="btn ghost" id="cancel">Cancel</button></div>`);
+  const q = (sel) => sheet.el.querySelector(sel);
+  const note = () => {
+    q('#scope-note').textContent = scope === 'always' ? `Every session where ${plannedName} is planned, until you change it back.`
+      : `Only week ${dayRef.weekNumber}, day ${dayRef.dayNumber}.${canAlways ? '' : ' This exercise is not in the catalogue, so it can only be swapped per session.'}`;
+  };
+  note();
+  sheet.el.querySelectorAll('[data-scope]').forEach((b) => b.addEventListener('click', () => {
+    scope = b.dataset.scope;
+    sheet.el.querySelectorAll('[data-scope]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    note();
+  }));
+  q('#cancel').addEventListener('click', () => sheet.close());
+  sheet.el.querySelectorAll('[data-to]').forEach((b) => b.addEventListener('click', () => guarded(b, async () => {
+    const to = b.dataset.to, always = scope === 'always';
+    const { undo } = await app.swapExercise(ref, to, { always });
+    sheet.close();
+    toast(to === now.plannedId ? `Back to ${plannedName}` : `${app.exerciseName(to)} instead of ${plannedName}${always ? ', every time' : ''}`, 4500, { label: 'Undo', onClick: async () => {
+      try { await undo(); toast('Swap undone'); } catch (err) { toast(`Could not undo: ${err?.message || err}`, 5000); }
+    } });
+  })));
 }
 
 /** Run an action with its button disabled, so a double tap cannot run it twice; report failures instead of hanging. */
@@ -507,15 +604,17 @@ export function prLabel(x, unit) {
   return x.type === 'e1rm' ? `e1RM ${kg(x.value)}` : x.type === 'single' ? `heaviest single ${kg(x.value)}` : `${x.value} reps at ${kg(x.weightKg)}`;
 }
 
-function openWarmups(app, entry, week) {
+function openWarmups(app, ui, entry, eff) {
   const unit = app.settings.unit;
-  const top = entry.sets.map((s) => s.actualLoad || s.load).filter(Boolean).sort((a, b) => toKg(b) - toKg(a))[0];
-  if (!top) { toast('No load planned to warm up toward'); return; }
+  // A swapped exercise warms up toward what was last lifted on it: the planned load is the other exercise's.
+  const top = eff?.swapped ? lastPerformance(app, eff.id, ui.train.actualDate || todayIso())?.weight
+    : entry.sets.map((s) => s.actualLoad || s.load).filter(Boolean).sort((a, b) => toKg(b) - toKg(a))[0];
+  if (!top) { toast(eff?.swapped ? 'No earlier set of this exercise to warm up toward' : 'No load planned to warm up toward'); return; }
   const { plates, bar, collar } = plateConfig(app, unit);
   const topW = { value: round1(convert(top.value, top.unit, unit)), unit };
   let ladder = [];
   try { ladder = warmupLadder({ top: topW, bar: bar.weight, collar, plates }); } catch { /* ignore */ }
-  openSheet(`<div class="card-h"><h2>Warm-up</h2><span class="pill">${esc(app.exerciseName(entry.exerciseId, entry.name))}</span></div>
+  openSheet(`<div class="card-h"><h2>Warm-up</h2><span class="pill">${esc(eff?.swapped ? eff.name : app.exerciseName(entry.exerciseId, entry.name))}</span></div>
     <p class="muted small">Toward ${round1(topW.value)} ${esc(unit)}. Jumps are rounded to plates you own.</p>
     <ol class="feed">${ladder.map((s, i) => `<li><span class="medal plain">${i + 1}</span><span><b>${round1(s.weight.value)} ${esc(unit)}</b> × ${s.reps}<br><span class="muted small">${esc(s.text)}</span></span><span></span></li>`).join('') || '<li class="muted">Nothing to show.</li>'}</ol>`);
 }

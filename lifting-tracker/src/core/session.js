@@ -7,9 +7,13 @@ export function sessionProgress(day, ref, isDone) {
   return { done, total };
 }
 
-// The first unfinished day at or after the last day with any work done. Skipped sets in older blocks are history,
-// not the next session; a partly done latest day stays next so it can be finished.
-export function nextSession(programme, isDone) {
+// The next session to train. The anchor is the last day with any work done or that the athlete skipped.
+//  1. A day earlier in the anchor's own week that was never started (and not skipped) comes first: training
+//     the week's days out of order postpones a day, it does not drop it.
+//  2. Otherwise the first unfinished, unskipped day from the anchor on; a partly done latest day stays next so
+//     it can be finished.
+// Gaps in older weeks and blocks are history, not the next session. `isSkipped(dayRef)` is optional.
+export function nextSession(programme, isDone, isSkipped = () => false) {
   const ordered = (items) => [...items].sort((a, b) => a.number - b.number);
   const days = [];
   let last = null; // the programme's final day, even an empty one: the answer when everything is done
@@ -18,12 +22,18 @@ export function nextSession(programme, isDone) {
       for (const day of ordered(week.days)) {
         last = { blockNumber: block.number, weekNumber: week.number, dayNumber: day.number };
         const { done, total } = sessionProgress(day, last, isDone);
-        if (total) days.push({ ref: last, done, total });
+        if (total) days.push({ ref: last, done, total, skipped: !!isSkipped(last) });
       }
     }
   }
-  const lastTouched = days.findLastIndex((d) => d.done > 0);
-  return days.slice(Math.max(0, lastTouched)).find((d) => d.done < d.total)?.ref ?? last;
+  const anchorAt = days.findLastIndex((d) => d.done > 0 || d.skipped);
+  const anchor = days[anchorAt];
+  if (anchor) {
+    const postponed = days.slice(0, anchorAt).find((d) => d.ref.blockNumber === anchor.ref.blockNumber
+      && d.ref.weekNumber === anchor.ref.weekNumber && d.done === 0 && !d.skipped);
+    if (postponed) return postponed.ref;
+  }
+  return days.slice(Math.max(0, anchorAt)).find((d) => d.done < d.total && !d.skipped)?.ref ?? last;
 }
 
 export function plannedValues(set) {
