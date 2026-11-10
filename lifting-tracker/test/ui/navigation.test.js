@@ -23,7 +23,7 @@ test('Coach has its own primary tab and Data remains reachable from the persiste
   globalThis.location = { hash: '#train', protocol: 'http:', hostname: 'localhost', search: '' };
   globalThis.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   globalThis.window = { addEventListener(type, handler) { events.set(type, handler); }, scrollTo() {} };
-  globalThis.document = { documentElement: { dataset: {} }, getElementById: (id) => id === 'app' ? mount : view, querySelectorAll: () => links };
+  globalThis.document = { documentElement: { dataset: {} }, getElementById: (id) => id === 'app' ? mount : view, querySelectorAll: (selector) => selector.startsWith('meta') ? [] : links };
   try {
     await import('../../src/ui/app.js');
     await ready;
