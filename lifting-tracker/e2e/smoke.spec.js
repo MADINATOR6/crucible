@@ -173,3 +173,93 @@ test('a restored backup brings back a set that was deleted after the export', as
   await expect(row).toContainText(/@9/);
   expect(errors).toEqual([]);
 });
+
+test('a restored backup brings back every kind of record, not just sets', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  // A programme of their own, so the workbook-history choice has something to live on.
+  await page.locator('[data-tab="plan"]:visible').first().click();
+  const setup = page.locator('#starter');
+  await setup.locator('#st-squat-w').fill('80');
+  await setup.locator('#st-squat-r').fill('5');
+  await setup.locator('#st-bench-w').fill('50');
+  await setup.locator('#st-build').click();
+  await expect(page.locator('.train-top')).toContainText('Starter block');
+
+  // Synthetic records for every part of backup format 5, written straight to IndexedDB.
+  const seeded = {
+    bodyweights: [{ id: 'bw-e2e', date: '2026-10-01', weight: { value: 81.5, unit: 'kg' }, calories: 2650, createdAt: '2026-10-01T08:00:00.000Z' }],
+    activities: [{ id: 'act-e2e', date: '2026-10-02', kind: 'walk', minutes: 45, createdAt: '2026-10-02T09:00:00.000Z' }],
+    intake: [{ id: 'food-e2e', date: '2026-10-02', label: 'Test rice', kcal: 650, protein: 12, fat: 3, carbs: 140, createdAt: '2026-10-02T12:00:00.000Z' }],
+    finishedDays: [{ date: '2026-10-02', kcal: 650 }],
+  };
+  await page.evaluate(async (s) => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    await store.putMany('bodyweights', s.bodyweights);
+    for (const k of ['activities', 'intake', 'finishedDays']) await store.put('meta', { key: k, value: s[k] });
+    const settings = (await store.get('meta', 'settings')) ?? { key: 'settings', value: {} };
+    await store.put('meta', { ...settings, value: { ...settings.value, shareBg: 'light' } });
+    const programme = await store.get('meta', 'programme');
+    await store.put('meta', { ...programme, value: { ...programme.value, workbookHistory: false } });
+  }, seeded);
+  await page.reload();
+  await logCurrentSet(page, { weight: '123.5', reps: '2', rpe: '9' });
+
+  /** Everything a backup is meant to carry, read back from IndexedDB. */
+  const readAll = () => page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    const meta = async (k) => (await store.get('meta', k))?.value ?? null;
+    const sets = (await store.getAll('sets')).map((x) => ({ id: x.id, reps: x.reps, weight: x.weight, rpe: x.rpe }));
+    return {
+      bodyweights: await store.getAll('bodyweights'), activities: await meta('activities'), intake: await meta('intake'),
+      finishedDays: await meta('finishedDays'), shareBg: (await meta('settings'))?.shareBg ?? null,
+      workbookHistory: (await meta('programme'))?.workbookHistory ?? null, sets,
+    };
+  });
+  const original = await readAll();
+  expect(original.sets).toHaveLength(1);
+  expect(original.bodyweights).toEqual(seeded.bodyweights);
+  expect(original.workbookHistory).toBe(false);
+
+  await page.locator('[data-tab="data"]:visible').first().click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export-json').click()]);
+  const file = await download.path();
+
+  // Change every part, so a restore that skips any one of them cannot pass.
+  await page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    for (const b of await store.getAll('bodyweights')) await store.delete('bodyweights', b.id);
+    for (const s of await store.getAll('sets')) await store.delete('sets', s.id);
+    for (const k of ['activities', 'intake', 'finishedDays']) await store.put('meta', { key: k, value: [] });
+    const settings = await store.get('meta', 'settings');
+    await store.put('meta', { ...settings, value: { ...settings.value, shareBg: 'dark' } });
+    const programme = await store.get('meta', 'programme');
+    await store.put('meta', { ...programme, value: { ...programme.value, workbookHistory: true } });
+  });
+  await page.reload();
+  const wiped = await readAll();
+  expect(wiped.sets).toHaveLength(0);
+  expect(wiped.activities).toEqual([]);
+  expect(wiped.workbookHistory).toBe(true);
+
+  await page.locator('[data-tab="data"]:visible').first().click();
+  await page.locator('#import-json').setInputFiles(file);
+  const sheet = page.locator('.sheet[role="dialog"]');
+  await expect(sheet).toContainText('Restore backup?');
+  await sheet.locator('#review-apply').click();
+  await expect(sheet).toBeHidden();
+  await page.reload();
+
+  const restored = await readAll();
+  expect(restored.sets).toEqual(original.sets);
+  expect(restored.bodyweights).toEqual(seeded.bodyweights);
+  expect(restored.activities).toEqual(seeded.activities);
+  expect(restored.intake).toEqual(seeded.intake);
+  expect(restored.finishedDays).toEqual(seeded.finishedDays);
+  expect(restored.shareBg).toBe('light');
+  expect(restored.workbookHistory).toBe(false);
+  expect(errors).toEqual([]);
+});
