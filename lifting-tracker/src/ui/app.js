@@ -27,6 +27,9 @@ const brandMark = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1"
 function applyTheme(theme) {
   const root = document.documentElement;
   if (theme === 'dark' || theme === 'light') root.dataset.theme = theme; else delete root.dataset.theme;
+  // The phone's status bar follows the theme the athlete picked, not only the system one. Same colours as index.html.
+  const bar = { dark: '#0c0d0f', light: '#f1ede3' };
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = bar[theme] ?? (m.getAttribute('media')?.includes('light') ? bar.light : bar.dark); });
 }
 
 /** Recovery tools that do not depend on any parsed data, shown whenever the app cannot render. */

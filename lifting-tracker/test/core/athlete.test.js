@@ -45,6 +45,27 @@ test('example 1: chart-based e1RM from three squat sets', () => {
   assert.deepEqual(m.rpeBias, { squat: 0, bench: 0, deadlift: 0 });
 });
 
+test('a starting estimate stands in for a lift only until that lift has logged evidence', () => {
+  const starting = { squat: 80, bench: 50, deadlift: null };
+  const none = buildAthleteModel({ events: [], catalogue, starting });
+  assert.deepEqual([none.lifts.squat.e1rmKg, none.lifts.squat.n, none.lifts.squat.confidence], [80, 0, 'low']);
+  assert.equal(none.lifts.bench.e1rmKg, 50);
+  assert.equal(none.lifts.deadlift.e1rmKg, null, 'a lift they were not sure of stays unknown');
+  const logged = buildAthleteModel({ events: [{ date: '2026-11-02', exerciseId: 'low_bar_squat', weightKg: 100, reps: 5, rpe: 8, isWarmup: false, order: 0 }], catalogue, starting });
+  assert.equal(logged.lifts.squat.n, 1);
+  assert.ok(logged.lifts.squat.e1rmKg > 110, 'the logged set wins over the 80 kg typed in');
+  assert.equal(logged.lifts.bench.e1rmKg, 50, 'each lift switches over on its own');
+});
+
+test('a starting estimate is retired for good: it does not come back when the logged evidence ages out', () => {
+  const set = (date, exerciseId) => ({ date, exerciseId, weightKg: 100, reps: 5, rpe: 8, isWarmup: false, order: 0 });
+  // Squat logged in January, nothing since; a bench set in November moves "now" ten months on.
+  const model = buildAthleteModel({ events: [set('2026-01-05', 'low_bar_squat'), set('2026-11-09', 'comp_bench')], catalogue, starting: { squat: 200, bench: 60, deadlift: 150 } });
+  assert.equal(model.lifts.squat.e1rmKg, null, 'unknown again, not back to the 200 kg typed before any squat was logged');
+  assert.equal(model.lifts.squat.confidence, 'none');
+  assert.equal(model.lifts.deadlift.e1rmKg, 150, 'a lift never logged still uses its estimate');
+});
+
 test('asOf defaults to the latest event date, then to null', () => {
   assert.equal(buildAthleteModel({ events: [peak(10, 200), peak(3, 190)], catalogue }).asOf, ago(3));
   const empty = buildAthleteModel({ events: [], catalogue });

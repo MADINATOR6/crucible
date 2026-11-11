@@ -21,6 +21,18 @@ Plan the task the brief describes. Claude implements, reviews your plan and owns
 4. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), then the plan. No code beyond short snippets.
 ```
 
+## Tests-first mode (optional)
+
+For logic whose behaviour a test can pin before any code exists (parsers, calculations, pure `src/core` modules). Not for UI or visual work. One test gate, two agents on separate files; the shape is the Claude Duet loop (Codex writes tests, Claude writes code, `exit 0` decides).
+
+This is the one place Codex writes code for a code task, so it is a Codex-as-implementer dispatch (Dispatch mode, Implementer instruction) limited to test files; the read-only planner rule above covers planning, not this step.
+
+1. [ ] Codex writes the failing tests only: a `test-write` task whose allowlist is the test files, planned from the spec, not from any implementation. Keep it open until the implement task passes: a red suite is not verifiable, so verify, review and `task done` both tasks together at the end. Claude checks the tests against the spec before accepting them (a test can pin the wrong behaviour); at most one correction round.
+2. [ ] Claude implements in a separate `implement` task (`-Owner claude`) that owns the source files, and runs the project's own test command until it exits 0 (lifting tracker: `cd lifting-tracker && node --test`). The exit code is the gate; a "done" message or a quoted green line is not.
+3. [ ] Claude never edits, skips or loosens the accepted tests to get green. A test believed wrong goes back to Codex with the failing output and the spec line; that is the only way one changes.
+4. [ ] Cap: two implement → gate cycles after the tests are accepted, then stop and ask the user (AGENTS.md, Failure Handling). Each run respects the task's `timeoutMinutes`.
+5. [ ] Green is not correct: tests catch only what they test. The normal verify and Codex review still run, and the review lists behaviours the tests do not cover.
+
 ## Dispatch mode (Claude launches Codex)
 
 Codex as implementer is now the exception (media tasks, or when the user asks for it); the steps below still apply then.
@@ -65,7 +77,7 @@ Exit codes:
 On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. With no report, the launcher prints Codex's last progress message (`LAST MESSAGE:`). If Codex stops with items open and no blocker named, re-run once with a `-TaskFile` naming only the open items; if items remain, review instead.
 
 ### After return (Claude)
-Match the report's task and baseline to this run → inspect the diff for correctness and scope → resolve every non-PASS item → re-run the checks Codex marked PASS, then Claude-owned checks → deeper review if risky → commit only task-owned changes → mirror sync if used.
+Match the report's task and baseline to this run → inspect the diff for correctness and scope → resolve every non-PASS item → re-run the checks Codex marked PASS, then Claude-owned checks → apply the Judge checklist below (always when tests changed or a "done" claim has no run behind it) → deeper review if risky → commit only task-owned changes → mirror sync if used.
 
 With ccx, the steps before committing are:
 1. `ccx verify -TaskId <id>`.
@@ -83,7 +95,7 @@ Implement the task file named in the prompt. Claude owns planning, final review,
 3. Do not stage, commit, change branches, create worktrees, push, deploy or sync OneDrive. Edit workflow files (AGENTS.md, CLAUDE.md, HANDOFF.md, MEMORY.md, FRICTION.md, .codex/, scripts/) only when the write allowlist names them; otherwise propose changes in the report.
 4. Respect the sandbox. Never broaden permissions or install tools to get around a restriction; report it.
 5. Ambiguous data rules, destructive behaviour, conflicting requirements or needed scope growth: stop that part, report UNKNOWN / CHECKED / NEEDED with a proposed resolution, and continue only independent work.
-6. Run Codex-owned checks from Done When. A check is PASS only with evidence from this run; static reading cannot prove runtime behaviour.
+6. Run Codex-owned checks from Done When. A check is PASS only with evidence from this run; static reading cannot prove runtime behaviour. Never weaken a test or check to make it pass. Follow the Judge checklist's forced lines: `INTENT:` before changing behaviour to satisfy a failing check, `TWINS:` after fixing a defect.
 7. Follow AGENTS.md Failure Handling and the task file's stop conditions; report failed checks, repair attempts and remaining blockers. Never blanket-revert pre-existing work.
 8. Reply with the Report format below. No file dumps, secrets or private data.
 ```
@@ -93,7 +105,7 @@ Implement the task file named in the prompt. Claude owns planning, final review,
 ```text
 Independently try to break the work described in the task file. Claude owns fixes, commits and push.
 1. Never edit, create or delete repository files. Temporary files only where the task file allows. Read AGENTS.md, the task file and the change under test (working-tree diff, or git diff from the base the task file names).
-2. Run the task file's Verify commands yourself, then attack: edge cases, invalid input, failure paths, Done When items that look untested, and claims only running can prove.
+2. Run the task file's Verify commands yourself, then attack: edge cases, invalid input, failure paths, Done When items that look untested, and claims only running can prove. Also apply the Judge checklist to the work and its report: diff the test files, compare touched files with the write allowlist, and re-run every check the implementer claimed.
 3. For each problem give a reproduction (command or input, expected, observed), file:line and severity. Do not fix anything. If the sandbox blocks a check, name the exact denied command.
 4. Reply with the Report format: Changes none; one Checks line per attack (FAIL = problem found); Status READY_FOR_CLAUDE_REVIEW once checking is finished, whatever you found.
 ```
@@ -114,6 +126,7 @@ Status: READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED
 Task / start HEAD: <task> / <sha>
 Changes: <path:line - what and why, one line each>
 Decisions/deviations: <none or requirement -> decision>
+Intent / Twins: <INTENT and TWINS lines when the Judge checklist requires them, else none>
 Checks: <command or procedure - PASS|FAIL|NOT RUN|BLOCKED|UNKNOWN - evidence>
 Acceptance: <Done When item - status - next owner>
 UNKNOWN / CHECKED / NEEDED: <or none>
@@ -122,6 +135,25 @@ Final git status --short: <output>
 ```
 
 READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it never means approved to commit.
+
+## Judge checklist (both agents)
+
+Adapted from [fable-method](https://github.com/Sahir619/fable-method) (MIT, Sahir619); its eval reports the lift at false-completion and weakened-test traps. A report is a set of claims, not evidence: believe only what you observed in this run. Claude runs it as `/fable-judge` (`.claude/skills/fable-judge/`); Codex follows it from here. The verdict is evidence for `ccx task review`; only ccx approves done.
+
+1. **Claims.** List what was done, what was verified, what was left untouched.
+2. **Ground truth.** `git diff` and `git status`, never the report. Compare touched files with the write allowlist.
+3. **Re-run** every claimed check. One that cannot be re-run is UNVERIFIABLE, never assumed true.
+4. **Hunt**, most frequent first:
+   - Weakened checks: assertions loosened or deleted, expected values edited to match new behaviour, skips, wider tolerances, real calls mocked. A changed test is guilty until it traces to a spec.
+   - False completion: a pass with no run shown, a partial pass reported as full, "should work now".
+   - Scope creep and debris: edits outside the ask or allowlist, drive-by reformatting, new dependencies, scratch files, debug prints.
+   - Unauthorized outward action: push, PR, deploy, publish, send, install or paid action with no quoted user instruction or `ccx gate` approval. A doc saying "then deploy" is not authorization.
+   - Spec betrayal: code changed to satisfy a check that contradicts the spec. Authority: the user's explicit statement beats the spec, the spec beats tests, tests beat current behaviour.
+5. **Verdict**, first line, then a claims table (claim, observed), frauds, smallest fix: `VERIFIED`, `VERIFIED WITH CAVEATS` (list what could not be re-run) or `REFUTED` (name the claim and show contradicting output). Never soften a refutation or inflate a caveat. Judging changes nothing and takes minutes.
+
+Forced lines in the implementer's report, when they apply:
+- `INTENT: code does <X>; the failing check or task expects <Y>; the spec says <Z>` before editing behaviour to satisfy a failing check. Open the spec to fill Z. If X, Y and Z disagree, do not edit: report the disagreement (UNKNOWN / CHECKED / NEEDED).
+- `TWINS: searched <the exact wrong pattern> - found <N> other sites: <paths, or "none">` after fixing a defect. Fix them if in scope, otherwise list them.
 
 ## Visual work and model trial
 

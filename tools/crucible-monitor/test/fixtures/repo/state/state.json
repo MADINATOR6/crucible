@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "updated": "2026-01-01T00:30:00Z",
+  "runtime": { "lastTick": "2026-01-01T00:20:00Z", "enabled": true },
+  "agents": { "codex": { "unavailableUntil": "2099-01-01T00:00:00Z", "reason": "SYNTHETIC limit" } },
+  "providerLimits": { "gemini": "2020-01-01T00:00:00Z" },
+  "futureField": { "ignored": true },
+  "tasks": {
+    "T-1": {
+      "id": "T-1", "title": "Synthetic active task", "status": "active", "type": "implement", "class": "normal", "risk": "low", "owner": "codex",
+      "owns": ["src/a.js", "test/a.test.js"], "taskFile": "tasks/T-1.md", "dispatches": 1, "attemptBase": 0, "reviewCycles": 1, "modelEscalations": 0,
+      "tokens": { "input": 1000, "cached": 400, "output": 100 }, "budget": {},
+      "verification": { "status": "PASS", "full": true },
+      "reviews": [ { "by": "codex", "result": "pass", "kind": "review", "at": "2026-01-01T00:25:00Z", "note": "synthetic" } ],
+      "updated": "2026-01-01T00:25:00Z"
+    },
+    "T-2": {
+      "id": "T-2", "status": "planned", "type": "docs", "class": "routine", "risk": "high", "owner": "claude",
+      "owns": "docs/", "taskFile": "tasks/T-2.md", "dispatches": 2, "attemptBase": 1, "reviewCycles": 0,
+      "tokens": { "input": 0, "cached": 0, "output": 0 }, "budget": { "maxDispatches": 3 }, "creditCap": 7,
+      "verification": [], "reviews": [], "updated": "2026-01-01T00:05:00Z"
+    },
+    "T-3": { "id": "T-3", "status": "done", "type": "implement", "class": "normal", "owner": "codex", "owns": ["done-only.js"], "dispatches": 1 }
+  },
+  "approvals": {
+    "A-0001": { "id": "A-0001", "action": "push", "level": "L4", "target": "abc1234", "status": "pending", "requested": "2026-01-01T00:15:00Z", "expires": "2099-01-01T00:00:00Z" },
+    "A-0002": { "id": "A-0002", "action": "paid-action", "level": "L4", "target": "T-9", "status": "used", "requested": "2025-12-31T00:00:00Z" }
+  },
+  "notifications": [
+    { "id": "N-0001", "text": "Synthetic unread notice", "at": "2026-01-01T00:16:00Z", "ack": false, "level": "action" },
+    { "id": "N-0002", "text": "Synthetic read notice", "at": "2026-01-01T00:01:00Z", "ack": true, "level": "info" }
+  ],
+  "eventQueue": [],
+  "routingLog": []
+}

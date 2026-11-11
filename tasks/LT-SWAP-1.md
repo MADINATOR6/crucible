@@ -22,7 +22,7 @@ Out of scope: storage schema version, backup format, generator and coach formula
 - [x] The planned weight is never logged under a substitute (one-tap tick opens the form; `logAsPlanned` refuses).
 - [x] Swaps and skips survive a reload and a backup round trip, are sanitised, and never follow a replaced block or cross from example data to an imported programme.
 - [x] `nextSession` returns a postponed day, passes over skipped days, and keeps older gaps as history; existing session tests unchanged and passing.
-- [x] `sw.js` `VERSION` and `APP_VERSION` bumped together (lt-v24); the new module is precached.
+- [x] `sw.js` `VERSION` and `APP_VERSION` bumped together (lt-v26, after merging main at lt-v25); the new module is precached.
 - [x] `node --test` green; browser smoke tests green on desktop Chrome and the Pixel 5 viewport, including a new swap and skip flow.
 - [ ] Codex review of the diff (`-Role verify`), recorded with `ccx task review -By codex`. Not possible from the cloud session.
 - [ ] Physical-phone check (README, Samsung workout check) after publishing.

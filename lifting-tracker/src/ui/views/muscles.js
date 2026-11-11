@@ -28,7 +28,7 @@ function supports3d() {
 }
 
 function programmeWeekEvents(app, blockNumber, weekNumber, mode) {
-  const block = app.programme.blocks.find((b) => b.number === blockNumber);
+  const block = app.analysisProgramme().blocks.find((b) => b.number === blockNumber); // "done" follows the history choice
   const week = block?.weeks.find((w) => w.number === weekNumber);
   if (!week) return { events: [], weekStart: DUMMY_MONDAY, estimated: false };
   const start = app.dateFor({ blockNumber, weekNumber, dayNumber: 1 });
@@ -44,7 +44,7 @@ function programmeWeekEvents(app, blockNumber, weekNumber, mode) {
 }
 
 export function musclesView(app, ui) {
-  const p = app.programme;
+  const p = app.analysisProgramme(); // follows the workbook-history choice, so the default week is one whose Done view has something in it
   ui.muscles ||= { mode: 'programme', what: 'done', block: null, week: null, calWeek: null, view: 'front', selected: null };
   const m = ui.muscles;
   m.asOf ||= todayIso();

@@ -145,6 +145,19 @@ test('sheet traps Tab in both directions, gives an empty sheet a focus target, a
   } finally { h.restore(); }
 });
 
+test("Android's back gesture closes only the top sheet, and a sheet closed another way lets go of the gesture", () => {
+  const h = documentHarness(), prior = globalThis.CloseWatcher, watchers = [];
+  globalThis.CloseWatcher = class { constructor() { watchers.push(this); } destroy() { this.destroyed = true; } };
+  try {
+    const outer = openSheet('<p>Outer</p>'), outerBack = h.nodes.at(-1);
+    openSheet('<p>Inner</p>'); const innerBack = h.nodes.at(-1);
+    watchers[1].onclose();
+    assert.equal(innerBack.isConnected, false); assert.equal(outerBack.isConnected, true);
+    assert.equal(watchers[1].destroyed, true); assert.notEqual(watchers[0].destroyed, true);
+    outer.close(); assert.equal(watchers[0].destroyed, true);
+  } finally { globalThis.CloseWatcher = prior; h.restore(); }
+});
+
 test('sheet uses its heading as the accessible dialog name', () => {
   const h = documentHarness(), heading = new Element();
   try {

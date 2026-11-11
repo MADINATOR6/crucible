@@ -1,0 +1,10 @@
+{
+  "name": "crucible-monitor",
+  "version": "0.1.0",
+  "description": "Read-only terminal dashboard for the Crucible workflow",
+  "private": true,
+  "type": "module",
+  "bin": { "crucible-monitor": "bin/crucible-monitor.js" },
+  "engines": { "node": ">=18.11" },
+  "scripts": { "test": "node --test" }
+}

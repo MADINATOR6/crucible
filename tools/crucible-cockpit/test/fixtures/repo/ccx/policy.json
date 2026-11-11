@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "about": "SYNTHETIC fixture for crucible-monitor tests. Not a real policy.",
+  "defaults": { "class": "normal", "risk": "low" },
+  "privacy": { "excludePaths": ["private/"] },
+  "models": {
+    "claude": { "lead": "fixture-claude-lead", "standard": "fixture-claude-standard", "cheap": "fixture-claude-cheap" },
+    "codex": { "default": "fixture-codex-default", "fallbacks": ["fixture-codex-fallback"] }
+  },
+  "providers": {
+    "localfix": { "kind": "local", "enabled": false, "model": "fixture-local-model" },
+    "gemini": { "kind": "cloud", "enabled": true, "model": "auto" }
+  },
+  "classes": {
+    "routine": { "codexModel": "fixture-codex-routine", "effort": { "codex": { "base": "low", "max": "medium" }, "claude": { "base": "medium", "max": "medium" }, "min": "low" }, "verification": ["deterministic"], "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "timeoutMinutes": 30, "tokenTarget": 1500 } },
+    "normal": { "codexModel": "fixture-codex-normal", "effort": { "codex": { "base": "medium", "max": "high" }, "claude": { "base": "medium", "max": "high" }, "min": "low" }, "verification": ["deterministic", "cross-model-review"], "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "timeoutMinutes": 60, "tokenTarget": 4000 } },
+    "complex": { "effort": { "codex": { "base": "high", "max": "xhigh" }, "claude": { "base": "high", "max": "xhigh" }, "min": "medium" }, "verification": ["deterministic", "cross-model-review"], "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 2, "timeoutMinutes": 120, "tokenTarget": 15000 } }
+  },
+  "risk": { "levels": ["low", "medium", "high"], "high": { "minClass": "complex", "addVerification": ["independent-verifier"] } },
+  "taskTypes": { "implement": { "agent": "codex" }, "docs": { "agent": "claude" } },
+  "unknownFutureSection": { "ignored": true }
+}

@@ -160,6 +160,38 @@ Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `
 - **Screens in listing photos:** a TV showing a broadcast reads as a censor box when blurred; filling the screen's four corners with near-black (geq) looks like a TV that is switched off. Measure the corners on a `drawgrid` crop at 1:1, not from a downscaled view.
 - **Codex's sandbox cannot read `%LOCALAPPDATA%\Microsoft\WinGet\Links`,** so it finds no ffmpeg; see FRICTION.md (2026-10-30).
 
+## Zero-credit gym reel (2026-11-05, SNAP-1, 0 credits)
+
+- **AI-tour reference reels:** the examples were labelled AI content and showed imagined houses. For a real gym, keep their pacing, hard cuts and moody grade, and keep every shot inside one real photo (section 8). Their aerial openers and fly-throughs stay out.
+- **Branded floors break lower-third cards:** white text landed on the white turf lettering, and red on red failed too. Show the branding clean first, then dim the whole frame to about 30% and centre the text. It costs one extra second.
+- **Grain drives file size:** `noise=alls=5`, crf 18 and no cap gave 31 Mbit/s (90 MB for 23 s). `noise=alls=3`, crf 20 and `-maxrate 12M` gave 3.5 Mbit/s (10 MB for 24 s), with no loss visible in a 1:1 crop. Always set a maxrate.
+- **Check motion without watching:** per-frame `signalstats` YDIF per shot, mean against standard deviation, shows a steady move or a jitter.
+- **Codex and ffmpeg:** see FRICTION.md (2026-11-05) for the task-local copy that avoids full access.
+
+## Filmed-style tour from photos (2026-11-05, SNAP-3 and SNAP-4, 87.5 credits)
+
+- **Kling 3.0 pro from one photo per shot gives real parallax:** 1080p, 7 credits per 4 s, 8.75 per 5 s, sound off, quotes unchanged with a start image. Machines stayed solid, and hard cuts between spaces hold together as a tour.
+- **It invents at the edges:** people in mirrors, a new doorway at a frame edge, new pictures on TVs. "No people appear" and a corrective retake did not stop it (two takes, same figure). Cropping up to 15% in the edit is free and worked, so allow that before any retake.
+- **Set reachable pass rules:** a brief that fails any changed TV picture or soft small lettering stops the job on takes the user would accept. Fail on melted machines, warped walls, people or new rooms in the frame, and garbled lettering that is the shot's subject.
+- **A pilot gate must not end the task:** shots 1 and 10 first caught problems cheaply, but "stop if a pilot fails" used up both of the task's dispatches. Have Claude review the pilot and give the go-ahead in a new task.
+- **Very dark photos stay very dark:** the leg press crop came out at about a third of the average brightness of the other gym shots. Lift exposure in the crop or in the edit.
+- **Keep the source frame rate:** Kling outputs 24 fps. Converting to 30 repeats frames and reads as unsteady. Stabilise each raw take (vidstab smoothing about 30, optzoom=0, zoom about 4) before cropping or grading.
+- **Uniform look on mixed sources:** per-shot exposure and white-balance fixes first, then one shared grade (SNAP-5, `build-polish.ps1`). Compare `signalstats` per shot. A cast in one photo, like the blue "feeling" wall, is what breaks the match.
+- **Tiny figures hide in gym crops:** two crops with small reflected figures got past a by-eye check and were uploaded (SNAP-6). Zoom to 1:1 on mirrors and far edges before any upload.
+- **Reels from 16:9 takes:** a 1680-wide window over a darkened blurred copy keeps machines whole and fits the safe area; cropping to full 9:16 cuts machines off. Concat with `h264_metadata` to keep SAR 1:1 and BT.709 tags. 24 to 30 fps by `minterpolate` (mci) held up on these takes, and half speed gives a fast push-in more screen time.
+- **Free options checked the same day:** Hugging Face ZeroGPU without login ran out after about three runs (Wan 2.2 was far steadier than LTX-2.3 but 832x480, 16 fps). Supercomputer's Free Mode is text only. This laptop (4 GB VRAM, 7 GB RAM) cannot run these models.
+
+## Local full-screen reel from tall photos (2026-11-06, Snap v20 to v22, 0 credits)
+
+- **The method:** depth map (`depth-anything-v2-small` ONNX on CPU), then Blender EEVEE with the unlit photo on a depth-displaced grid and linear camera keyframes. It gives true 60 fps, no shake and exact lettering, and fills 9:16 without cropping when the photo is tall enough. There is no subject motion and no new picture. Keep dolly about 0.08 to 0.14; a negative dolly starts close and ends on the full photo, so the subject stays in frame.
+- **Blurry photos:** Swin2SR x4 ONNX in overlapping tiles on CPU took about 7 to 11 minutes per shot here. Cache the result and apply later retouches to it, so a fix never repeats the upscale.
+- **Upscaling shows what was hidden:** a person on the gym floor became obvious only after upscaling. Zoom to 1:1 again after upscaling, and compare with the source before calling something a person: a wall print in a mirror and a bench leg both looked like people in frames.
+- **Extending a wide photo:** a dark ceiling can be padded on, but blurring the photo's top rows smears any light cut by that edge into a vertical streak. Paint the light and its glow out before padding.
+- **Size:** a 29 s master at CRF 16 with light grain came to 36 MiB. A two-pass copy at 7.9 Mbps fits the 30 MiB send limit at SSIM 0.99 against the master.
+- **Kling on the same stills (SNAP-7, 14 credits):** kling3_0 pro at 9:16 from upscaled, retouched 1080x1920 start images came back sharper than the local render, with real parallax and no cropping. A forward glide invented nothing. A sideways track invented a door, wall camera and light switch once it passed the photo's edge, so prefer forward moves on real places and check where a track ends. Kling moved about 4 times faster than the local shots: half speed plus `minterpolate` to 60 fps matched the pace and showed no ghosting in the frames checked.
+- **`--wait` can time out on a job that still completes and charges:** run `generate get <id>` before any resubmit.
+- **Genjutsu on real places (2026-11-07, 2 free generations, 0 credits):** motion transfer with a local render as the reference video and the same retouched photo as the image copied the camera move and invented nothing. Genjutsu Lite is an edit model: the same inputs with "change nothing, make it look like sharp real footage" also stayed faithful. Free generations are website-only here and top out at 720p; the Generate button must say "Free" before pressing it, because changing quality can switch the free toggle off (28 to 80 credits shown). Reference videos must be at least 4 s, and 720p output needs upscaling in the edit.
+
 ## Sources
 
 `Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24. Section 8 comes from reviewing `vOBKA8n15vg` (Iman Gadzhi, a Higgsfield investor; 2026-10-29, transcript only), whose AI-enhanced Airbnb walkthroughs it rules out, and from Airbnb's statement in https://www.cbc.ca/radio/costofliving/artificial-intelligence-airbnb-photos-9.7371277.

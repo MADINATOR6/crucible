@@ -28,13 +28,17 @@ function memoryStore() {
       data.meta.set(key, structuredClone({ key, value: next }));
       return structuredClone(next);
     },
-    async replaceProgramme(expected, next, draftKeys, { sessions = [], sets = [], check = () => {} } = {}) {
+    // `settings` (stored settings -> new settings) is written with the programme or not at all; returns what it wrote.
+    async replaceProgramme(expected, next, draftKeys, { sessions = [], sets = [], check = () => {}, settings = null } = {}) {
       if (JSON.stringify(data.meta.get('programme')?.value ?? null) !== expected) throw staleDataError();
       check(Object.fromEntries(Object.entries(data).map(([s, rows]) => [s, structuredClone([...rows.values()])])));
+      const written = settings ? structuredClone(settings(structuredClone(data.meta.get('settings')?.value ?? null))) : undefined; // may throw: before any write
+      if (settings) data.meta.set('settings', { key: 'settings', value: written });
       if (next == null) data.meta.delete('programme'); else data.meta.set('programme', structuredClone({ key: 'programme', value: next }));
       for (const key of draftKeys) data.meta.delete(key);
       for (const rec of sessions) data.sessions.set(rec.id, structuredClone(rec));
       for (const rec of sets) data.sets.set(rec.id, structuredClone(rec));
+      return structuredClone(written);
     },
     // Write records into several stores as one unit (all or nothing).
     async putAll(batch) { for (const [s, recs] of Object.entries(batch)) for (const r of recs) data[s].set(keyOf(s, r), structuredClone(r)); },
@@ -107,16 +111,18 @@ export async function openStore() {
         await done;
         return result === undefined ? null : result;
       },
-      async replaceProgramme(expected, next, draftKeys, { sessions = [], sets = [], check = () => {} } = {}) {
+      async replaceProgramme(expected, next, draftKeys, { sessions = [], sets = [], check = () => {}, settings = null } = {}) {
         const tx = db.transaction(Object.keys(STORES), 'readwrite');
         const done = txDone(tx);
         done.catch(() => {});
+        let written;
         try {
           const object = tx.objectStore('meta');
           const current = await req(object.get('programme'));
           if (JSON.stringify(current?.value ?? null) !== expected) throw staleDataError();
           const names = Object.keys(STORES);
           check(Object.fromEntries(await Promise.all(names.map(async (name) => [name, await req(tx.objectStore(name).getAll())]))));
+          if (settings) { written = settings((await req(object.get('settings')))?.value ?? null); object.put({ key: 'settings', value: written }); }
           if (next == null) object.delete('programme'); else object.put({ key: 'programme', value: next });
           for (const key of draftKeys) object.delete(key);
           for (const rec of sessions) tx.objectStore('sessions').put(rec);
@@ -126,6 +132,7 @@ export async function openStore() {
           throw err;
         }
         await done;
+        return written;
       },
       // Several stores in one transaction: either every write lands or none does.
       async putAll(batch) {

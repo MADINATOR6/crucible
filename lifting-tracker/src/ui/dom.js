@@ -92,11 +92,14 @@ export function openSheet(html, { onClose } = {}) {
   observer?.observe(dialog, { childList: true, subtree: true });
   const focusable = () => [...(dialog.querySelectorAll?.('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])') || [])]
     .filter((el) => el.getClientRects().length && !el.closest('[hidden],[inert]'));
+  // Android's back gesture closes the top sheet instead of navigating the page behind it and leaving the sheet open
+  // over the wrong view. Chrome-only API; iPhone has no system back, and Escape is handled by onKey below.
+  const watcher = typeof CloseWatcher === 'function' ? new CloseWatcher() : null;
   let closed = false;
   const close = () => {
     if (closed) return;
     const wasTop = openSheets.at(-1) === back;
-    closed = true; observer?.disconnect(); back.remove(); document.removeEventListener('keydown', onKey);
+    closed = true; observer?.disconnect(); watcher?.destroy(); back.remove(); document.removeEventListener('keydown', onKey);
     openSheets.splice(openSheets.indexOf(back), 1);
     const target = prevFocus?.isConnected === false ? findFocus(document, prevKey) : prevFocus;
     const parent = openSheets.at(-1)?.firstElementChild;
@@ -114,6 +117,7 @@ export function openSheet(html, { onClose } = {}) {
     else if (!e.shiftKey && (active === last || !dialog.contains?.(active))) { e.preventDefault(); first.focus(); }
   };
   back.addEventListener('click', (e) => { if (e.target === back) close(); });
+  if (watcher) watcher.onclose = close;
   document.addEventListener('keydown', onKey);
   document.body.append(back);
   openSheets.push(back);
