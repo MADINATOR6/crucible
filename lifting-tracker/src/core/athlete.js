@@ -82,14 +82,14 @@ function rpeBiases(programme, byId, from, asOf, dateFor) {
   const diffs = { squat: [], bench: [], deadlift: [] };
   const windowed = typeof dateFor === 'function' && asOf !== null;
   for (const block of list(programme?.blocks)) for (const week of list(block?.weeks)) for (const day of list(week?.days)) {
-    if (windowed) {
-      const date = dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day.number });
-      if (!isDate(date) || !inWindow(date, from, asOf)) continue;
-    }
+    const scheduled = windowed ? dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day.number }) : null;
     for (const entry of list(day?.entries)) {
       const family = byId.get(entry?.exerciseId)?.lift;
       if (!LIFTS.includes(family)) continue;
       for (const set of list(entry.sets)) {
+        // A set logged in the app is windowed by the date it was logged, not by where the schedule puts its day.
+        const date = isDate(set?.actualDate) ? set.actualDate : scheduled;
+        if (windowed && (!isDate(date) || !inWindow(date, from, asOf))) continue;
         const { actualRpe: actual, targetRpe: target } = set ?? {};
         if (set?.completed === true && Number.isFinite(actual) && Number.isFinite(target)
           && actual > 0 && target > 0 && actual <= 10 && target <= 10) diffs[family].push(actual - target);

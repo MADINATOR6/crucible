@@ -1,5 +1,5 @@
 // A waiting worker only takes over after the user chooses to apply it.
-export const APP_VERSION = 'lt-v27';
+export const APP_VERSION = 'lt-v29';
 
 export function createUpdates({ serviceWorker, online = () => true, reload = () => {}, onChange = () => {}, enabled = true } = {}) {
   let registration, requested = false, needsReload = false, controlled = !!serviceWorker?.controller;

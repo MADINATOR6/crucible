@@ -400,10 +400,10 @@ export async function createApp() {
       // as a performance of the planned exercise. `swapped` carries them for fromProgrammeSets (core/sets.js), which
       // credits the substitute. Neither field is ever stored: the programme sanitiser drops them.
       if (log.exerciseId !== app.plannedExerciseId(e)) {
-        Object.assign(s, { completed: true, swappedTo: log.exerciseId, swapped: { reps: log.reps, load: { value: log.weight.value, unit: log.weight.unit }, rpe: log.rpe ?? null }, actualRpe: null, actualReps: null, actualLoad: null });
+        Object.assign(s, { completed: true, swappedTo: log.exerciseId, swapped: { reps: log.reps, load: { value: log.weight.value, unit: log.weight.unit }, rpe: log.rpe ?? null }, actualRpe: null, actualReps: null, actualLoad: null, actualDate: sessionById().get(log.sessionId)?.date ?? null });
         return;
       }
-      s.completed = true; s.actualRpe = log.rpe ?? null; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit };
+      s.completed = true; s.actualRpe = log.rpe ?? null; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit }; s.actualDate = sessionById().get(log.sessionId)?.date ?? null;
     }));
     return p;
   });

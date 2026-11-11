@@ -280,6 +280,17 @@ test('rpeBias with dateFor only counts planned sets whose day falls inside the w
   assert.equal(build([], { programme }).rpeBias.squat, 0.85); // no dateFor: all 24 sets, mean (0.5 - 0.5 + 2.5) / 3 = 0.833 -> 0.85
 });
 
+test('rpeBias windows a logged set by the date it was logged, whatever the schedule says for its day', () => {
+  const programme = { blocks: [{ number: 1, weeks: [{ number: 1, days: [{ number: 1, entries: [
+    squatEntry(many(8, { actualRpe: 9.5, actualDate: ago(10) })), // logged 10 days ago
+  ] }] }] }] };
+  assert.equal(build([], { programme, dateFor: () => ago(10) }).rpeBias.squat, 1);
+  assert.equal(build([], { programme, dateFor: () => ago(100) }).rpeBias.squat, 1, 'moving the scheduled day out of the window changes nothing');
+  assert.equal(build([], { programme, dateFor: () => null }).rpeBias.squat, 1, 'nor does a day with no date');
+  const old = { blocks: [{ number: 1, weeks: [{ number: 1, days: [{ number: 1, entries: [squatEntry(many(8, { actualRpe: 9.5, actualDate: ago(100) }))] }] }] }] };
+  assert.equal(build([], { programme: old, dateFor: () => ago(10) }).rpeBias.squat, 0, 'a set logged long ago stays out even if its day is scheduled recently');
+});
+
 test('example 8: exercises summary uses the heaviest-e1RM set on the newest date', () => {
   const m = build([
     ev(3, 'comp_bench', 100, 5, 8), ev(3, 'comp_bench', 105, 3, 9), // Epley 116.67 vs 115.5 -> the 100 x 5 set

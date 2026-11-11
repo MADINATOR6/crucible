@@ -215,3 +215,176 @@ test('an exercise swap and a skipped session survive a reload', async ({ page })
   expect(overflow, 'Train scrolls sideways').toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
 });
+
+test('an interrupted workout: unsaved inputs resume without logging, the rest timer keeps its deadline, Undo restores the old numbers', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  const sheet = page.locator('.sheet[role="dialog"]');
+
+  // 1. Type a set but do not save it, then lose the page.
+  await page.locator('[data-focus-log]').first().click();
+  await sheet.locator('#w').fill('111.5');
+  await sheet.locator('#r').fill('3');
+  await sheet.locator('#e').fill('8');
+  await expect.poll(() => page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    return !!(await (await openStore()).get('meta', 'draft:set'));
+  }), { message: 'the draft never reached IndexedDB' }).toBe(true);
+  await page.reload();
+
+  // Recovery offers the inputs back; it never logs them by itself.
+  await expect(page.locator('#view')).toContainText('UNSAVED set inputs');
+  await expect(page.locator('.progress')).toContainText(/0 of \d+ sets/);
+  await page.locator('#resume-draft').click();
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('#w')).toHaveValue('111.5');
+  await expect(sheet.locator('#r')).toHaveValue('3');
+  await expect(sheet.locator('#e')).toHaveValue('8');
+  await sheet.locator('#save').click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+
+  // 2. Saving started the rest timer. A reload keeps its original deadline instead of restarting it.
+  await expect(page.locator('#rest-timer')).toBeVisible();
+  const deadline = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('lifting-tracker-rest') ?? 'null')?.end ?? null);
+  const end = await deadline();
+  expect(end).toBeGreaterThan(Date.now());
+  await page.reload();
+  // Saving once, then reloading, leaves exactly one set and no draft banner behind.
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+  await expect(page.locator('#view')).not.toContainText('UNSAVED set inputs');
+  await expect(page.locator('#rest-timer')).toBeVisible();
+  // Restoring recomputes the deadline from the seconds left, so allow a few ms of rounding; a restarted timer would be minutes off.
+  expect(Math.abs((await deadline()) - end)).toBeLessThan(50);
+  await page.locator('#rest-timer [data-rt="skip"]').click();
+  await expect(page.locator('#rest-timer')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+  await expect(page.locator('#rest-timer')).toHaveCount(0);
+
+  // 3. Edit the saved set, then Undo from the receipt: the stored numbers come back, and stay after a reload.
+  await openFullWorkout(page);
+  await page.locator('[data-set="0:0"]').click();
+  await sheet.locator('#w').fill('130');
+  await sheet.locator('#save').click();
+  await expect(sheet).toBeHidden();
+  await openFullWorkout(page);
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/3\s*×\s*130/);
+  await page.locator('.toast .toast-action', { hasText: 'Undo' }).click();
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/3\s*×\s*111\.5/);
+  await page.reload();
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+  await openFullWorkout(page);
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/3\s*×\s*111\.5/);
+  expect(errors).toEqual([]);
+});
+
+test('a training weekday chosen in Data is still chosen after a reload', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await page.locator('[data-tab="data"]:visible').first().click();
+  const fold = page.locator('details[data-keep-open="training-weekdays"]');
+  await fold.locator('summary').click();
+  const day3 = fold.locator('[data-day-weekday="3"]');
+  await expect(day3).toHaveValue('4'); // Thursday by default
+  await day3.selectOption('6');
+  await expect.poll(() => page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    return (await (await openStore()).get('meta', 'settings'))?.value?.dayWeekdays?.[3] ?? null;
+  }), { message: 'the weekday never reached IndexedDB' }).toBe(6);
+  await page.reload();
+  await page.locator('[data-tab="data"]:visible').first().click();
+  await page.locator('details[data-keep-open="training-weekdays"] summary').click();
+  await expect(page.locator('[data-day-weekday="3"]')).toHaveValue('6');
+  expect(errors).toEqual([]);
+});
+
+test('a restored backup brings back every kind of record, not just sets', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  // A programme of their own, so the workbook-history choice has something to live on.
+  await page.locator('[data-tab="plan"]:visible').first().click();
+  const setup = page.locator('#starter');
+  await setup.locator('#st-squat-w').fill('80');
+  await setup.locator('#st-squat-r').fill('5');
+  await setup.locator('#st-bench-w').fill('50');
+  await setup.locator('#st-build').click();
+  await expect(page.locator('.train-top')).toContainText('Starter block');
+
+  // Synthetic records for every part of backup format 5, written straight to IndexedDB.
+  const seeded = {
+    bodyweights: [{ id: 'bw-e2e', date: '2026-10-01', weight: { value: 81.5, unit: 'kg' }, calories: 2650, createdAt: '2026-10-01T08:00:00.000Z' }],
+    activities: [{ id: 'act-e2e', date: '2026-10-02', kind: 'walk', minutes: 45, createdAt: '2026-10-02T09:00:00.000Z' }],
+    intake: [{ id: 'food-e2e', date: '2026-10-02', label: 'Test rice', kcal: 650, protein: 12, fat: 3, carbs: 140, createdAt: '2026-10-02T12:00:00.000Z' }],
+    finishedDays: [{ date: '2026-10-02', kcal: 650 }],
+  };
+  await page.evaluate(async (s) => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    await store.putMany('bodyweights', s.bodyweights);
+    for (const k of ['activities', 'intake', 'finishedDays']) await store.put('meta', { key: k, value: s[k] });
+    const settings = (await store.get('meta', 'settings')) ?? { key: 'settings', value: {} };
+    await store.put('meta', { ...settings, value: { ...settings.value, shareBg: 'light' } });
+    const programme = await store.get('meta', 'programme');
+    await store.put('meta', { ...programme, value: { ...programme.value, workbookHistory: false } });
+  }, seeded);
+  await page.reload();
+  await logCurrentSet(page, { weight: '123.5', reps: '2', rpe: '9' });
+
+  /** Everything a backup is meant to carry, read back from IndexedDB. */
+  const readAll = () => page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    const meta = async (k) => (await store.get('meta', k))?.value ?? null;
+    const sets = (await store.getAll('sets')).map((x) => ({ id: x.id, reps: x.reps, weight: x.weight, rpe: x.rpe }));
+    return {
+      bodyweights: await store.getAll('bodyweights'), activities: await meta('activities'), intake: await meta('intake'),
+      finishedDays: await meta('finishedDays'), shareBg: (await meta('settings'))?.shareBg ?? null,
+      workbookHistory: (await meta('programme'))?.workbookHistory ?? null, sets,
+    };
+  });
+  const original = await readAll();
+  expect(original.sets).toHaveLength(1);
+  expect(original.bodyweights).toEqual(seeded.bodyweights);
+  expect(original.workbookHistory).toBe(false);
+
+  await page.locator('[data-tab="data"]:visible').first().click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export-json').click()]);
+  const file = await download.path();
+
+  // Change every part, so a restore that skips any one of them cannot pass.
+  await page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    const store = await openStore();
+    for (const b of await store.getAll('bodyweights')) await store.delete('bodyweights', b.id);
+    for (const s of await store.getAll('sets')) await store.delete('sets', s.id);
+    for (const k of ['activities', 'intake', 'finishedDays']) await store.put('meta', { key: k, value: [] });
+    const settings = await store.get('meta', 'settings');
+    await store.put('meta', { ...settings, value: { ...settings.value, shareBg: 'dark' } });
+    const programme = await store.get('meta', 'programme');
+    await store.put('meta', { ...programme, value: { ...programme.value, workbookHistory: true } });
+  });
+  await page.reload();
+  const wiped = await readAll();
+  expect(wiped.sets).toHaveLength(0);
+  expect(wiped.activities).toEqual([]);
+  expect(wiped.workbookHistory).toBe(true);
+
+  await page.locator('[data-tab="data"]:visible').first().click();
+  await page.locator('#import-json').setInputFiles(file);
+  const sheet = page.locator('.sheet[role="dialog"]');
+  await expect(sheet).toContainText('Restore backup?');
+  await sheet.locator('#review-apply').click();
+  await expect(sheet).toBeHidden();
+  await page.reload();
+
+  const restored = await readAll();
+  expect(restored.sets).toEqual(original.sets);
+  expect(restored.bodyweights).toEqual(seeded.bodyweights);
+  expect(restored.activities).toEqual(seeded.activities);
+  expect(restored.intake).toEqual(seeded.intake);
+  expect(restored.finishedDays).toEqual(seeded.finishedDays);
+  expect(restored.shareBg).toBe('light');
+  expect(restored.workbookHistory).toBe(false);
+  expect(errors).toEqual([]);
+});

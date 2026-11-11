@@ -5,6 +5,7 @@ import { esc, toast, todayIso } from '../dom.js';
 import { renderHeatmap, renderLegend, renderMuscleList, fmtSets } from '../heatmap.js';
 import { coachReview, applyExtras, blockVolume } from '../../core/coach.js';
 import { estimate1RM } from '../../core/e1rm.js';
+import { addDays } from '../../core/weeks.js';
 
 let mods = null; // the planning modules are loaded on first use, so the rest of the app never depends on them
 async function loadMods() {
@@ -170,7 +171,9 @@ function learnTemplateFor(app, athlete) {
   // The athlete's e1RM when that block was run: events up to the end of the block, else today's numbers.
   const block = programme.blocks.find((b) => b.number === blockNumber);
   const lastWeek = block?.weeks.at(-1);
-  const end = lastWeek ? app.dateFor({ blockNumber, weekNumber: lastWeek.number, dayNumber: lastWeek.days.at(-1)?.number ?? 1 }) : null;
+  // The end of the block's last week (Sunday), not its last training day, so editing the training weekdays cannot move it.
+  const blockStart = app.blockStarts().get(blockNumber);
+  const end = lastWeek && blockStart ? addDays(blockStart, 7 * block.weeks.length - 1) : null;
   let reference = Object.fromEntries(LIFTS.map((f) => [f, athlete.lifts[f]?.e1rmKg ?? null]));
   if (end) {
     const then = m.buildAthleteModel({ events: app.events().filter((e) => e.date <= end), catalogue: app.catalogue, asOf: end });
