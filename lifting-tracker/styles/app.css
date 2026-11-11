@@ -110,7 +110,7 @@ main.main { padding: calc(20px + env(safe-area-inset-top)) calc(var(--gutter) + 
   display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); background: color-mix(in srgb, var(--surface) 92%, transparent);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--line); z-index: 20;
 }
-.tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: 0; color: var(--muted); font-size: 11px; letter-spacing: .02em; font-weight: 650; cursor: pointer; text-decoration: none; min-height: 48px; }
+.tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: 0; color: var(--muted); font-size: var(--t-xs); letter-spacing: 0; font-weight: 650; cursor: pointer; text-decoration: none; min-height: 48px; }
 .tab svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tab[aria-current="page"] { color: var(--accent); }
 .tab[aria-current="page"] span { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
@@ -276,7 +276,14 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--focus); out
 table.plain { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.plain th, table.plain td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 table.plain th { font-size: var(--t-xs); color: var(--muted); }
-details.fold summary { cursor: pointer; font-weight: 650; padding: 11px 0; min-height: var(--tap); box-sizing: border-box; }
+details.fold summary { cursor: pointer; font-weight: 650; padding: 11px 0; min-height: var(--tap); box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); list-style: none; }
+details.fold summary::-webkit-details-marker { display: none; }
+/* One chevron on the right, as in details.options, so a fold reads as tappable and its open state is clear. */
+details.fold summary::after { content: '▾'; color: var(--muted); transition: transform .15s ease; }
+details.fold[open] > summary::after { transform: rotate(180deg); }
+details.fold[open] { border-left: 2px solid var(--line-strong); padding-left: var(--s-3); }
+/* Weekday pickers are short: two per row on phones instead of four tall rows. */
+details[data-keep-open="training-weekdays"] .grid.cols-2 { grid-template-columns: 1fr 1fr; gap: var(--s-3); }
 .warnlist { max-height: 260px; overflow: auto; font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
@@ -385,7 +392,7 @@ details.options > .options-body { padding: 0 var(--s-4) var(--s-4); display: gri
 
 /* Thin progress bar with an accessible label next to it. */
 .progress { display: flex; align-items: center; gap: var(--s-3); font-size: var(--t-sm); color: var(--muted); }
-.progress-track { flex: 1; height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.progress-track { flex: 1; height: 8px; border-radius: 99px; background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line-ctl); overflow: hidden; } /* edge reaches 3:1 against the page */
 .progress-track > i { display: block; height: 100%; border-radius: 99px; background: var(--good); transition: width .25s ease; }
 
 /* Round check button for one-tap actions (log as planned). */
