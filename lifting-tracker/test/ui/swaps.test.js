@@ -5,6 +5,8 @@ import { createApp } from '../../src/ui/state.js';
 import { trainView } from '../../src/ui/views/train.js';
 import { sanitizeSettings, MAX_SWAPS } from '../../src/store/programme-schema.js';
 import { buildBackup } from '../../src/store/backup.js';
+import { fromProgrammeSets } from '../../src/core/sets.js';
+import { progressView } from '../../src/ui/views/progress.js';
 
 // Session swaps end to end against the in-memory store: exercise substitutions, skipped days and the next session.
 globalThis.fetch = async (path) => {
@@ -90,7 +92,9 @@ test('a set logged with a substitute counts for the substitute, not the planned 
   // The merged programme (coach review, re-loading) sees the set as done but carries no numbers for the planned lift.
   const merged = app.programmeMerged().blocks[0].weeks[0].days[0].entries[1].sets[0];
   assert.deepEqual([merged.completed, merged.swappedTo, merged.actualLoad, merged.actualReps, merged.actualRpe], [true, 'hack_squat', null, null, null]);
+  assert.deepEqual(merged.swapped, { reps: 8, load: { value: 120, unit: 'kg' }, rpe: 9 });
   assert.equal(app.programme.blocks[0].weeks[0].days[0].entries[1].sets[0].completed, false, 'the stored programme is not changed');
+  assert.ok(!JSON.stringify(await app.store.get('meta', 'programme')).includes('swapped'), 'and the marks are never stored');
   // A normal set still overlays its numbers.
   await logPlanned(app, { ...day1, entryIndex: 0 }, 0, 'low_bar_squat', { weight: { value: 142.5, unit: 'kg' }, reps: 5, rpe: 7.5 });
   const squat = app.programmeMerged().blocks[0].weeks[0].days[0].entries[0].sets[0];
@@ -187,6 +191,28 @@ test('swap and skip settings are sanitised and travel in a backup', async () => 
   assert.deepEqual(other.settings.exerciseSwaps, { leg_press: 'hack_squat' });
   assert.equal(exFor(other, { ...day1, dayNumber: 2, entryIndex: 0 }).id, 'paused_bench');
   assert.deepEqual(other.skippedDay({ ...day1, dayNumber: 3 }), { on: '2026-11-10', gen: '' });
+});
+
+test('Progress "By block" credits a swapped set to the substitute, not the planned lift at the planned weight', async () => {
+  const app = await swapApp();
+  const squat = { ...day1, entryIndex: 0 };
+  const bestSquat = () => {
+    const best = { value: null };
+    for (const e of fromProgrammeSets({ blocks: [app.programmeMerged().blocks[0]] }, () => '2026-11-09')) if (e.exerciseId === 'low_bar_squat') best.value = Math.max(best.value ?? 0, e.weightKg);
+    return best.value;
+  };
+  // The planned 140 kg squat was done as a 60 kg high bar squat instead.
+  await app.swapExercise(squat, 'high_bar_squat');
+  await logPlanned(app, squat, 0, 'high_bar_squat', { weight: { value: 60, unit: 'kg' }, reps: 5, rpe: 6 });
+  const merged = fromProgrammeSets(app.programmeMerged(), () => '2026-11-09').map((e) => [e.exerciseId, e.weightKg, e.reps, e.rpe]);
+  assert.deepEqual(merged, [['high_bar_squat', 60, 5, 6]]);
+  assert.equal(bestSquat(), null, 'no 140 kg squat was lifted');
+  const row = progressView(app, { progress: { source: 'all' } }).html.match(/<td><b>1<\/b>[^<]*<\/td><td>\d+<\/td><td>(\d+)<\/td>/);
+  assert.equal(row?.[1], '1', 'By block counts the one set that was done');
+  // A real squat logged afterwards is credited as itself.
+  await app.swapExercise(squat, 'low_bar_squat');
+  await logPlanned(app, squat, 1, 'low_bar_squat', { weight: { value: 135, unit: 'kg' }, reps: 5, rpe: 8 });
+  assert.equal(bestSquat(), 135);
 });
 
 // ---- Train view ----

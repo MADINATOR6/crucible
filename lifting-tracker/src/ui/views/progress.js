@@ -168,11 +168,12 @@ export function progressView(app, ui) {
   const signals = lifts.flatMap((l) => rpeAtLoad(sets[l.lift]).filter((s) => s.drop > 0).slice(0, 3).map((s) => ({ ...s, lift: l.lift }))).sort((a, b) => b.drop - a.drop).slice(0, 5);
 
   const prs = app.prs().slice().reverse().slice(0, 12);
-  const rpe = rpeDeltas(app.analysisProgramme()); // the workbook's own record, unless the athlete switched its history off
+  const merged = app.programmeMerged(); // programme plus sets logged in the app; imported history drops out when the athlete switched it off
+  const rpe = rpeDeltas(merged);
   const rpeRows = Object.entries(rpe.perExercise).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.sets - a.sets).slice(0, 12);
   const allDeltas = rpe.perSet.map((s) => s.delta);
   const meanDelta = allDeltas.length ? allDeltas.reduce((a, b) => a + b, 0) / allDeltas.length : null;
-  const blockRows = [...(app.analysisProgramme()?.blocks || [])].sort((a, b) => a.number - b.number).map((b) => {
+  const blockRows = [...(merged?.blocks || [])].sort((a, b) => a.number - b.number).map((b) => {
     const evs = workingSets(fromProgrammeSets({ blocks: [b] }, () => '2000-01-03').filter((e) => e.reps <= pg.maxReps));
     const best = { squat: null, bench: null, deadlift: null };
     for (const e of evs) { const ex = app.exercise(e.exerciseId); const v = setE1rm(e.weightKg, e.reps, e.rpe)?.value; if (ex?.competition && ex.lift && v != null && (best[ex.lift] == null || v > best[ex.lift])) best[ex.lift] = v; }

@@ -388,16 +388,22 @@ export async function createApp() {
     return p;
   });
 
-  /** The programme with sets logged in the app overlaid as done (with what was actually lifted). For reviews and revisions. */
+  /** The programme with sets logged in the app overlaid as done (with what was actually lifted). For reviews and revisions. A replacement logged without an RPE does not keep the replaced set's RPE. */
   app.programmeMerged = () => memo('progMerged', () => {
-    const p = structuredClone(app.analysisProgramme());
+    const base = app.analysisProgramme();
+    if (!base) return base;
+    const p = structuredClone(base);
     for (const b of p.blocks) for (const w of b.weeks) for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
       const log = app.loggedFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si });
       if (!log || log.isWarmup) return;
-      // A set done with a substitute exercise is done, but its numbers belong to the substitute (they reach the
-      // history through the logged set): they must not read as a performance of the planned exercise.
-      if (log.exerciseId !== app.plannedExerciseId(e)) { s.completed = true; s.swappedTo = log.exerciseId; s.actualRpe = null; s.actualReps = null; s.actualLoad = null; return; }
-      s.completed = true; s.actualRpe = log.rpe ?? s.actualRpe; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit };
+      // A set done with a substitute exercise is done, but its numbers belong to the substitute: they must not read
+      // as a performance of the planned exercise. `swapped` carries them for fromProgrammeSets (core/sets.js), which
+      // credits the substitute. Neither field is ever stored: the programme sanitiser drops them.
+      if (log.exerciseId !== app.plannedExerciseId(e)) {
+        Object.assign(s, { completed: true, swappedTo: log.exerciseId, swapped: { reps: log.reps, load: { value: log.weight.value, unit: log.weight.unit }, rpe: log.rpe ?? null }, actualRpe: null, actualReps: null, actualLoad: null });
+        return;
+      }
+      s.completed = true; s.actualRpe = log.rpe ?? null; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit };
     }));
     return p;
   });
