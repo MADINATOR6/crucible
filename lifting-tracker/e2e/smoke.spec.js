@@ -212,7 +212,8 @@ test('an interrupted workout: unsaved inputs resume without logging, the rest ti
   await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
   await expect(page.locator('#view')).not.toContainText('UNSAVED set inputs');
   await expect(page.locator('#rest-timer')).toBeVisible();
-  expect(await deadline()).toBe(end);
+  // Restoring recomputes the deadline from the seconds left, so allow a few ms of rounding; a restarted timer would be minutes off.
+  expect(Math.abs((await deadline()) - end)).toBeLessThan(50);
   await page.locator('#rest-timer [data-rt="skip"]').click();
   await expect(page.locator('#rest-timer')).toHaveCount(0);
   await page.reload();
