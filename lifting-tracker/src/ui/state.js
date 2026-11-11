@@ -331,7 +331,7 @@ export async function createApp() {
     for (const b of p.blocks) for (const w of b.weeks) for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
       const log = app.loggedFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si });
       if (!log || log.isWarmup) return;
-      s.completed = true; s.actualRpe = log.rpe ?? null; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit };
+      s.completed = true; s.actualRpe = log.rpe ?? null; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit }; s.actualDate = sessionById().get(log.sessionId)?.date ?? null;
     }));
     return p;
   });

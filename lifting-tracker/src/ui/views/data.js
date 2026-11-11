@@ -5,6 +5,10 @@ import { mondayOf } from '../../core/weeks.js';
 import { setWeeklySummary } from '../summary.js';
 import { APP_VERSION } from '../updates.js';
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+/** The weekday (1 = Monday) a training day falls on; the same fallback app.dateFor uses. */
+const weekdayOf = (settings, day) => settings.dayWeekdays?.[day] ?? Math.min(7, day);
+
 const WARNING_HELP = {
   reps_date_converted: 'Excel turned a rep range into a date; converted back (day = low, month = high).',
   rpe_above_10: 'RPE above 10 (your sheets use 11 as a to-failure marker). Kept as written.',
@@ -97,6 +101,7 @@ export function dataView(app, ui) {
   const rep = p?.report;
   const fromWorkbook = !!p && !p.isExample && p.blocks.some((b) => !b.generated); // not the example, not a starter
   const s = app.settings;
+  const trainingDays = [...new Set((p?.blocks || []).flatMap((b) => b.weeks.flatMap((w) => w.days.map((d) => d.number))))].filter(Number.isInteger).sort((a, b) => a - b);
   const startDefault = s.programmeStart || (app.blockStarts().get(p?.blocks?.[0]?.number) ?? '');
   const warnTypes = rep ? Object.entries(rep.warningsByType || {}).sort((a, b) => b[1] - a[1]) : [];
   const updates = ui.updates;
@@ -131,6 +136,10 @@ export function dataView(app, ui) {
         <p class="small muted">Leave blank to follow on from the previous block. Set a date when a block really began (for example after a break); later blocks then follow it.</p>
         <div class="grid cols-2">${(p?.blocks || []).map((b) => `<label class="field"><span>Block ${b.number} · ${esc(b.name)}</span><input type="date" data-block-start="${b.number}" value="${esc((s.blockStarts || {})[b.number] || '')}"></label>`).join('')}</div>
       </details>
+      ${trainingDays.length ? `<details class="fold mt-3" data-keep-open="training-weekdays"><summary>Training weekdays</summary>
+        <p class="small muted">Which weekday each training day falls on. This dates imported and not-yet-logged days; a set you already logged keeps the date you chose.</p>
+        <div class="grid cols-2">${trainingDays.map((d) => `<label class="field"><span>Day ${d}</span><select data-day-weekday="${d}">${WEEKDAYS.map((name, wi) => `<option value="${wi + 1}" ${weekdayOf(s, d) === wi + 1 ? 'selected' : ''}>${name}</option>`).join('')}</select></label>`).join('')}</div>
+      </details>` : ''}
       <label class="row mt-3"><input type="checkbox" data-setting="keepAwake" ${s.keepAwake ? 'checked' : ''}> Keep the screen on while training</label>
       <label class="row mt-3"><input type="checkbox" data-setting="vibrate" ${s.vibrate ? 'checked' : ''}> Vibrate on one-tap logs and when rest ends</label>
       <label class="row mt-3"><input type="checkbox" id="weekly-summary" ${s.weeklySummary ? 'checked' : ''}> Weekly summary notification<small class="muted">&nbsp;(Android, installed app)</small></label>
@@ -193,6 +202,10 @@ export function dataView(app, ui) {
       const cur = { ...(app.settings.blockStarts || {}) };
       if (inp.value) cur[inp.dataset.blockStart] = mondayOf(inp.value); else delete cur[inp.dataset.blockStart];
       app.saveSettings({ blockStarts: cur });
+    }));
+    root.querySelectorAll('[data-day-weekday]').forEach((sel) => sel.addEventListener('change', () => {
+      const weekday = Number(sel.value);
+      if (Number.isInteger(weekday) && weekday >= 1 && weekday <= 7) app.saveSettings({ dayWeekdays: { ...app.settings.dayWeekdays, [sel.dataset.dayWeekday]: weekday } });
     }));
     root.querySelector('#start').addEventListener('change', (e) => app.saveSettings({ programmeStart: e.target.value ? mondayOf(e.target.value) : null }));
     root.querySelectorAll('[data-setting]').forEach((input) => input.addEventListener('change', () => app.saveSettings({ [input.dataset.setting]: input.checked })));

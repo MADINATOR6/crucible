@@ -237,6 +237,26 @@ test('an interrupted workout: unsaved inputs resume without logging, the rest ti
   expect(errors).toEqual([]);
 });
 
+test('a training weekday chosen in Data is still chosen after a reload', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await page.locator('[data-tab="data"]:visible').first().click();
+  const fold = page.locator('details[data-keep-open="training-weekdays"]');
+  await fold.locator('summary').click();
+  const day3 = fold.locator('[data-day-weekday="3"]');
+  await expect(day3).toHaveValue('4'); // Thursday by default
+  await day3.selectOption('6');
+  await expect.poll(() => page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    return (await (await openStore()).get('meta', 'settings'))?.value?.dayWeekdays?.[3] ?? null;
+  }), { message: 'the weekday never reached IndexedDB' }).toBe(6);
+  await page.reload();
+  await page.locator('[data-tab="data"]:visible').first().click();
+  await page.locator('details[data-keep-open="training-weekdays"] summary').click();
+  await expect(page.locator('[data-day-weekday="3"]')).toHaveValue('6');
+  expect(errors).toEqual([]);
+});
+
 test('a restored backup brings back every kind of record, not just sets', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/');
