@@ -174,6 +174,68 @@ test('a restored backup brings back a set that was deleted after the export', as
   expect(errors).toEqual([]);
 });
 
+test('an interrupted workout: unsaved inputs resume without logging, the rest timer keeps its deadline, Undo restores the old numbers', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  const sheet = page.locator('.sheet[role="dialog"]');
+
+  // 1. Type a set but do not save it, then lose the page.
+  await page.locator('[data-focus-log]').first().click();
+  await sheet.locator('#w').fill('111.5');
+  await sheet.locator('#r').fill('3');
+  await sheet.locator('#e').fill('8');
+  await expect.poll(() => page.evaluate(async () => {
+    const { openStore } = await import('/src/store/db.js');
+    return !!(await (await openStore()).get('meta', 'draft:set'));
+  }), { message: 'the draft never reached IndexedDB' }).toBe(true);
+  await page.reload();
+
+  // Recovery offers the inputs back; it never logs them by itself.
+  await expect(page.locator('#view')).toContainText('UNSAVED set inputs');
+  await expect(page.locator('.progress')).toContainText(/0 of \d+ sets/);
+  await page.locator('#resume-draft').click();
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('#w')).toHaveValue('111.5');
+  await expect(sheet.locator('#r')).toHaveValue('3');
+  await expect(sheet.locator('#e')).toHaveValue('8');
+  await sheet.locator('#save').click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+
+  // 2. Saving started the rest timer. A reload keeps its original deadline instead of restarting it.
+  await expect(page.locator('#rest-timer')).toBeVisible();
+  const deadline = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('lifting-tracker-rest') ?? 'null')?.end ?? null);
+  const end = await deadline();
+  expect(end).toBeGreaterThan(Date.now());
+  await page.reload();
+  // Saving once, then reloading, leaves exactly one set and no draft banner behind.
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+  await expect(page.locator('#view')).not.toContainText('UNSAVED set inputs');
+  await expect(page.locator('#rest-timer')).toBeVisible();
+  expect(await deadline()).toBe(end);
+  await page.locator('#rest-timer [data-rt="skip"]').click();
+  await expect(page.locator('#rest-timer')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+  await expect(page.locator('#rest-timer')).toHaveCount(0);
+
+  // 3. Edit the saved set, then Undo from the receipt: the stored numbers come back, and stay after a reload.
+  await openFullWorkout(page);
+  await page.locator('[data-set="0:0"]').click();
+  await sheet.locator('#w').fill('130');
+  await sheet.locator('#save').click();
+  await expect(sheet).toBeHidden();
+  await openFullWorkout(page);
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/3\s*×\s*130/);
+  await page.locator('.toast .toast-action', { hasText: 'Undo' }).click();
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/3\s*×\s*111\.5/);
+  await page.reload();
+  await expect(page.locator('.progress')).toContainText(/1 of \d+ sets/);
+  await openFullWorkout(page);
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/3\s*×\s*111\.5/);
+  expect(errors).toEqual([]);
+});
+
 test('a restored backup brings back every kind of record, not just sets', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/');
