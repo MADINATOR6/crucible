@@ -20,7 +20,7 @@ USER ──> Claude Code session (orchestrator: AGENTS.md, HANDOFF.md)
            │
            ├── Workers
            │     Codex ..................... scripts\codex-dispatch.ps1 [-TaskId]  (gpt-6-astra)
-           │     Claude .................... this session (claude-opus-5-5)
+           │     Claude .................... this session (claude-fable-5-2)
            │     Claude subagents .......... .claude/agents/ccx-scout (haiku), ccx-reviewer (opus)
            │     Codex subagents ........... ~/.codex/agents (user's: researcher/worker/advisor)
            ├── MCP / tools ................. policy mcp section + agent tool allowlists
@@ -89,7 +89,7 @@ Routing priority, cheapest reliable route first:
 | 3 | `script` | Mechanical change: the agent writes or reuses a script, and the script makes the edits |
 | 4 | `cheap` | `ccx-scout` (Claude Haiku, read-only) for extraction, or Codex `-Role research` at the class's low effort |
 | 5 | `worker` | Codex implements, refactors, writes tests and debugs; Claude writes docs; the reviewer is the other model |
-| 6 | `premium` | Claude lead (Opus 5.5) for architecture and planning, or as the escalation when the retry cap is reached |
+| 6 | `premium` | Claude lead (Fable 5.2) for architecture and planning, or as the escalation when the retry cap is reached |
 | 7 | `mythos` | Escalation-only tier; see 5.2 |
 | - | `defer` | Codex is at its usage limit until a recorded time: do non-Codex work |
 | - | `surface` | Caps exhausted: stop retrying, collect evidence, decide on evidence or ask the user |
@@ -108,9 +108,9 @@ Inputs: task type (see `taskTypes` in the policy), class (routine, normal, compl
 
 | Agent | Model | Set in |
 |---|---|---|
-| Claude (lead, orchestrator) | claude-opus-5-5 | the session; policy `models.claude.lead` |
-| Claude cheap subagent | claude-haiku-4-5 (`ccx-scout`) | `.claude/agents/ccx-scout.md` |
-| Claude independent reviewer | opus, effort high (`ccx-reviewer`) | `.claude/agents/ccx-reviewer.md` |
+| Claude (lead, orchestrator) | claude-fable-5-2 (since 2026-11-10; was claude-opus-5-5) | the session; policy `models.claude.lead` |
+| Claude cheap subagent | `haiku` alias (`ccx-scout`); policy label claude-haiku-5-5 | `.claude/agents/ccx-scout.md` |
+| Claude independent reviewer | `opus` alias, effort high (`ccx-reviewer`); deliberately not the lead's model | `.claude/agents/ccx-reviewer.md` |
 | Codex dispatches | gpt-6-astra; falls back to gpt-6-sol, then gpt-5.6-sol, when the catalog lacks it | policy `models.codex` |
 | Codex everyday use (outside dispatches) | the user's global default (gpt-6-sol, medium) | `~/.codex/config.toml`, unchanged |
 
@@ -124,6 +124,8 @@ Effort by class (Codex base → max; Claude base → max):
 | critical | xhigh | xhigh → max | ambiguous, cross-system, high consequence |
 | exceptional | xhigh → max | max | one-off migration, deep audit |
 
+- **Fable 5.2 lead (2026-11-10):** the effort table is unchanged. Anthropic's guidance for this model is to start at high, use xhigh only where a gain is measured and keep max for the rare task where time and tokens do not matter, so the AGENTS.md rule (never raise effort merely because it exists) matters more, not less. API list price is $8 / $40 per million tokens against $4 / $20 for Opus 5.5 (2026-11-03); what that means for a subscription's usage limit is UNKNOWN.
+- **Fable 5.2 safeguards:** the model carries extra safety measures for dual-use work. If it declines part of a `claude-red` or `rea` task, that is a stop to report (HANDOFF.md Report), never something to rephrase around or route to another model to bypass.
 - **Escalation:** a failed attempt or declared ambiguity raises effort one step (for example high → xhigh), capped by the class. max needs at least two failed attempts. The first upgrade ran Claude at max and Codex at high, with xhigh only for hard review or unresolved failures.
 - **Retry cap:** past `maxDispatches`, the route becomes `premium` (the Claude lead) while `maxModelEscalations` allows it; otherwise it becomes `surface`.
 - **Recording an escalation:** `ccx task escalate -Id X -Reason "..."`. The owner becomes Claude, attempts restart, and the task routes at the class's maximum Claude effort. Failed attempts from before the escalation still count toward max. A further escalation beyond the cap exits 8.
@@ -136,7 +138,8 @@ Effort by class (Codex base → max; Claude base → max):
 
 ### 5.2 Mythos-class tier
 Mythos-class is an escalation tier, not a worker.
-- Policy `models.mythos.available` is false, so a mythos request falls back to Claude Opus at max, then Codex at xhigh.
+- The Claude lead, Fable 5.2, is already the generally available Mythos-class model. The tier is reserved for the restricted Mythos models (`claude-mythos-5-2`, verified organisations only); nothing here assumes the account has them.
+- Policy `models.mythos.available` is false, so a mythos request falls back to the Claude lead (Fable 5.2) at max, then Codex at xhigh.
 - If the account gains legitimate, authorised access, set `available`, `agent` and `model`. Even then:
   - the tier serves only the `exceptional` class;
   - its decisions carry permission level L0, analysis only;
