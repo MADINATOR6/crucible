@@ -281,8 +281,8 @@ else if (mode === 'usage') {
   process.stderr.write(usage + '\n');
   process.exit(1);
 }
-else if (mode === 'ready' || mode === 'stray') {
-  fs.writeFileSync(mode === 'stray' ? 'stray.txt' : 'owned.txt', 'synthetic change');
+else if (mode === 'ready' || mode === 'stray' || mode === 'spaced') {
+  fs.writeFileSync(mode === 'stray' ? 'stray.txt' : mode === 'spaced' ? 'a b.txt' : 'owned.txt', 'synthetic change');
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
   event({type:'turn.completed', usage:{input_tokens:200,cached_input_tokens:20,output_tokens:7}});
   write('Status: READY_FOR_CLAUDE_REVIEW\n');
@@ -403,6 +403,49 @@ else {
     Assert (($args -join '|') -match '\|-s\|read-only\|') 'read-only sandbox absent'
     $wanted = 'Read HANDOFF.md and follow its Verifier instruction for ' + (Join-Path $repo 'TASK.md') + '.'
     Assert ($args[-1] -ceq $wanted) 'Verifier prompt differs'
+  }
+  Case 'writable verify that edits nothing passes the no-edit guard' {
+    $log = Join-Path $scratch 'verify-ww.json'
+    $r = Run-Launcher $repo ($common + @('-Role', 'verify', '-Sandbox', 'workspace-write')) 'success' 'fake' $false 25 $log
+    Check-Code $r 0
+    Assert ($r.Stdout -notmatch 'NO-EDIT VIOLATION') 'guard fired on a run that changed nothing'
+    Assert ((((Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args) -join '|') -match '\|-s\|workspace-write\|') 'workspace-write sandbox absent'
+  }
+  Case 'writable verify that adds a file fails the no-edit guard' {
+    $stray = Join-Path $repo 'stray.txt'
+    try {
+      $r = Run-Launcher $repo ($common + @('-Role', 'verify', '-Sandbox', 'workspace-write')) 'stray'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'NO-EDIT VIOLATION') 'violation not reported'
+      Assert ($r.Stdout -match 'stray\.txt') 'changed path not named'
+    } finally { Remove-Item -LiteralPath $stray -ErrorAction SilentlyContinue }
+  }
+  Case 'writable research that rewrites an already untracked file fails the guard' {
+    $owned = Join-Path $repo 'owned.txt'
+    try {
+      Write-Utf8File $owned 'before the run'
+      $r = Run-Launcher $repo ($common + @('-Role', 'research', '-TaskFile', 'TASK.md', '-Sandbox', 'workspace-write')) 'ready'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'NO-EDIT VIOLATION') 'violation not reported'
+      Assert ($r.Stdout -match 'owned\.txt') 'changed path not named'
+    } finally { Remove-Item -LiteralPath $owned -ErrorAction SilentlyContinue }
+  }
+  Case 'guard hashes a path with a space (git quotes it in line status)' {
+    $spaced = Join-Path $repo 'a b.txt'
+    try {
+      Write-Utf8File $spaced 'before the run'
+      $r = Run-Launcher $repo ($common + @('-Role', 'verify', '-Sandbox', 'workspace-write')) 'spaced'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'NO-EDIT VIOLATION') 'edit of a path with a space went unseen'
+    } finally { Remove-Item -LiteralPath $spaced -ErrorAction SilentlyContinue }
+  }
+  Case 'read-only verify takes no snapshot' {
+    $stray = Join-Path $repo 'stray.txt'
+    try {
+      $r = Run-Launcher $repo ($common + @('-Role', 'verify')) 'stray'
+      Check-Code $r 0
+      Assert ($r.Stdout -notmatch 'NO-EDIT VIOLATION') 'guard fired for a read-only run'
+    } finally { Remove-Item -LiteralPath $stray -ErrorAction SilentlyContinue }
   }
   Case 'model and xhigh effort passed' {
     $log = Join-Path $scratch 'model.json'

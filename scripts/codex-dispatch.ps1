@@ -102,6 +102,39 @@ function Stop-CodexTree([Diagnostics.Process]$Child) {
   } finally { $killProcess.Dispose() }
 }
 
+function Get-RepoSnapshot {
+  # HEAD plus every changed or untracked path with its content hash, from the current directory.
+  # Enough to tell whether a run that must not edit files edited any: a new file, a deleted one, or
+  # new content in a file that was already modified all change the result. Ignored paths stay out.
+  $head = Invoke-Git 'rev-parse HEAD'
+  # -z: NUL-separated and never quoted (the line form quotes paths with spaces). A rename or copy
+  # entry is followed by one extra entry holding the old path.
+  $status = Invoke-Git 'status --porcelain=v1 -z --untracked-files=all'
+  if ($null -eq $head -or $null -eq $status) { return $null }
+  $lines = New-Object 'System.Collections.Generic.List[string]'
+  $lines.Add("HEAD $head")
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try {
+    $entries = $status.Split([char]0)
+    for ($i = 0; $i -lt $entries.Count; $i++) {
+      $entry = $entries[$i]
+      if (-not $entry) { continue }
+      # Invoke-Git trims the output, which can eat the first entry's leading space.
+      if ($entry -notmatch '^([ A-Za-z?!]{1,2}) (.+)$') { $lines.Add($entry); continue }
+      $kind = $Matches[1].Trim(); $path = $Matches[2]
+      if ($kind -match '[RC]') { $i++; $lines.Add("old $($entries[$i])") }
+      $full = Join-Path (Get-Location).ProviderPath $path
+      $hash = '<missing>'
+      if ([IO.File]::Exists($full)) {
+        $stream = [IO.File]::OpenRead($full)
+        try { $hash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') } finally { $stream.Dispose() }
+      }
+      $lines.Add("$kind $path|$hash")
+    }
+  } finally { $sha.Dispose() }
+  return ,@($lines)
+}
+
 function Get-DispatchReset([string]$Text, $Policy) {
   $now = [DateTime]::Now
   $parsed = [DateTime]::MinValue
@@ -301,6 +334,15 @@ try {
   }
 
   [void][IO.Directory]::CreateDirectory($CaptureDir)
+  # A verify or research run is read-only by rule. A writable sandbox exists so the verifier can
+  # create the scratch folders the PowerShell suites need under TEMP, not so it can edit the repo:
+  # snapshot the tree now and fail the run if it changed.
+  $guardNoEdit = $Role -ne 'implement' -and $Sandbox -ne 'read-only'
+  $snapshotBefore = $null
+  if ($guardNoEdit) {
+    $snapshotBefore = Get-RepoSnapshot
+    if ($null -eq $snapshotBefore) { throw "Cannot snapshot the repository to guard a $Role run with sandbox $Sandbox." }
+  }
   $instruction = @{ implement = 'Implementer'; verify = 'Verifier'; research = 'Researcher' }[$Role]
   $prompt = "Read HANDOFF.md and follow its $instruction instruction for $taskPath."
   $head = Invoke-Git 'rev-parse --short HEAD'
@@ -418,6 +460,18 @@ try {
   }
   if ($limitMessages.Count -gt 0) { $code = 4 }
   if ($timedOut) { $code = 5 }
+  if ($guardNoEdit) {
+    $snapshotAfter = Get-RepoSnapshot
+    $changed = if ($null -eq $snapshotAfter) { @('<snapshot failed>') } else {
+      @(Compare-Object -ReferenceObject $snapshotBefore -DifferenceObject $snapshotAfter | ForEach-Object { $_.InputObject } | Select-Object -Unique)
+    }
+    if ($changed.Count) {
+      Write-Output "NO-EDIT VIOLATION: the $Role run changed the working tree (sandbox $Sandbox). Review and undo before anything else:"
+      foreach ($entry in ($changed | Select-Object -First 20)) { Write-Output "  $entry" }
+      # Only the launcher's own verdict replaces a clean exit; a usage limit or timeout keeps its code.
+      if ($code -eq 0 -or $code -eq 3) { $code = 9 }
+    }
+  }
   if ($TaskId) {
     $codexCode = $code
     try {
