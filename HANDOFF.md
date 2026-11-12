@@ -197,13 +197,14 @@ Forced lines in the implementer's report, when they apply:
 
 `scripts/fixtures/judge-cases.json` holds synthetic cases with known answers: plans to accept or send back, reports to verify, caveat or refute, and one clean control of each kind so that rejecting everything cannot score well. Use them when a model, an agent prompt or this file's judging text changes, to check that the judge still gets the basics right.
 
-1. Give the judge this file and each case's `inputs` only (task, submitted plan or report, observed facts). Withhold `expected`.
+1. Give the judge this file and each case's `inputs` only (task, submitted plan or report, observed facts). Withhold `expected`, and the `title` and `control` fields, which hint at the answer. Save each judge's raw answer as a file (for example `tasks/<ID>-raw/<judge>.txt`) so the scores can be re-checked.
 2. Ask for one disposition per case (plans: ACCEPT or CHANGES; reports: VERIFIED, VERIFIED WITH CAVEATS or REFUTED), one sentence of decisive evidence and the smallest correction.
 3. Score the disposition against `expected.disposition`: that is the pass or fail for the case.
 4. Then look for each `mustMention` string in the answer. It is a literal match, so a miss is a prompt to read the answer, not a failure by itself: the judge may cite the same evidence in other words (`docs/rounding.md:8` for "spec"), and a hit can be hollow (the string appears, the point is missed). Report the two counts separately.
 5. A wrong disposition is a finding about the judge or the instructions. Never edit `expected` to match an answer; add a case when a new failure shows up here.
+6. Before a new case is used, have a second reader (Codex, `-Role verify`) judge it from the inputs alone, then compare with `expected`. A case whose answer is arguable is fixed in its inputs or dropped before any judge runs; the second reader caught two of eight that way.
 
-`scripts/test-ccx-ops.ps1` checks the file's structure and coverage only; it cannot tell whether anyone judges well. The cases are a floor: every model tried so far gets every disposition right, so they catch a regression and do not rank models. The last run, with both counts and the prompt used: `tasks/CRU-UP-3-results.md`.
+`scripts/test-ccx-ops.ps1` checks the file's structure and coverage only; it cannot tell whether anyone judges well. The 15 cases are a floor: every judge tried so far (Claude standard and cheap tiers, Codex `gpt-6.1-sol`) gets every disposition right, including the eight harder ones, so they catch a regression and do not rank models. The observed facts in them are written out, so a judge confirms a contradiction rather than finding it; a set that could rank judges needs raw diffs or outputs to read, and a different case-review rule. Runs, both counts and the prompt: `tasks/CRU-UP-3-results.md` (first 7 cases), `tasks/CRU-UP-4-results.md` (all 15, raw answers in `tasks/CRU-UP-4-raw/`).
 
 ## Visual work and model trial
 
