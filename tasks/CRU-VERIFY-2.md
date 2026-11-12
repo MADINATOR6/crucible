@@ -47,3 +47,8 @@ You are in a writable sandbox only so the suites can create scratch folders unde
 ## Open
 
 - `HANDOFF.md` (Verifier instruction: suites need `-Sandbox workspace-write`; launcher notes: the guard and exit 9 for verify) waits on CRU-UP-4.
+
+## Round 2 (verify, after Codex round 1)
+
+Round 1 (capture `codex-b0cc85c3eadb4f24b5cf63e2d1b0ee76`, REFUTED on one point): ops suite 16/17 passed, 1 skipped inside the sandbox (the goal); the guard hashed Git's quoted path as missing. Fixed in 4a1d98b: `Get-RepoSnapshot` now reads `status --porcelain=v1 -z`; new case `guard hashes a path with a space`; dispatch suite 63/63.
+Verifier brief, round 2: read-only in effect (the run is `workspace-write` only for TEMP). Do not rerun suites. Read `Get-RepoSnapshot` in `scripts/codex-dispatch.ps1` and try to break the NUL-delimited parsing: rename/copy entries (`R  new`, then old path as its own entry), a first entry whose leading space was trimmed by `Invoke-Git`, non-ASCII paths, an entry that fails the regex. Reproduce only with in-memory string probes (a temporary Git fixture was refused by the approval reviewer last round). Report FAIL only with a reproduction.
