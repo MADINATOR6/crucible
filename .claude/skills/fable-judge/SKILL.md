@@ -14,7 +14,9 @@ Target: the latest completed work in this conversation, or what the user names (
 1. Read `HANDOFF.md`, section "Judge checklist (both agents)".
 2. For a ccx task, take the baseline and the write allowlist from the task file; otherwise from `git status` and `git log`.
 3. Run the checklist: claims, `git diff` as ground truth, re-run every claimed check (for `lifting-tracker/` that is `cd lifting-tracker && node --test`, plus `npx.cmd playwright test` when UI or the service worker changed), then the fraud hunt.
-4. Deliver the verdict as the first line, then the claims table, frauds, smallest fix.
+4. Deliver the verdict as the first line, then the claims table, frauds, smallest fix. Keep missing evidence (a caveat) apart from a demonstrated defect (a refutation), as that section's last paragraph says.
+
+Judging a plan, not finished work: use `HANDOFF.md`, "Plan critique (Claude)" and its Worked examples in the same way, before the plan becomes a task file.
 
 ## Repo rules
 

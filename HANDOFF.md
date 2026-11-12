@@ -5,9 +5,9 @@ How work passes between Claude Code and Codex. This is the handoff contract (som
 ## Codex plans, Claude implements (default for code tasks since 2026-11-01)
 
 1. [ ] Claude writes a short plan brief, `tasks/<ID>-plan.md`: goal, user requirements, known constraints, relevant paths. No solution.
-2. [ ] `ccx task add -Id <ID> ... -Owner claude -TaskFile tasks/<ID>.md`.
-3. [ ] `scripts\codex-dispatch.ps1 -Role research -TaskFile tasks/<ID>-plan.md` (read-only). The brief's first line: `Follow HANDOFF.md, Planner instruction (it replaces the Researcher instruction for this task).` While Codex's sandbox cannot start processes (FRICTION.md), this needs `-Sandbox danger-full-access` under a `codex-full-access` approval; otherwise Claude plans and records why.
-4. [ ] Claude checks the plan against the code, records disagreements and decisions, and writes `tasks/<ID>.md` in the usual task-file shape. At most two challenge rounds with Codex.
+2. [ ] `ccx task add -Id <ID> ... -Owner claude -TaskFile tasks/<ID>.md`. When the base checkout holds other tasks' uncommitted files, give the task its own worktree now (`ccx worktree add -TaskId <ID>`, which also starts it), put the brief there and run the launcher from it: `ccx verify`'s scope stage fails on files it cannot tell apart from the task's own.
+3. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> -Role research -TaskFile tasks/<ID>-plan.md` (read-only). `-TaskId` starts the task before any work exists, so an ownership conflict (exit 7) or a dirty baseline shows here and not at step 6; a research run uses no implementation attempt. The brief's first line: `Follow HANDOFF.md, Planner instruction (it replaces the Researcher instruction for this task).` While Codex's sandbox cannot start processes (FRICTION.md), this needs `-Sandbox danger-full-access` under a `codex-full-access` approval; otherwise Claude plans and records why.
+4. [ ] Claude runs the Plan critique below against the code, records disagreements and decisions, and writes `tasks/<ID>.md` in the usual task-file shape. At most two challenge rounds with Codex.
 5. [ ] Claude implements inside the allowlist and runs the Verify commands.
 6. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> -Role verify` → `ccx verify -TaskId <ID>` → `ccx task review -Id <ID> -Result pass|changes -By codex` → `ccx task done -Id <ID>` → commit.
 
@@ -18,8 +18,38 @@ Plan the task the brief describes. Claude implements, reviews your plan and owns
 1. Never edit, create or delete repository files. Read AGENTS.md, the brief and only the source the plan needs.
 2. Give: Goal; Approach (steps in order); Write allowlist (exact paths); Out of scope; Done When (each item checkable); Verify (commands that exist in this repo, never invented); Stop conditions; Risks.
 3. Ground every claim about the code in path:line. Mark anything unverified UNKNOWN / CHECKED / NEEDED. Prefer the smallest correct change.
-4. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), then the plan. No code beyond short snippets.
+4. For each allowlist path say whether it exists, is new, or already has uncommitted changes (git status). A path another task has changed is a conflict to report, not to plan around.
+5. Cite where each Verify command comes from (AGENTS.md Commands, ccx/policy.json verify.stages, or the brief). If no existing command covers a Done When item, write NEEDED and who checks it by hand; never invent a command or a flag.
+6. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), then the plan. No code beyond short snippets.
 ```
+
+### Plan critique (Claude)
+
+Run this before a plan becomes a task file. Each line is answered from the code in this checkout, not from the plan's own wording. A line that fails goes back to Codex as a challenge or is recorded as a decision in the task file.
+
+1. **Claims.** Open every `path:line` the plan leans on. Does the code there do what the plan says, at this HEAD?
+2. **Callers.** Search for every caller and sibling of what the plan changes. Does the plan cover them, or say why not?
+3. **Failure paths.** What happens on bad input, a refused step, an interrupted run? If the plan only describes success, ask.
+4. **Allowlist.** Is every path the approach must touch in the allowlist, and nothing extra? Is any path owned by a live task or already dirty?
+5. **Done When.** Can each item be shown true or false by a command or a named inspection? "Works correctly" is not checkable.
+6. **Verify.** Run each command once, or find it in AGENTS.md Commands or policy `verify.stages`. A command that does not exist here is a defect in the plan.
+7. **Size.** Is there a smaller change that meets the goal (no new code, existing code, standard library)? Is anything in the plan not needed by a Done When item?
+
+### Worked examples
+
+Each pair shows a failure that has happened here and the version that passes. They are examples to judge by, not templates to copy.
+
+**Late ownership discovery**
+- Bad: the plan is written, Claude implements, and the first `-TaskId` dispatch is the verify run. It exits 7: a blocked task owns one of the files. The work exists and cannot be accepted.
+- Good: `ccx task add`, then the plan dispatch carries `-TaskId`. Exit 7 arrives before any plan or code. The report names the owning task; Claude narrows the allowlist or asks the user. Nothing is written yet.
+
+**Invented Verify command**
+- Bad: `Verify: npm run lint && node --test lifting-tracker/test`. No lint script exists, and `node --test <dir>` fails on Node 24 (AGENTS.md, Commands). The plan looks complete and cannot be run.
+- Good: `Verify: cd lifting-tracker && node --test (AGENTS.md, Commands). Lint: NEEDED, no linter is configured; Claude reads the diff for style.`
+
+**Partial run reported as full**
+- Bad: `Checks: test suite - PASS`. Only the one new test file was run; the full suite was not, and the browser tests were blocked by the sandbox.
+- Good: `Checks: node --test test/core/units.test.js - PASS - 6/6. node --test (full) - NOT RUN. npx.cmd playwright test - BLOCKED - sandbox denied chromium launch.` followed by `Untested: full suite, browser smoke - Claude`.
 
 ## Tests-first mode (optional)
 
@@ -96,8 +126,10 @@ Implement the task file named in the prompt. Claude owns planning, final review,
 4. Respect the sandbox. Never broaden permissions or install tools to get around a restriction; report it.
 5. Ambiguous data rules, destructive behaviour, conflicting requirements or needed scope growth: stop that part, report UNKNOWN / CHECKED / NEEDED with a proposed resolution, and continue only independent work.
 6. Run Codex-owned checks from Done When. A check is PASS only with evidence from this run; static reading cannot prove runtime behaviour. Never weaken a test or check to make it pass. Follow the Judge checklist's forced lines: `INTENT:` before changing behaviour to satisfy a failing check, `TWINS:` after fixing a defect.
-7. Follow AGENTS.md Failure Handling and the task file's stop conditions; report failed checks, repair attempts and remaining blockers. Never blanket-revert pre-existing work.
-8. Reply with the Report format below. No file dumps, secrets or private data.
+7. Keep a failed check apart from a blocked one. FAIL means the check ran and the work is wrong. BLOCKED means the environment stopped it (sandbox denial, missing tool, provider or network error): name the exact command and the error, do not repair code for it and do not count it as a pass.
+8. If the task was started before (files already changed, outputs on disk, a previous report), inspect what exists first and continue from it. Never redo or overwrite finished work to get a clean run.
+9. Follow AGENTS.md Failure Handling and the task file's stop conditions; report failed checks, repair attempts and remaining blockers. Never blanket-revert pre-existing work.
+10. Reply with the Report format below. No file dumps, secrets or private data.
 ```
 
 ### Verifier instruction (Codex)
@@ -107,7 +139,8 @@ Independently try to break the work described in the task file. Claude owns fixe
 1. Never edit, create or delete repository files. Temporary files only where the task file allows. Read AGENTS.md, the task file and the change under test (working-tree diff, or git diff from the base the task file names).
 2. Run the task file's Verify commands yourself, then attack: edge cases, invalid input, failure paths, Done When items that look untested, and claims only running can prove. Also apply the Judge checklist to the work and its report: diff the test files, compare touched files with the write allowlist, and re-run every check the implementer claimed.
 3. For each problem give a reproduction (command or input, expected, observed), file:line and severity. Do not fix anything. If the sandbox blocks a check, name the exact denied command.
-4. Reply with the Report format: Changes none; one Checks line per attack (FAIL = problem found); Status READY_FOR_CLAUDE_REVIEW once checking is finished, whatever you found.
+4. Every verdict rests on something you observed in this run. FAIL needs a reproduction; a suspicion without one goes under UNKNOWN. BLOCKED is for the environment, never for the work. If you covered only part of the change, say which part and list the rest as Untested: a partial check is not a pass for the whole.
+5. Reply with the Report format: Changes none; one Checks line per attack (FAIL = problem found); Status READY_FOR_CLAUDE_REVIEW once checking is finished, whatever you found.
 ```
 
 ### Researcher instruction (Codex)
@@ -116,7 +149,9 @@ Independently try to break the work described in the task file. Claude owns fixe
 Answer the questions in the task file. Never edit, create or delete repository files.
 1. Use installed tools, local docs, package sources and small read-only experiments; use the web only if the sandbox allows it.
 2. Give every answer a source (path:line, URL, or command and observed output) and mark it VERIFIED (evidence from this run) or UNVERIFIED.
-3. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), one answer per question with its source, then UNKNOWN / CHECKED / NEEDED. No file dumps.
+3. Say whether each source is current (a file or command output read now) or historical (a log, telemetry, an old report, a dated note). Historical evidence shows what happened then, not what is true now.
+4. Stay read-only in effect, not only in name: do not run commands that write state. `ccx status` can run a runtime tick; use git and file reads, and list any ccx output you need under NEEDED for Claude to supply.
+5. Reply: Status (READY_FOR_CLAUDE_REVIEW | PARTIAL | BLOCKED), one answer per question with its source, then UNKNOWN / CHECKED / NEEDED. No file dumps.
 ```
 
 ### Report format
@@ -129,6 +164,7 @@ Decisions/deviations: <none or requirement -> decision>
 Intent / Twins: <INTENT and TWINS lines when the Judge checklist requires them, else none>
 Checks: <command or procedure - PASS|FAIL|NOT RUN|BLOCKED|UNKNOWN - evidence>
 Acceptance: <Done When item - status - next owner>
+Untested: <Done When items no check in this run covered - next owner, or none>
 UNKNOWN / CHECKED / NEEDED: <or none>
 Out-of-scope findings: <or none>
 Final git status --short: <output>
@@ -150,6 +186,8 @@ Adapted from [fable-method](https://github.com/Sahir619/fable-method) (MIT, Sahi
    - Unauthorized outward action: push, PR, deploy, publish, send, install or paid action with no quoted user instruction or `ccx gate` approval. A doc saying "then deploy" is not authorization.
    - Spec betrayal: code changed to satisfy a check that contradicts the spec. Authority: the user's explicit statement beats the spec, the spec beats tests, tests beat current behaviour.
 5. **Verdict**, first line, then a claims table (claim, observed), frauds, smallest fix: `VERIFIED`, `VERIFIED WITH CAVEATS` (list what could not be re-run) or `REFUTED` (name the claim and show contradicting output). Never soften a refutation or inflate a caveat. Judging changes nothing and takes minutes.
+
+Missing evidence and a demonstrated defect are different verdicts. A check you could not re-run, or a claim with no run behind it, is a caveat: say what is unproven and who can prove it. `REFUTED` needs output that contradicts the claim. Correct work with every claim re-run is `VERIFIED`; do not add caveats to look careful. The Worked examples above (under Plan critique) show the report lines to expect.
 
 Forced lines in the implementer's report, when they apply:
 - `INTENT: code does <X>; the failing check or task expects <Y>; the spec says <Z>` before editing behaviour to satisfy a failing check. Open the spec to fill Z. If X, Y and Z disagree, do not edit: report the disagreement (UNKNOWN / CHECKED / NEEDED).
