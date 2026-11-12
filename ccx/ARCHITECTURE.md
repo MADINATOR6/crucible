@@ -196,6 +196,7 @@ Add an agent only when parallelism or real specialist value justifies it: no rev
   `task add` appends `/` to an owned path naming an existing repo directory and prints a notice; paths that do not exist yet stay as supplied.
 - **Baseline:** pre-existing unrelated changes are recorded once per worktree, the first time a task starts there. Restarts, resets to `planned`, naming the same worktree again, and moving away and back never re-take it, so stray edits cannot be laundered into the baseline (CCX-4/4b findings).
   Every dispatch role with `-TaskId` starts a planned task before running the agent; verify and research runs do not consume implementation retries.
+  Launcher order for a write dispatch: ownership, task file, budget, route and the missing-approval check come first and keep their exit codes (7, 8, 4, 10); then the writer lock; only then are approvals consumed, a planned task started (any role) and an implement attempt counted. So exit 6 (BUSY, another write dispatch holds the lock) spends nothing: no attempt, no approval, no task start, no checkpoint, no dispatch record. A role in the read-only sandbox takes no lock; research or verify given a writable sandbox takes it like any writer. A failure after the lock is taken releases it.
 - **Never stored:** secrets, file contents or prompts. Strings pass through redaction.
 - **Private data:** paths in `privacy.excludePaths` are never listed, owned, scanned or fingerprinted. Here that is `nursing-a2/`, the study-material project on its own branch. Clear the list when copying the template.
 

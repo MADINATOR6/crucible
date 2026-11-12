@@ -757,6 +757,166 @@ else {
     Assert ((Read-CcxState).tasks.T1.status -eq 'active') 'research did not start planned task'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'research consumed implementation dispatch'
   }
+  # CRU-UP-2: a BUSY refusal (exit 6) must spend nothing. Hold the lock the way a running launcher does.
+  $holdLock = {
+    $stream = [IO.File]::Open($lock, 'OpenOrCreate', 'ReadWrite', ([IO.FileShare]::Read -bor [IO.FileShare]::Delete))
+    $bytes = $utf8.GetBytes([string]$PID); $stream.Write($bytes, 0, $bytes.Length); $stream.Flush()
+    $stream
+  }
+  $dispatchRecords = {
+    $path = Join-Path $env:CCX_STATE_DIR 'telemetry.jsonl'
+    if (-not (Test-Path -LiteralPath $path)) { return @() }
+    @([IO.File]::ReadAllLines($path) | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.kind -eq 'dispatch' })
+  }
+  Ccx-Case 'busy spends no attempt, approval or task start' {
+    Add-CcxTask
+    $args = $common + @('-TaskId','T1','-Sandbox','danger-full-access')
+    $log = Join-Path $scratch 'busy-planned.json'
+    Check-Code (Run-Launcher $repo $args 'ready' 'fake' $false 25 $log) 10
+    $pending = @((Read-CcxState).approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'codex-full-access' -and $_.status -eq 'pending' })
+    Assert ($pending.Count -eq 1) 'pending approval absent'
+    Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic busy dispatch')) 0
+    $before = (Read-CcxState).tasks.T1
+    Assert ($before.status -eq 'planned') 'refused dispatch started the task before any lock was held'
+    $held = & $holdLock
+    try {
+      foreach ($round in 1, 2) {
+        $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+        Check-Code $r 6
+        Assert ($r.Stdout -match 'BUSY: another write dispatch is running') 'BUSY missing'
+      }
+      Assert (-not (Test-Path -LiteralPath $log)) 'fake ran while the writer lock was held'
+      $state = Read-CcxState
+      $task = $state.tasks.T1
+      Assert ($task.dispatches -eq 0) 'BUSY consumed an implementation attempt'
+      Assert ($task.status -eq 'planned') 'BUSY started the task'
+      Assert (-not $task.lastDispatch) 'BUSY recorded a dispatch'
+      Assert (@($task.checkpoints).Count -eq @($before.checkpoints).Count) 'BUSY added a checkpoint'
+      Assert ($state.approvals.($pending[0].id).status -eq 'approved') 'BUSY consumed the approval'
+      Assert (@(& $dispatchRecords).Count -eq 0) 'BUSY wrote dispatch telemetry'
+      Assert (@($state.eventQueue | Where-Object { $_.type -eq 'dispatch-finished' }).Count -eq 0) 'BUSY queued a dispatch event'
+      Assert (Test-Path -LiteralPath $lock) 'BUSY removed the other writer''s lock'
+    } finally { $held.Dispose(); Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue }
+    $r = Run-Launcher $repo $args 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    $state = Read-CcxState
+    $task = $state.tasks.T1
+    Assert ($task.dispatches -eq 1 -and $task.lastDispatch.n -eq 1) 'success after BUSY did not count exactly once'
+    Assert ($state.approvals.($pending[0].id).status -eq 'used') 'approval was not consumed by the run that happened'
+    Assert (@($state.eventQueue | Where-Object { $_.type -eq 'dispatch-finished' -and $_.key -eq 'dispatch:T1:1' }).Count -eq 1) 'dispatch event missing or repeated'
+    Assert (@(& $dispatchRecords).Count -eq 1) 'dispatch telemetry missing or repeated'
+    Assert (-not (Test-Path -LiteralPath $lock)) 'lock remains after the run'
+  }
+  Ccx-Case 'busy on an active task keeps its count and last dispatch' {
+    # The FRICTION 2026-10-30 case: attempt 1 fails, BUSY must not become attempt 2, so the real attempt 2 still runs.
+    Add-CcxTask
+    Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1')) 'nonzero') 7
+    $before = (Read-CcxState).tasks.T1
+    Assert ($before.dispatches -eq 1 -and $before.status -eq 'active') 'first attempt was not recorded'
+    $log = Join-Path $scratch 'busy-active.json'
+    $held = & $holdLock
+    try {
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log) 6
+      $after = (Read-CcxState).tasks.T1
+      Assert ($after.dispatches -eq 1) 'BUSY consumed an implementation attempt'
+      Assert ($after.lastDispatch.n -eq 1 -and $after.lastDispatch.startedAt -eq $before.lastDispatch.startedAt -and $after.lastDispatch.exit -eq 7) 'BUSY replaced lastDispatch'
+      Assert (@($after.checkpoints).Count -eq @($before.checkpoints).Count) 'BUSY added a checkpoint'
+      Assert (-not (Test-Path -LiteralPath $log)) 'fake ran while the writer lock was held'
+    } finally { $held.Dispose(); Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue }
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
+    Check-Code $r 0
+    $task = (Read-CcxState).tasks.T1
+    Assert ($task.dispatches -eq 2 -and $task.lastDispatch.n -eq 2) 'second attempt was not counted once'
+    Assert ($task.lastDispatch.effort -eq 'high') 'second attempt did not get the one-step escalation of a real retry'
+  }
+  Ccx-Case 'research and verify run beside a held writer lock' {
+    Add-CcxTask 'T1' 'owned.txt' 'claude'
+    $held = & $holdLock
+    try {
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1','-Role','research')) 'success') 0
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1','-Role','verify')) 'success') 0
+      Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'read-only role consumed an implementation attempt'
+      Assert (Test-Path -LiteralPath $lock) 'read-only role removed the writer lock'
+    } finally { $held.Dispose(); Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue }
+  }
+  Ccx-Case 'writable research or verify refused BUSY starts nothing' {
+    # Codex verifier finding: any role can be given a writable sandbox, which takes the writer lock.
+    Add-CcxTask 'T1' 'owned.txt' 'claude'
+    $full = $common + @('-TaskId','T1','-Role','verify','-Sandbox','danger-full-access')
+    Check-Code (Run-Launcher $repo $full 'success') 10
+    $pending = @((Read-CcxState).approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'codex-full-access' -and $_.status -eq 'pending' })
+    Assert ($pending.Count -eq 1) 'pending approval absent'
+    Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic verifier dispatch')) 0
+    $log = Join-Path $scratch 'busy-writable-roles.json'
+    $held = & $holdLock
+    try {
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1','-Role','research','-Sandbox','workspace-write')) 'success' 'fake' $false 25 $log) 6
+      Check-Code (Run-Launcher $repo $full 'success' 'fake' $false 25 $log) 6
+      $state = Read-CcxState
+      $task = $state.tasks.T1
+      Assert ($task.status -eq 'planned') 'BUSY started the task'
+      Assert (-not $task.lastDispatch -and $task.dispatches -eq 0) 'BUSY recorded a dispatch'
+      Assert ($state.approvals.($pending[0].id).status -eq 'approved') 'BUSY consumed the approval'
+      Assert (-not (Test-Path -LiteralPath $log)) 'fake ran while the writer lock was held'
+    } finally { $held.Dispose(); Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue }
+    Check-Code (Run-Launcher $repo $full 'success' 'fake' $false 25 $log) 0
+    $state = Read-CcxState
+    Assert ($state.tasks.T1.status -eq 'active' -and $state.tasks.T1.dispatches -eq 0) 'verify after BUSY did not start the task without an attempt'
+    Assert ($state.approvals.($pending[0].id).status -eq 'used') 'approval was not consumed by the run that happened'
+  }
+  Ccx-Case 'refusals keep their codes while a writer runs' {
+    Add-CcxTask 'T1' 'owned.txt'
+    Add-CcxTask 'T2' 'owned.txt'
+    Add-CcxTask 'T3' 'third.txt'
+    Add-CcxTask 'T4' 'fourth.txt'
+    Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
+    $state = Read-CcxState
+    $state.tasks.T3.dispatches = 3
+    Write-CcxState $state
+    $log = Join-Path $scratch 'busy-refusals.json'
+    $held = & $holdLock
+    try {
+      $r = Run-Launcher $repo ($common + @('-TaskId','T2')) 'ready' 'fake' $false 25 $log
+      Check-Code $r 7
+      Assert ($r.Stdout -match 'Ownership conflict') 'ownership refusal lost behind BUSY'
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T3')) 'ready' 'fake' $false 25 $log) 8
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T4','-Sandbox','danger-full-access')) 'ready' 'fake' $false 25 $log) 10
+      $state = Read-CcxState
+      Assert ($state.tasks.T2.dispatches -eq 0 -and $state.tasks.T3.dispatches -eq 3 -and $state.tasks.T4.dispatches -eq 0) 'a refusal changed an attempt count'
+      Assert ($state.tasks.T2.status -eq 'planned' -and $state.tasks.T4.status -eq 'planned') 'a refusal started a task'
+      $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+      Write-CcxState $state
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T4')) 'ready' 'fake' $false 25 $log) 4
+      Assert (-not (Test-Path -LiteralPath $log)) 'fake ran for a refused dispatch'
+      Assert (Test-Path -LiteralPath $lock) 'a refusal removed the other writer''s lock'
+    } finally { $held.Dispose(); Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue }
+  }
+  Ccx-Case 'stale lock with a registered task counts once' {
+    Add-CcxTask
+    Write-Utf8File $lock '2147483647'
+    Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready') 0
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'stale-lock run was not counted once'
+    Assert (-not (Test-Path -LiteralPath $lock)) 'lock remains after run'
+  }
+  Ccx-Case 'lock is released on every failure path' {
+    Add-CcxTask
+    Check-Code (Run-Ccx @('task','budget','-Id','T1','-Add','maxDispatches=3','-Reason','several failing runs on one task')) 0
+    foreach ($pair in @(@('nonzero', 7), @('noreport', 3), @('usage', 4))) {
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','T1')) $pair[0]) $pair[1]
+      Assert (-not (Test-Path -LiteralPath $lock)) "lock remains after a $($pair[0]) run"
+    }
+    # The usage-limit run recorded a reset time; clear it so the next run is not deferred (exit 4).
+    $state = Read-CcxState; $state.agents.codex.unavailableUntil = $null; Write-CcxState $state
+    # A launcher failure after the lock is taken: the capture directory cannot be created under a file.
+    $blocker = Join-Path $scratch 'capture-blocker'
+    Write-Utf8File $blocker 'not a directory'
+    $r = Run-Launcher $repo @('-CaptureDir', (Join-Path $blocker 'captures'), '-TaskId', 'T1') 'ready'
+    Check-Code $r 1
+    Assert (-not (Test-Path -LiteralPath $lock)) 'lock remains after a launcher failure past acquisition'
+    # The lock can be taken again: nothing is still holding it.
+    $held = & $holdLock
+    $held.Dispose(); Remove-Item -LiteralPath $lock -ErrorAction SilentlyContinue
+  }
   Case 'legacy dispatch argv unchanged' {
     $log = Join-Path $scratch 'legacy-argv.json'
     $r = Run-Launcher $repo $common 'success' 'fake' $false 25 $log

@@ -166,8 +166,10 @@ try {
       if ($Role -eq 'implement') {
         if ($task.owner -ne 'codex') { throw (New-CcxError 'Role implement requires task.owner = codex.' 7) }
       }
-      if ($task.status -eq 'planned') { Start-CcxTaskInState -State $state -Task $task }
-      elseif ($Role -eq 'implement') { Assert-CcxTaskOwnership -State $state -Task $task }
+      # A planned task is started only after the writer lock (below), whatever the role: any role can
+      # be given a writable sandbox, and a BUSY refusal must leave status, baseline and attempts
+      # untouched. Ownership is still checked here, so a conflict keeps its early exit 7.
+      if ($Role -eq 'implement' -or $task.status -eq 'planned') { Assert-CcxTaskOwnership -State $state -Task $task }
       $task
     }
     if (-not $PSBoundParameters.ContainsKey('TaskFile') -and $task.taskFile) {
@@ -238,32 +240,11 @@ try {
         })
         throw (New-CcxError ($requests -join [Environment]::NewLine) 10)
       }
-      foreach ($action in $requiredApprovals) {
-        $gate = Invoke-CcxGate -Action $action -Target $TaskId -TaskId $TaskId
-        if ($gate.code -ne 0) { throw (New-CcxError ($gate.message + [Environment]::NewLine + $gate.command) 10) }
-        Write-Output $gate.message
-      }
     }
-    $dispatch = Invoke-CcxLocked {
-      param($state)
-      $task = Get-CcxTask -State $state -Id $TaskId
-      if ($Role -eq 'implement') {
-        Assert-CcxTaskOwnership -State $state -Task $task
-        $task.dispatches++
-      }
-      $now = Get-CcxNow
-      $ladder = @($policy.effortLadder)
-      $task.status = 'active'; $task.updated = $now
-      $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($task.dispatches) start $Role $Model $Effort"})
-      $task.lastDispatch = @{
-        n=$task.dispatches; role=$Role; provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
-        escalated=([array]::IndexOf($ladder,$Effort) -gt [array]::IndexOf($ladder,$policy.classes[$class].effort.codex.base))
-      }
-      $task.lastDispatch.Clone()
-    }
-    $dispatchClock = [Diagnostics.Stopwatch]::StartNew()
   }
 
+  # The writer lock comes before anything a refused dispatch must not spend: approvals, the
+  # attempt count and the task start. A BUSY exit (6) leaves the task and its approvals as they were.
   if ($Sandbox -ne 'read-only') {
     $gitDir = Invoke-Git 'rev-parse --absolute-git-dir'
     if (-not $gitDir) { throw 'Cannot resolve the Git directory.' }
@@ -290,6 +271,33 @@ try {
     $pidBytes = $utf8.GetBytes([string]$PID)
     $lockStream.Write($pidBytes, 0, $pidBytes.Length)
     $lockStream.Flush()
+  }
+
+  if ($TaskId) {
+    # Past every refusal that needs no lock, and holding the writer lock when one is needed:
+    # consume the approvals and record the attempt. A throw here still releases the lock (finally).
+    foreach ($action in $requiredApprovals) {
+      $gate = Invoke-CcxGate -Action $action -Target $TaskId -TaskId $TaskId
+      if ($gate.code -ne 0) { throw (New-CcxError ($gate.message + [Environment]::NewLine + $gate.command) 10) }
+      Write-Output $gate.message
+    }
+    $dispatch = Invoke-CcxLocked {
+      param($state)
+      $task = Get-CcxTask -State $state -Id $TaskId
+      if ($task.status -eq 'planned') { Start-CcxTaskInState -State $state -Task $task }
+      elseif ($Role -eq 'implement') { Assert-CcxTaskOwnership -State $state -Task $task }
+      if ($Role -eq 'implement') { $task.dispatches++ }
+      $now = Get-CcxNow
+      $ladder = @($policy.effortLadder)
+      $task.status = 'active'; $task.updated = $now
+      $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($task.dispatches) start $Role $Model $Effort"})
+      $task.lastDispatch = @{
+        n=$task.dispatches; role=$Role; provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
+        escalated=([array]::IndexOf($ladder,$Effort) -gt [array]::IndexOf($ladder,$policy.classes[$class].effort.codex.base))
+      }
+      $task.lastDispatch.Clone()
+    }
+    $dispatchClock = [Diagnostics.Stopwatch]::StartNew()
   }
 
   [void][IO.Directory]::CreateDirectory($CaptureDir)
