@@ -38,15 +38,17 @@ You are in a writable sandbox only so the suites can create scratch folders unde
 
 ## Verify / Done When
 
-- [ ] `scripts/test-codex-dispatch.ps1` passes with the new guard cases (baseline 58/58).
-- [ ] `test-ccx` 34/34, `test-ccx-ops` 17/17, `test-external-tools` 23/23 still pass when Claude runs them.
-- [ ] A real `-Role verify -Sandbox workspace-write` dispatch on this task runs `scripts/test-ccx-ops.ps1` itself and reports PASS with its count.
-- [ ] `FRICTION.md` row updated; `HANDOFF.md` says how the verifier runs suites (after CRU-UP-4).
-- [ ] `ccx verify`, Codex review, `ccx task done`.
+- [x] `scripts/test-codex-dispatch.ps1` passes with the new guard cases (baseline 58/58).
+- [x] `test-ccx` 34/34, `test-ccx-ops` 17/17, `test-external-tools` 23/23 still pass when Claude runs them.
+- [x] A real `-Role verify -Sandbox workspace-write` dispatch on this task runs `scripts/test-ccx-ops.ps1` itself and reports PASS with its count.
+- [x] `FRICTION.md` row updated; `HANDOFF.md` says how the verifier runs suites (after CRU-UP-4).
+- [x] `ccx verify`, Codex review, `ccx task done`.
 
-## Open
+## Results
 
-- `HANDOFF.md` (Verifier instruction: suites need `-Sandbox workspace-write`; launcher notes: the guard and exit 9 for verify) waits on CRU-UP-4.
+- Round 1 Codex verify (workspace-write): `test-ccx-ops.ps1` ran inside the sandbox, 16/17 passed, 1 skipped (taskkill denied). It also refuted the guard on quoted paths: fixed (NUL-delimited status).
+- Round 2 (capture in the ccx record): refuted on Git's `T` (type change) status having no hash: fixed by accepting any status letter in the parse; probed in memory for ` T`, `T`, `TM`, `MT`, `M README.md`, `?? a b.txt`, renames. The final fix is not re-reviewed by Codex (two review cycles used); `Untested:` the type-change case has no suite case (needs a real typechange; Windows symlink).
+- Claude, outside the sandbox: dispatch suite 63/63, ops 17/17, external-tools 23/23, `ccx verify` PASS (tests-ccx, tests-ccx-ops, tests-dispatch).
 
 ## Round 2 (verify, after Codex round 1)
 

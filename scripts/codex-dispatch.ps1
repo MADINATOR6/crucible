@@ -120,7 +120,7 @@ function Get-RepoSnapshot {
       $entry = $entries[$i]
       if (-not $entry) { continue }
       # Invoke-Git trims the output, which can eat the first entry's leading space.
-      if ($entry -notmatch '^([ MADRCU?!]{1,2}) (.+)$') { $lines.Add($entry); continue }
+      if ($entry -notmatch '^([ A-Za-z?!]{1,2}) (.+)$') { $lines.Add($entry); continue }
       $kind = $Matches[1].Trim(); $path = $Matches[2]
       if ($kind -match '[RC]') { $i++; $lines.Add("old $($entries[$i])") }
       $full = Join-Path (Get-Location).ProviderPath $path
