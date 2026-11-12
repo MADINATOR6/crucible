@@ -15,7 +15,7 @@ $oldEnv = @{}
 foreach ($name in @('CCX_STATE_DIR','CCX_POLICY','CODEX_HOME','PATH')) { $oldEnv[$name] = [Environment]::GetEnvironmentVariable($name,'Process') }
 $children = New-Object 'Collections.Generic.List[object]'
 $failures = New-Object 'Collections.Generic.List[string]'
-$total = 0; $passed = 0; $created = $false
+$total = 0; $passed = 0; $skipped = 0; $created = $false
 
 function Assert([bool]$Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 function Write-Text([string]$Path, [string]$Text) { [IO.File]::WriteAllText($Path,$Text,$utf8) }
@@ -108,7 +108,26 @@ exit /b 1
 function Case([string]$Name, [scriptblock]$Body) {
   $script:total++
   try { Fixture; & $Body; $script:passed++; Write-Output "PASS $Name" }
-  catch { $message = ($_.Exception.Message -replace '\s+',' ').Trim(); $script:failures.Add("${Name}: $message"); Write-Output "FAIL ${Name}: $message" }
+  catch {
+    $message = ($_.Exception.Message -replace '\s+',' ').Trim()
+    if ($message.StartsWith('SKIP:')) { $script:skipped++; Write-Output "SKIP ${Name}: $($message.Substring(5).Trim())"; return }
+    $script:failures.Add("${Name}: $message"); Write-Output "FAIL ${Name}: $message"
+  }
+}
+function Test-TaskkillDenied {
+  # Codex's workspace-write sandbox denies taskkill; the kill-path case then SKIPs instead of FAILs.
+  $sleeper = Start-Process -FilePath (Join-Path ([Environment]::SystemDirectory) 'ping.exe') -ArgumentList '-n 30 127.0.0.1' -WindowStyle Hidden -PassThru
+  try {
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = Join-Path ([Environment]::SystemDirectory) 'taskkill.exe'
+    $info.Arguments = "/T /F /PID $($sleeper.Id)"
+    $info.UseShellExecute = $false; $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
+    $kill = [Diagnostics.Process]::Start($info)
+    $text = $kill.StandardOutput.ReadToEnd() + $kill.StandardError.ReadToEnd()
+    $kill.WaitForExit()
+    return ($kill.ExitCode -ne 0 -and $text -match '(?i)access( is)? denied')
+  } finally { if (-not $sleeper.HasExited) { try { $sleeper.Kill() } catch { } } }
 }
 function Queue([string]$Type, [string]$Key, [string]$TaskId = '', $Data = @{}) { Add-CcxEvent -Type $Type -Key $Key -TaskId $TaskId -Data $Data | Out-Null }
 
@@ -234,6 +253,7 @@ try {
     Check-Code (Run-Cli @('verify','-Stage','json','-Path','src/untracked.json')) 1
   }
   Case 'verify command timeout and unknown stage' {
+    if (Test-TaskkillDenied) { throw 'SKIP: taskkill is denied here (Codex sandbox); run outside the sandbox' }
     $pidFile = Join-Path (Split-Path $repo -Parent) 'sleep.pid'
     $sleepScript = Join-Path (Split-Path $repo -Parent) 'sleep.ps1'
     Write-Text $sleepScript ("[IO.File]::WriteAllText($(Quote-Ps $pidFile), [string]`$PID); Start-Sleep -Seconds 60")
@@ -455,6 +475,6 @@ try {
     if (Test-Path -LiteralPath $actual) { Remove-Item -LiteralPath $actual -Recurse -Force }
   }
 }
-Write-Output "$passed/$total passed"
-if ($passed -ne $total) { exit 1 }
+Write-Output "$passed/$total passed$(if ($skipped) { ", $skipped skipped" })"
+if ($passed + $skipped -ne $total) { exit 1 }
 exit 0

@@ -83,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\codex-dispatch.ps1
 ```
 
 Options:
-- `-Role verify` or `-Role research`: read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`.
+- `-Role verify` or `-Role research`: read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`. The read-only sandbox writes nowhere (not `%TEMP%`, not the worktree), so a verifier in it cannot run the PowerShell suites (`scripts/test-*.ps1` create scratch folders under `%TEMP%`). To have it run them, add `-Sandbox workspace-write`: the run takes the writer lock, and the launcher compares the working tree before and after, failing with exit 9 and `NO-EDIT VIOLATION` if anything changed. Never `danger-full-access` for this.
 - `-TaskFile <path>` for a brief other than TASK.md.
 - `-TaskId <id>` ties the run to ccx. It checks ownership, worktree, budget, recorded usage limits and the retry cap. OMNIROUTE picks the model and effort unless `-Model` or `-Effort` is given. Full access needs an approval. After the run it records tokens, status, post-checks and telemetry.
 - `-Model <slug>` and `-Effort low|medium|high|xhigh|max` for runs outside ccx, or to override the route's model and effort. With `-TaskId`, caps, deferral and ownership still apply. For visual reasoning, screen-based work or a scoped code fix, select `-Model gpt-6.1-terra` with an explicit `-Effort` appropriate to the task; keep its normal permissions and verification. Automatic routes remain policy-driven.
@@ -101,7 +101,7 @@ Exit codes:
 - 6: another write dispatch is running.
 - 7: ownership or worktree conflict (`-TaskId`).
 - 8: budget, retry cap or route refusal (`-TaskId`). Run `ccx route -TaskId <id>` for the reason.
-- 9: the turn completed but post-checks failed, for example a file changed outside the task's owns.
+- 9: the turn completed but post-checks failed, for example a file changed outside the task's owns; or a verify or research run in a writable sandbox changed the working tree (`NO-EDIT VIOLATION`, changed lines listed): undo those edits before anything else.
 - 10: approval required (`ccx approve`).
 
 On a nonzero exit, missing report, PARTIAL or BLOCKED: inspect the captured events, the actual diff and remaining items before resuming. With no report, the launcher prints Codex's last progress message (`LAST MESSAGE:`). If Codex stops with items open and no blocker named, re-run once with a `-TaskFile` naming only the open items; if items remain, review instead.
@@ -136,7 +136,7 @@ Implement the task file named in the prompt. Claude owns planning, final review,
 
 ```text
 Independently try to break the work described in the task file. Claude owns fixes, commits and push.
-1. Never edit, create or delete repository files. Temporary files only where the task file allows. Read AGENTS.md, the task file and the change under test (working-tree diff, or git diff from the base the task file names).
+1. Never edit, create or delete repository files. Temporary files only where the task file allows. Read AGENTS.md, the task file and the change under test (working-tree diff, or git diff from the base the task file names). If the dispatch is `workspace-write`, that exists only so the PowerShell suites can create their scratch folders under TEMP; the launcher fails the run if the repository changed. A suite that prints SKIP (for example `taskkill` denied) is skipped, not passed: report it as skipped. In a read-only run a suite that cannot create its scratch folder is BLOCKED, not FAIL.
 2. Run the task file's Verify commands yourself, then attack: edge cases, invalid input, failure paths, Done When items that look untested, and claims only running can prove. Also apply the Judge checklist to the work and its report: diff the test files, compare touched files with the write allowlist, and re-run every check the implementer claimed.
 3. For each problem give a reproduction (command or input, expected, observed), file:line and severity. Do not fix anything. If the sandbox blocks a check, name the exact denied command.
 4. Every verdict rests on something you observed in this run. FAIL needs a reproduction; a suspicion without one goes under UNKNOWN. BLOCKED is for the environment, never for the work. If you covered only part of the change, say which part and list the rest as Untested: a partial check is not a pass for the whole.
