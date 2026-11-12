@@ -389,6 +389,51 @@ try {
     Assert (@($brief.Out.Trim().Split([char]10)).Count -le 5) 'brief exceeds five lines'
     $null = Cli-Json @('status')
   }
+  Case 'judge fixtures are complete, synthetic and withhold their answers' {
+    # Structure and coverage only. This does not test anyone's judgment (HANDOFF.md, Judge fixtures).
+    $path = Join-Path $PSScriptRoot 'fixtures/judge-cases.json'
+    Assert ([IO.File]::Exists($path)) 'scripts/fixtures/judge-cases.json is missing'
+    Assert (@([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count -eq 0) 'fixture file is not ASCII'
+    $fixture = Read-Json $path
+    Assert ($fixture.schema -eq 1) 'fixture schema is not 1'
+    $allowed = @{ plan = @('ACCEPT','CHANGES'); report = @('VERIFIED','VERIFIED WITH CAVEATS','REFUTED') }
+    $accepting = @{ plan = 'ACCEPT'; report = 'VERIFIED' }
+    $cases = @($fixture.cases)
+    Assert ($cases.Count -ge 6) 'fewer than six cases'
+    $ids = @($cases | ForEach-Object { [string]$_.id })
+    Assert (@($ids | Sort-Object -Unique).Count -eq $ids.Count) 'case ids are not unique'
+    $seen = @{}
+    foreach ($case in $cases) {
+      $id = [string]$case.id; $kind = [string]$case.kind
+      $expected = $case.expected; $inputs = $case.inputs
+      Assert ($id -cmatch '^[a-z0-9]+(-[a-z0-9]+)*$') "bad case id: ${id}"
+      Assert ($allowed.ContainsKey($kind)) "${id}: unknown kind"
+      $disposition = [string]$expected.disposition
+      Assert ($allowed[$kind] -ccontains $disposition) "${id}: disposition not allowed for a $kind case"
+      # A control is a case to accept: without one of each kind, rejecting everything would score well.
+      Assert (([bool]$case.control) -eq ($disposition -ceq $accepting[$kind])) "${id}: control flag and disposition disagree"
+      foreach ($field in @('decisiveEvidence','smallestCorrection')) {
+        Assert (-not [string]::IsNullOrWhiteSpace([string]$expected[$field])) "${id}: expected.$field is empty"
+      }
+      Assert ($expected.ContainsKey('mustMention')) "${id}: mustMention is missing"
+      Assert (-not [string]::IsNullOrWhiteSpace([string]$inputs.task)) "${id}: inputs.task is empty"
+      Assert (@($inputs.submitted).Count -ge 2 -and @($inputs.observed).Count -ge 2) "${id}: inputs need submitted and observed lines"
+      $inputText = (@([string]$inputs.task) + @($inputs.submitted) + @($inputs.observed)) -join "`n"
+      # The judge is given only the inputs: they must not carry a verdict word and must stay synthetic.
+      foreach ($word in @('ACCEPT','CHANGES','VERIFIED','REFUTED')) {
+        Assert ($inputText -cnotmatch "\b$word\b") "${id}: inputs contain the verdict word $word"
+      }
+      Assert ($inputText -notmatch 'lifting-tracker|nursing|\.xlsx|[A-Za-z]:\\|Users[\\/]') "${id}: inputs name a real or private path"
+      # Scoring strings must be things the inputs actually show, so a careful judge can cite them.
+      foreach ($must in @($expected.mustMention)) {
+        Assert ($inputText.IndexOf([string]$must, [StringComparison]::OrdinalIgnoreCase) -ge 0) "${id}: mustMention '$must' does not occur in the inputs"
+      }
+      $seen["${kind}:$disposition"] = $true
+    }
+    foreach ($kind in @($allowed.Keys)) {
+      foreach ($disposition in $allowed[$kind]) { Assert ($seen.ContainsKey("${kind}:$disposition")) "no $kind case expects $disposition" }
+    }
+  }
   Case 'source files parse as strict UTF-8 without BOM' {
     foreach ($path in @($ops,$PSCommandPath)) {
       $tokens=$null; $errors=$null

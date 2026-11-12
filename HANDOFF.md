@@ -193,6 +193,18 @@ Forced lines in the implementer's report, when they apply:
 - `INTENT: code does <X>; the failing check or task expects <Y>; the spec says <Z>` before editing behaviour to satisfy a failing check. Open the spec to fill Z. If X, Y and Z disagree, do not edit: report the disagreement (UNKNOWN / CHECKED / NEEDED).
 - `TWINS: searched <the exact wrong pattern> - found <N> other sites: <paths, or "none">` after fixing a defect. Fix them if in scope, otherwise list them.
 
+### Judge fixtures
+
+`scripts/fixtures/judge-cases.json` holds synthetic cases with known answers: plans to accept or send back, reports to verify, caveat or refute, and one clean control of each kind so that rejecting everything cannot score well. Use them when a model, an agent prompt or this file's judging text changes, to check that the judge still gets the basics right.
+
+1. Give the judge this file and each case's `inputs` only (task, submitted plan or report, observed facts). Withhold `expected`.
+2. Ask for one disposition per case (plans: ACCEPT or CHANGES; reports: VERIFIED, VERIFIED WITH CAVEATS or REFUTED), one sentence of decisive evidence and the smallest correction.
+3. Score the disposition against `expected.disposition`: that is the pass or fail for the case.
+4. Then look for each `mustMention` string in the answer. It is a literal match, so a miss is a prompt to read the answer, not a failure by itself: the judge may cite the same evidence in other words (`docs/rounding.md:8` for "spec"), and a hit can be hollow (the string appears, the point is missed). Report the two counts separately.
+5. A wrong disposition is a finding about the judge or the instructions. Never edit `expected` to match an answer; add a case when a new failure shows up here.
+
+`scripts/test-ccx-ops.ps1` checks the file's structure and coverage only; it cannot tell whether anyone judges well. The cases are a floor: every model tried so far gets every disposition right, so they catch a regression and do not rank models. The last run, with both counts and the prompt used: `tasks/CRU-UP-3-results.md`.
+
 ## Visual work and model trial
 
 Use this procedure for visual inspection, screen-based work or a visual model comparison. The normal task spec, ownership, permissions, review and ccx acceptance still apply. Selecting a model does not provide a browser or desktop tool; check the actual dispatch environment before relying on one.
