@@ -6,6 +6,7 @@ import { isUnit, toKg } from '../core/units.js';
 import { fromLoggedSet, fromProgrammeSets, sortEvents } from '../core/sets.js';
 import { detectPRs } from '../core/prs.js';
 import { nextSession, plannedValues } from '../core/session.js';
+import { resolveExercise, dayKey, entryKey } from '../core/swaps.js';
 import { buildAthleteModel } from '../core/athlete.js';
 import { mondayOf, addDays } from '../core/weeks.js';
 import { sessionCalories, weightOn, restingKcal, dayEnergy } from '../core/calories.js';
@@ -291,12 +292,76 @@ export async function createApp() {
     return m;
   }).get(refKey(ref)) || null;
 
+  // ---- session swaps: exercise substitutions and skipped days (stored in settings) ----
+  // A block's identity for swaps and skips: a generated block's timestamp, 'example' for example data, '' when
+  // imported. Records made against another identity are ignored, so they never follow a replaced block.
+  const genOf = (blockNumber) => app.programme?.blocks.find((b) => b.number === blockNumber)?.generated?.at
+    ?? (app.programme?.isExample ? 'example' : '');
+  const dayOf = (ref) => app.programme?.blocks.find((b) => b.number === ref?.blockNumber)
+    ?.weeks.find((w) => w.number === ref?.weekNumber)?.days.find((d) => d.number === ref?.dayNumber) ?? null;
+  const own = (table, key) => (Object.hasOwn(table || {}, key) ? table[key] : null);
+  app.plannedExerciseId = (entry) => entry.exerciseId || 'custom:' + entry.name;
+  /** The exercise a planned entry resolves to once swaps are applied: { plannedId, id, swapped, scope }. */
+  app.exerciseFor = (ref, entry) => {
+    const plannedId = app.plannedExerciseId(entry);
+    return { plannedId, ...resolveExercise({ plannedId, session: own(app.settings.sessionSwaps, entryKey(ref)),
+      always: app.settings.exerciseSwaps, gen: genOf(ref.blockNumber), known: (id) => byId.has(id) }) };
+  };
+  // Drop records whose block, day or entry is gone or was replaced, so the lists cannot grow without bound.
+  const liveSessionSwaps = () => Object.fromEntries(Object.entries(app.settings.sessionSwaps).filter(([key, v]) => {
+    const [blockNumber, weekNumber, dayNumber, entryIndex] = key.split(':').map(Number);
+    const entry = dayOf({ blockNumber, weekNumber, dayNumber })?.entries[entryIndex];
+    return !!entry && v.gen === genOf(blockNumber) && v.from === app.plannedExerciseId(entry);
+  }));
+  const liveSkips = () => Object.fromEntries(Object.entries(app.settings.skippedDays).filter(([key, v]) => {
+    const [blockNumber, weekNumber, dayNumber] = key.split(':').map(Number);
+    return !!dayOf({ blockNumber, weekNumber, dayNumber }) && v.gen === genOf(blockNumber);
+  }));
+  /**
+   * Swap a planned entry's exercise. `ref` names the entry ({ blockNumber, weekNumber, dayNumber, entryIndex });
+   * `toId` is a catalogue exercise, or the planned exercise itself to go back to the plan. `always` makes it a
+   * standing swap for every time that exercise is planned. Sets already logged keep the exercise they were
+   * logged with. Resolves to { undo }, which puts both swap lists back as they were.
+   */
+  app.swapExercise = async (ref, toId, { always = false } = {}) => {
+    const entry = dayOf(ref)?.entries[ref.entryIndex];
+    if (!entry) throw new RangeError('That exercise is no longer in the programme.');
+    const plannedId = app.plannedExerciseId(entry);
+    if (toId !== plannedId && !byId.has(toId)) throw new RangeError('Choose an exercise from the list.');
+    const before = { exerciseSwaps: structuredClone(app.settings.exerciseSwaps), sessionSwaps: structuredClone(app.settings.sessionSwaps) };
+    const exerciseSwaps = { ...before.exerciseSwaps }, sessionSwaps = liveSessionSwaps(), key = entryKey(ref);
+    if (always) {
+      if (!byId.has(plannedId)) throw new RangeError('Only catalogue exercises can be swapped every time. Swap this one for the session.');
+      if (toId === plannedId) delete exerciseSwaps[plannedId]; else exerciseSwaps[plannedId] = toId;
+      delete sessionSwaps[key];
+    } else if (toId === plannedId && !own(exerciseSwaps, plannedId)) delete sessionSwaps[key];
+    else sessionSwaps[key] = { from: plannedId, to: toId, gen: genOf(ref.blockNumber) };
+    await app.saveSettings({ exerciseSwaps, sessionSwaps });
+    return { undo: () => app.saveSettings(before) };
+  };
+  /** The skip record ({ on, gen }) for a programme day, or null. */
+  app.skippedDay = (ref) => {
+    const record = own(app.settings.skippedDays, dayKey(ref));
+    return record && record.gen === genOf(ref.blockNumber) ? record : null;
+  };
+  /** Close a day without finishing it: the next session moves on. Logged sets are untouched. */
+  app.skipDay = async (ref, on = todayIso()) => {
+    if (!dayOf(ref)) throw new RangeError('That day is no longer in the programme.');
+    if (!isStrictDate(on)) throw new RangeError('Choose a valid date.');
+    await app.saveSettings({ skippedDays: { ...liveSkips(), [dayKey(ref)]: { on, gen: genOf(ref.blockNumber) } } });
+  };
+  app.unskipDay = async (ref) => {
+    const skippedDays = liveSkips();
+    delete skippedDays[dayKey(ref)];
+    await app.saveSettings({ skippedDays });
+  };
+
   app.nextSession = () => nextSession(app.programme, (ref) => {
     const set = app.programme.blocks.find((b) => b.number === ref.blockNumber)
       .weeks.find((w) => w.number === ref.weekNumber)
       .days.find((d) => d.number === ref.dayNumber).entries[ref.entryIndex].sets[ref.setIndex];
     return !!(set.completed || app.loggedFor(ref));
-  });
+  }, (ref) => !!app.skippedDay(ref));
 
   /**
    * The programme every analysis reads (Progress, Coach, Muscles, the athlete model). With workbook history
@@ -331,6 +396,13 @@ export async function createApp() {
     for (const b of p.blocks) for (const w of b.weeks) for (const d of w.days) d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
       const log = app.loggedFor({ blockNumber: b.number, weekNumber: w.number, dayNumber: d.number, entryIndex: ei, setIndex: si });
       if (!log || log.isWarmup) return;
+      // A set done with a substitute exercise is done, but its numbers belong to the substitute: they must not read
+      // as a performance of the planned exercise. `swapped` carries them for fromProgrammeSets (core/sets.js), which
+      // credits the substitute. Neither field is ever stored: the programme sanitiser drops them.
+      if (log.exerciseId !== app.plannedExerciseId(e)) {
+        Object.assign(s, { completed: true, swappedTo: log.exerciseId, swapped: { reps: log.reps, load: { value: log.weight.value, unit: log.weight.unit }, rpe: log.rpe ?? null }, actualRpe: null, actualReps: null, actualLoad: null, actualDate: sessionById().get(log.sessionId)?.date ?? null });
+        return;
+      }
       s.completed = true; s.actualRpe = log.rpe ?? null; s.actualReps = log.reps; s.actualLoad = { value: log.weight.value, unit: log.weight.unit }; s.actualDate = sessionById().get(log.sessionId)?.date ?? null;
     }));
     return p;
@@ -458,6 +530,8 @@ export async function createApp() {
     const entry = day?.entries[plannedRef?.entryIndex];
     const planned = entry?.sets[plannedRef?.setIndex];
     if (!planned) throw new RangeError('Choose a valid planned set.');
+    // The planned weight belongs to the planned exercise, so a swapped entry is logged through the full form.
+    if (app.exerciseFor({ ...programmeRef, entryIndex: plannedRef.entryIndex }, entry).swapped) throw new RangeError('This exercise is swapped: open the set to log it.');
     const values = plannedValues(planned);
     if (!values) throw new RangeError('This set has no planned weight or reps: open it to log.');
     const today = todayIso();
@@ -487,7 +561,7 @@ export async function createApp() {
     const existing = plannedRef && programmeRef ? app.loggedFor({ ...programmeRef, ...plannedRef }) : null;
     const inSession = app.sets.filter((s) => s.sessionId === session.id && s.id !== existing?.id).length;
     const rec = existing
-      ? { ...existing, sessionId: session.id, weight, reps, rpe, isWarmup, order: existing.sessionId === session.id ? existing.order : inSession, note, updatedAt: now }
+      ? { ...existing, sessionId: session.id, exerciseId, weight, reps, rpe, isWarmup, order: existing.sessionId === session.id ? existing.order : inSession, note, updatedAt: now }
       : { id: uuid(), sessionId: session.id, exerciseId, order: inSession, weight, reps, rpe, isWarmup, plannedRef: plannedRef ?? null, note, createdAt: now, updatedAt: now };
     const oldSessionId = existing && existing.sessionId !== session.id ? existing.sessionId : null;
     const orphaned = oldSessionId && !app.sets.some((s) => s.id !== rec.id && s.sessionId === oldSessionId) ? oldSessionId : null;
