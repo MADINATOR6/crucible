@@ -27,6 +27,10 @@ Writes: `scripts/fixtures/judge-cases.json`, `scripts/test-ccx-ops.ps1` (only if
 - Judges get HANDOFF.md and each case's `inputs` only. Same prompt as `tasks/CRU-UP-3-results.md`, Re-running. Raw answers are saved as files.
 - No specific Claude model is named in shipped files: tier names only.
 
+## Verify focus (for the Codex verifier)
+
+The change under test is `git diff d6a93f7..HEAD`. Attack, in this order: (1) re-score the three raw answer files in `tasks/CRU-UP-4-raw/` against the fixture by hand or a throwaway read-only script and compare with the counts in `tasks/CRU-UP-4-results.md` (dispositions; every `mustMention` string in Evidence or Correction); (2) check `git diff d6a93f7..HEAD -- scripts/fixtures/judge-cases.json` leaves the first seven cases untouched and every new `expected.disposition` as written in the table above; (3) check the results file's claims against its sources (case-review captures, counts, the "does not separate" conclusion) and that no real path or specific Claude model name was added to shipped files (fixture, HANDOFF.md); (4) read HANDOFF.md's changed Judge fixtures text for overclaiming. Running `scripts/test-ccx-ops.ps1` takes about 7 minutes and Claude already ran it (17/17); a Codex run of it may be BLOCKED by the sandbox, which is not a finding.
+
 ## Out of scope
 
 Scoring script, model routing, `ccx/policy.json`.
