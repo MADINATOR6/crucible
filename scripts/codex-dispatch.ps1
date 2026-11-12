@@ -107,26 +107,29 @@ function Get-RepoSnapshot {
   # Enough to tell whether a run that must not edit files edited any: a new file, a deleted one, or
   # new content in a file that was already modified all change the result. Ignored paths stay out.
   $head = Invoke-Git 'rev-parse HEAD'
-  $status = Invoke-Git '-c core.quotepath=false status --porcelain=v1 --untracked-files=all'
+  # -z: NUL-separated and never quoted (the line form quotes paths with spaces). A rename or copy
+  # entry is followed by one extra entry holding the old path.
+  $status = Invoke-Git 'status --porcelain=v1 -z --untracked-files=all'
   if ($null -eq $head -or $null -eq $status) { return $null }
   $lines = New-Object 'System.Collections.Generic.List[string]'
   $lines.Add("HEAD $head")
   $sha = [Security.Cryptography.SHA256]::Create()
   try {
-    foreach ($line in ($status -split "`n")) {
-      $line = $line.TrimEnd("`r")
-      if (-not $line) { continue }
-      # Invoke-Git trims the output, which can eat the first line's leading space.
-      if ($line -notmatch '^\s*[ MADRCU?!]{1,2}\s+(.+)$') { $lines.Add($line); continue }
-      $path = $Matches[1]
-      if ($path.Contains(' -> ')) { $path = $path.Substring($path.LastIndexOf(' -> ') + 4) }
+    $entries = $status.Split([char]0)
+    for ($i = 0; $i -lt $entries.Count; $i++) {
+      $entry = $entries[$i]
+      if (-not $entry) { continue }
+      # Invoke-Git trims the output, which can eat the first entry's leading space.
+      if ($entry -notmatch '^([ MADRCU?!]{1,2}) (.+)$') { $lines.Add($entry); continue }
+      $kind = $Matches[1].Trim(); $path = $Matches[2]
+      if ($kind -match '[RC]') { $i++; $lines.Add("old $($entries[$i])") }
       $full = Join-Path (Get-Location).ProviderPath $path
       $hash = '<missing>'
       if ([IO.File]::Exists($full)) {
         $stream = [IO.File]::OpenRead($full)
         try { $hash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') } finally { $stream.Dispose() }
       }
-      $lines.Add($line.Trim() + '|' + $hash)
+      $lines.Add("$kind $path|$hash")
     }
   } finally { $sha.Dispose() }
   return ,@($lines)

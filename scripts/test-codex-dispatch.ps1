@@ -281,8 +281,8 @@ else if (mode === 'usage') {
   process.stderr.write(usage + '\n');
   process.exit(1);
 }
-else if (mode === 'ready' || mode === 'stray') {
-  fs.writeFileSync(mode === 'stray' ? 'stray.txt' : 'owned.txt', 'synthetic change');
+else if (mode === 'ready' || mode === 'stray' || mode === 'spaced') {
+  fs.writeFileSync(mode === 'stray' ? 'stray.txt' : mode === 'spaced' ? 'a b.txt' : 'owned.txt', 'synthetic change');
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
   event({type:'turn.completed', usage:{input_tokens:200,cached_input_tokens:20,output_tokens:7}});
   write('Status: READY_FOR_CLAUDE_REVIEW\n');
@@ -429,6 +429,15 @@ else {
       Assert ($r.Stdout -match 'NO-EDIT VIOLATION') 'violation not reported'
       Assert ($r.Stdout -match 'owned\.txt') 'changed path not named'
     } finally { Remove-Item -LiteralPath $owned -ErrorAction SilentlyContinue }
+  }
+  Case 'guard hashes a path with a space (git quotes it in line status)' {
+    $spaced = Join-Path $repo 'a b.txt'
+    try {
+      Write-Utf8File $spaced 'before the run'
+      $r = Run-Launcher $repo ($common + @('-Role', 'verify', '-Sandbox', 'workspace-write')) 'spaced'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'NO-EDIT VIOLATION') 'edit of a path with a space went unseen'
+    } finally { Remove-Item -LiteralPath $spaced -ErrorAction SilentlyContinue }
   }
   Case 'read-only verify takes no snapshot' {
     $stray = Join-Path $repo 'stray.txt'
