@@ -73,4 +73,10 @@ Options: `--public-host a,b` (tunnel host names to accept; loopback is always ac
    If the repo is public, the URL is public too. That is fine, because the token is what protects the bridge, but expect strangers to knock (they get 401s). If the network secret is not applied to MCP traffic, fall back to a cloud environment variable `CODEX_MCP_TOKEN` and `"headers": { "Authorization": "Bearer ${CODEX_MCP_TOKEN}" }`. Session code can read environment variables, so prefer the secret.
 4. **In the session:** have Claude paste the files or `git diff` Codex needs into `context` or `diff`.
 
-Stop the tunnel and the bridge when you are not using them. Steps 2-4 have not been run from a real cloud session yet: that needs your tunnel and claude.ai account.
+Stop the tunnel and the bridge when you are not using them.
+
+Verified 2026-11-13 from a real cloud session in its own environment: the network secret reaches the bridge, the MCP client sends no `Origin` header, and `codex_status`, `codex_research` and `codex_job` work end to end. Pitfalls met on the way:
+- The secret must be **Secret type: Bearer** (header `Authorization`, prefix `Bearer`, value = the token). *Username and password* sends `Basic` and is refused. A saved secret's type cannot be changed: delete it and add a new one. Replacing a value also clears the prefix, so type `Bearer` again.
+- Paste the token straight after copying it. Copying anything else first (such as the host name) pastes that instead. Clear the clipboard afterwards.
+- MCP servers connect when a session starts: after changing the secret, start a new session.
+- A session in an environment without the secret (other environments clone the same `.mcp.json`) shows `codex` as failed with a 401. That is expected.

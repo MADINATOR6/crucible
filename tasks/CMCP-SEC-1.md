@@ -93,7 +93,8 @@ Confirmation run: Codex checks only this fix and anything it touches.
 - Not committed, because acceptance comes first. Not pushed, no tunnel, nothing exposed.
 - Next (user): read this file. Then accept with `ccx gate -Action task-accept -Target CMCP-SEC-1` and approve it, then `ccx task done -Id CMCP-SEC-1`; Claude commits `tools/codex-mcp/` and the two task files and syncs the mirror. Or raise the cap so the round-4 pass can be recorded.
 - Closed 2026-11-13: the user accepted in chat ("Accept and commit", approval A-0108); `ccx task done` passed.
-- Still untested: whether a real cloud session reaches the bridge through a tunnel and network secret (needs the user's tunnel and claude.ai account), and whether its MCP client sends an `Origin` header (the bridge refuses any).
+- Cloud check (2026-11-13, after closing): Tailscale Funnel on `desktop-7j8hu17`, cloud environment `codex-bridge` with a Bearer network secret. A real cloud session connected, listed the five tools, and ran `codex_status` and a `codex_research` job (correct answer "6"). The MCP client sent no `Origin` header. This resolves both untested items below.
+- Previously untested: whether a real cloud session reaches the bridge through a tunnel and network secret (needs the user's tunnel and claude.ai account), and whether its MCP client sends an `Origin` header (the bridge refuses any).
 
 ## Stop conditions
 
