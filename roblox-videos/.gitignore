@@ -1,0 +1,7 @@
+*/footage/
+*/build/
+*.mp4
+tools/kokoro/
+forge_kit/assets/*
+!forge_kit/assets/.gitkeep
+__pycache__/
