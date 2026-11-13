@@ -60,7 +60,7 @@ Options: `--public-host a,b` (tunnel host names to accept; loopback is always ac
 
 ## Cloud sessions
 
-1. **Tunnel with a stable address.** Tailscale Funnel gives a fixed `https://<pc>.<tailnet>.ts.net`: install Tailscale, sign in, then `tailscale funnel --bg 8787`. Start the bridge with `--public-host <pc>.<tailnet>.ts.net`. (Cloudflare's quick tunnel works too, but its address changes every start.) No tunnel tool is installed on this PC yet.
+1. **Tunnel with a stable address.** Tailscale Funnel gives a fixed `https://<pc>.<tailnet>.ts.net`: install Tailscale, sign in, then `tailscale funnel --bg 8787`. Start the bridge with `--public-host <pc>.<tailnet>.ts.net`. (Cloudflare's quick tunnel works too, but its address changes every start.) The first `tailscale funnel` prints a link that enables HTTPS certificates and Funnel for the tailnet. Public DNS then takes several minutes to point at Funnel. Check it from outside, or over DNS-over-HTTPS (`https://dns.google/resolve?name=<host>`): on the PC itself, Tailscale answers `.ts.net` lookups with the private 100.x address. Stop it with `tailscale funnel --https=443 off`.
 2. **Cloud environment** (claude.ai/code, edit the environment):
    - Network access: **Limited** with the tunnel host under *Allowed domains*.
    - *Network secrets* > Add secret: website = the tunnel host, header `Authorization`, prefix `Bearer`, value = the token. The session never sees the token.
