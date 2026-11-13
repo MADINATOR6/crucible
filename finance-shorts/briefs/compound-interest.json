@@ -1,6 +1,6 @@
 {
-  "reviewed": false,
-  "_note": "Drafted from the search excerpts of these pages. A human must open each URL, confirm every fact below, then set reviewed to true.",
+  "reviewed": true,
+  "_note": "Drafted from the search excerpts of these pages. A human must open each URL, confirm every fact below, then set reviewed to true. Facts f1-f3 and assumption a1 checked against the live pages on 2026-10-11 (Claude, authorized by Madison).",
   "sources": [
     {"name": "Investor.gov, Compound Interest (glossary)", "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/compound-interest"},
     {"name": "Investor.gov, What is compound interest?", "url": "https://www.investor.gov/additional-resources/information/youth/teachers-classroom-resources/what-compound-interest"},

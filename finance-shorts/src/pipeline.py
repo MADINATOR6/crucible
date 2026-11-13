@@ -48,6 +48,19 @@ class PipelineError(Exception):
     pass
 
 
+def voice_profile() -> str:
+    """Resolve after .env and CLI options have been loaded."""
+    profile = os.environ.get("SHORTS_VOICE_PROFILE", "paulie").lower()
+    if profile not in ("paulie", "edge"):
+        raise PipelineError(f"unsupported SHORTS_VOICE_PROFILE {profile!r}; choose paulie or edge")
+    return profile
+
+
+def narrator_persona() -> str:
+    name = "paulie.md" if voice_profile() == "paulie" else "persona.md"
+    return (ROOT / "style" / name).read_text(encoding="utf-8-sig")
+
+
 def load_env() -> None:
     from dotenv import load_dotenv
     load_dotenv(ROOT / ".env")
@@ -110,7 +123,7 @@ def generate_script(topic: dict, brief: dict) -> dict:
     prompt = ((ROOT / "prompts" / "script_prompt.txt").read_text(encoding="utf-8")
               .replace("{{TOPIC}}", json.dumps(topic)).replace("{{BRIEF}}", json.dumps(brief, indent=1))
               .replace("{{PLAYBOOK}}", playbook)
-              .replace("{{PERSONA}}", (ROOT / "style" / "persona.md").read_text(encoding="utf-8-sig")))
+              .replace("{{PERSONA}}", narrator_persona()))
     msgs = [{"role": "user", "content": prompt}]
     errs: list[str] = []
     for _ in range(3):  # initial try + 2 repairs
@@ -131,22 +144,37 @@ def generate_script(topic: dict, brief: dict) -> dict:
 # ---------- media ----------
 
 def synth_voice(scenes: list[dict], work: Path) -> list[float]:
-    """One mp3 per scene so scene length == narration length. Returns durations in seconds.
+    """Generate and trim one voice clip per scene; return durations in seconds."""
+    profile = voice_profile()
+    flags = [scene.get("chuckle", False) for scene in scenes]
+    if any(type(flag) is not bool for flag in flags) or sum(flags) > 1:
+        raise PipelineError("chuckle must be boolean and appear in at most one scene")
+    if profile == "edge" and any(flags):
+        raise PipelineError("chuckle requires the Paulie voice profile")
+    if profile == "paulie":
+        from .local_voice import generate
+        try:
+            generate(scenes, work)
+        except (OSError, RuntimeError, ValueError) as e:
+            raise PipelineError(f"Paulie voice failed: {e}") from e
+        ext = "wav"
+    else:
+        import edge_tts
 
-    ponytail: edge-tts is Microsoft's unofficial Edge read-aloud endpoint. If the channel earns,
-    swap this one function for Azure Speech (same voices, official, free tier).
-    """
-    import edge_tts
+        async def all_() -> None:
+            for i, sc in enumerate(scenes, 1):
+                await edge_tts.Communicate(sc["narration"], os.environ.get("SHORTS_VOICE", VOICE),
+                                           rate=os.environ.get("SHORTS_RATE", RATE),
+                                           pitch=os.environ.get("SHORTS_PITCH", PITCH)).save(str(work / f"voice{i}.mp3"))
 
-    async def all_() -> None:
-        for i, sc in enumerate(scenes, 1):
-            await edge_tts.Communicate(sc["narration"], VOICE, rate=RATE, pitch=PITCH).save(str(work / f"voice{i}.mp3"))
-
-    asyncio.run(all_())
+        asyncio.run(all_())
+        ext = "mp3"
     trim = ("silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,"
             "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.08,areverse")  # TTS pads each clip with ~0.3 s of silence
     for i in range(1, len(scenes) + 1):
-        sh(["ffmpeg", "-y", "-i", f"voice{i}.mp3", "-af", trim, f"voice{i}t.mp3"], work)
+        # Local speech is already trimmed before its optional recorded laugh.
+        filters = [] if profile == "paulie" else ["-af", trim]
+        sh(["ffmpeg", "-y", "-i", f"voice{i}.{ext}", *filters, f"voice{i}t.mp3"], work)
     durs = [audio_seconds(work / f"voice{i}t.mp3") for i in range(1, len(scenes) + 1)]
     (work / "voices.txt").write_text("".join(f"file 'voice{i}t.mp3'\n" for i in range(1, len(scenes) + 1)), encoding="utf-8")
     sh(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "voices.txt", "-c:a", "aac", "-b:a", "160k", "voice.m4a"], work)
@@ -195,24 +223,29 @@ def ass_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
-def build_ass(scenes: list[dict], durs: list[float]) -> str:
+def build_ass(scenes: list[dict], durs: list[float], speech_durs: list[float] | None = None) -> str:
     """Word-by-word captions: 3 words on screen, the spoken word highlighted.
 
-    ponytail: word times are spread across each scene by character count, not true word timing.
-    Drift is under ~0.3 s per scene; use edge-tts word boundaries or whisper if it ever bothers you.
+    shortcut: words are spread by character count, not alignment; use word timestamps when tighter sync is required.
+    Recorded laughs retain scene time but are excluded from spoken-word timing.
     """
     def clean(s: str) -> str:
         return s.replace("{", "(").replace("}", ")").replace("\n", " ")
 
+    spoken = durs if speech_durs is None else speech_durs
+    # ffprobe rounds to microseconds; sample-derived durations can exceed that rounded value slightly.
+    if len(scenes) != len(durs) or len(spoken) != len(durs) or any(not 0 < s <= d + 0.00001 for s, d in zip(spoken, durs)):
+        raise PipelineError("caption speech durations must match scenes and fit within scene durations")
+    spoken = [min(s, d) for s, d in zip(spoken, durs)]
     lines, t0 = [], 0.0
-    for sc, d in zip(scenes, durs):
+    for sc, d, speech in zip(scenes, durs, spoken):
         words = clean(sc["narration"]).split()
         total = sum(len(w) + 1 for w in words) or 1
         t = t0
         for k in range(0, len(words), 3):
             chunk = words[k:k + 3]
             for j, w in enumerate(chunk):
-                e = t + d * (len(w) + 1) / total
+                e = t + speech * (len(w) + 1) / total
                 shown = " ".join(f"{HILITE}{x}{{\\r}}" if n == j else x for n, x in enumerate(chunk))
                 lines.append(f"Dialogue: 0,{ass_time(t)},{ass_time(e)},Cap,,0,0,0,,{shown}")
                 t = e
@@ -256,10 +289,11 @@ def write_metadata(script: dict, brief: dict, out: Path, music: Path | None) -> 
     credit = ("Music: original synthesised track." if music and music.suffix == ".wav"
               else "Music: your own file (check its licence)." if music else "No music.")
     src = "\n".join(f"- {s['name']}: {s['url']}" for s in brief["sources"])
+    laugh_credit = "Includes a recorded laugh excerpt from the user-supplied reference.\n" if any(sc.get("chuckle") for sc in script["scenes"]) else ""
     out.write_text(
         f"TITLE: {script.get('title', '')}\n\nDESCRIPTION:\n{script.get('description', '')}\n\nSources:\n{src}\n\n"
         f"{DISCLAIMER} General education only, not personalized advice.\n"
-        f"Voiceover is AI-generated. Sound effects are synthesised. {credit}\n\n"
+        f"Voiceover is AI-generated. Sound effects are synthesised. {credit}\n{laugh_credit}\n"
         f"TAGS: {', '.join(script.get('tags', []))}\n\n"
         "BEFORE YOU POST:\n"
         "- Watch the whole video with sound; check every number against the sources.\n"
@@ -290,7 +324,7 @@ def render(slug: str, script_path: Path | None, brief_path: Path | None) -> Path
     (work / "script.json").write_text(json.dumps(script, indent=2), encoding="utf-8")
 
     scenes = script["scenes"]
-    print(f"[1/4] voiceover ({VOICE}, {len(scenes)} scenes)")
+    print(f"[1/4] voiceover ({voice_profile()}, {len(scenes)} scenes)")
     durs = synth_voice(scenes, work)
     total = sum(durs)
     print(f"      narration {total:.1f}s")
@@ -316,7 +350,8 @@ def render(slug: str, script_path: Path | None, brief_path: Path | None) -> Path
     print("[3/4] assemble: captions + voice + effects")
     out = ROOT / "output" / f"{slug}.mp4"
     music = pick_music(total, work)
-    assemble(work, len(scenes), build_ass(scenes, durs), out, music)
+    speech_durs = read_json(work / "speech-durations.json") if voice_profile() == "paulie" else None
+    assemble(work, len(scenes), build_ass(scenes, durs, speech_durs), out, music)
     write_metadata(script, brief, out.with_suffix(".txt"), music)
     print(f"[4/4] done: {out}")
     return out
@@ -335,10 +370,13 @@ def main() -> int:
     ap.add_argument("--list", action="store_true", help="show topics and brief status")
     ap.add_argument("--script", type=Path, help="use this script.json instead of calling the Anthropic API")
     ap.add_argument("--brief", type=Path, help="fact brief path (default briefs/<slug>.json)")
+    ap.add_argument("--voice", choices=["paulie", "edge"], help="narrator (default paulie; SHORTS_VOICE_PROFILE also works)")
     ap.add_argument("--music", choices=["mobster", "klezmer", "off"], help="built-in music style (default mobster)")
     ap.add_argument("--no-music", action="store_true", help="same as --music off, e.g. to add a licensed track in YouTube's audio picker")
     a = ap.parse_args()
     load_env()
+    if a.voice:
+        os.environ["SHORTS_VOICE_PROFILE"] = a.voice
     if a.no_music or a.music:
         os.environ["SHORTS_MUSIC"] = "off" if a.no_music else a.music
     if a.list or not a.slug:

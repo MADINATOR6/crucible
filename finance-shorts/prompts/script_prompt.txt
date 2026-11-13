@@ -23,6 +23,7 @@ STRUCTURE
 - Scene 1: a hook, a visual of type "hook" whose text is a concrete number or question in at most 9 words ("Where does $1,000 end up in 30 years?"). Not a definition.
 - Middle scenes build one idea in a progression, with one relatable analogy at most.
 - Last scene: a "hook" visual with "bubble": true that asks the viewer a comment question (no numbers needed).
+- Follow the selected persona's conversational phrasing, reactions and rhythm. For the Paulie persona only, an optional scene field "chuckle": true adds the selected recorded laugh excerpt after a dry aside. Use it at most once; never type laughter or acting directions into "narration". Omit the field for other personas. Facts and hard rules always take priority.
 - Each scene's "visual" is ONE of:
   {"type":"hook","text":"...","mascot":"shrug|idle|cheer","bubble":false}
   {"type":"ledger","title":"short caption","rows":[{"label":"Start","value":1000},{"label":"Year 1","value":1050,"gain":50},...],"upto":2,"highlight":false}
