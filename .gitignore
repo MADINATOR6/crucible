@@ -35,3 +35,6 @@ lifting-tracker/data/private/
 node_modules/
 lifting-tracker/test-results/
 lifting-tracker/playwright-report/
+# Empty lock files a local tool drops in the repo root (seen 2026-11-13)
+/service.conf.lock
+/system.conf.lock
