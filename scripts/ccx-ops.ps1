@@ -13,7 +13,8 @@ function Invoke-CcxStaleScan($State) {
         if ($task.status -in @('active','verifying') -and [DateTime]::Parse($task.updated).ToUniversalTime() -lt $cutoff) {
             $null = Add-CcxNotification -State $State -Level warn -TaskId $task.id -Key ('stale:' + $task.id) -Text ("$($task.id) has no recent update")
         }
-        if ($task.worktree -and -not [IO.Directory]::Exists($task.worktree)) {
+        # A finished task's removed worktree needs no action, so it raises no warning.
+        if ($task.status -notin @('done','abandoned') -and $task.worktree -and -not [IO.Directory]::Exists($task.worktree)) {
             $null = Add-CcxNotification -State $State -Level warn -TaskId $task.id -Key ('missing-worktree:' + $task.id) -Text ("$($task.id) worktree is missing")
         }
     }
@@ -329,7 +330,14 @@ function Invoke-CcxVerify {
                     'secret-scan' { $hits = @(Test-CcxSecretsInPaths -Root $root -Paths $paths | ForEach-Object { "$($_.path): pattern $($_.patternIndex) line $($_.line)" }) }
                     'task-scope' {
                         $applicable = $null -ne $task
-                        if ($task) { $hits = @(Test-CcxScope -Task $task -Root $root) }
+                        if ($task) {
+                            # No baseline for this checkout (task update -Status active, or never started): every
+                            # unrelated dirty file would read as a violation. Name the repair, never recapture here.
+                            $baselineKey = [IO.Path]::GetFullPath($root).TrimEnd('\','/').ToLowerInvariant()
+                            if ($task.baselines -is [Collections.IDictionary] -and -not $task.baselines.ContainsKey($baselineKey)) {
+                                $hits = @("no baseline recorded for this checkout: run ccx task start -Id $($task.id) here, then verify again")
+                            } else { $hits = @(Test-CcxScope -Task $task -Root $root) }
+                        }
                     }
                     'memory-lint' {
                         $lint = Invoke-CcxMemoryLint -Root $root
