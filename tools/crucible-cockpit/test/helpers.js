@@ -10,7 +10,8 @@ export const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), '
 export function fixtureCopy(t) {
   const dir = mkdtempSync(path.join(tmpdir(), 'crucible-cockpit-'));
   cpSync(FIXTURE, dir, { recursive: true });
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // Retries: on Windows a just-stopped agent process can hold the folder for a moment.
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }));
   return dir;
 }
 
@@ -50,8 +51,8 @@ export function request(port, { method = 'GET', path: urlPath = '/', headers = {
   });
 }
 
-// Opens /events and resolves the first snapshot whose view satisfies `match`.
-export function waitForEvent(port, match, timeoutMs = 8000) {
+// Opens /events and resolves the first `eventName` payload that satisfies `match`.
+export function waitForEvent(port, match, timeoutMs = 8000, eventName = 'snapshot') {
   return new Promise((resolve, reject) => {
     const req = http.get({ host: '127.0.0.1', port, path: '/events', headers: { Host: `127.0.0.1:${port}` } }, (res) => {
       let buffer = '';
@@ -63,7 +64,7 @@ export function waitForEvent(port, match, timeoutMs = 8000) {
           const frame = buffer.slice(0, at);
           buffer = buffer.slice(at + 2);
           const data = frame.split('\n').filter((l) => l.startsWith('data: ')).map((l) => l.slice(6)).join('\n');
-          if (!/^event: snapshot/m.test(frame) || !data) continue;
+          if (!new RegExp(`^event: ${eventName}$`, 'm').test(frame) || !data) continue;
           const view = JSON.parse(data);
           if (match(view)) { clearTimeout(timer); req.destroy(); resolve(view); return; }
         }

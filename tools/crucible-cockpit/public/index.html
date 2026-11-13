@@ -38,6 +38,28 @@
     </section>
 
     <section class="pane pane-loop" aria-labelledby="loop-h">
+      <h2 id="console-h" class="pane-title">Prompt console</h2>
+      <div class="card console" aria-labelledby="console-h">
+        <form id="prompt-form" autocomplete="off">
+          <div class="console-top">
+            <div class="seg" role="radiogroup" aria-label="Agent">
+              <label class="seg-claude"><input type="radio" name="agent" value="Claude" checked> Claude</label>
+              <label class="seg-codex"><input type="radio" name="agent" value="Codex"> Codex</label>
+            </div>
+            <span class="pill pill-safe" title="The agent can read files but cannot edit, run commands, browse or use MCP tools">read-only</span>
+            <span class="muted small" id="console-avail"></span>
+          </div>
+          <textarea name="prompt" id="prompt" rows="4" maxlength="20000" placeholder="Type a prompt for the selected agent about this repository…  (Ctrl+Enter runs it)" aria-label="Prompt"></textarea>
+          <div class="console-row">
+            <span class="fine">Runs the agent's CLI read-only in this repo. It uses your Claude/Codex usage and talks to its own provider; the cockpit itself makes no external calls.</span>
+            <span class="form-msg" id="prompt-msg" role="status"></span>
+            <button type="button" class="secondary" id="prompt-cancel" hidden>Cancel</button>
+            <button type="submit" id="prompt-run">Run</button>
+          </div>
+        </form>
+        <div class="runs" id="runs"></div>
+      </div>
+
       <h2 id="loop-h" class="pane-title">Handoff loop</h2>
       <div class="card loop-card">
         <div class="loop-summary" id="loop-summary"></div>

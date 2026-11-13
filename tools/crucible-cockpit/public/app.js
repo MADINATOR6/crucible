@@ -187,7 +187,90 @@ $('ask-form').addEventListener('submit', async (e) => {
   button.disabled = false;
 });
 
+// ---------- prompt console ----------
+const runs = new Map(); // id -> run, newest last
+let availability = {};
+const openRuns = new Set(); // run ids whose details the user expanded or that are newest
+
+function fmtDuration(run) {
+  const end = run.endedAt ? Date.parse(run.endedAt) : Date.now();
+  const s = Math.max(0, Math.round((end - Date.parse(run.startedAt)) / 1000));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
+const openActivity = new Set();
+function activityBlock(r) {
+  const block = h('details', { class: 'run-activity', open: openActivity.has(r.id) }, h('summary', {}, `Activity (${r.activity.length})`), h('pre', { class: 'mono small' }, r.activity.join('\n')));
+  block.addEventListener('toggle', () => { if (block.open) openActivity.add(r.id); else openActivity.delete(r.id); });
+  return block;
+}
+
+function renderRuns() {
+  const list = [...runs.values()].reverse();
+  const active = list.find((r) => r.status === 'running');
+  $('prompt-cancel').hidden = !active;
+  $('prompt-run').disabled = Boolean(active);
+  const agent = document.querySelector('input[name="agent"]:checked').value;
+  const a = availability[agent];
+  $('console-avail').textContent = a ? (a.available ? `${agent} ready` : `${agent} unavailable — ${a.reason}`) : '';
+  fill($('runs'), list.length ? list.map((r, i) => {
+    const meta = [r.meta.model ? `model ${r.meta.model}` : null, fmtDuration(r), Number.isFinite(r.meta.costUsd) ? `$${r.meta.costUsd.toFixed(4)} reported` : null, r.meta.usage && Number.isFinite(r.meta.usage.output) ? `${num(r.meta.usage.output)} output tokens` : null, r.exitCode !== null && r.exitCode !== undefined ? `exit ${r.exitCode}` : null].filter(Boolean).join(' · ');
+    const details = h('details', { class: `run run-${r.agent.toLowerCase()} rs-${r.status}`, open: openRuns.has(r.id) },
+      h('summary', {},
+        h('span', { class: 'mono msg-id' }, r.id), ' ',
+        h('span', { class: `owner owner-${r.agent.toLowerCase()}` }, r.agent), ' ',
+        h('span', { class: `state st-${r.status === 'running' ? 'active' : r.status === 'done' ? 'done' : 'blocked'}` }, r.status), ' ',
+        h('span', { class: 'run-prompt' }, r.prompt.length > 140 ? r.prompt.slice(0, 139) + '…' : r.prompt)),
+      h('div', { class: 'run-meta mono small muted' }, meta),
+      r.prompt.length > 140 ? h('div', { class: 'run-full-prompt' }, r.prompt) : null,
+      h('div', { class: 'run-reply' }, r.reply || (r.status === 'running' ? 'Waiting for the reply…' : '(no reply text)')),
+      r.activity.length ? activityBlock(r) : null);
+    details.addEventListener('toggle', () => { if (details.open) openRuns.add(r.id); else openRuns.delete(r.id); });
+    return details;
+  }) : [h('p', { class: 'fine' }, 'No runs yet. Replies are kept in this server session only (the last 20), not written to the repo.')]);
+}
+
+$('prompt-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const prompt = $('prompt').value;
+  const agent = document.querySelector('input[name="agent"]:checked').value;
+  if (!prompt.trim()) { $('prompt-msg').textContent = 'Type a prompt first'; return; }
+  $('prompt-run').disabled = true;
+  try {
+    const r = await post('/api/runs', { agent, prompt });
+    openRuns.add(r.run.id);
+    runs.set(r.run.id, r.run);
+    $('prompt').value = '';
+    $('prompt-msg').textContent = `${r.run.id} started`;
+  } catch (error) { $('prompt-msg').textContent = `Not started: ${error.message}`; }
+  renderRuns();
+});
+$('prompt').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('prompt-form').requestSubmit(); }
+});
+$('prompt-cancel').addEventListener('click', async () => {
+  const active = [...runs.values()].find((r) => r.status === 'running');
+  if (!active) return;
+  try { await post(`/api/runs/${active.id}/cancel`, {}); $('prompt-msg').textContent = `Cancelling ${active.id}…`; } catch (error) { $('prompt-msg').textContent = `Cancel failed: ${error.message}`; }
+});
+for (const radio of document.querySelectorAll('input[name="agent"]')) radio.addEventListener('change', renderRuns);
+
 const events = new EventSource('/events');
+events.addEventListener('runs', (e) => {
+  const data = JSON.parse(e.data);
+  availability = data.availability || {};
+  runs.clear();
+  for (const r of [...data.runs].reverse()) runs.set(r.id, r);
+  if (data.runs[0]) openRuns.add(data.runs[0].id);
+  renderRuns();
+});
+events.addEventListener('run', (e) => {
+  const r = JSON.parse(e.data);
+  if (!runs.has(r.id)) openRuns.add(r.id); // a new run starts expanded
+  runs.set(r.id, r);
+  while (runs.size > 20) runs.delete(runs.keys().next().value);
+  renderRuns();
+});
 events.addEventListener('snapshot', (e) => {
   view = JSON.parse(e.data);
   receivedAt = Date.now();
@@ -197,3 +280,4 @@ events.addEventListener('snapshot', (e) => {
 events.addEventListener('problem', (e) => setLive('warn', `refresh failed: ${JSON.parse(e.data).error}`));
 events.onerror = () => setLive('off', 'reconnecting…');
 setInterval(render, 15000); // keep "x ago" labels current between snapshots
+setInterval(() => { if ([...runs.values()].some((r) => r.status === 'running')) renderRuns(); }, 1000); // live duration
