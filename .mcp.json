@@ -18,6 +18,10 @@
         "rea",
         "mcp"
       ]
+    },
+    "codex": {
+      "type": "http",
+      "url": "https://desktop-7j8hu17.tail23a116.ts.net/mcp"
     }
   }
 }
