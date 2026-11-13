@@ -1,0 +1,229 @@
+# Video-editing playbook delta. 2026-11-07, mode COLD START, read-only (0 credits spent).
+# Prior: .claude/skills/higgsfield/playbook.md + memory higgsfield-kling-lessons, higgsfield-rea-local-video. Only deltas below.
+# Read: log.jsonl x4 (keeper-test, poodle-popcorn, poodle-sneeze, snap-tuggerah), project.json x5, SNAP-1v2/2/3/4/5/6/7 reports+briefs,
+#       SNAP-4/6 transactions, generation-stop/client-validation-error/wan-api json. Not read: WP-REEL-1.md, HF-P1*.md, build-*.ps1 bodies.
+# Tags: [F] fact  [I] inferred  [U] unknown
+tldr: >
+  Class: photo-to-reel for real places (Kling 3.0 pro image-to-video, ffmpeg stabilise/grade/concat, hard-cut reels). Ledger total 368.25 cr
+  (Kling snap series 150.5 cr / 21 clips). Biggest transferable gain: fix invented people/doorways by changing the INPUT crop or cropping the
+  OUTPUT, not by prompt negatives (prompt-only retakes 0/2 fixed it); budget 1.2x quote per shot.
+
+playbook_delta:
+  - id: T-001
+    name: input-crop-retake
+    source: "snap-tuggerah SNAP-3-report (shot-10, r2), SNAP-4-report (shot-05, r2), SNAP-6-report (new-02, r2)"
+    use_when: "Kling take invents a person in a mirror/edge or a doorway at the frame edge"
+    do: "Re-cut the start image tighter so the mirror/edge region is outside the frame (new-02: 960x540 -> 736x414), keep the verbatim preservation line, retake once. Prompt correction is secondary."
+    avoid: "Prompt-only retakes with 'no people / empty reflections': shot-10-r2 and shot-05-r2 both kept the same figure [F]. new-02-r2 changed crop AND prompt, so cause is confounded [I]."
+    conf: F
+  - id: T-002
+    name: output-edge-crop-rescue
+    source: "SNAP-4-report (shots 2, 10), SNAP-6-report (new-03); playbook.md Filmed-style tour"
+    use_when: "Artefact sits in the outer 15% of the take for the whole clip"
+    do: "After stabilise, before scale: exact 16:9 crop removing 15% width from the artefact side (1920x1080 -> 1632x918, x=0 right-side fix, x=288 left-side fix; vertical y free, e.g. 1632:918:0:80). Rescued shot 2, shot 10, new-03 for 0 cr [F]."
+    avoid: "Artefact that enters from beyond 15% mid-clip (shot 5 person: both takes failed, shipped with the FAIL recorded)."
+    conf: F
+  - id: T-003
+    name: two-gate-person-check
+    source: "SNAP-4-report, SNAP-6-report (pre-upload check failure); playbook.md SNAP-6 note"
+    use_when: "Any Kling input or output on a real room"
+    do: "Gate 1 before upload: every crop at 1:1 on mirrors, glass, far edges. Gate 2 after render: first/middle/last frame at 1:1 vs the crop. Gate 1 missed figures in 3 of 16 first-take crops (shot 5, new-02, new-03); gate 2 caught all 3 [F]."
+    avoid: "Counting a visual pass on 3 sampled frames as continuous playback; reports must say so."
+    conf: F
+  - id: T-004
+    name: budget-per-shot
+    source: "snap-tuggerah log.jsonl + project.json (budget 80) + SNAP-3/4/6/7 task caps"
+    use_when: "Sizing a cap for N shots"
+    do: "cap = N x quote x 1.2 (16 shots: 136.5 cr = 8.5/shot vs 7 quote). First-take yield: 10 clean, 2 crop-rescued, 1 accepted on relaxed rules, 3 needed a retake [F, n=16]. One retake per shot; pilot shots 1 and 10 in a separate dispatch."
+    avoid: "Project-level budget in project.json: snap-tuggerah says 80, spend is 150.5; the real control was per-task cap (88/63/56/14) [F]."
+    conf: F
+  - id: T-005
+    name: stabilise-only-jittery
+    source: "SNAP-5-report metrics table (shot 1 0.152 -> 0.306), SNAP-6-report stabilisation params"
+    use_when: "Kling 24 fps takes before crop/grade"
+    do: "Measure jitter first (T-006). vidstabdetect shakiness=5 accuracy=15 stepsize=6 fileformat=1; vidstabtransform smoothing=30 optzoom=0 zoom=4 interpol=bicubic crop=black (black exposes borders, no smear); FFV1 lossless intermediate, encode once."
+    avoid: "Stabilising already-steady takes: shot 1 jitter 0.152 -> 0.306 after; smoothing 8/15/30 all ~0.31 [F]. Skip when before < ~0.2 [I]."
+    conf: F
+  - id: T-006
+    name: jitter-metric
+    source: "SNAP-5-report"
+    use_when: "Deciding if stabilise helped without watching"
+    do: "Per-frame median vidstab displacement minus centred 9-frame moving mean, vector RMS, drop 4 frames each end. Sampled before/after on the same pre-crop geometry."
+    avoid: "Reading 0.000 as frozen camera: integer vectors give a quantisation floor [F]."
+    conf: F
+  - id: T-007
+    name: per-shot-exposure-then-master
+    source: "SNAP-6-report per-shot grade table, SNAP-5-report metrics-final"
+    use_when: "Mixed-brightness rooms in one reel"
+    do: "signalstats YAVG/SATAVG per shot after crop. Outliers get a curve before the shared master chain: dark Y~39 curves=all=0/0 0.03/0.060 0.08/0.185 0.18/0.35 0.4/0.55 0.7/0.79 1/1; bright Y~82 curves=all=0/0.25 0.25/0.14 0.5/0.32 0.75/0.56 1/0.90 plus colorbalance bm=-0.015. Accepted spread Y 39-102, Sat 7-31."
+    avoid: "Forcing equal Y/Sat across rooms; a cast from one source (blue wall) is what breaks matching."
+    conf: F
+  - id: T-008
+    name: end-card-timing
+    source: "SNAP-1-v2-report (6 s variant), SNAP-5-report (5 s tail)"
+    use_when: "Closing text card over a real photo/clip"
+    do: "5 s tail: 2.0 s clean (show branding), linear whole-frame dim to 30% over 0.6 s, 3 white centred lines fading in 0.16 s apart from 2.4 s, final fade 0.45 s. SNAP-1 6 s variant: dim 2.6-3.2, lines 3.00/3.16/3.32, fade at 5.55."
+    avoid: "Lower-third text on branded floors; blur-dim (no blur used)."
+    conf: F
+  - id: T-009
+    name: concat-metadata-repair
+    source: "SNAP-6-report (format repair, TWINS build-reel-match.ps1:67)"
+    use_when: "Stream-copy concat after scale/overlay chains"
+    do: "Inherited chain wrote SAR 5120:5121 and dropped colour tags. Final concat: h264_metadata sample_aspect_ratio 1/1, bt709 primaries/transfer/matrix, limited range; remux same encoded segments, no re-encode. Verify ffprobe + atoms ftyp,moov,free,mdat (faststart)."
+    avoid: "Fixing one build script only: build-reel-match.ps1:67 still has the unnormalised concat (TWINS) [F]."
+    conf: F
+  - id: T-010
+    name: post-error-reconcile
+    source: "SNAP-3-report dispatch-1 (HTTP 500), memory higgsfield-kling-lessons (--wait timeout)"
+    use_when: "create returns HTTP 500 or --wait times out"
+    do: "After a quote, a 500 produced no job and no charge (SNAP-3 shot 10) [F]. Before any resubmit: list recent jobs, read account transactions, match amounts; log the ledger row at charge confirmation, not completion."
+    avoid: "Blind resubmit; empty receipt json treated as a job."
+    conf: F
+  - id: T-011
+    name: lossless-intermediate-edit-chain
+    source: "SNAP-5-report (shots 4,5,7 refinement)"
+    use_when: "Refining a few shots of a finished reel"
+    do: "Keep per-shot lossless stabilised intermediates; re-encode only changed segments (SNAP-5 shots 4,5,7) then stream-copy concat. No double H.264 pass."
+    avoid: "Re-rendering all segments for a grade tweak."
+    conf: F
+  - id: T-012
+    name: ps51-ffmpeg-wrapper
+    source: "SNAP-5-report setup failures + INTENT/TWINS"
+    use_when: "Driving ffmpeg from Windows PowerShell 5.1 scripts"
+    do: "Capture stderr, enforce the process exit code (source 'Late SEI' warnings were promoted to terminating errors). Use absolute paths for [IO.File]::ReadLines (resolves against process dir, not PS location). Guard: script takes -Version and refuses existing outputs."
+    avoid: "2>&1 on native exe; relative paths in .NET calls."
+    conf: F
+  # ---- carried over from the prior playbook so the whole technique set is in one file (source = prior playbook section) ----
+  - id: T-013
+    name: still-camera-moves
+    source: "playbook.md Real-estate reels + Zero-credit listing reel (WP-REEL-1, whyte-pyne/build-reel2.ps1)"
+    use_when: "A real photo needs a believable move at zero credits"
+    do: "Push, truck or crane at constant speed; route order exterior > entrance > living > kitchen > bedroom > outdoor > exterior; 2.5 s shots (4 beats at 96 BPM); hard cuts via concat; exterior bookend with call to action."
+    avoid: "Dissolves (walls appear/vanish); looped still overlay without shortest=1 (every shot stretches)."
+    conf: F
+  - id: T-014
+    name: aspect-fit-blurred-window
+    source: "playbook.md Too-wide photos, Reels from 16:9 takes (SNAP-3/4)"
+    use_when: "16:9 take or very wide photo going into 9:16"
+    do: "Lay a 1680-wide window of the picture over a darkened blurred copy of itself; concat with h264_metadata to keep SAR 1:1 and BT.709."
+    avoid: "Full 9:16 centre crop (cuts machines/subject off)."
+    conf: F
+  - id: T-015
+    name: drawtext-safe-text
+    source: "playbook.md ffmpeg 9 host notes (WP-REEL-1)"
+    use_when: "Burning text with ffmpeg on this host"
+    do: "Explicit fontfile on every drawtext (no fontconfig); textfile= with expansion=none; use -/filter_complex <file>; seguisym.ttf for U+2605. Or render text with pycairo (finance-shorts) and overlay."
+    avoid: "-filter_complex_script (gone in ffmpeg 9); Segoe UI for star glyphs."
+    conf: F
+  - id: T-016
+    name: grain-size-control
+    source: "playbook.md Zero-credit gym reel (SNAP-1)"
+    use_when: "Any graded encode with grain"
+    do: "noise=alls=3, crf 20, -maxrate 12M: 3.5 Mbit/s (10 MB per 24 s). Always set maxrate."
+    avoid: "noise=alls=5, crf 18, no cap: 31 Mbit/s (90 MB per 23 s)."
+    conf: F
+  - id: T-017
+    name: motion-check-signalstats
+    source: "playbook.md SNAP-1 note"
+    use_when: "Checking a move is steady without watching"
+    do: "Per-frame signalstats YDIF per shot: mean against standard deviation."
+    avoid: "Trusting a few sampled stills for motion."
+    conf: F
+  - id: T-018
+    name: tv-screen-blackout
+    source: "playbook.md WP-REEL-1 screens in listing photos"
+    use_when: "A TV in a photo shows a broadcast"
+    do: "Fill the screen's four corners near-black with geq so it reads as switched off; measure the corners on a drawgrid crop at 1:1."
+    avoid: "Blurring the screen (reads as a censor box)."
+    conf: F
+  - id: T-019
+    name: frame-rate-and-pace-match
+    source: "playbook.md SNAP-3/4 keep source frame rate; SNAP-7 pace; memory higgsfield-kling-lessons"
+    use_when: "Mixing Kling 24 fps takes with local 30/60 fps shots"
+    do: "Stay at 24 fps until the final; minterpolate (mci) to 30 or 60; slow Kling to half speed (it moves ~4x faster than local shots) then interpolate."
+    avoid: "Duplicating frames 24 > 30 (reads unsteady)."
+    conf: F
+  - id: T-020
+    name: local-depth-parallax
+    source: "memory higgsfield-rea-local-video; playbook.md Local full-screen reel (v20-v22)"
+    use_when: "Tall real photo, filmed feel wanted, zero credits"
+    do: "depth-anything-v2-small ONNX (CPU) > Blender EEVEE unlit photo on depth-displaced 540x960 grid, linear camera keys, dolly 0.08-0.14 (negative dolly starts close, ends on full photo); 60 fps; cache Swin2SR x4 tile upscale (7-11 min/shot) and retouch the cached copy."
+    avoid: "Dolly > ~0.16 (edges smear); judging a person from the source before zooming 1:1 after upscale."
+    conf: F
+  - id: T-021
+    name: size-to-send-limit
+    source: "playbook.md Local full-screen reel size note"
+    use_when: "Master must fit a 30 MiB send limit"
+    do: "Master crf 16 + light grain (29 s = 36 MiB); two-pass copy at 7.9 Mbps fits 30 MiB at SSIM 0.99."
+    avoid: "Single-pass crf re-encode of the master for sharing."
+    conf: F
+  - id: T-022
+    name: ceiling-extend
+    source: "playbook.md Local full-screen reel (extending a wide photo)"
+    use_when: "Padding a dark ceiling to reach 9:16"
+    do: "Paint out any light cut by the edge and its glow before padding."
+    avoid: "Blurring the top rows (smears light into a vertical streak)."
+    conf: F
+  - id: T-023
+    name: kling-i2v-preserve-move
+    source: "playbook.md SNAP-3/4/7; memory higgsfield-kling-lessons"
+    use_when: "Parallax from one real photo (generative)"
+    do: "Start image upscaled/retouched 1080x1920, kling3_0 pro, 9:16, 4 s, sound off; slow forward glide + the verbatim preservation line (same architecture, equipment, branding... no people appear... no text added)."
+    avoid: "Sideways tracks past the photo edge (invented door, wall camera, switch); lighting-dark photos."
+    conf: F
+  - id: T-024
+    name: seedance-omni-timed-beats
+    source: "playbook.md poodle test + HF-P1 pilot; ledgers poodle-popcorn, poodle-sneeze"
+    use_when: "Character action clip from a saved first frame (generative)"
+    do: "seedance_2_5 mode omni_reference, saved frame (job id) as start_image, timed beats '0-2s: ...', draft 480p then final; give lead-ins their own motion; say where objects go."
+    avoid: "Subtle lead-ins ('sniffs the kernel') in one clause; trusting sound sync without ffmpeg astats."
+    conf: F
+  - id: T-025
+    name: blender-previz-to-video-ref
+    source: "playbook.md 4b (Kyle Skelly mvfo3pUiCCA)"
+    use_when: "Exact camera path/pacing needed (generative)"
+    do: "Grey-box scene in Blender, clean playblast (no overlays), video_watch it, write timeline prompt in whole seconds, bind refs by number, seedance_2_5 omni_reference; draft first."
+    avoid: "Overlays/text in the playblast; many references plus edits in one pass."
+    conf: F
+  - id: T-026
+    name: element-reference-sheets
+    source: "playbook.md sections 2-3; ledger keeper-test"
+    use_when: "Consistent character/prop/location across generated shots (generative)"
+    do: "Hero image, three-panel sheet on grey, same image model, manage_reference_elements create, <<<ELEMENT-UUID>>> in the prompt, no start frame for multi-shot."
+    avoid: "Dramatic light in a reference; @name in tool calls; people in a location reference."
+    conf: F
+
+tool_contracts:
+  - "higgsfield generate create kling3_0 --mode pro --aspect_ratio 16:9|9:16 --duration 4|5 --sound off --start-image <path|jobid> --wait --json -> receipt json + mp4 | 7 cr/4 s, 8.75 cr/5 s (1.75 cr/s), quote identical with start image | 4 s asks return 4.041667 s, 97 f @24 fps, 1920x1080 or 1080x1920, no audio stream; schema has no draft param; HTTP 500 seen once after good quote"
+  - "higgsfield account transactions -> {cursor, items[{action: spend|refund, created_at, credits (negative = spend), display_name}]} | reconciliation | no job id, so match by amount+order; timestamps trail ledger ts by ~10-20 s; cursor '20' pages; 0-credit Genjutsu spend/refund rows can appear that this task did not start [F]"
+  - "seedance_2_5 price per second [I from 2 points each]: draft 480p 3 cr/s, 720p 7 cr/s, 1080p 16 cr/s (5 s: 15/35/80; 10 s: 70/160); gpt_image_2 0.5 cr (1k low); gpt_image_2_5 2.75 cr (2k high 9:16); Seed Audio 1.0 0.1 cr [F one row]"
+  - "gradio Space Saravutw/WAN2.2_I2V_LIGHTNING_4-8step_custom /generate_video(input_image, steps, seed, duration_seconds, frame_multiplier) -> mp4 | free | frame_multiplier must be int in [16,32,64,128] though schema shows strings; >16 interpolates; client arg is token not hf_token; SNAP-2 first anonymous call hit ZeroGPU quota in 5 s with no reset time (playbook said ~3 runs elsewhere [U])"
+
+orch_vs_model_dep:
+  orch:
+    - "Edge-crop rescue, stabilise, per-shot exposure, master grade, concat, end card, encode caps (crf 18-20, maxrate 12-14M, faststart), SAR/BT.709 repair"
+    - "Spend control: exact-quote assertion, cap check before each submit, ledger row per charge, transactions reconcile"
+    - "Local depth parallax (depth-anything-v2-small ONNX CPU + Blender EEVEE, 0 cr) and Swin2SR x4 tiles (7-11 min/shot, cache)"
+  model_dep:
+    - "Real parallax from one photo: Kling 3.0 pro. Substitute: local depth+Blender; breaks: no occlusion fill, edges smear if dolly > ~0.16, no subject motion"
+    - "Free I2V: Wan 2.2 Space; breaks: quota, 832x480 @16 fps, anonymous limit"
+    - "Native audio sync (Seedance generate_audio): no local substitute"
+
+native_impl:
+  - "edge_crop(w, h, side, frac=0.15, y=0) -> (cw, ch, x, y)  # exact 16:9, 1920x1080 -> 1632x918"
+  - "stabilise(src, dst, shakiness=5, accuracy=15, stepsize=6, smoothing=30, zoom=4, optzoom=0, interpol='bicubic', crop='black', codec='ffv1') -> dst"
+  - "jitter(trf_file, window=9, trim=4) -> float  # RMS of median displacement minus moving mean"
+  - "shot_stats(clip) -> (mean_Y, mean_Sat)  # signalstats YAVG/SATAVG"
+  - "end_card(clip, hold=2.0, dim_to=0.30, dim_dur=0.6, stagger=0.16, fade_out=0.45, lines=3) -> clip"
+  - "final_mux(segments, sar='1/1', bt709=True, faststart=True) -> mp4  # h264_metadata, no re-encode"
+  - "verify_mp4(path, w, h, fps, frames, dur, max_mb) -> bool  # full decode -xerror, ffprobe, per-frame interval, atoms"
+  - "quote_gate(quote, expected, cap, spent) -> bool  # stop unless quote == expected and spent+quote <= cap"
+  - "reconcile(ledger_rows, transactions, tol_s=30) -> diff"
+  - "run_ff(args) -> exit_code  # capture stderr, enforce exit code, absolute paths"
+
+gaps:
+  - "U: 0-credit Genjutsu Object Swap/Motion Transfer rows with refund pairs (SNAP-3 window) -> capture: job ids, who started them, preset, outcome"
+  - "U: ledger rows lack params (mode, duration, resolution, quote, start-image id) and take verdict -> capture: add params, verdict, retake_of to log.jsonl"
+  - "U: yield stats are n=16; no verdict column to extend them -> capture verdict per take"
+  - "U: body3d (meshy-raw.glb, generate_3d?) and depth-test-dumbbell.mp4 have no ledger row or lesson -> capture model, credits, outcome"
+  - "U: WP-REEL-1/HF-P1 details and build-*.ps1 bodies not read (playbook already distills them) -> capture: parameter table per build script on next pass"
