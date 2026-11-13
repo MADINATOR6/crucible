@@ -1,0 +1,10 @@
+{
+  "name": "codex-mcp",
+  "version": "0.2.0",
+  "description": "MCP bridge that lets Claude Code (including cloud sessions) ask a tool-less Codex for research and review answers from text the caller supplies",
+  "private": true,
+  "type": "module",
+  "bin": { "codex-mcp": "server.js" },
+  "engines": { "node": ">=18.11" },
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}
