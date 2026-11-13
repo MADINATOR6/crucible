@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Pals</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #1c1c1c; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  svg { width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+// Same pixel sprites and 24 s choreography as the agent-pals mod, decorative only.
+const PX = 3, LOOP = 24, KEYS = '0;.15;.3;.45;.6;.75;.9;1';
+const SPECS = [
+  { name: 'codex', delay: 0.15, palette: { X: '#A9A3FF', Y: '#7B9BFF', Z: '#4A55FF', W: '#ffffff' },
+    rows: ['..XX.XXX..', '.XXXXXXXX.', 'XXXXXXXXXX', 'YYWYYYYYYY', 'YYYWYYYYYY', 'YYWYYWWYYY', '.ZZZZZZZZ.', '..ZZ..ZZ..'],
+    path: [60, 160, 170, 360, 368, 80, 30, 60] },
+  { name: 'claude', delay: 0, palette: { X: '#D97757', E: '#1b1b1b' },
+    rows: ['..XXXXXX..', '.XXXXXXXX.', 'XXEXXXXEXX', 'XXEXXXXEXX', '.XXXXXXXX.', '.XXXXXXXX.', '.X.X..X.X.', 'X........X'],
+    path: [20, 200, 200, 400, 400, 120, 60, 20] },
+  { name: 'gemini', delay: 0.3, palette: { R: '#F94B4B', O: '#F9B71A', G: '#12B76A', B: '#3186FF', E: '#ffffff' },
+    rows: starRows(),
+    path: [520, 520, 340, 436, 436, 520, 520, 520] },
+];
+const HEART = ['.X.X.', 'XXXXX', '.XXX.', '..X..'];
+
+// 9x9 concave four-point star: red up, yellow left, green down, blue right, white eyes.
+function starRows() {
+  return [0, 0, 1, 2, 4, 2, 1, 0, 0].map((h, r) => {
+    let row = '';
+    for (let c = 0; c < 9; c++) {
+      const dr = r - 4, dc = c - 4;
+      if (Math.abs(dc) > h) row += '.';
+      else if (r === 3 && (c === 3 || c === 5)) row += 'E';
+      else if (Math.abs(dr) >= Math.abs(dc)) row += dr < 0 ? 'R' : dr > 0 ? 'G' : 'B';
+      else row += dc < 0 ? 'O' : 'B';
+    }
+    return row;
+  });
+}
+
+function rects(rows, size, fill) {
+  let out = '';
+  rows.forEach((row, r) => {
+    for (let c = 0; c < row.length; c++) {
+      const color = fill(row[c]);
+      if (color) out += `<rect x="${c * size}" y="${r * size}" width="${size}" height="${size}" fill="${color}"/>`;
+    }
+  });
+  return out;
+}
+
+function actor(s) {
+  const body = rects(s.rows, PX, ch => s.palette[ch] || null);
+  const hop = `<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -6;0 0" dur=".9s" begin="${s.delay}s" repeatCount="indefinite"/>${body}</g>`;
+  const height = s.rows.length * PX, top = 44 - height;
+  const label = `<text x="0" y="${height + 12}" font-size="9" fill="#8a8a8a" font-family="monospace">${s.name}</text>`;
+  const values = s.path.map(x => `${x} ${top}`).join(';');
+  return `<g><animateTransform attributeName="transform" type="translate" values="${values}" keyTimes="${KEYS}" dur="${LOOP}s" repeatCount="indefinite"/>${hop}${label}</g>`;
+}
+
+const heart = rects(HEART, 2, ch => (ch === 'X' ? '#e5484d' : null));
+document.getElementById('stage').innerHTML =
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 64">` +
+  `<line x1="0" y1="45" x2="600" y2="45" stroke="rgba(160,160,160,.35)" stroke-dasharray="3 5"/>` +
+  `<g transform="translate(419 8)" opacity="0">${heart}<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;.44;.5;.58;.62;1" dur="${LOOP}s" repeatCount="indefinite"/></g>` +
+  SPECS.map(actor).join('') + `</svg>`;
+</script>
+</body>
+</html>
