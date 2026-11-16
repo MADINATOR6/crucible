@@ -64,6 +64,16 @@ def _apply(scene, args):
             print('WARN --device only applies to Cycles')
         else:
             scene.cycles.device = args.device
+            if args.device == 'GPU':
+                # Cycles quietly falls back to the CPU when Preferences > System has no usable GPU device
+                # (seen on Windows: compute_device_type NONE, OptiX refused by an old driver). Say so.
+                try:
+                    prefs = bpy.context.preferences.addons['cycles'].preferences
+                    if prefs.compute_device_type == 'NONE' or not prefs.has_active_device():
+                        print('WARN --device GPU, but Cycles has no active GPU device (Preferences > System: %s); '
+                              'this render runs on the CPU' % prefs.compute_device_type, flush=True)
+                except (KeyError, AttributeError):
+                    print('WARN --device GPU: could not read the Cycles device preferences', flush=True)
     if args.percent is not None:
         render.resolution_percentage = args.percent
     if args.persistent_data:

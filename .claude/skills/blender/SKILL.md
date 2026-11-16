@@ -16,7 +16,7 @@ Shared method for both agents. Codex does not read `.claude/skills`, so it print
 .\scripts\blender.ps1 test                                   # offline self-test
 ```
 
-Blender is found through `CRUCIBLE_BLENDER_EXE`, then `blender` on PATH, then the newest `Program Files\Blender Foundation\Blender *\blender.exe`. Python for `check`/`test`: `CRUCIBLE_PYTHON_EXE`, else `python`. The scripts run in Blender 4.4 or newer; they were tested on Blender 5.3. The wrapper never installs anything, never goes online and never saves a `.blend`.
+Blender is found through `CRUCIBLE_BLENDER_EXE`, then `blender` on PATH, then the newest `Program Files\Blender Foundation\Blender *\blender.exe`. Python for `check`/`test`: `CRUCIBLE_PYTHON_EXE`, else `python` or `python3` on PATH (skipping the Microsoft Store stubs in `WindowsApps`), else the newest `%LOCALAPPDATA%\Programs\Python\Python3*\python.exe`. The scripts run in Blender 4.4 or newer; they were tested on Blender 5.3. The wrapper never installs anything, never goes online and never saves a `.blend`.
 
 ## Roles and gates
 
@@ -93,7 +93,7 @@ The wrapper already uses absolute paths, keeps auto-run off, writes a PNG sequen
 - Render only the frames the edit uses (`-Frames 1-60,121-180`). A crash then costs one frame.
 - Estimate before the final run: average seconds per frame from a test times the frame count. Tell the user, and over 30 minutes wait for their OK.
 - After rendering: `blender.ps1 check` with the planned cuts, then look at the first, middle and last frame of every shot and at every cut. Then encode with ffmpeg (`-pix_fmt yuv420p` for ordinary players).
-- Do not hard-code OptiX, CUDA or one machine's GPU. `-Device GPU` uses the devices set in that machine's Blender Preferences.
+- Do not hard-code OptiX, CUDA or one machine's GPU. `-Device GPU` uses the devices set in that machine's Blender Preferences. When none is usable (Preferences > System set to None, or a driver too old for OptiX), Cycles quietly renders on the CPU; `render` then prints a `WARN ... runs on the CPU` line, so read it before trusting a GPU timing.
 
 ## Blender Python pitfalls
 

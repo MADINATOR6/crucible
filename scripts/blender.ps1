@@ -22,9 +22,28 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $skill = Join-Path (Join-Path $root '.claude') (Join-Path 'skills' 'blender')
 $scripts = Join-Path $skill 'scripts'
-$python = if ($env:CRUCIBLE_PYTHON_EXE) { $env:CRUCIBLE_PYTHON_EXE } else { 'python' }
-
 function Fail([string]$Message) { [Console]::Error.WriteLine($Message); exit 2 }
+
+function Find-Python {
+    if ($env:CRUCIBLE_PYTHON_EXE) { return $env:CRUCIBLE_PYTHON_EXE }
+    # WindowsApps python.exe/python3.exe are Microsoft Store stubs: they print "Python was not found" and exit 9009.
+    foreach ($name in 'python', 'python3') {
+        foreach ($cmd in @(Get-Command $name -CommandType Application -All -ErrorAction SilentlyContinue)) {
+            if ($cmd.Source -notmatch '\\WindowsApps\\') { return $cmd.Source }
+        }
+    }
+    # Newest per-user python.org install, e.g. %LOCALAPPDATA%\Programs\Python\Python312\python.exe
+    if ($env:LOCALAPPDATA) {
+        $base = Join-Path $env:LOCALAPPDATA 'Programs\Python'
+        if (Test-Path -LiteralPath $base) {
+            $best = Get-ChildItem -LiteralPath $base -Directory -Filter 'Python3*' |
+                Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'python.exe') } |
+                Sort-Object { [int]($_.Name -replace '[^0-9]', '') } -Descending | Select-Object -First 1
+            if ($best) { return (Join-Path $best.FullName 'python.exe') }
+        }
+    }
+    Fail 'Python 3 not found (the WindowsApps python is only a Microsoft Store stub). Install it from python.org or set CRUCIBLE_PYTHON_EXE.'
+}
 
 function Find-Blender {
     if ($env:CRUCIBLE_BLENDER_EXE) {
@@ -112,9 +131,9 @@ switch ($Command) {
         $argv = @('-I', (Join-Path $scripts 'check_frames.py'), '--dir', (Full $Out))
         if ($Frames) { $argv += @('--frames', $Frames) }
         if ($Cuts) { $argv += @('--cuts', $Cuts) }
-        exit (Invoke-ExternalTool $python $argv)
+        exit (Invoke-ExternalTool (Find-Python) $argv)
     }
     'test' {
-        exit (Invoke-ExternalTool $python @('-I', (Join-Path $scripts 'test_blender.py')))
+        exit (Invoke-ExternalTool (Find-Python) @('-I', (Join-Path $scripts 'test_blender.py')))
     }
 }

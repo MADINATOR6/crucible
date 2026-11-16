@@ -41,8 +41,9 @@ def _file_record(block, kind):
     else:
         resolved = bpy.path.abspath(path, library=getattr(block, 'library', None))
         status = 'present' if os.path.isfile(resolved) else 'missing'
-    # File names only: absolute paths can carry personal folder names.
-    return {'name': block.name, 'kind': kind, 'source': source, 'file': os.path.basename(path.replace('\\', '/')),
+    # File names only: absolute paths can carry personal folder names. Split on '/' ourselves:
+    # on Windows os.path reads Blender's relative '//dir/name.png' as a UNC drive and returns ''.
+    return {'name': block.name, 'kind': kind, 'source': source, 'file': path.replace('\\', '/').rsplit('/', 1)[-1],
             'status': status, 'users': block.users}
 
 
