@@ -109,6 +109,13 @@ try {
 } catch { $higgsfieldStatus = 'unavailable' }
 $higgsfieldCli = if (Get-Command higgsfield.cmd -ErrorAction SilentlyContinue) { 'present' } else { 'absent' }
 $rows += [PSCustomObject]@{ Tool='higgsfield'; AvailableTo='Both'; Status=$higgsfieldStatus; Check="show + both MCP configs (offline); higgsfield CLI $higgsfieldCli; sign-in and credits UNKNOWN (never spends)" }
+$blenderStatus = 'unavailable'
+try {
+    # `version` only runs blender --version: offline, opens no .blend and never renders.
+    $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $RepoRoot 'scripts\blender.ps1') + '" version')
+    $blenderStatus = 'cli-pass'
+} catch { $blenderStatus = 'unavailable' }
+$rows += [PSCustomObject]@{ Tool='blender'; AvailableTo='Both'; Status=$blenderStatus; Check='version (offline; opens no .blend, never renders); scene tests: blender.ps1 test' }
 if ($Json) { ConvertTo-Json -InputObject @($rows) -Depth 3 }
 else {
     $rows | Format-Table -AutoSize

@@ -39,7 +39,7 @@ function Record { Get-Content -LiteralPath $env:CRUCIBLE_MOCK_LOG -Raw -Encoding
 $mockRoot = Join-Path $root 'tests\mocks'
 $utf8 = New-Object Text.UTF8Encoding($false)
 $oldEnv = @{}
-foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_CLAUDE_EXE','CRUCIBLE_CODEX_HOME')) {
+foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_CLAUDE_EXE','CRUCIBLE_CODEX_HOME','CRUCIBLE_BLENDER_EXE')) {
     $oldEnv[$name] = [Environment]::GetEnvironmentVariable($name,'Process')
 }
 try {
@@ -163,26 +163,30 @@ try {
         $env:CRUCIBLE_CLAW_EXE = Join-Path $mockRoot 'claw.ps1'
         $env:CRUCIBLE_CODEX_EXE = Join-Path $mockRoot 'codex.ps1'
         $env:CRUCIBLE_CODEX_HOME = $profile
+        # Synthetic Blender: prints a version and leaves the mock log alone, so the OmO record below stays last.
+        $env:CRUCIBLE_BLENDER_EXE = Join-Path $temp 'blender-mock.ps1'
+        [IO.File]::WriteAllText($env:CRUCIBLE_BLENDER_EXE, "Write-Output 'Blender 0.0 (synthetic)'`nexit 0`n", $utf8)
         $beforeKey = $env:ANTHROPIC_AUTH_TOKEN
         try {
             $env:ANTHROPIC_AUTH_TOKEN = 'synthetic-private-value'
             $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -SkillRoot $temp -Json) -join "`n"
             Assert ($LASTEXITCODE -eq 0) 'Inventory failed.'
             $rows = $json | ConvertFrom-Json
-            Assert ($rows.Count -eq 6 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 5) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+            Assert ($rows.Count -eq 7 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 6) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
             Assert ($rows[3].Status -eq 'files-present') 'Synthetic Markdown not detected.'
             Assert ($rows[5].Tool -eq 'higgsfield' -and $rows[5].Status -eq 'cli-pass') 'Higgsfield offline inventory failed.'
+            Assert ($rows[6].Tool -eq 'blender' -and $rows[6].Status -eq 'cli-pass') 'Blender offline inventory failed.'
             Assert (-not $json.Contains('synthetic-private-value')) 'Credential disclosed.'
             $record = Record
             Assert (($record.args -join '|') -ceq '--help') 'OmO probe executed a provider prompt.'
         } finally { $env:ANTHROPIC_AUTH_TOKEN = $beforeKey }
     }
     Check 'Unavailable optional tools never block inventory or normal workflow' {
-        foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_PYTHON_EXE')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
+        foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_PYTHON_EXE','CRUCIBLE_BLENDER_EXE')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
         $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -RepoRoot $temp -SkillRoot (Join-Path $temp 'missing-library') -Json) -join "`n"
         Assert ($LASTEXITCODE -eq 0) 'Optional absence blocked inventory.'
         $rows = $json | ConvertFrom-Json
-        Assert ($rows.Count -eq 6 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 6) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+        Assert ($rows.Count -eq 7 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 7) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
     }
     Check 'OmO wrapper rejects missing hooks' {
         Remove-Item -LiteralPath (Join-Path $plugin 'hooks\test.json')
@@ -213,7 +217,7 @@ try {
         $claude = [IO.File]::ReadAllText((Join-Path $root 'CLAUDE.md'))
         foreach ($document in @($agents,$claude)) {
             Assert ($document.StartsWith('> Symmetry rule:')) 'Symmetry rule is not at the top.'
-            foreach ($name in @('Gajae-Code','Claw-Code','Claude-Red','OmO','gjc.ps1','claw.ps1','load-claude-skill.ps1','codex-load-skill.ps1','codex.ps1','check-external-tools.ps1','connect-claw.ps1','generate.ps1','higgsfield.ps1','Choosing a tool','tool: none')) {
+            foreach ($name in @('Gajae-Code','Claw-Code','Claude-Red','OmO','gjc.ps1','claw.ps1','load-claude-skill.ps1','codex-load-skill.ps1','codex.ps1','check-external-tools.ps1','connect-claw.ps1','generate.ps1','higgsfield.ps1','blender.ps1','Choosing a tool','tool: none')) {
                 Assert ($document.Contains($name)) "Missing tool: $name"
             }
         }
