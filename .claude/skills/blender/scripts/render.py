@@ -13,6 +13,7 @@ also how to benchmark: render the same frames twice with different settings and 
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -146,7 +147,10 @@ def main(argv=None):
         'settings': _effective(scene, args),
     }
     manifest_path = os.path.join(out, 'render-manifest.json')
-    existing = [f for f in frames if os.path.exists(frame_path(out, args.prefix, f, ext))]
+    # Every frame already in the folder counts, not only the ones requested now: a run over other frames
+    # with new settings would otherwise replace the manifest, and a later run would mix old and new frames.
+    name = re.compile(r'^%s\d+\.%s$' % (re.escape(args.prefix), re.escape(ext)), re.IGNORECASE)
+    existing = [n for n in os.listdir(out) if name.match(n)]
     if os.path.exists(manifest_path):
         with open(manifest_path, encoding='utf-8') as handle:
             previous = json.load(handle)

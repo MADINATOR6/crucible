@@ -235,6 +235,13 @@ class SceneTests(unittest.TestCase):
         with self.assertRaises(SystemExit) as stop:
             render.main(['--output', out, '--frames', '1-3', '--samples', '2', '--device', 'CPU', '--normal-priority'])
         self.assertEqual(stop.exception.code, 2)
+        # Frames already in the folder count even when the new request does not include them:
+        # otherwise new settings replace the manifest and a later run mixes old and new frames.
+        self.open(self.clean)
+        with self.assertRaises(SystemExit) as stop:
+            render.main(['--output', out, '--frames', '3', '--samples', '2', '--device', 'CPU', '--normal-priority'])
+        self.assertEqual(stop.exception.code, 2)
+        self.assertFalse(os.path.exists(cb.frame_path(out, 'f_', 3, 'png')))
         self.assertTrue(cb.check_frames(out, [1, 2], black=0.0, use_ffmpeg=False)['ok'])
 
 
