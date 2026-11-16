@@ -115,7 +115,8 @@ switch ($Command) {
         # Auto-run stays off unless the user says this is their own file that needs its scripted drivers.
         if (-not $TrustedFile) { $argv += '--disable-autoexec' }
         $argv += @('--python-exit-code', '1', $file, '--python', (Join-Path $scripts 'render.py'), '--', '--output', (Full $Out))
-        if ($Frames) { $argv += @('--frames', $Frames) }
+        # One token: argparse reads a separate negative spec such as -2--1 as an option.
+        if ($Frames) { $argv += "--frames=$Frames" }
         if ($Scene) { $argv += @('--scene', $Scene) }
         if ($Camera) { $argv += @('--camera', $Camera) }
         if ($Engine) { $argv += @('--engine', $Engine) }
@@ -129,7 +130,7 @@ switch ($Command) {
     'check' {
         if (-not $Out) { Fail 'check needs -Out <rendered frame folder>' }
         $argv = @('-I', (Join-Path $scripts 'check_frames.py'), '--dir', (Full $Out))
-        if ($Frames) { $argv += @('--frames', $Frames) }
+        if ($Frames) { $argv += "--frames=$Frames" }
         if ($Cuts) { $argv += @('--cuts', $Cuts) }
         exit (Invoke-ExternalTool (Find-Python) $argv)
     }

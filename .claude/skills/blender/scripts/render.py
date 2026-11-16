@@ -157,7 +157,8 @@ def main(argv=None):
     last_run = (previous or {}).get('settings') or {}
     if isinstance(last_run.get('prefix'), str) and last_run.get('format') in FORMATS:
         spaces.add((last_run['prefix'], FORMATS[last_run['format']]))
-    names = [re.compile(r'^%s\d+\.%s$' % (re.escape(p), re.escape(e)), re.IGNORECASE) for p, e in spaces]
+    # Signed: frame -2 is written as f_-002.png (same pattern as check_frames.py).
+    names = [re.compile(r'^%s-?\d+\.%s$' %(re.escape(p), re.escape(e)), re.IGNORECASE) for p, e in spaces]
     existing = [n for n in os.listdir(out) if any(r.match(n) for r in names)]
     if previous is not None:
         if previous != manifest and existing and not args.allow_mismatch:

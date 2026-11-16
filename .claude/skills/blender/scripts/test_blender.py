@@ -251,6 +251,20 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(sorted(n for n in os.listdir(out) if n.startswith(('f_', 'alt_'))), ['f_0001.png', 'f_0002.png'])
         self.assertTrue(cb.check_frames(out, [1, 2], black=0.0, use_ffmpeg=False)['ok'])
 
+    def test_negative_frames_count_for_mismatch(self):
+        # Frame -2 is written as f_-002.png; the guard must still see it (Codex verify, f9da120).
+        import render
+        self.open(self.clean)
+        out = os.path.join(self.dir, 'negative')
+        first = render.main(['--output', out, '--frames=-2--1', '--samples', '1', '--device', 'CPU', '--normal-priority'])
+        self.assertEqual((first['done'], first['skipped']), (2, 0))
+        self.assertTrue(cb.is_complete(cb.frame_path(out, 'f_', -2, 'png')))
+        self.open(self.clean)
+        with self.assertRaises(SystemExit) as stop:
+            render.main(['--output', out, '--frames', '1', '--samples', '2', '--device', 'CPU', '--normal-priority'])
+        self.assertEqual(stop.exception.code, 2)
+        self.assertFalse(os.path.exists(cb.frame_path(out, 'f_', 1, 'png')))
+
 
 if __name__ == '__main__':
     result = unittest.main(argv=[sys.argv[0]], exit=False, verbosity=1).result
