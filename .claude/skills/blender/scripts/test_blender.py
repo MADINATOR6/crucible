@@ -242,6 +242,13 @@ class SceneTests(unittest.TestCase):
             render.main(['--output', out, '--frames', '3', '--samples', '2', '--device', 'CPU', '--normal-priority'])
         self.assertEqual(stop.exception.code, 2)
         self.assertFalse(os.path.exists(cb.frame_path(out, 'f_', 3, 'png')))
+        # ...including when the new run names its frames differently (prefix or format).
+        for extra in (['--prefix', 'alt_'], ['--format', 'JPEG']):
+            self.open(self.clean)
+            with self.assertRaises(SystemExit) as stop:
+                render.main(['--output', out, '--frames', '3', '--samples', '2', '--device', 'CPU', '--normal-priority'] + extra)
+            self.assertEqual(stop.exception.code, 2)
+        self.assertEqual(sorted(n for n in os.listdir(out) if n.startswith(('f_', 'alt_'))), ['f_0001.png', 'f_0002.png'])
         self.assertTrue(cb.check_frames(out, [1, 2], black=0.0, use_ffmpeg=False)['ok'])
 
 

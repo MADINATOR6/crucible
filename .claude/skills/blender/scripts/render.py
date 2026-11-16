@@ -147,13 +147,19 @@ def main(argv=None):
         'settings': _effective(scene, args),
     }
     manifest_path = os.path.join(out, 'render-manifest.json')
-    # Every frame already in the folder counts, not only the ones requested now: a run over other frames
-    # with new settings would otherwise replace the manifest, and a later run would mix old and new frames.
-    name = re.compile(r'^%s\d+\.%s$' % (re.escape(args.prefix), re.escape(ext)), re.IGNORECASE)
-    existing = [n for n in os.listdir(out) if name.match(n)]
+    previous = None
     if os.path.exists(manifest_path):
         with open(manifest_path, encoding='utf-8') as handle:
             previous = json.load(handle)
+    # Every frame already in the folder counts, not only the ones requested now, and under the previous
+    # run's prefix and format too: otherwise new settings replace the manifest and a later run mixes frames.
+    spaces = {(args.prefix, ext)}
+    last_run = (previous or {}).get('settings') or {}
+    if isinstance(last_run.get('prefix'), str) and last_run.get('format') in FORMATS:
+        spaces.add((last_run['prefix'], FORMATS[last_run['format']]))
+    names = [re.compile(r'^%s\d+\.%s$' % (re.escape(p), re.escape(e)), re.IGNORECASE) for p, e in spaces]
+    existing = [n for n in os.listdir(out) if any(r.match(n) for r in names)]
+    if previous is not None:
         if previous != manifest and existing and not args.allow_mismatch:
             changed = sorted(k for k in set(previous) | set(manifest) if previous.get(k) != manifest.get(k))
             print('MISMATCH the .blend or render settings changed since frames were written (%s). '
