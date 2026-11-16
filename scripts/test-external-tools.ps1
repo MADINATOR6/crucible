@@ -208,7 +208,7 @@ try {
             Assert ($LASTEXITCODE -eq 0) 'generate list failed.'
             $null = & (Join-Path $root 'scripts\generate.ps1') run gpt-image-2 x --dry-run 2>$null
             Assert ($LASTEXITCODE -ne 0) 'generate ran with no provider key.'
-            $null = & python -I (Join-Path $root '.claude\skills\generate\test_generate.py')
+            $null = & (Find-CruciblePython) -I (Join-Path $root '.claude\skills\generate\test_generate.py')
             Assert ($LASTEXITCODE -eq 0) 'generate self-check failed.'
         } finally { Remove-Item Env:GENERATE_NO_DOTENV -ErrorAction SilentlyContinue; foreach ($name in $saved.Keys) { if ($null -ne $saved[$name]) { [Environment]::SetEnvironmentVariable($name,$saved[$name],'Process') } } }
     }
