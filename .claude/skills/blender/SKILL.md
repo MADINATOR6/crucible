@@ -46,17 +46,38 @@ A `.blend` can carry Python that runs on open when auto-run is on. Before using 
 3. Add-ons: read the source first. Compiled-only (`.pyc`) code cannot be read, so it is not installed. A small script of our own usually replaces an add-on (a scatter, a car rig, a camera shake).
 4. Renders keep auto-run off. `-TrustedFile` is for the user's own file whose scripted drivers need Python.
 
-Live control: some public Blender skills run a socket listener inside Blender that executes any code sent to it. Any program on the machine can then run code as the user. Do not set one up by default; background scripts do the same work. If the user wants to watch changes live, make it a separate task: bind 127.0.0.1 only, require a per-session token, and stop it afterwards.
+Live control: some public Blender skills run a socket listener inside Blender that executes any code sent to it. Any program on the machine can then run code as the user. Do not set one up by default; background scripts do the same work. If the user wants to watch changes live, make it a separate task: bind 127.0.0.1 only, require a per-session token, and stop it afterwards. Claude may also see a `Blender` MCP connector (`mcp__Blender__*`) that drives the user's open window; it is still live control of their file, so use it only when the user asks for that session, inspect before changing, and never save over their file.
 
 ## New scene
 
 1. **Brief first.** Shot list: each shot's timing, camera move, lens, where the subject is, mood, sound cue. Delivery: stills or video, resolution, fps, length. Nothing is built until the user approves it, and every later choice is checked against it.
-2. **Real assets over invented ones.** Use the user's own, CC0 (Poly Haven, ambientCG) or properly licensed models for organic and complex things. Script the simple things (roads, walls, boxes, basic buildings). Record the licence.
+   - **A tutorial or reference clip is the best brief.** When the user gives a tutorial link, read its whole transcript and take the reference shots apart instead of inventing a look: find the cuts (`ffmpeg -vf "select='gt(scene,0.3)',showinfo"`) and look at the frames either side of every detected cut, since short shots slip through. Then for each shot write the cut times and an estimate of camera height, lens, move and speed, marked as estimates with the assumption behind each (a known object size, a door height, metadata); frames alone do not pin these down. Credit the tutorial's author in `ASSETS.md`. Its paid add-ons are replaced by our own scripts, never installed unread.
+2. **Real assets over invented ones.** Use the user's own, CC0 (Poly Haven, ambientCG) or properly licensed models for organic and complex things. Script the simple things (roads, terrain, walls, scatter, rigs) and the cameras; scripted hero models (houses, cars, characters) read as flat boxes beside scanned assets, so get the hero from an asset or cut it from the shot. Record the licence.
 3. **Build in stages**, one script per stage, saving a new version after each. Scripts must be safe to re-run: get-or-create by name, never duplicate. Layout data that several stages share (paths, positions, camera spots) lives in one JSON; look values you will tweak (haze, exposure, density) live in a params JSON, not in code.
-4. **Test after every stage**: a small still (`-Percent 25 -Samples 16`) next to the reference frame, fixed before moving on. A clay or Workbench pass checks layout and timing in minutes.
+4. **Test after every stage**: a small still (`-Percent 25 -Samples 16`) next to the reference frame (`ffmpeg ... -filter_complex hstack` into `review/`), fixed before moving on. A clay or Workbench pass checks layout and timing in minutes. When the render-and-compare loops get long (many stages or cameras), a subagent on a cheaper model can run them with a tight brief (stage, cameras, reference frames, what to compare) and return a short report, so the main session keeps the plan. Use `video-expert` for judging clips; Claude still makes the fix decisions, and Codex's review role is unchanged.
 5. **Motion from physics or measurement**, not guessed curves: a speed profile, wheels turning by distance over radius, banking from acceleration, a camera height and lens measured from the reference. If a hero asset still looks wrong after honest fixes, swap the hero and keep the world, path and cameras.
-6. **Look**: lighting first, grade last and only where a shot needs it. At night the practical lights (lamps, windows, headlights) light the scene, not the sky. Use subtle real-feeling camera shake, a plausible lens and depth of field.
-7. Then render, check and encode (below).
+6. **Look**: lighting first, grade last and only where a shot needs it. At night the practical lights (lamps, windows, headlights) light the scene, not the sky. Use subtle real-feeling camera shake, a plausible lens and depth of field. Details in Cinematic look below.
+7. Then render, check and encode (below). Renders are silent: sound is its own step (CC0 or properly licensed effects, each listed in `ASSETS.md`, mixed with ffmpeg or by the user in their editor).
+
+## Cinematic look
+
+The realism ladder, biggest win first. When a shot looks CG, find the lowest rung it is missing before touching anything higher:
+
+1. Real textures at real scale (Surface scale and Material optics in the table below).
+2. Path-traced light (Cycles): soft contact shadows under objects, correct reflections. EEVEE is for previews and stylised work.
+3. Depth of field with a focus object, so the eye knows where to look.
+4. Motion blur on anything that moves, the camera included.
+5. Framing: a wide aspect set by the render resolution (2.39:1, e.g. 1920x804, rather than bars painted on top).
+6. Grade last: contrast, white balance, a slight vignette.
+
+Lighting and camera rules of thumb (starting points from tutorials; judge by eye, and keep the reason in the params JSON):
+
+- **Key light behind or beside the subject** is the usual default: backlight and rim give shape and separation, while a key straight from the camera flattens. A motivated frontal key or a soft fill is fine when the reference or story calls for it. Indoors, large emission planes (top and back) with ray visibility Camera off make soft studio light.
+- **Lens**: about 24 mm for environments, 50-85 mm for characters and products. Set a real sensor size.
+- **Depth of field**: f-stops only mean what they mean at real-world scale, so fix scale first. Tutorials quote f/0.1-0.8 for their scenes; at true scale start nearer f/1.4-4 and stop down until it stops looking like a miniature. Eight blades round the bokeh; aperture ratio 2 gives an anamorphic oval (a style choice).
+- **Fog**: a box with Volume Scatter (density about 0.01, anisotropy about 0.7, which scatters forward and gives god rays behind the subject) is real but slow. Background haze is almost free: enable the pass in View Layer > Passes > Data > Mist, set Start and Depth in World > Mist Pass, and in the compositor use Mist as the factor of a Mix between the image and a haze colour.
+- **Compositor finishing**, all subtle: Glare (bloom or fog glow) on bright highlights, Lens Distortion with a little dispersion for chromatic aberration, vignette. If you can name the effect when you watch, it is too strong.
+- **Output depth**: 8-bit bands in skies and fog. The wrapper always writes PNG; set `image_settings.color_depth = '16'` in the render-settings stage script (the wrapper keeps the file's depth). That PNG has the AgX view transform baked in, so it suits delivery and light grading. Heavy grading wants scene-linear half-float EXR, which the wrapper does not write yet; that is a separate wrapper change.
 
 ## Fixing realism in an existing scene
 
@@ -89,8 +110,9 @@ The wrapper already uses absolute paths, keeps auto-run off, writes a PNG sequen
 - Never render inside the live UI session; render in background Blender from a saved file. Do not save the `.blend` while a render of it runs: the manifest will then (correctly) refuse to resume.
 - Test small, render big: `-Percent 25 -Samples 16` stills while building; final quality only at the end. Judge fine textures (gravel, fabric) at production samples, because the denoiser smears them at low samples.
 - Benchmark before a long job: render the same 3-5 frames at two settings (for example 256 samples, then 128 with denoising) into two folders, compare the seconds on the `FRAME` lines and the stills side by side, and keep the cheapest that looks the same.
-- Speed levers: adaptive sampling with denoising; fewer bounces where the scene allows (night); `-PersistentData` for heavy static scenes; bake particles and simulations to disk first (otherwise every frame re-simulates); texture limits and simplify for tests only; camera culling.
+- Speed levers: adaptive sampling with denoising (feed the denoiser at least the Albedo pass); fewer bounces where the scene allows (night); caustics off and clamp indirect for fireflies; `-PersistentData` for heavy static scenes (a likely cause when the GPU idles between frames while the CPU prepares a big scatter; it costs memory, so benchmark with and without it and check memory headroom); bake particles and simulations to disk first (otherwise every frame re-simulates); texture limits and simplify for tests only; camera culling.
 - Render only the frames the edit uses (`-Frames 1-60,121-180`). A crash then costs one frame.
+- An overnight render needs the machine awake but never a sleep or shutdown command: the user's power settings, or the desktop app's keep-awake, cover it.
 - Estimate before the final run: average seconds per frame from a test times the frame count. Tell the user, and over 30 minutes wait for their OK.
 - After rendering: `blender.ps1 check` with the planned cuts, then look at the first, middle and last frame of every shot and at every cut. Then encode with ffmpeg (`-pix_fmt yuv420p` for ordinary players).
 - Do not hard-code OptiX, CUDA or one machine's GPU. `-Device GPU` uses the devices set in that machine's Blender Preferences. When none is usable (Preferences > System set to None, or a driver too old for OptiX), Cycles quietly renders on the CPU; `render` then prints a `WARN ... runs on the CPU` line, so read it before trusting a GPU timing.
@@ -105,6 +127,8 @@ The wrapper already uses absolute paths, keeps auto-run off, writes a PNG sequen
 - Object scale changes Object-space texture size. Applying scale can break instances, rigs and animation; check before you apply.
 - A ray cast that misses does not prove contact, and non-overlapping bounding boxes do not prove thin parts (legs, leaves, cloth) don't intersect.
 - A particle emitter hidden from the camera can also hide its particles; use `show_instancer_for_render = False`.
+- Motion blur samples sub-frame times, so only animation Blender can evaluate between frames blurs: keyframes, drivers, constraints. A `frame_change` handler or per-frame script that sets values from the integer frame is frozen inside each frame (wheels that spin but never blur); a handler only blurs if it reads the fractional time (`frame_current_final`). Baking such motion to keyframes is the reliable fix; then check a moving part in a still at full samples.
+- Geometry Nodes trees built from Python break easily (socket names and node types change between versions). Keep generated trees small, find sockets by identifier or type, and prefer plain Python plus instancing for scatter.
 - Relative paths (`//textures/...`) resolve against the `.blend`. When saving a copy elsewhere, check `relative_remap` and reopen to confirm; pack or ship textures for a portable delivery, and re-run `audit` on the copy.
 - A script that edits materials or node links may not be safe to re-run after it crashed halfway. Work on a version copy.
 
