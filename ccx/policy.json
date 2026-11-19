@@ -11,9 +11,9 @@
 
   "models": {
     "claude": {
-      "lead": "claude-opus-5-5",
-      "standard": "claude-sonnet-5",
-      "cheap": "claude-haiku-4-5-20251001",
+      "lead": "claude-fable-5-2",
+      "standard": "claude-sonnet-5-5",
+      "cheap": "claude-haiku-5-5",
       "cheapSubagent": "ccx-scout",
       "reviewSubagent": "ccx-reviewer"
     },
@@ -33,10 +33,10 @@
       "allowedClasses": ["exceptional"],
       "requiredVerification": ["independent-review", "deterministic", "human-approval-if-consequential"],
       "fallback": [
-        { "agent": "claude", "model": "claude-opus-5-5", "effort": "max" },
+        { "agent": "claude", "model": "claude-fable-5-2", "effort": "max" },
         { "agent": "codex", "model": "gpt-6-astra", "effort": "xhigh" }
       ],
-      "note": "Escalation-only tier. Set available=true, agent and model only when the account has legitimate, authorised access. Never spoof identifiers or work around provider controls."
+      "note": "Escalation-only tier, reserved for the restricted Mythos models (claude-mythos-5-2, verified organisations only). The Claude lead (claude-fable-5-2) is already the generally available Mythos-class model, so a request falls back to the lead at max. Set available=true, agent and model only when the account has legitimate, authorised access. Never spoof identifiers or work around provider controls."
     }
   },
 
