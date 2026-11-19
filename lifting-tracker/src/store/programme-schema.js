@@ -144,7 +144,13 @@ export const DEFAULT_SETTINGS = Object.freeze({
   heightCm: null, birthYear: null, bodyFatPct: null, sleepHours: 8, everyday: 'mixed', // resting burn and daily energy (with sex)
   goal: 'maintain', goalPace: 'hold', // eating target (src/core/targets.js)
   customFoods: [], meals: [], // My meals (src/core/foods.js)
+  // Session swaps (src/core/swaps.js, src/core/session.js). exerciseSwaps: { fromId: toId } for every time an
+  // exercise is planned; sessionSwaps: { 'block:week:day:entry': { from, to, gen } } for one planned session;
+  // skippedDays: { 'block:week:day': { on, gen } }. `gen` is the block's generated.at ('example' for example data, '' when imported), so
+  // nothing here follows a block that was removed and replaced under the same number.
+  exerciseSwaps: {}, sessionSwaps: {}, skippedDays: {},
 });
+export const MAX_SWAPS = 400;
 
 /** A key of `table`, never an inherited or non-string one (an array like ["lose"] would otherwise pass). */
 const keyOf = (table, v) => typeof v === 'string' && Object.hasOwn(table, v);
@@ -206,7 +212,8 @@ export function sanitizeFinishedDays(list) {
 
 /** Whitelist and coerce settings (never trust stored or restored values). */
 export function sanitizeSettings(s) {
-  const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays }, customFoods: [], meals: [] };
+  const out = { ...DEFAULT_SETTINGS, barByUnit: {}, customBar: {}, plateMeasured: { kg: {}, lb: {} }, blockStarts: {}, dayWeekdays: { ...DEFAULT_SETTINGS.dayWeekdays }, customFoods: [], meals: [],
+    exerciseSwaps: {}, sessionSwaps: {}, skippedDays: {} };
   if (!isObj(s)) return out;
   for (const k of ['keepAwake', 'vibrate', 'weeklySummary']) if (typeof s[k] === 'boolean') out[k] = s[k];
   if (['transparent', 'dark', 'light'].includes(s.shareBg)) out.shareBg = s.shareBg;
@@ -239,5 +246,13 @@ export function sanitizeSettings(s) {
   out.programmeStart = isStrictDate(s.programmeStart) ? s.programmeStart : null;
   if (isObj(s.blockStarts)) for (const [k, v] of Object.entries(s.blockStarts)) if (/^\d{1,3}$/.test(k) && isStrictDate(v)) out.blockStarts[k] = v;
   if (isObj(s.dayWeekdays)) for (const [k, v] of Object.entries(s.dayWeekdays)) if (/^\d{1,2}$/.test(k) && Number.isInteger(v) && v >= 1 && v <= 7) out.dayWeekdays[k] = v;
+  // Catalogue ids only for a standing swap; a planned entry without one ("custom:Name") can still be swapped for a session.
+  const catId = (v) => typeof v === 'string' && /^[a-z0-9_]{1,60}$/.test(v);
+  const exId = (v) => typeof v === 'string' && v.length >= 1 && v.length <= 220;
+  const gen = (v) => (typeof v === 'string' ? v.slice(0, 40) : '');
+  const entries = (o) => (isObj(o) ? Object.entries(o).slice(0, MAX_SWAPS) : []);
+  for (const [k, v] of entries(s.exerciseSwaps)) if (catId(k) && catId(v) && k !== v) out.exerciseSwaps[k] = v;
+  for (const [k, v] of entries(s.sessionSwaps)) if (/^\d{1,3}:\d{1,3}:\d{1,2}:\d{1,3}$/.test(k) && isObj(v) && exId(v.from) && (catId(v.to) || v.to === v.from)) out.sessionSwaps[k] = { from: v.from, to: v.to, gen: gen(v.gen) };
+  for (const [k, v] of entries(s.skippedDays)) if (/^\d{1,3}:\d{1,3}:\d{1,2}$/.test(k) && isObj(v) && isStrictDate(v.on)) out.skippedDays[k] = { on: v.on, gen: gen(v.gen) };
   return out;
 }

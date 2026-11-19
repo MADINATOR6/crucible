@@ -31,10 +31,16 @@ export function fromProgrammeSets(programme, dateFor) {
           for (const set of entry?.sets ?? []) {
             const setOrder = order++;
             if (set?.completed !== true) continue;
-            const reps = set.actualReps ?? (set.repsMin === set.repsMax ? set.repsMin : null);
-            const weightKg = setWeight(set.actualLoad ?? set.load);
+            // A set done with a substitute exercise (the merged programme marks it `swappedTo`) is a performance of
+            // the substitute with the numbers logged for it. The planned load is never read as lifted: without the
+            // logged numbers the set gives no event at all.
+            const swapped = typeof set.swappedTo === 'string';
+            const done = swapped ? set.swapped : null;
+            if (swapped && !done) continue;
+            const reps = swapped ? done.reps : set.actualReps ?? (set.repsMin === set.repsMax ? set.repsMin : null);
+            const weightKg = setWeight(swapped ? done.load : set.actualLoad ?? set.load);
             if (!Number.isInteger(reps) || reps < 1 || weightKg === null) continue;
-            events.push({ date, exerciseId: entry.exerciseId, weightKg, reps, rpe: set.actualRpe ?? null,
+            events.push({ date, exerciseId: swapped ? set.swappedTo : entry.exerciseId, weightKg, reps, rpe: (swapped ? done.rpe : set.actualRpe) ?? null,
               isWarmup: false, order: setOrder, source: 'programme' });
           }
         }
