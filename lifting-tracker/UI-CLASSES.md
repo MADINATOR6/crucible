@@ -4,6 +4,8 @@ Views (`src/ui/**`) build markup only from the classes below. `styles/app.css` i
 
 Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4, 8, 12, 16, 20, 24, 32) and `--t-xs` to `--t-2xl` (12, 13, 15, 17, 20, 24, 32 px). `--tap` is the 44 px minimum touch target.
 
+Control borders use `--line-ctl`; decorative dividers keep `--line`. Green text uses `--good-text`, green fills use `--good`. `--example-ink` is the ink on the example pill. Floating toast/timer surfaces override `--focus` locally. `.toast-dismiss` gives the toast close button a 44 px width.
+
 ## Headings and text
 - `h1`: page title, the only all-caps heading. One per view.
 - `h2`, `h3`: section and item headings, sentence case.
@@ -31,6 +33,8 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - `.filters`: one compact row of `.seg` and `<select>` controls; wraps onto a second line when narrow. Inside it, `.stepper` keeps a ‹ label › group together on one line.
 - `details.options` > `summary` + `.options-body`: settings folded under the content they change.
 - `.field` > `<span>` label + input/select. In a `.row`, add `.grow` to fields that share the width; `.row.end` lines a button up with the inputs.
+- `.num-step`: a number input with `−` and `+` buttons either side, for a value adjusted by hand mid-set. Children in order: `<button>`, `<input type="number">`, `<button>`; both buttons carry an `aria-label` naming the step. They set the input and dispatch its `input` event, so everything listening to typing follows unchanged.
+- `.log-fields`: the log-set sheet's field grid — two columns, with `.field.wide` spanning the row. The weight takes the wide row so it can carry a `.num-step`; reps and RPE share the next row.
 - `.check-btn` with `aria-pressed` and an `aria-label`: round one-tap action (log as planned).
 
 ## Lists and status
@@ -48,6 +52,7 @@ Spacing and type come from tokens on `:root`: `--s-1` to `--s-8` (4 px steps: 4,
 - 3D map: `.hm3d` (sized box for the canvas, made by `heatmap3d.js`), `.hm3d-status` (loading line), `.hm3d-tip` (the hint or the selected muscle's count, over the bottom of the canvas).
 - Charts: `figure.chart-wrap` (set its height with `style="--chart-h:Npx"`) > `.chart-y` (y labels: `<span style="top:N%">`), `svg.chart-plot` (`viewBox="0 0 100 100" preserveAspectRatio="none"`; children `.grid-line`, `.line`, `.area`, `.dot` drawn as a zero-length path `M x y h0`, all with `vector-effect="non-scaling-stroke"` except `.area`), `.chart-x` (x labels: `<span style="left:N%">`, first `.start`, last `.end`), then `.legend`. Series groups `.s-squat`, `.s-bench`, `.s-deadlift`, `.s-total`, `.s-bw`. These positional `top`/`left`/`--chart-h` styles are allowed in `charts.js` only. The older `.chart` class stays for any SVG chart not yet moved.
 - Barbell and plates: `.bb-*`, `.plate-*`, `.loading-text`. 3D bar: `.bb3d` (canvas box inside `.bb-stage`, made by `barbell3d.js`), `.bb3d-status`, `.bb3d-tip` (same look as the 3D map's).
+- `.bb-toolbar` stacks the hint and view switch; `.bb-hint` reserves two lines so the switch stays in place.
 - Coach review: `.coach-headline`, `.coach-find`, `.sev-high`, `.sev-medium`, `.sev-good`. `details.coach-find` folds a finding to one line: `<summary>` holds the title and its `.pill`; the evidence, "Do this", confidence and action button follow inside the `details`.
 - Sheets and toasts: created by `openSheet()` and `toast()` in `src/ui/dom.js`; don't build them by hand.
 - Progress tabs: `.seg.view-tabs` (full-width Strength / Body & energy switch). Share rows: `.share-row` (background and bar-end pickers beside Share image and Save image).

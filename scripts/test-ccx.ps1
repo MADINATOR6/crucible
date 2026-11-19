@@ -710,6 +710,43 @@ try {
     Check-Code (Run-Cli @('approve','-Id',$id,'-Chat','-Quote','Let Claude finish it as codex hit its limits')) 0
     Check-Code (Run-Cli @('task','done','-Id','T1')) 0
   }
+  Case 'verify scope names a missing baseline instead of listing unrelated files (CRU-AUDIT-F3b)' {
+    # A task that was activated without task start has no baseline for this checkout. The scope stage
+    # must say so, not list every unrelated dirty file; task start then repairs it and scope passes.
+    Add-Task
+    Write-Utf8File (Join-Path $script:repo 'unrelated-dirty.txt') 'another task owns this'
+    Check-Code (Run-Cli @('task','update','-Id','T1','-Status','active')) 0
+    Assert (@((Get-TestTask).baselineDirty).Count -eq 0) 'fixture: update should not have taken a baseline'
+    $r = Run-Cli @('verify','-TaskId','T1','-Stage','scope')
+    Check-Code $r 1
+    Assert ($r.Stdout -match 'ccx task start -Id T1') "missing-baseline hint absent: $($r.Stdout)"
+    Assert ($r.Stdout -notmatch 'unrelated-dirty') 'scope listed an unrelated file instead of naming the missing baseline'
+    Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Assert (@((Get-TestTask).baselineDirty) -contains 'unrelated-dirty.txt') 'task start did not baseline the unrelated file'
+    Check-Code (Run-Cli @('verify','-TaskId','T1','-Stage','scope')) 0
+    # A planned task that was never started gets the same hint.
+    Add-Task 'T2' 'docs/'
+    $planned = Run-Cli @('verify','-TaskId','T2','-Stage','scope')
+    Check-Code $planned 1
+    Assert ($planned.Stdout -match 'ccx task start -Id T2') 'planned task did not get the hint'
+  }
+  Case 'stale scan ignores the missing worktree of a finished task' {
+    # A done or abandoned task keeps its old worktree path; once that folder is removed, every tick
+    # used to raise a "worktree is missing" warning nobody can act on. Open tasks are still flagged.
+    . (Join-Path (Split-Path $core) 'ccx-ops.ps1')
+    Add-Task
+    Add-Task 'T2' 'docs/'
+    Add-Task 'T3' 'lib/'
+    $gone = Join-Path $script:repo 'removed-worktree'
+    Invoke-CcxLocked { param($state)
+      foreach ($id in 'T1','T2','T3') { $state.tasks[$id].worktree = $gone }
+      $state.tasks.T1.status = 'done'; $state.tasks.T2.status = 'abandoned'; $state.tasks.T3.status = 'blocked'
+    } | Out-Null
+    Invoke-CcxLocked { param($state) Invoke-CcxStaleScan $state } | Out-Null
+    $flagged = @((Get-CcxState).notifications | Where-Object { $_.text -match 'worktree is missing' } | ForEach-Object { $_.taskId })
+    Assert (-not ($flagged -contains 'T1' -or $flagged -contains 'T2')) "finished task flagged: $($flagged -join ',')"
+    Assert ($flagged -contains 'T3') 'open task with a missing worktree was not flagged'
+  }
   Case 'source files parse and use UTF-8 without BOM' {
     foreach ($path in @($cli,$core,$PSCommandPath)) {
       $tokens = $null; $errors = $null

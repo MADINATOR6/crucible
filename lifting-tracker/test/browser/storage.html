@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IndexedDB concurrency smoke test</title>
+<pre id="result">Running…</pre>
+<script type="module">
+import { createApp } from '../../src/ui/state.js';
+
+const result = document.querySelector('#result');
+const actualDb = globalThis.indexedDB;
+const actualFetch = globalThis.fetch;
+const actualChannel = globalThis.BroadcastChannel;
+const smokeName = 'lifting-tracker-concurrency-smoke';
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+
+try {
+  assert(['localhost', '127.0.0.1'].includes(location.hostname), 'Run this smoke test on the local dev server only.');
+  await new Promise((resolve, reject) => {
+    const request = actualDb.deleteDatabase(smokeName);
+    request.onsuccess = resolve;
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Close another smoke-test tab and retry.'));
+  });
+  // Keep this synthetic test away from the athlete's real database and change channel.
+  globalThis.indexedDB = { open: (_name, version) => actualDb.open(smokeName, version) };
+  globalThis.BroadcastChannel = undefined;
+  globalThis.fetch = (path, options) => actualFetch(new URL('../../' + path, location.href), options);
+  const [a, b] = await Promise.all([createApp(), createApp()]);
+  assert(a.store.persistent && b.store.persistent, 'Expected real IndexedDB connections');
+  await a.setProgramme({ blocks: [] });
+  await b.reload();
+  await Promise.all([
+    a.addIntake('2026-10-01', 'Meal A', { kcal: 100, protein: 10, fat: 2, carbs: 15 }),
+    b.addIntake('2026-10-01', 'Meal B', { kcal: 200, protein: 20, fat: 4, carbs: 30 }),
+  ]);
+  assert((await a.store.get('meta', 'intake')).value.length === 2, 'A food entry was lost');
+  await Promise.all([a.addActivity('2026-10-01', 'walk', 20), b.addActivity('2026-10-01', 'walk-brisk', 30)]);
+  assert((await a.store.get('meta', 'activities')).value.length === 2, 'An activity was lost');
+  await Promise.all([a.saveSettings({ theme: 'dark' }), b.saveSettings({ unit: 'lb' })]);
+  const settings = (await a.store.get('meta', 'settings')).value;
+  assert(settings.theme === 'dark' && settings.unit === 'lb', 'A settings patch was lost');
+  await Promise.all([a.addBlock({ number: 1, weeks: [] }), b.addBlock({ number: 2, weeks: [] })]);
+  assert((await a.store.get('meta', 'programme')).value.blocks.length === 2, 'A programme block was lost');
+  const stale = a.setProgramme({ blocks: [] });
+  // a is stale after b's addBlock; whole-programme replacement must refuse it.
+  await stale.then(() => { throw new Error('Stale replacement was accepted'); }, (error) => {
+    assert(error.code === 'STALE_DATA', `Unexpected rejection: ${error.message}`);
+  });
+  await b.reload();
+  const backup = JSON.stringify(await b.exportBackup());
+  await a.addIntake('2026-10-02', 'New meal', { kcal: 300, protein: 30, fat: 6, carbs: 45 });
+  await b.importBackup(backup).then(() => { throw new Error('Stale restore was accepted'); }, (error) => {
+    assert(error.code === 'STALE_DATA', `Unexpected rejection: ${error.message}`);
+  });
+  await a.addIntake('2026-10-03', 'Another meal', { kcal: 300, protein: 30, fat: 6, carbs: 45 });
+  await b.resetAll().then(() => { throw new Error('Stale reset was accepted'); }, (error) => {
+    assert(error.code === 'STALE_DATA', `Unexpected rejection: ${error.message}`);
+  });
+  result.textContent = 'PASS: two real IndexedDB connections preserved food, activity, settings and blocks; stale replacement, restore and reset rejected.';
+} catch (error) {
+  result.textContent = `FAIL: ${error.stack || error}`;
+} finally {
+  globalThis.indexedDB = actualDb;
+  globalThis.fetch = actualFetch;
+  globalThis.BroadcastChannel = actualChannel;
+}
+</script>

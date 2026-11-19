@@ -82,14 +82,14 @@ function rpeBiases(programme, byId, from, asOf, dateFor) {
   const diffs = { squat: [], bench: [], deadlift: [] };
   const windowed = typeof dateFor === 'function' && asOf !== null;
   for (const block of list(programme?.blocks)) for (const week of list(block?.weeks)) for (const day of list(week?.days)) {
-    if (windowed) {
-      const date = dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day.number });
-      if (!isDate(date) || !inWindow(date, from, asOf)) continue;
-    }
+    const scheduled = windowed ? dateFor({ blockNumber: block.number, weekNumber: week.number, dayNumber: day.number }) : null;
     for (const entry of list(day?.entries)) {
       const family = byId.get(entry?.exerciseId)?.lift;
       if (!LIFTS.includes(family)) continue;
       for (const set of list(entry.sets)) {
+        // A set logged in the app is windowed by the date it was logged, not by where the schedule puts its day.
+        const date = isDate(set?.actualDate) ? set.actualDate : scheduled;
+        if (windowed && (!isDate(date) || !inWindow(date, from, asOf))) continue;
         const { actualRpe: actual, targetRpe: target } = set ?? {};
         if (set?.completed === true && Number.isFinite(actual) && Number.isFinite(target)
           && actual > 0 && target > 0 && actual <= 10 && target <= 10) diffs[family].push(actual - target);
@@ -130,7 +130,7 @@ function exerciseSummaries(sets, from, asOf) {
  * weekNumber, dayNumber })` (the same callback `fromProgrammeSets` takes) restricts them to the window; without
  * it every completed planned set in the given programme counts, so pass only the weeks that matter.
  */
-export function buildAthleteModel({ events, catalogue, asOf, windowWeeks = 8, programme = null, dateFor = null } = {}) {
+export function buildAthleteModel({ events, catalogue, asOf, windowWeeks = 8, programme = null, dateFor = null, starting = null } = {}) {
   if (!catalogue || !Array.isArray(catalogue.exercises)) throw new RangeError('catalogue with an exercises list is required');
   if (!Number.isInteger(windowWeeks) || windowWeeks < 1) throw new RangeError('windowWeeks must be a positive integer');
   if (asOf != null) addDays(asOf, 0); // throws RangeError on a bad date string
@@ -142,7 +142,17 @@ export function buildAthleteModel({ events, catalogue, asOf, windowWeeks = 8, pr
   const windowFrom = end === null ? null : addDays(end, -7 * windowWeeks);
 
   const lifts = {};
-  for (const lift of LIFTS) lifts[lift] = liftModel(lift, sets, byId, end, windowWeeks);
+  for (const lift of LIFTS) {
+    lifts[lift] = liftModel(lift, sets, byId, end, windowWeeks);
+    // `starting` ({ squat, bench, deadlift } in kg): what the athlete typed in when they set the app up. It stands
+    // in for a lift only until that lift has logged evidence, and never counts as evidence itself (n stays 0).
+    // Retired for good: evidence that has since aged out of the window leaves the lift unknown, not back at a
+    // number typed in before any of it was lifted.
+    const typed = starting?.[lift];
+    if (lifts[lift].e1rmKg === null && Number.isFinite(typed) && typed > 0 && !(end !== null && collectSources(lift, sets, byId, '', end).length)) {
+      lifts[lift] = { e1rmKg: round1(typed), n: 0, confidence: 'low', basis: 'the starting estimate you entered', sources: [] };
+    }
+  }
   let sumo = 0, conventional = 0;
   if (end !== null) {
     for (const s of sets) {

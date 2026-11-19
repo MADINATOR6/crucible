@@ -4,3 +4,10 @@ model_reasoning_effort = "medium"
 # Higgsfield image/video generation (same server as .mcp.json). One-time sign-in: codex.cmd mcp login higgsfield
 [mcp_servers.higgsfield]
 url = "https://mcp.higgsfield.ai/mcp"
+
+# Rea with an isolated compatible Node runtime; packages stay in the npm cache.
+[mcp_servers.rea]
+command = "cmd.exe"
+args = ["/d", "/c", "npx.cmd", "--yes", "--package=node@24.22.1", "--package=rea-agents@6.8.0", "--", "rea", "mcp"]
+startup_timeout_sec = 120
+tool_timeout_sec = 180

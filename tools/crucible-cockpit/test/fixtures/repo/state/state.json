@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "updated": "2026-01-01T00:45:00Z",
+  "runtime": { "lastTick": "2026-01-01T00:44:00Z", "enabled": true },
+  "agents": { "codex": { "unavailableUntil": null } },
+  "providerLimits": {},
+  "tasks": {
+    "FIX-COCKPIT": {
+      "id": "FIX-COCKPIT", "status": "active", "type": "implement", "class": "normal", "risk": "low", "owner": "claude",
+      "owns": ["tools/fixture/"], "dispatches": 1, "attemptBase": 0, "reviewCycles": 0,
+      "tokens": { "input": 2000, "cached": 1000, "output": 200 }, "budget": {}, "verification": [], "reviews": []
+    }
+  },
+  "approvals": {
+    "A-0007": { "id": "A-0007", "action": "push", "level": "L4", "target": "abc1234", "status": "pending", "requested": "2026-01-01T00:30:00Z" },
+    "A-0006": { "id": "A-0006", "action": "push", "level": "L4", "target": "old", "status": "used", "requested": "2025-12-30T00:00:00Z" }
+  },
+  "notifications": []
+}

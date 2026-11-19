@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "PhilGEPS Print Layout Helper",
+  "version": "2.1",
+  "description": "Sidebar for PhilGEPS printable formats: turn highlighted text into fill-in fields saved per format, plus page setup, page breaks, hide-from-print and an end-date calculator.",
+  "permissions": ["storage"],
+  "content_scripts": [{
+    "matches": ["https://*.philgeps.gov.ph/*"],
+    "match_about_blank": true,
+    "match_origin_as_fallback": true,
+    "all_frames": false,
+    "run_at": "document_start",
+    "js": ["holidays.js", "calc.js", "content.js"]
+  }]
+}

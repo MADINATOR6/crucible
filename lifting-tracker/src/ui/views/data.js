@@ -5,6 +5,10 @@ import { mondayOf } from '../../core/weeks.js';
 import { setWeeklySummary } from '../summary.js';
 import { APP_VERSION } from '../updates.js';
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+/** The weekday (1 = Monday) a training day falls on; the same fallback app.dateFor uses. */
+const weekdayOf = (settings, day) => settings.dayWeekdays?.[day] ?? Math.min(7, day);
+
 const WARNING_HELP = {
   reps_date_converted: 'Excel turned a rep range into a date; converted back (day = low, month = high).',
   rpe_above_10: 'RPE above 10 (your sheets use 11 as a to-failure marker). Kept as written.',
@@ -82,7 +86,7 @@ function openReview(app, ui, { title, details, source, apply, done }) {
     }
     writing = true; button.disabled = true; q('#review-error').textContent = '';
     try {
-      await apply();
+      await apply(q);
       sheet.close(); ui.train = null; ui.muscles = null; ui.plan = null; done();
     } catch (err) {
       q('#review-error').textContent = `Could not apply: ${err?.message || err}. Your current data was kept.`;
@@ -95,7 +99,9 @@ function openReview(app, ui, { title, details, source, apply, done }) {
 export function dataView(app, ui) {
   const p = app.programme;
   const rep = p?.report;
+  const fromWorkbook = !!p && !p.isExample && p.blocks.some((b) => !b.generated); // not the example, not a starter
   const s = app.settings;
+  const trainingDays = [...new Set((p?.blocks || []).flatMap((b) => b.weeks.flatMap((w) => w.days.map((d) => d.number))))].filter(Number.isInteger).sort((a, b) => a - b);
   const startDefault = s.programmeStart || (app.blockStarts().get(p?.blocks?.[0]?.number) ?? '');
   const warnTypes = rep ? Object.entries(rep.warningsByType || {}).sort((a, b) => b[1] - a[1]) : [];
   const updates = ui.updates;
@@ -108,7 +114,10 @@ export function dataView(app, ui) {
       <p class="muted small">Choose your .xlsx. It is read in your browser and never leaves the device. Importing replaces the programme; your logged sets are kept.</p>
       <label class="btn primary">Choose .xlsx<input id="xlsx" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="visually-hidden"></label>
       <div id="import-status" class="small mt-3" aria-live="polite"></div>
-      ${rep && !p.isExample ? `<details class="fold mt-3" data-keep-open="import-report" open><summary>Last import report</summary>
+      ${app.usingExample ? '<p class="small muted mt-3">No workbook? <a href="#plan">Build a starter programme</a> from your own numbers instead.</p>' : ''}
+      ${fromWorkbook ? `<label class="row mt-3"><input id="workbook-history" type="checkbox" ${p.workbookHistory !== false ? 'checked' : ''}> Count the workbook's past weeks in Progress and Coach</label>
+        <p class="small muted">Off means a clean start: the plan stays, but only what you log in this app counts. Nothing is deleted, so you can turn it back on.</p>` : ''}
+      ${rep && fromWorkbook ? `<details class="fold mt-3" data-keep-open="import-report" open><summary>Last import report</summary>
         <div class="grid-3"><div class="stat"><b>${rep.blocks}</b><span>blocks</span></div><div class="stat"><b>${rep.weeks}</b><span>weeks</span></div><div class="stat"><b>${rep.sets}</b><span>sets (${rep.completedSets} completed)</span></div></div>
         <p class="small muted mt-2">${rep.dateRepsConverted} date-cells converted to rep ranges · ${rep.placeholders} placeholder cells ignored · ${rep.assumedKgLoads} loads assumed kg · ${rep.unparsedCells.length} cells not understood.</p>
         ${warnTypes.length ? `<table class="plain"><thead><tr><th>Warning</th><th>Count</th></tr></thead><tbody>${warnTypes.map(([k, v]) => `<tr><td><b>${esc(k)}</b><br><span class="muted small">${esc(WARNING_HELP[k] || '')}</span></td><td>${v}</td></tr>`).join('')}</tbody></table>` : ''}
@@ -127,6 +136,10 @@ export function dataView(app, ui) {
         <p class="small muted">Leave blank to follow on from the previous block. Set a date when a block really began (for example after a break); later blocks then follow it.</p>
         <div class="grid cols-2">${(p?.blocks || []).map((b) => `<label class="field"><span>Block ${b.number} · ${esc(b.name)}</span><input type="date" data-block-start="${b.number}" value="${esc((s.blockStarts || {})[b.number] || '')}"></label>`).join('')}</div>
       </details>
+      ${trainingDays.length ? `<details class="fold mt-3" data-keep-open="training-weekdays"><summary>Training weekdays</summary>
+        <p class="small muted">Which weekday each training day falls on. This dates imported and not-yet-logged days; a set you already logged keeps the date you chose.</p>
+        <div class="grid cols-2">${trainingDays.map((d) => `<label class="field"><span>Day ${d}</span><select data-day-weekday="${d}">${WEEKDAYS.map((name, wi) => `<option value="${wi + 1}" ${weekdayOf(s, d) === wi + 1 ? 'selected' : ''}>${name}</option>`).join('')}</select></label>`).join('')}</div>
+      </details>` : ''}
       <label class="row mt-3"><input type="checkbox" data-setting="keepAwake" ${s.keepAwake ? 'checked' : ''}> Keep the screen on while training</label>
       <label class="row mt-3"><input type="checkbox" data-setting="vibrate" ${s.vibrate ? 'checked' : ''}> Vibrate on one-tap logs and when rest ends</label>
       <label class="row mt-3"><input type="checkbox" id="weekly-summary" ${s.weeklySummary ? 'checked' : ''}> Weekly summary notification<small class="muted">&nbsp;(Android, installed app)</small></label>
@@ -167,14 +180,20 @@ export function dataView(app, ui) {
         const details = `<p class="muted small">${esc(file.name)} was read on this device. Review it before replacing the programme.</p>
           <p><b>Planned programme:</b> ${old.blocks} blocks and ${old.sets} planned sets → ${incoming.blocks} blocks and ${incoming.sets} planned sets.</p>
           <p><b>Kept:</b> ${app.sets.length} logged sets, ${app.sessions.length} logged sessions, ${app.bodyweights.length} bodyweights, and your settings.</p>
-          <p><b>Warnings:</b></p>${warningDetails}${prog.report?.unparsedCells?.length ? `<p>${prog.report.unparsedCells.length} cells not understood.</p>` : ''}`;
+          <p><b>Warnings:</b></p>${warningDetails}${prog.report?.unparsedCells?.length ? `<p>${prog.report.unparsedCells.length} cells not understood.</p>` : ''}
+          <label class="row mt-3"><input id="keep-history" type="checkbox" ${app.usingExample || app.programme.workbookHistory !== false ? 'checked' : ''}> Count the workbook's past weeks in Progress and Coach</label>
+          <p class="small muted">Untick for a clean start from today: the plan is imported, but only what you log in this app counts. You can change this later in Data, and nothing is deleted.</p>`;
         openReview(app, ui, { title: 'Import workbook?', details, source,
-          apply: () => app.setProgramme(prog, { expectedRevision: source.revision }), done: () => { toast(`Imported ${incoming.blocks} blocks, ${incoming.sets} planned sets`); rerender(); } });
+          apply: (q) => app.setProgramme({ ...prog, workbookHistory: q('#keep-history')?.checked !== false }, { expectedRevision: source.revision }), done: () => { toast(`Imported ${incoming.blocks} blocks, ${incoming.sets} planned sets`); rerender(); } });
         status.textContent = '';
       } catch (err) {
         status.innerHTML = `<b class="tone-bad">Could not import:</b> ${esc(err.message || err)}`;
       }
       e.target.value = '';
+    });
+    root.querySelector('#workbook-history')?.addEventListener('change', async (e) => {
+      try { await app.setWorkbookHistory(e.target.checked); ui.plan = null; toast(e.target.checked ? 'Workbook history counts again' : 'Workbook history is off. Only your logged sets count.'); }
+      catch (err) { toast(err?.message || String(err)); rerender(); }
     });
     root.querySelector('#use-example')?.addEventListener('click', async () => { await app.useExample(); ui.train = null; ui.muscles = null; ui.plan = null; toast('Showing example data'); });
     root.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => app.saveSettings({ unit: b.dataset.unit })));
@@ -183,6 +202,10 @@ export function dataView(app, ui) {
       const cur = { ...(app.settings.blockStarts || {}) };
       if (inp.value) cur[inp.dataset.blockStart] = mondayOf(inp.value); else delete cur[inp.dataset.blockStart];
       app.saveSettings({ blockStarts: cur });
+    }));
+    root.querySelectorAll('[data-day-weekday]').forEach((sel) => sel.addEventListener('change', () => {
+      const weekday = Number(sel.value);
+      if (Number.isInteger(weekday) && weekday >= 1 && weekday <= 7) app.saveSettings({ dayWeekdays: { ...app.settings.dayWeekdays, [sel.dataset.dayWeekday]: weekday } });
     }));
     root.querySelector('#start').addEventListener('change', (e) => app.saveSettings({ programmeStart: e.target.value ? mondayOf(e.target.value) : null }));
     root.querySelectorAll('[data-setting]').forEach((input) => input.addEventListener('change', () => app.saveSettings({ [input.dataset.setting]: input.checked })));

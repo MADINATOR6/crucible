@@ -7,6 +7,10 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "test": "node --test",
+    "test:e2e": "playwright test",
     "start": "node dev-server.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
   }
 }

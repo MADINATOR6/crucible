@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { createApp } from '../../src/ui/state.js';
 import { buildExampleProgramme } from '../../src/ui/example-data.js';
 import { buildAthleteModel } from '../../src/core/athlete.js';
-import { learnTemplate } from '../../src/core/template.js';
+import { learnTemplate, starterTemplate } from '../../src/core/template.js';
 import { generateBlock, reviseBlock } from '../../src/core/generator.js';
 import { interpretRequest } from '../../src/core/request.js';
-import { planView } from '../../src/ui/views/plan.js';
+import { planView, starterBlock, starterInputs } from '../../src/ui/views/plan.js';
 import { coachReview, applyExtras } from '../../src/core/coach.js';
 
 // End to end, without a browser: history -> athlete model -> template -> request -> generated block -> saved
@@ -295,6 +295,104 @@ test('Coach leads with one actionable finding and Apply to draft changes a previ
   view = planView(app, ui);
   assert.match(view.html, /Changes stay as drafts until you add them to your programme/);
   assert.doesNotMatch(view.html, /diagnosis/);
+});
+
+const mods = { generateBlock, starterTemplate };
+const familiesOf = (app, week) => week.days.map((d) => d.entries.map((e) => app.exercise(e.exerciseId)?.lift));
+const mainLoad = (week, exerciseId) => week.days[0].entries.find((e) => e.exerciseId === exerciseId).sets[0].load?.value ?? null;
+
+test('a starter block has squat, bench and deadlift at every offered day count, with loads from the typed strength only', async () => {
+  const app = await createApp();
+  for (const days of [2, 3, 4]) {
+    const block = starterBlock(mods, app.catalogue, { e1rmKg: { squat: 80, bench: 50, deadlift: 100 }, days });
+    assert.equal(block.weeks.length, 4);
+    for (const week of block.weeks) {
+      assert.equal(week.days.length, days);
+      for (const f of ['squat', 'bench', 'deadlift']) assert.ok(familiesOf(app, week).flat().includes(f), `${days} days, week ${week.number}: ${f}`);
+      for (const d of week.days) for (const e of d.entries) for (const s of e.sets) {
+        assert.equal(s.completed, false);
+        assert.ok(s.load.value > 0 && s.load.value < 100, 'a load worked out from this athlete, never someone else\'s');
+      }
+    }
+    assert.equal(block.generated.fromBlock, null, 'which is what marks it as a starter');
+    assert.deepEqual(block.generated.e1rmStart, { squat: 80, bench: 50, deadlift: 100 });
+    assert.ok(!JSON.stringify(block.generated).includes('your last block'), 'a starter has no last block to talk about');
+  }
+});
+
+test('back from a break starts lighter than the typed strength and is back to it by the last week', async () => {
+  const app = await createApp();
+  const e1rmKg = { squat: 80, bench: 50, deadlift: 100 };
+  const normal = starterBlock(mods, app.catalogue, { e1rmKg, days: 3 });
+  const back = starterBlock(mods, app.catalogue, { e1rmKg, days: 3, layoffWeeks: 12 });
+  assert.equal(back.generated.focus, 'return');
+  assert.ok(back.weeks[0].target.squat < 80);
+  assert.equal(back.weeks[3].target.squat, 80);
+  assert.ok(mainLoad(back.weeks[0], 'low_bar_squat') < mainLoad(normal.weeks[0], 'low_bar_squat'));
+  assert.ok(mainLoad(back.weeks[0], 'low_bar_squat') < mainLoad(back.weeks[3], 'low_bar_squat'));
+});
+
+test('a lift the athlete was not sure of gets blank loads and says so; the others are still loaded', async () => {
+  const app = await createApp();
+  const block = starterBlock(mods, app.catalogue, { e1rmKg: { squat: 80, bench: null, deadlift: null }, days: 3 });
+  assert.equal(mainLoad(block.weeks[0], 'comp_bench'), null);
+  assert.ok(mainLoad(block.weeks[0], 'low_bar_squat') > 0);
+  assert.deepEqual(block.generated.warnings.map((w) => w.split(':')[0]), ['No bench e1RM', 'No deadlift e1RM']);
+});
+
+test('the setup form reads a best set in the athlete\'s unit, skips blank lifts and names the field to fix', () => {
+  const form = (over = {}) => ({ squat: { w: '100', r: '5' }, bench: { w: '', r: '' }, deadlift: { w: '120', r: '' }, days: 4, away: false, weeks: '8', ...over });
+  const kg = starterInputs(form(), 'kg');
+  assert.ok(Math.abs(kg.e1rmKg.squat - 100 * (1 + 5 / 30)) < 1e-9);
+  assert.equal(kg.e1rmKg.bench, null);
+  assert.equal(kg.e1rmKg.deadlift, 120, 'no reps means a single');
+  assert.deepEqual([kg.days, kg.layoffWeeks], [4, null]);
+  assert.ok(Math.abs(starterInputs(form(), 'lb').e1rmKg.deadlift - 54.43) < 0.01, 'typed pounds become kilograms');
+  assert.equal(starterInputs(form({ away: true, weeks: '10' }), 'kg').layoffWeeks, 10);
+  assert.equal(starterInputs(form({ squat: { w: '', r: '5' } }), 'kg').field, 'st-squat-w');
+  assert.equal(starterInputs(form({ squat: { w: '100', r: '2.5' } }), 'kg').field, 'st-squat-r');
+  assert.equal(starterInputs(form({ squat: { w: '100', r: '11' } }), 'kg').field, 'st-squat-r');
+  assert.equal(starterInputs(form({ squat: { w: '-5', r: '1' } }), 'kg').field, 'st-squat-w');
+  assert.equal(starterInputs(form({ squat: { w: '2000', r: '1' } }), 'kg').field, 'st-squat-w');
+  assert.equal(starterInputs(form({ away: true, weeks: '0' }), 'kg').field, 'st-weeks');
+  assert.equal(starterInputs(form({ days: 9 }), 'kg').days, 3, 'only the offered day counts');
+});
+
+test('Coach offers the starter setup while there is no programme, and the block builder once there is one', async () => {
+  const app = await createApp();
+  assert.match(planView(app, {}).html, /id="starter"/);
+  await app.startProgramme(starterBlock(mods, app.catalogue, { e1rmKg: { squat: 80, bench: 50, deadlift: 100 }, days: 3 }));
+  assert.doesNotMatch(planView(app, {}).html, /id="starter"/);
+  await app.removeBlock(1);
+  assert.match(planView(app, {}).html, /id="starter"/, 'an emptied programme can be started again');
+});
+
+/** Ask the Coach for a draft the way the view does, and hand back what it built. */
+async function coachDraft(app, text = 'strength block 4 days a week') {
+  const ui = {};
+  if (planView(app, ui).html.includes('Loading…')) await new Promise((resolve) => planView(app, ui).bind({ innerHTML: '' }, resolve));
+  let view = planView(app, ui);
+  const controls = new Map();
+  const root = { querySelector(id) { if (!controls.has(id)) controls.set(id, { value: '', addEventListener(type, handler) { this[type] = handler; } }); return controls.get(id); }, querySelectorAll() { return []; } };
+  view.bind(root, () => { view = planView(app, ui); });
+  root.querySelector('#ask-text').value = text;
+  controls.get('#ask').submit({ preventDefault() {} });
+  assert.ok(ui.plan.result, ui.plan.error || 'the Coach built a draft');
+  return JSON.stringify(ui.plan.result.block);
+}
+
+test('with workbook history off, the Coach builds from the plan, not from what the workbook says was lifted', async () => {
+  const app = await createApp();
+  const programme = buildExampleProgramme(); programme.isExample = false;
+  // An accessory the coach planned at about 75 kg, which the workbook records as done at 333 kg, with a comment.
+  for (const week of programme.blocks[0].weeks) for (const set of week.days[0].entries[1].sets) Object.assign(set, { actualLoad: { value: 333, unit: 'kg' }, coachComment: 'EXCLUDED' });
+  await app.setProgramme(programme);
+  assert.match(await coachDraft(app), /"value":333/, 'with history on, what was actually lifted shapes the next block');
+  await app.setWorkbookHistory(false);
+  const clean = await coachDraft(app);
+  assert.doesNotMatch(clean, /"value":333/);
+  assert.doesNotMatch(clean, /EXCLUDED/);
+  assert.match(clean, /"exerciseId":"seated_leg_extension"/, 'the planned exercise is still there');
 });
 
 test('the generator refuses to save into the example programme', async () => {

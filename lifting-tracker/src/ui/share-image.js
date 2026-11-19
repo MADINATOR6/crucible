@@ -40,9 +40,20 @@ export const saveButton = (attrs, disabled = false) => `<button class="btn ghost
  */
 export async function shareOut(c, name, title, save = false) {
   const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+  if (!blob) throw new Error('This browser could not create the image.');
   const file = new File([blob], name, { type: 'image/png' });
-  if (!save && navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], title });
+  if (!save && typeof navigator.share === 'function') {
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title });
+        return;
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      // File sharing may be refused after canvas rendering consumes the user gesture.
+    }
+  }
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: file.name });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-  toast(`Saved ${file.name} to Downloads`);
+  toast(`Download requested: ${file.name}. Check your browser downloads or Files app.`);
 }

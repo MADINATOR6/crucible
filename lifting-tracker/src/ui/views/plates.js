@@ -1,7 +1,7 @@
 // Plate simulator view + shared helpers for describing a load with the user's plates.
 import { convert, round1 } from '../../core/units.js';
 import { loadBar, perSideText, warmupLadder } from '../../plates/loading.js';
-import { renderBarbell, renderEndView } from '../barbell.js';
+import { renderBarbell, renderEndView, plateInk } from '../barbell.js';
 import { mount3d } from '../barbell3d.js';
 import { esc, toast } from '../dom.js';
 import { shareCanvas, shareFont, shareOut, shareBgPicker, bindShareBg, saveButton } from '../share-image.js';
@@ -116,15 +116,15 @@ export function platesView(app, ui) {
     <div class="topbar"><div><h1>Plates</h1><p class="muted small">Tap plates to load the bar, or type a target. Heaviest plates sit innermost, as in competition.</p></div>
       <div class="seg" role="group" aria-label="Unit"><button data-unit="kg" aria-pressed="${unit === 'kg'}">kg</button><button data-unit="lb" aria-pressed="${unit === 'lb'}">lb</button></div></div>
     <div class="card">
-      <div class="row spread mb-2"><span class="small muted">${ui.plates.view === '3d' ? 'Drag to turn; tap a plate to remove it' : ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${!ui.plates.view || ui.plates.view === 'side'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button>${supports3d() ? `<button data-bview="3d" aria-pressed="${ui.plates.view === '3d'}">3D</button>` : ''}</div></div>
+      <div class="bb-toolbar mb-2"><span class="bb-hint small muted">${ui.plates.view === '3d' ? 'Drag to turn; tap a plate to remove it' : ui.plates.view === 'end' ? 'End view (stylised: outer plates drawn smaller so each shows)' : 'Tap a plate to remove it'}</span><div class="seg" role="group" aria-label="Bar view"><button data-bview="side" aria-pressed="${!ui.plates.view || ui.plates.view === 'side'}">Side</button><button data-bview="end" aria-pressed="${ui.plates.view === 'end'}">End</button>${supports3d() ? `<button data-bview="3d" aria-pressed="${ui.plates.view === '3d'}">3D</button>` : ''}</div></div>
       <div class="bb-stage">${ui.plates.view === '3d' ? `<div class="bb3d" role="img" aria-label="3D barbell: ${side.length} plates each side, ${round1(total)} ${unit} total"><p class="bb3d-status muted small">Loading 3D bar…</p></div>` : ui.plates.view === 'end' ? renderEndView({ plates: side, collar: !!collar }) : renderBarbell({ plates: side, collar: !!collar, justAdded })}</div>
       <div class="bb-total" aria-live="polite"><b>${round1(total)}</b><span>${unit}</span></div>
-      <p class="loading-text">${esc(perSideText(grouped, unit))}</p>
+      <p class="loading-text">${esc(perSideText(grouped, unit)).replaceAll(' × ', '\u00a0×\u00a0')}</p>
       ${mixed ? '<p class="small tone-warn center">Mixed units on the bar: kg and lb plates are not interchangeable.</p>' : ''}
       <div class="plate-row mt-3 mb-3" role="group" aria-label="Add a plate to each side">
         ${plates.map((p) => {
           const left = Math.floor(p.count / 2) - (used.get(p.value) || 0);
-          return `<button class="plate-btn" data-add="${p.value}" ${left <= 0 ? 'disabled' : ''} aria-label="Add ${p.value} ${p.unit} plate to each side, ${Math.max(0, left)} pairs left"><span class="disc" style="background:${p.colour};color:${lum(p.colour) < .35 ? '#fff' : '#101114'}">${p.value}</span><small>${Math.max(0, left)} left</small></button>`;
+          return `<button class="plate-btn" data-add="${p.value}" ${left <= 0 ? 'disabled' : ''} aria-label="Add ${p.value} ${p.unit} plate to each side, ${Math.max(0, left)} pairs left"><span class="disc" style="background:${p.colour};color:${plateInk(p.colour)}">${p.value}</span><small>${Math.max(0, left)} left</small></button>`;
         }).join('')}
       </div>
       <div class="row spread">
@@ -282,10 +282,4 @@ function safeLadder(app, topText) {
   const unit = app.settings.unit;
   const { plates, bar, collar } = plateConfig(app, unit);
   try { return warmupLadder({ top: { value: v, unit }, bar: bar.weight, collar, plates }); } catch { return []; }
-}
-
-function lum(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0;
-  const n = parseInt(m[1], 16); const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-  return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
 }

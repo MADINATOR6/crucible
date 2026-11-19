@@ -25,7 +25,7 @@ export async function shareLiftImage({ lift, name, points, line, prs, now, rate,
   g.font = `700 64px ${font}`; g.textAlign = 'left'; g.fillText(unit.toUpperCase(), W / 2 - 40 + nw / 2 + 16, 300);
   g.textAlign = 'center'; g.font = `600 38px ${font}`;
   g.fillText(rate ? `estimated max · ${rate}` : 'estimated max', W / 2, 362);
-  if (rate) { g.fillStyle = rateDown ? '#e0a020' : '#2fbf7f'; g.beginPath(); g.arc(W / 2 - g.measureText(`estimated max · ${rate}`).width / 2 - 22, 350, 9, 0, Math.PI * 2); g.fill(); }
+  if (rate) { g.fillStyle = rateDown ? (dark ? '#e0a020' : '#a87312') : (dark ? '#2fbf7f' : '#208454'); g.beginPath(); g.arc(W / 2 - g.measureText(`estimated max · ${rate}`).width / 2 - 22, 350, 9, 0, Math.PI * 2); g.fill(); }
 
   // Chart.
   const L = 140, R = 990, T = 450, B = 1080;

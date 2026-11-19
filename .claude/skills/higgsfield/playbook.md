@@ -42,6 +42,23 @@ Defaults when the user has no preference: image `gpt_image_2` (high quality), vi
 - **Draft mode** (web UI, pricey models like Seedance): render a cheap low-quality preview, then send that exact shot to the full-quality render. If `generate_video` / `models_explore` exposes no draft option, the equivalent is the lowest resolution at `count: 1`.
 - Model fit (one tutorial's opinion; confirm with `models_explore recommend`): image: Nano Banana = speed and reference work, GPT Image = clean edits and text, Soul = cinematic editorial look. Video: Kling 3.0 = affordable all-rounder, Seedance = best cinematic but costly, Veo 3.1 and Sora 2 = premium, with built-in sound.
 
+### 4b. Blender previz for exact camera moves (from Kyle Skelly, "Claude + Blender + Seedance 2.5", 2026-09-05)
+
+Use when a shot needs a precise camera path or composition (scroll-driven website videos, product explodes, orbit-then-pull-back). Text-only prompting guesses the pacing; a grey-box scene fixes it.
+
+1. **Block the scene in Blender, free and local.** Low-poly shapes only, no textures. Ask for duration, camera path and object positions in plain English (for example "camera exits the window, then drops onto the skyline, 10 s"). In this session the `Blender` MCP builds it (`execute_blender_code`); Higgsfield's Blender plugin and "Higgsfield Bridge MCP" (higgsfield.ai plugins page) do the same inside Blender and sync assets with the account.
+2. **Check the camera** on the timeline keyframes; fix path and timing in Blender, not in the prompt.
+3. **Render a clean playblast** (View > Render Playblast, MP4, same aspect as the final, 24 fps, `render_viewport_to_path` via the MCP). Clean means: simple primitives or one coarse model, flat grey, no camera path lines, gizmos, grids, axes or text overlays. Overlays confuse the model, and any text in a reference video can come back as subtitles.
+4. **Claude analyzes the playblast** (`video_watch`, local file) and writes the prompt: one-sentence summary, then a timeline in whole seconds (`0-3s: ...`, `[3s-7s]: ...`; timing granularity is 1 s), each beat with shot, camera move, action and sound. Positive phrasing ("the camera holds steady"), not "no shaking". Negatives only for audio and captions ("no subtitles", "no BGM").
+5. **Bind each reference by number and role in the prompt text.** Names inside an image do not count. Examples from the official guide: "Refer to the camera movement and motion in Video 1", "the knight in Image 1", "Refer to Image 2 for lighting". Say which parts of the playblast to follow (camera, motion, timing) and that its grey shapes are stand-ins for the subject in the image.
+6. **Generate in Higgsfield** (`seedance_2_5`, `mode: omni_reference`; `models_get` confirms roles `video_references`, `image_references`, `start_image`, `end_image`): the playblast goes in as a video reference, the real subject or product as image references, optionally a `start_image` to pin the opening composition. Upload only what the task file names (`media_upload`). Limits: up to 30 images, 10 videos and 10 audio clips, 4-30 s per clip. Draft first (`draft: true`, 480p), then finalize with `draft_job_id` within seven days (CLI: `--draft true` for the draft, `--draft_job_id <job>` for the final; the two are mutually exclusive, checked with `higgsfield model get seedance_2_5`). `bitrate_mode: high` only on finals, and only if the quote shows a small extra cost.
+7. **Long moves:** one take up to 30 s works; beyond that chain `mode: video_extension` from the approved clip instead of regenerating. Prompts that mix many references and edits in one pass are unstable; split them into steps.
+8. **Check against the playblast, not just the brief.** Compare start, middle and end frames side by side: camera direction and travel, subject placement, foreground order, then face and layout drift. Fix by regenerating only the failed shot with a plain-English correction, or edit the blockout when the camera itself was wrong.
+9. **Known pitfalls** (official Seedance 2.5 guide): non-standard JPEG references (asymmetric chroma subsampling) return HTTP 400, so re-save as PNG or standard JPEG; high-resolution references can print fingerprint-like texture on grass and foliage; with several characters the wrong reference can be mapped, so number them and repeat each one's fixed traits per beat; "no BGM" is not always honoured; water and echo wording can add audio artefacts; edited output can run about 0.33 s short. Product explodes will not be internally accurate: improve the reference and prompt, not the reroll count.
+10. **Brief and review hooks.** In a media task brief, list the playblast under References (`Previz: media-out/higgsfield/<p>/previz/<name>.mp4, camera and timing`) and write the numbered binding into the Prompt. `video-expert` runs the step 8 comparison in review. Treat the blockout as locked once approved; Codex does not rebuild it.
+
+Cost: Blender and the analysis are free; only the Higgsfield draft and final spend credits, so the usual quote, approval and cap rules apply. Keep all intermediate files under gitignored `media-out/higgsfield/<project>/previz/`.
+
 ## 5. Finishing
 
 - `upscale_video` last, after the cut is final: upscaling a take that gets cut wastes credits and about 14 minutes per 20 s (Topaz to 4K). Providers: `topaz` (resolution 1080p/2160p, aspect) or `bytedance` (needs source width and height; presets common/aigc/short_series/ugc/old_film). The tutorial's Topaz preset "Rhea" for skin and fabric detail is a web-UI setting that the MCP tool does not expose; tell the user if they want it.
@@ -70,6 +87,16 @@ Defaults when the user has no preference: image `gpt_image_2` (high quality), vi
 ## 7. Claude MCP versus Higgsfield's built-in assistant
 
 Prompt writing, planning and iteration through Claude uses Claude tokens. The in-app Higgsfield assistant spends Higgsfield credits on every chat message. Keep planning, prompt drafting and story work in Claude and send only generation calls to Higgsfield.
+
+## 8. Real places and products: enhance, never invent
+
+Applies whenever the media shows a real place, property, product or business that a customer could book, buy or visit (listings, menus, ads, before/after).
+
+- **Allowed:** upscaling, sharpening, denoising, exposure, white balance, colour, straightening, and removing temporary clutter that isn't part of what is sold (a bin, a car, a stray towel).
+- **Never:** add, remove or resize features or amenities; hide damage, wear or flaws; change views, sky or surroundings in a way a guest would see differently; put food, people or stock on display that isn't really there.
+- **No invented footage.** Do not generate walkthroughs, flyovers or camera moves through spaces that no source photo or video shows. Image-to-video is fine for motion inside one frame's space (a slow push-in on a single real photo), but not for joining photos into a tour.
+- **Check against the source.** Before delivery, compare every output side by side with its source and record any change beyond the allowed list in the report. If the brief asks for something on the never list, stop and report; do not soften it into a smaller invention.
+- Why: Airbnb may require hosts to remove AI content that edits flaws, hides damage, adds amenities or otherwise materially misrepresents a listing (Airbnb statement to CBC, 2026), and misleading images can breach consumer law (in Australia, Australian Consumer Law s18; have a lawyer confirm how it applies to a contractor). This rule applies on top of the privacy rules, never instead of them.
 
 ## Verified on the live MCP (2026-10-24 smoke test, 5 credits)
 
@@ -111,6 +138,60 @@ Prompt writing, planning and iteration through Claude uses Claude tokens. The in
 - **Check sound sync locally.** `generate_audio` put the loudness peak on the sneeze both times. Check it with ffmpeg `astats` per half second before sending audio anywhere.
 - **Cost of the review loop:** one draft plus one round of fix notes fit a 60 cap (15 + 35). The final is a fresh render; finalizing the draft itself needs `draft_job_id` and the 1080p price.
 
+## Real-estate and listing reels (from four reference tutorials, 2026-10-30)
+
+Sources: Market U `ReASV_e1mwc`, Artificial Quotient `eQq1bKAcJV8`, Luke Byrne `y31BN4FEdwc`, EditorLab `OKwlVvXcbK8` (transcripts and sampled frames; all Higgsfield affiliate content, so the tool pitch is ignored).
+
+- **Audit the photos before any credits.** Consistent lighting and angles, high resolution, no screenshots, text, watermarks or contact details. Bad photos, not prompts, cause most failures.
+- **Order them as a route:** exterior, entrance, living, kitchen, bedroom, outdoor, and finish outside again.
+- **Moves that work:** dolly (straight push), axis lock (truck), crane (up or down), orbit. Moves that don't: "drone" (looks piloted) and "slow luxurious" (no energy). Small, believable motion beats dramatic motion. Image-to-video models drift toward handheld wobble, so ask for a stable, straight line.
+- **Cut hard on motion.** Generated clips accelerate, then decelerate and "die" at the end: trim before the slow-down and hard-cut into the next moving shot. Dissolves and one-take morph transitions make walls and furniture appear or disappear.
+- **Paid generation per photo:** one photo per clip (or overlapping pairs 1+2, 2+3 for a continuous walk), 3-5 s, model Kling 3.0 or Seedance, prompt = the move plus preservation: "preserve the exact architecture, layout, furniture, materials, colours, windows and lighting; straight lines; no objects appear, disappear, move or change shape". Check doors, windows, rooflines and furniture in every take; regenerate only the failed one.
+- **Finish:** music with cuts on the beat, then location and a clear call to action at the end.
+- **Never** use virtual staging or AI people in a live listing's video: it misrepresents the stay.
+- **Free (ffmpeg) version of the same rules:** `media-out/higgsfield/whyte-pyne/build-reel2.ps1` applies route order, push/truck/crane moves at constant speed, hard cuts via concat, 2.5 s shots (4 beats at 96 BPM) and an exterior bookend with the call to action. Overlaying a looped still on a shot needs `shortest=1`, or every shot stretches to the still's length.
+
+## Zero-credit listing reel (2026-10-30, WP-REEL-1, 0 credits)
+
+- **"Free models" means the unlim allowance.** `models_explore` `unlim: true` lists the models that can run free, but its top-level `unlim.available` says whether this account can use them now; on the Pro plan it read `false`. Show the user both before promising anything free.
+- **When nothing is free, a media-edit reel from the real photos still works:** pans and zooms, crossfades, text cards, no AI fill. For a property it is also the honest choice, since generated rooms would misrepresent the stay.
+- **ffmpeg 9 on this host:** `-filter_complex_script` is gone (use `-/filter_complex <file>`); fontconfig is missing, so every `drawtext` needs an explicit `fontfile`; Segoe UI lacks U+2605 (star), and seguisym.ttf covers it plus Latin. `textfile=` with `expansion=none` avoids filtergraph escaping.
+- **Too-wide photos:** a 9:16 crop of a 2:1 photo cuts the subject; lay the whole photo over a blurred copy instead.
+- **Screens in listing photos:** a TV showing a broadcast reads as a censor box when blurred; filling the screen's four corners with near-black (geq) looks like a TV that is switched off. Measure the corners on a `drawgrid` crop at 1:1, not from a downscaled view.
+- **Codex's sandbox cannot read `%LOCALAPPDATA%\Microsoft\WinGet\Links`,** so it finds no ffmpeg; see FRICTION.md (2026-10-30).
+
+## Zero-credit gym reel (2026-11-05, SNAP-1, 0 credits)
+
+- **AI-tour reference reels:** the examples were labelled AI content and showed imagined houses. For a real gym, keep their pacing, hard cuts and moody grade, and keep every shot inside one real photo (section 8). Their aerial openers and fly-throughs stay out.
+- **Branded floors break lower-third cards:** white text landed on the white turf lettering, and red on red failed too. Show the branding clean first, then dim the whole frame to about 30% and centre the text. It costs one extra second.
+- **Grain drives file size:** `noise=alls=5`, crf 18 and no cap gave 31 Mbit/s (90 MB for 23 s). `noise=alls=3`, crf 20 and `-maxrate 12M` gave 3.5 Mbit/s (10 MB for 24 s), with no loss visible in a 1:1 crop. Always set a maxrate.
+- **Check motion without watching:** per-frame `signalstats` YDIF per shot, mean against standard deviation, shows a steady move or a jitter.
+- **Codex and ffmpeg:** see FRICTION.md (2026-11-05) for the task-local copy that avoids full access.
+
+## Filmed-style tour from photos (2026-11-05, SNAP-3 and SNAP-4, 87.5 credits)
+
+- **Kling 3.0 pro from one photo per shot gives real parallax:** 1080p, 7 credits per 4 s, 8.75 per 5 s, sound off, quotes unchanged with a start image. Machines stayed solid, and hard cuts between spaces hold together as a tour.
+- **It invents at the edges:** people in mirrors, a new doorway at a frame edge, new pictures on TVs. "No people appear" and a corrective retake did not stop it (two takes, same figure). Cropping up to 15% in the edit is free and worked, so allow that before any retake.
+- **Set reachable pass rules:** a brief that fails any changed TV picture or soft small lettering stops the job on takes the user would accept. Fail on melted machines, warped walls, people or new rooms in the frame, and garbled lettering that is the shot's subject.
+- **A pilot gate must not end the task:** shots 1 and 10 first caught problems cheaply, but "stop if a pilot fails" used up both of the task's dispatches. Have Claude review the pilot and give the go-ahead in a new task.
+- **Very dark photos stay very dark:** the leg press crop came out at about a third of the average brightness of the other gym shots. Lift exposure in the crop or in the edit.
+- **Keep the source frame rate:** Kling outputs 24 fps. Converting to 30 repeats frames and reads as unsteady. Stabilise each raw take (vidstab smoothing about 30, optzoom=0, zoom about 4) before cropping or grading.
+- **Uniform look on mixed sources:** per-shot exposure and white-balance fixes first, then one shared grade (SNAP-5, `build-polish.ps1`). Compare `signalstats` per shot. A cast in one photo, like the blue "feeling" wall, is what breaks the match.
+- **Tiny figures hide in gym crops:** two crops with small reflected figures got past a by-eye check and were uploaded (SNAP-6). Zoom to 1:1 on mirrors and far edges before any upload.
+- **Reels from 16:9 takes:** a 1680-wide window over a darkened blurred copy keeps machines whole and fits the safe area; cropping to full 9:16 cuts machines off. Concat with `h264_metadata` to keep SAR 1:1 and BT.709 tags. 24 to 30 fps by `minterpolate` (mci) held up on these takes, and half speed gives a fast push-in more screen time.
+- **Free options checked the same day:** Hugging Face ZeroGPU without login ran out after about three runs (Wan 2.2 was far steadier than LTX-2.3 but 832x480, 16 fps). Supercomputer's Free Mode is text only. This laptop (4 GB VRAM, 7 GB RAM) cannot run these models.
+
+## Local full-screen reel from tall photos (2026-11-06, Snap v20 to v22, 0 credits)
+
+- **The method:** depth map (`depth-anything-v2-small` ONNX on CPU), then Blender EEVEE with the unlit photo on a depth-displaced grid and linear camera keyframes. It gives true 60 fps, no shake and exact lettering, and fills 9:16 without cropping when the photo is tall enough. There is no subject motion and no new picture. Keep dolly about 0.08 to 0.14; a negative dolly starts close and ends on the full photo, so the subject stays in frame.
+- **Blurry photos:** Swin2SR x4 ONNX in overlapping tiles on CPU took about 7 to 11 minutes per shot here. Cache the result and apply later retouches to it, so a fix never repeats the upscale.
+- **Upscaling shows what was hidden:** a person on the gym floor became obvious only after upscaling. Zoom to 1:1 again after upscaling, and compare with the source before calling something a person: a wall print in a mirror and a bench leg both looked like people in frames.
+- **Extending a wide photo:** a dark ceiling can be padded on, but blurring the photo's top rows smears any light cut by that edge into a vertical streak. Paint the light and its glow out before padding.
+- **Size:** a 29 s master at CRF 16 with light grain came to 36 MiB. A two-pass copy at 7.9 Mbps fits the 30 MiB send limit at SSIM 0.99 against the master.
+- **Kling on the same stills (SNAP-7, 14 credits):** kling3_0 pro at 9:16 from upscaled, retouched 1080x1920 start images came back sharper than the local render, with real parallax and no cropping. A forward glide invented nothing. A sideways track invented a door, wall camera and light switch once it passed the photo's edge, so prefer forward moves on real places and check where a track ends. Kling moved about 4 times faster than the local shots: half speed plus `minterpolate` to 60 fps matched the pace and showed no ghosting in the frames checked.
+- **`--wait` can time out on a job that still completes and charges:** run `generate get <id>` before any resubmit.
+- **Genjutsu on real places (2026-11-07, 2 free generations, 0 credits):** motion transfer with a local render as the reference video and the same retouched photo as the image copied the camera move and invented nothing. Genjutsu Lite is an edit model: the same inputs with "change nothing, make it look like sharp real footage" also stayed faithful. Free generations are website-only here and top out at 720p; the Generate button must say "Free" before pressing it, because changing quality can switch the free toggle off (28 to 80 credits shown). Reference videos must be at least 4 s, and 720p output needs upscaling in the edit.
+
 ## Sources
 
-`Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24.
+`Lj-PpzAlqek` (Roboverse, Claude + Higgsfield MCP), `dJSJMt4ESEU` (Roboverse, advanced settings), `3W1VhiKLNp4` (Metics Media, beginner). Section 4b also draws on the BytePlus ModelArk "Dreamina Seedance 2.5 prompt guide" (docs.byteplus.com/en/docs/ModelArk/2607689), Runway's Seedance 2.5 prompt guide, and the Mixar and Flick Blender-to-AI-video guides (all read 2026-10-29). `mvfo3pUiCCA` (Kyle Skelly, Blender previz; section 4b; transcript from yt-dlp auto captions after a retry, frames not viewed because Gemini returned 503). `ssviusnvaec` (Zinho Automates, beginner guide; transcript via the video-vision tool because YouTube captions returned 429). Workflow names in section 6 were checked against the live `get_workflow_instructions` catalog on 2026-10-24. Section 8 comes from reviewing `vOBKA8n15vg` (Iman Gadzhi, a Higgsfield investor; 2026-10-29, transcript only), whose AI-enhanced Airbnb walkthroughs it rules out, and from Airbnb's statement in https://www.cbc.ca/radio/costofliving/artificial-intelligence-airbnb-photos-9.7371277.

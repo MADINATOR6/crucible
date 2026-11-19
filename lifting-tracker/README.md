@@ -11,12 +11,15 @@ A personal powerlifting tracker that follows your coach's programme. It works of
 - **Weekly summary.** Optional notification (Data screen) with the last 7 days' sessions and sets and each lift's estimated max and trend. Android Chrome with the app installed; the app keeps the text on the device and Android shows it about once a week.
 - **Progress.** One chart per lift: each session's estimated max (from the RPE chart when the set has an RPE, Epley otherwise), light days faded and left out of the trend, an outlier-resistant trend with kg per week, block bands, PR stars, and a meet-day projection with its likely range when the data supports one. Tap or drag a chart to read any point. Also: current form with the change on 4 weeks ago, total with IPF GL points, weekly sets and intensity, "same weight, lower RPE" signals, PR feed, planned vs actual RPE, and per-block bests. The meet date is set in the Progress options; the IPF GL category is your sex under Body & energy → Your details.
 - **Eat for your goal** (top of Body & energy). Pick lose (gentle 0.25%, steady 0.5%, fast 1% of bodyweight a week; Helms et al. 2014), maintain, or gain (lean 0.25%, faster 0.5%; Iraki et al. 2019) for a daily calorie target using the energy of a kg of change for your body (Hall 2008: lean share 10.4 ÷ (10.4 + fat kg), 7.6 MJ/kg lean, 39.5 MJ/kg fat; the 7,700 kcal rule without a body fat %), with protein 1.6–2.2 g/kg (Morton et al. 2018; 2.3–3.1 g/kg lean mass when cutting with a body fat %), fat 0.5–1.5 g/kg (15–30% of calories when cutting) and carbs for the rest (flagged under 3 g/kg). Never below resting burn or 1,500 / 1,200 kcal. Maintenance starts as the 7-day average of the daily energy estimate; log calories eaten with your weigh-ins and after 2 weeks (14 intake days, 8 weigh-ins over 28 days) it is measured instead: mean intake minus the Theil–Sen weight trend × that energy per kg.
-- **My meals** (under Eat for your goal). Build a plate from your usual foods (meats, white or brown rice, bread, Weet-Bix, Cornflakes, vegetables for curries and soups, butter, honey, full-cream milk, coffee) with values from the Australian Food Composition Database (FSANZ, Release 3.0); solids per 100 g, honey, milk and coffee per 100 mL as AFCD lists them, with an Australian 20 mL tablespoon and 250 mL cup. Live totals of kcal, protein, fat and carbs; save plates as meals and log them in one tap with Undo; add your own foods (such as PBfit) from a label. The day's eaten total shows against the calorie and protein target, and finished days feed the measured maintenance. The food log is in JSON backups (backup format 3).
+- **My meals** (under Eat for your goal). Build a plate from your usual foods (meats, white or brown rice, bread, Weet-Bix, Cornflakes, vegetables for curries and soups, butter, honey, full-cream milk, coffee) with values from the Australian Food Composition Database (FSANZ, Release 3.0); solids per 100 g, honey, milk and coffee per 100 mL as AFCD lists them, with an Australian 20 mL tablespoon and 250 mL cup. Live totals of kcal, protein, fat and carbs; save plates as meals and log them in one tap with Undo; add your own foods (such as PBfit) from a label. The day's eaten total shows against the calorie and protein target, and a past day feeds the measured maintenance once you confirm its food log was the whole day. The food log and those confirmations are in JSON backups (backup format 5; an older copy of the app refuses a newer backup rather than dropping what it does not know).
 - **Body & energy** (second tab in Progress). Daily energy: sleep at your resting burn, each lifting session, cardio, sport and nursing shifts you add, the rest of your waking day as everyday movement (mostly sitting 1.3, mixed 1.5 or on your feet 1.8 METs, your choice) and digestion (about 10%), with a breakdown and a tap-to-pick 7-day chart. Quick-add buttons repeat your last few activities (for example "Typical shift · 8 h") in one tap, every add has Undo, and a day whose sleep and entries add up to more than 24 hours is flagged as a likely duplicate. Also calories per lifting session, bodyweight, and Your details (height, birth year, sex, optional body fat %, sleep hours). Activities use 2024 Compendium of Physical Activities METs (MET × 3.5 ml O₂/kg/min × bodyweight × time): lifting 3.5–6 (codes 02054/02052/02050, banded by the session's RPE, timed from when its sets were logged; pauses over 15 minutes count as 15, and sessions typed in later get no estimate), nursing shifts as whole-shift averages, quiet 1.8 / typical 2.3 / busy 3.3 (11600/11650/11610; ward nurses are active about 27% of a shift by accelerometry, Chappel et al. 2023), and walking, running, hiking, gym cardio, cycling, swimming and sports at their own codes. Resting burn is the ten Haaf & Weijs (2014) athlete equation (lean mass with a body fat %, else weight, height, age and sex). Train shows today's session estimate. Without heart rate, roughly ±30% on activities. Cardio and work entries are included in JSON backups.
 - **Plates.** An interactive barbell: tap or drag plates on, type a target, or build a warm-up ladder. The side view shows one end of a power bar to scale (real plate diameters and thicknesses, printed weights, collar); **3D** shows the whole loaded bar to turn and zoom. kg and lb never mix silently. Includes a meet attempt planner (a suggestion, not advice).
 - **Data and settings.** The persistent gear button opens workbook import, units/theme, JSON backup/restore and CSV export.
 
-The first time you open it, it shows clearly labelled **example data** so you can explore. Import your workbook in **Data** to replace it.
+The first time you open it, it shows clearly labelled **example data** so you can explore. Then either:
+
+- **Import your coach's workbook** in **Data**. The import asks whether the workbook's past weeks count in Progress and Coach, or you start clean and only what you log in the app counts. A switch in Data changes it later; nothing is deleted either way.
+- **Start without a workbook** in **Coach**, if you are new to lifting or back from a break with no programme. Enter a best recent set for squat, bench and deadlift (leave any you are unsure of blank), pick 2, 3 or 4 training days, and tick "coming back from a break" if you are. The app builds four weeks of squat, bench and deadlift as your own programme, lighter in week 1 after a break. From then on the Coach reviews what you log and builds your next blocks, the same as for a workbook athlete.
 
 ## Run it
 
@@ -31,6 +34,18 @@ Open `http://127.0.0.1:5173/`. Tests (from the `lifting-tracker` folder):
 ```bash
 cd lifting-tracker && node --test
 ```
+
+Those run in Node against stub elements. The browser smoke tests drive the real app in a real browser (Chrome and a phone-sized viewport) over the example data, and cover what the Node suites cannot: IndexedDB, event wiring, layout and the service worker. They need `@playwright/test`, a development-only dependency — the app itself still ships with no build step and one runtime dependency.
+
+```bash
+cd lifting-tracker && npm install && npx playwright install chromium
+```
+
+```bash
+cd lifting-tracker && npx playwright test
+```
+
+They start their own dev server on port 5174, and `.github/workflows/pages.yml` runs them before publishing.
 
 ## Coach: the block generator and training review
 
@@ -83,7 +98,7 @@ Data shows the loaded app version and update status. A ready update can wait unt
 
 ### Samsung workout check
 
-After this change is published, open the installed app online and check its version in Data. When upgrading from version 13, fully close the installed app and every browser tab for this site, then reopen it so version 14 can activate. Back up your data before testing. Check these on your phone:
+After a release is published, open the installed app online and check its version in Data. Apply an offered update after your workout; if an older installation cannot offer updates, close every browser tab and installed window for this site, then reopen online. Back up your data before testing. Check these on your phone:
 
 1. Open a workout and confirm the actual date is today; choose a past date and check the Backdated label.
 2. Open a set with the keyboard visible. Enter invalid reps, try Save, and confirm the error focuses Reps without losing your weight.
@@ -102,7 +117,7 @@ Browser checks do not verify the Samsung keyboard, home-screen lifecycle, vibrat
 - Weeks run Monday to Sunday.
 - Hard sets per muscle: a primary mover counts 1 per set, a secondary mover 0.5. These weights are estimates, not research. Edit them in `data/exercises.json` (the same file defines exercise names, aliases and coaching-cue patterns for the importer).
 - Plate colours: 25, 20 and 15 kg follow the IPF Technical Rulebook (red, blue, yellow); 10 kg and under may be any colour, so those are convention and editable in `data/plates.json`. Competition collars are 2.5 kg each (the rulebook gives bar plus collars as 25 kg for the 20 kg bar). Check the rules of the federation you compete in.
-- Competition scores (Wilks, DOTS, IPF GL) are not included until their coefficients are verified from an official source.
+- IPF GL points are available in Progress when bodyweight and sex are set. Wilks and DOTS are not included.
 
 ## Privacy
 
@@ -124,3 +139,25 @@ test/        node:test suites
 ```
 
 See `ARCHITECTURE.md` for the data model and the verified facts about the workbook layout.
+
+
+## Cross-device quality update (lt-v21)
+
+The same static app targets current Chrome, Edge and Firefox on Windows/macOS, Safari on Mac/iPhone/iPad, and Chrome/Samsung Internet on Android. Core logging, charts and JSON backup do not require installation, notifications, vibration, wake lock, 3D or file sharing. Those optional features depend on browser support. If file sharing fails, image export offers a normal download; check browser downloads or the Files app on Apple devices. Private browsing and blocked storage can prevent persistence; heed the in-app storage warning.
+
+- Train shows your last actual working set for the same exercise, up to the selected date. The log sheet's **Use last numbers** copies its weight and reps with unit conversion. Enter the new effort yourself: old RPE is deliberately not copied. Nothing saves until **Save set**. A form whose source set changed is refused.
+- Progress offers **All history** or **Logged sessions only** for strength charts, totals, weekly load and same-weight effort comparisons. Coach notes, personal records and workbook comparisons still use full history, as labelled. Imported dates remain estimates after assigning a block start.
+- A running rest timer resumes after reloading the same tab where session storage is available. Dismissing it clears recovery; expired alarms are not replayed. Closing a tab or an OS killing the browser may discard session storage.
+- Sheets support keyboard Tab/Shift-Tab, Escape and focus return. Phone controls use at least 16px text to avoid iPhone form zoom. Safe-area spacing and landscape are supported. Installation remains optional.
+
+### Installation and device verification
+
+Serve over HTTPS for installation and offline use. On iPhone/iPad use Safari's Share menu, **Add to Home Screen**; on Android use the browser's install option. On PC/Mac use a normal browser tab or its install option if offered. Devices keep separate data; transfer JSON backups deliberately. No cloud sync is added.
+
+Before calling a release verified on a device, run the Samsung workout check above plus these checks on that device: portrait and landscape at 320px and wider; 200% desktop zoom; keyboard-only navigation and dialog close/focus return; input with the on-screen keyboard visible; log/edit/Undo; reload during rest; export and restore a synthetic backup; reopen offline after installing the cache online. Check Safari/iOS file export via Files. Native keyboard, OS lifecycle and notifications require physical hardware, not just responsive emulation.
+
+For the real-IndexedDB concurrency smoke page, start the dev server and open `/test/browser/storage.html` on localhost. It uses a separate synthetic database and never opens the athlete database. It is a manual browser check, separate from `node --test`. Browser automation was disabled in the implementation session, so this page and physical-device checks were not executed there.
+
+Further product work remains separate: flexible session scheduling/substitutions, personal coaching calibration, readiness tracking, a consolidated meet workflow, nutrition logging refinements and conflict-aware device sync. No training or nutrition formulas changed in this update.
+
+When another tab changed training data and a stale action is refused, the app refreshes before reporting the conflict. Review values before retrying; reopen a changed set or recreate an import preview from the file. If the refresh fails, reload the page as the message instructs. Cross-tab notifications also refresh supported browsers automatically, but delivery is asynchronous.

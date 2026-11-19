@@ -107,6 +107,26 @@ test('workbook Apply writes once; a changed source makes a preview stale', async
   } finally { dom.restore(); }
 });
 
+test('the import review asks whether the workbook\'s history counts, keeps the current choice as the default, and saves it with the programme', async () => {
+  const dom = fakeDom();
+  try {
+    const app = await readyApp(), ui = {}, bytes = syntheticWorkbook();
+    const file = { name: 'synthetic.xlsx', arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
+    const preview = async () => { const input = bindData(app, ui).root.querySelector('#xlsx'); input.files = [file]; await input.change({ target: input }); return dom.sheets.at(-1); };
+    let sheet = await preview();
+    assert.match(sheet.innerHTML, /id="keep-history" type="checkbox" checked/);
+    sheet.querySelector('#keep-history').checked = false; // the athlete unticks it: a clean start
+    await sheet.querySelector('#review-apply').click();
+    assert.equal(app.programme.workbookHistory, false);
+    assert.match(dataView(app, ui).html, /id="workbook-history" type="checkbox" >/, 'Data shows the switch, off');
+    sheet = await preview();
+    assert.match(sheet.innerHTML, /id="keep-history" type="checkbox" >/, 'a new import starts from the choice already made');
+    sheet.querySelector('#keep-history').checked = true;
+    await sheet.querySelector('#review-apply').click();
+    assert.equal(app.programme.workbookHistory, true);
+  } finally { dom.restore(); }
+});
+
 test('Apply ignores a second click while the workbook write is pending', async () => {
   const dom = fakeDom();
   try {

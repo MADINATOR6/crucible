@@ -1,0 +1,10 @@
+{
+  "name": "crucible-cockpit",
+  "version": "0.1.0",
+  "description": "Local web Mission Control for the Crucible peer-mode workflow",
+  "private": true,
+  "type": "module",
+  "bin": { "crucible-cockpit": "server.js" },
+  "engines": { "node": ">=18.11" },
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}

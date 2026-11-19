@@ -85,6 +85,14 @@ Slot {
 - `cues`: the entry's `cues` plus its distinct `coachComment` texts (max 3 strings, each cut to 160 chars). `tempo`, `supersetGroup` copied.
 - Days with no entries are dropped; `daysPerWeek` = remaining days.
 
+### Starter template (`starterTemplate()`)
+
+For an athlete with no programme to learn from (Coach, "Start without a workbook"). One day: Low Bar Squat, Competition Bench Press, Conventional Deadlift, each `main`, `straight`, 3 × 5 at RPE 7, `k: 1`, no `loadKg`, no accessories. `fromBlock: null`, which is how a starter block is recognised afterwards (a block generated from a programme always carries the block number it learned from).
+
+`starterBlock()` in `src/ui/views/plan.js` feeds it to `generateBlock` unchanged: 4 weeks, block 1, `rotate: 0`, `focus: 'strength'` with `conservative` progression, or `focus: 'return'` with the weeks away. The generator's existing rule adds the light days for 2, 3 or 4 training days, so every count keeps all three lifts. The athlete passed in is built from what was typed: per lift an Epley e1RM from one best set (`estimate1RM`), `confidence: 'low'`, `n: 0`, or no e1RM where the lift was left blank, which leaves its loads blank. The block's stored rationale drops the generator's "your last block" day notes and volume comparisons, which do not apply.
+
+**Starting estimate.** `buildAthleteModel({ starting })` takes the starter block's `generated.e1rmStart`. A lift uses it only while its own model has no e1RM (`n: 0`, `confidence: 'low'`, basis "the starting estimate you entered"); once that lift has logged evidence the logs win. It never creates events, so the Coach review still reports no history until sets are logged.
+
 ## Generator (`src/core/generator.js`)
 
 ```

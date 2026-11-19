@@ -28,7 +28,7 @@ function supports3d() {
 }
 
 function programmeWeekEvents(app, blockNumber, weekNumber, mode) {
-  const block = app.programme.blocks.find((b) => b.number === blockNumber);
+  const block = app.analysisProgramme().blocks.find((b) => b.number === blockNumber); // "done" follows the history choice
   const week = block?.weeks.find((w) => w.number === weekNumber);
   if (!week) return { events: [], weekStart: DUMMY_MONDAY, estimated: false };
   const start = app.dateFor({ blockNumber, weekNumber, dayNumber: 1 });
@@ -44,7 +44,7 @@ function programmeWeekEvents(app, blockNumber, weekNumber, mode) {
 }
 
 export function musclesView(app, ui) {
-  const p = app.programme;
+  const p = app.analysisProgramme(); // follows the workbook-history choice, so the default week is one whose Done view has something in it
   ui.muscles ||= { mode: 'programme', what: 'done', block: null, week: null, calWeek: null, view: 'front', selected: null };
   const m = ui.muscles;
   m.asOf ||= todayIso();
@@ -145,7 +145,7 @@ export function musclesView(app, ui) {
     bindShareBg(root, app);
     root.querySelectorAll('[data-share-map]').forEach((b) => b.addEventListener('click', () => shareHeatmapImage({ data, bands, title: label, subtitle: `${total} ${recovery ? 'weighted' : 'working'} sets`, bg: app.settings.shareBg, save: b.dataset.shareMap === 'save' })
       .catch((e) => { if (e?.name !== 'AbortError') toast(`Could not make the image: ${e?.message || e}`); })));
-    const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: `smooth` })); };
+    const pick = (id) => { set({ selected: m.selected === id ? null : id }); requestAnimationFrame(() => document.getElementById(`hm-detail`)?.scrollIntoView({ block: `nearest`, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })); };
     const id = ++mountId;
     leaveObserver?.disconnect();
     if (m.view === '3d') {

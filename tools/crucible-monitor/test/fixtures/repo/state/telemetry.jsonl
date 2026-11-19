@@ -1,0 +1,10 @@
+{"kind":"route","type":"implement","at":"2026-01-01T00:05:00Z","agent":"codex","taskId":"T-1","model":"fixture-codex-routed","effort":"low","route":"worker","reasons":[]}
+{"kind":"dispatch","type":"implement","role":"implement","at":"2026-01-01T00:10:00Z","agent":"codex","provider":"openai","taskId":"T-1","model":"","effort":"medium","attempt":1,"exit":0,"status":"READY_FOR_CLAUDE_REVIEW","tokens":{"input":1000,"cached":400,"output":100}}
+{"kind":"dispatch","type":"implement","role":"implement","at":"2026-01-01T00:10:00Z","agent":"codex","provider":"openai","taskId":"T-1","model":"","effort":"medium","attempt":1,"exit":0,"status":"READY_FOR_CLAUDE_REVIEW","tokens":{"input":1000,"cached":400,"output":100}}
+{"kind":"dispatch","type":"docs","role":"verify","at":"2026-01-01T00:12:00Z","agent":"gemini","provider":"gemini","taskId":"T-2","model":"auto","effort":"medium","attempt":0,"exit":0,"status":"READY_FOR_CLAUDE_REVIEW","tokens":{"input":200,"cached":0,"output":50}}
+{"kind":"dispatch","type":"implement","role":"implement","at":"2026-01-01T00:14:00Z","agent":"codex","provider":"openai","taskId":"T-1","model":"fixture-codex-observed","effort":"high","attempt":2,"exit":4,"status":"NONE","tokens":null}
+{"kind":"task-done","type":"implement","at":"2026-01-01T00:20:00Z","agent":"codex","taskId":"T-1","tokens":{"input":1000,"cached":400,"output":100}}
+{"kind":"future-kind","at":"2026-01-01T00:21:00Z","unknown":true}
+{not json
+["an array, not a record"]
+{"kind":"dispatch","taskId":"T-9","tokens":{"input":999999

@@ -1,0 +1,1 @@
+{"kind":"dispatch","type":"implement","role":"verify","at":"2026-01-01T00:40:00Z","agent":"codex","provider":"openai","taskId":"FIX-COCKPIT","model":"fixture-codex-observed","effort":"medium","attempt":0,"exit":0,"status":"READY_FOR_CLAUDE_REVIEW","tokens":{"input":500,"cached":100,"output":50}}
