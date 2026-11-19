@@ -8,6 +8,8 @@ Judge checklist: HANDOFF.md holds the one copy, so Codex gets it through the dis
 
 Since 2026-11-01 Codex plans and Claude implements code tasks (AGENTS.md Roles; HANDOFF.md, Codex plans, Claude implements). Pass `-TaskId` on the plan dispatch so the task starts, and any ownership conflict shows, before the plan exists. Critique Codex's plan with HANDOFF.md's Plan critique (seven checks and worked examples; the same text Codex's instructions point at) before writing it into the task file; never implement a plan you have not checked against the code. Reports from either agent carry the `Untested:` line.
 
+Claude Code plugins (security-guidance, ponytail, evaluated token savers, MCP trimming) are in AGENTS.md, Claude Code Plugins; Codex installs ponytail at user level with the commands listed there.
+
 Pushing a change under `lifting-tracker/` to the base branch republishes the live app on GitHub Pages (AGENTS.md, Commands). Review that push as a publish: both suites green (`node --test` and the browser smoke tests, AGENTS.md Commands), nothing private, and check the deploy run and the live site afterwards. Bump `VERSION` in `lifting-tracker/sw.js` whenever app files change, and `APP_VERSION` in `src/ui/updates.js` to match, or installed phones keep the old cached copy. Reloading does not pick the new version up: see the service-worker update path in AGENTS.md, Commands, and check the live site that way.
 
 # External Tools
