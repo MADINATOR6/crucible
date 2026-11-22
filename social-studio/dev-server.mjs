@@ -22,9 +22,8 @@ createServer(async (req, res) => {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (p.endsWith('/')) p += 'index.html';
     const file = normalize(join(root, p));
-    // Never serve outside this folder, and never the gitignored private folder.
+    // Never serve outside this folder.
     if (file !== root && !file.startsWith(root + sep)) { res.writeHead(403).end('Forbidden'); return; }
-    if (file.slice(root.length).split(sep).includes('private')) { res.writeHead(403).end('Forbidden'); return; } // private/ and data/private/ are gitignored
     const info = await stat(file);
     if (!info.isFile()) throw new Error('not a file');
     const body = await readFile(file);
