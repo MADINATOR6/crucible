@@ -1,11 +1,12 @@
-# Publishes the lifting tracker to GitHub Pages: only the files the app runs from (no specs, scripts, tests or
-# anything else in the repo). Runs the app's tests first, so a failing build is never published.
+# Publishes the lifting tracker (site root) and Social Studio (/social-studio/) to GitHub Pages: only the files each
+# app runs from (no specs, scripts, tests or anything else in the repo). Runs both apps' tests first, so a failing
+# build is never published. Both apps share the origin; each service worker cleans only its own caches.
 name: Pages
 
 on:
   push:
     branches: [main]
-    paths: ['lifting-tracker/**', '.github/workflows/pages.yml']
+    paths: ['lifting-tracker/**', 'social-studio/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -34,6 +35,9 @@ jobs:
       - name: Test
         working-directory: lifting-tracker
         run: node --test
+      - name: Test Social Studio
+        working-directory: social-studio
+        run: node --test
       # Stub elements cannot show whether the real app still works: these drive it in a real browser.
       - name: Browser smoke test
         working-directory: lifting-tracker
@@ -54,6 +58,11 @@ jobs:
           mkdir -p ../_site/assets
           cp -r index.html manifest.webmanifest sw.js icons styles src data vendor ../_site/
           cp assets/body.glb assets/body-front.webp assets/body-back.webp ../_site/assets/
+      - name: Collect Social Studio's runtime files
+        working-directory: social-studio
+        run: |
+          mkdir -p ../_site/social-studio
+          cp -r index.html styles.css manifest.webmanifest sw.js icon.svg icons src ../_site/social-studio/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

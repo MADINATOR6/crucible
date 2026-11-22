@@ -69,3 +69,9 @@ test('every icon the manifest names exists and is precached', async () => {
   assert.match(touch || '', /\.png$/, 'iPhone needs a PNG home-screen icon');
   await access(root + touch);
 });
+
+test('shares the origin with Social Studio: cleans only its own caches and ignores /social-studio/', async () => {
+  const src = await readFile(new URL('../../sw.js', import.meta.url), 'utf8');
+  assert.match(src, /k\.startsWith\('lt-'\) && k !== VERSION/, 'activate must not delete caches of other apps');
+  assert.match(src, /url\.pathname\.includes\('\/social-studio\/'\)\) return;/, 'fetch must leave Social Studio to its own worker');
+});
