@@ -4,6 +4,9 @@ import { runScout, MODEL } from '../scout.js';
 import { uid } from '../db.js';
 import { PLATFORM_LABEL } from '../importer.js';
 
+// Stored counts are shown as numbers only (a restored backup could hold anything).
+const num = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
 const KIND_LABEL = { trend: 'Trend', niche: 'Niche', question: 'Audience question', note: 'Research note' };
 
 function card(f) {
@@ -34,7 +37,7 @@ function render_(S) {
   const ui = S.ui.scout ||= { filter: 'all' };
   const visible = S.findings.filter(f => f.status !== 'dismissed' && (ui.filter === 'all' || f.kind === ui.filter || (ui.filter === 'saved' && f.status === 'saved')))
     .sort((a, b) => (b.created || '').localeCompare(a.created || ''));
-  const lastRun = [...S.runs].sort((a, b) => b.started.localeCompare(a.started))[0];
+  const lastRun = [...S.runs].sort((a, b) => String(b.started).localeCompare(String(a.started)))[0];
   const topics = S.profile?.topics?.join(', ');
   const tabs = ['all', 'trend', 'niche', 'question', 'note', 'saved'];
   return `
@@ -50,7 +53,7 @@ function render_(S) {
       <button type="button" data-act="addNote">Add research by hand</button>
     </div>
     <p class="small muted" style="margin-bottom:0">Uses ${esc(MODEL)} with web search on your key. Only claims with a source the search actually returned are kept; the rest are dropped and counted.
-    ${lastRun ? `<br>Last run ${esc(lastRun.started.slice(0, 16).replace('T', ' '))}: ${lastRun.error ? `failed (${esc(lastRun.error)})` : `${lastRun.kept} kept, ${lastRun.dropped} unsupported dropped, ${lastRun.usage?.web_searches ?? 0} searches, ${(lastRun.usage?.input_tokens ?? 0).toLocaleString()} in / ${(lastRun.usage?.output_tokens ?? 0).toLocaleString()} out tokens`}${lastRun.searchErrors?.length ? `, search errors: ${esc(lastRun.searchErrors.join(', '))}` : ''}.` : ''}</p>
+    ${lastRun ? `<br>Last run ${esc(String(lastRun.started).slice(0, 16).replace('T', ' '))}: ${lastRun.error ? `failed (${esc(lastRun.error)})` : `${num(lastRun.kept)} kept, ${num(lastRun.dropped)} unsupported dropped, ${num(lastRun.usage?.web_searches)} searches, ${num(lastRun.usage?.input_tokens).toLocaleString()} in / ${num(lastRun.usage?.output_tokens).toLocaleString()} out tokens`}${lastRun.searchErrors?.length ? `, search errors: ${esc(lastRun.searchErrors.join(', '))}` : ''}.` : ''}</p>
   </div>
   ${ui.running ? `<div role="status" aria-live="polite" class="card"><span class="spinner" aria-hidden="true"></span> Researching ${ui.lastKind === 'niches' ? 'niches' : 'trends'}… this can take a minute. <button type="button" data-act="cancel">Cancel</button></div><div class="skeleton"></div><div class="skeleton"></div>` : ''}
   <div class="row" role="tablist" aria-label="Filter">${tabs.map(t => `<button type="button" role="tab" aria-selected="${ui.filter === t}" data-act="filter" data-f="${t}" ${ui.filter === t ? 'class="primary"' : ''}>${t === 'all' ? 'All' : t === 'saved' ? 'Saved' : KIND_LABEL[t] + 's'}</button>`).join('')}</div>

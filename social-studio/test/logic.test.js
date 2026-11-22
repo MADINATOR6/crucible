@@ -270,6 +270,8 @@ test('backup restore validates the whole file before writing', () => {
   assert.throws(() => validateBackup({ app: 'social-studio', version: 1, posts: [{ id: 'p', platform: '<b>', metrics: {} }] }), /unknown platform/);
   assert.throws(() => validateBackup({ app: 'social-studio', version: 1, posts: [{ id: 'p', platform: 'tiktok', metrics: { views: '<img>' } }] }), /must be numbers/);
   assert.throws(() => validateBackup({ app: 'social-studio', version: 1, imports: [{ id: 'i', at: 'x', platform: 'tiktok', count: '<b>' }] }), /invalid counts/);
+  assert.throws(() => validateBackup({ app: 'social-studio', version: 1, runs: [{ id: 'r', started: '2026-11-22', kept: '<img src=x onerror=alert(1)>' }] }), /scout runs have invalid fields/);
+  assert.throws(() => validateBackup({ app: 'social-studio', version: 1, runs: [{ id: 'r', started: '2026-11-22', usage: { input_tokens: '<b>' } }] }), /scout runs/);
 });
 
 test('scout dates come from search metadata, never the model', () => {

@@ -55,6 +55,9 @@ export function validateBackup(data) {
   for (const s of ['items', 'posts', 'imports']) if ((data[s] || []).some(o => o?.platform != null && badPlatform(o.platform))) throw new Error(`Backup ${s} contain an unknown platform.`);
   const badMetrics = m => typeof m !== 'object' || m === null || Object.values(m).some(v => v !== null && typeof v !== 'number');
   if ((data.posts || []).some(o => badMetrics(o.metrics)) || (data.items || []).some(o => o.metrics != null && badMetrics(o.metrics))) throw new Error('Backup metrics must be numbers.');
+  const numOrNull = v => v == null || typeof v === 'number';
+  if ((data.runs || []).some(o => typeof o.started !== 'string' || !numOrNull(o.kept) || !numOrNull(o.dropped) || (o.usage != null && (typeof o.usage !== 'object' || !Object.values(o.usage).every(numOrNull)))))
+    throw new Error('Backup scout runs have invalid fields.');
   for (const k of ['count', 'linked']) if ((data.imports || []).some(o => o?.[k] != null && typeof o[k] !== 'number')) throw new Error('Backup imports have invalid counts.');
   for (const s of STORES) {
     if (data[s] == null) continue;
