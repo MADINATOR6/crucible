@@ -2,7 +2,7 @@
 // Only same-origin GET requests are handled; nothing is ever sent to another site.
 // The 3D library (vendor/three) and body model (assets/body.glb), about 2.4 MB, are not installed up front: the fetch
 // handler caches them the first time a 3D view opens, and they work offline from then on.
-const VERSION = 'lt-v28';
+const VERSION = 'lt-v29';
 const SHELL = [
   'src/ui/updates.js', 'src/ui/drafts.js',
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'styles/app.css',
@@ -21,12 +21,15 @@ self.addEventListener('install', (e) => {
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'ACTIVATE_UPDATE') e.waitUntil(self.skipWaiting());
 });
+// Social Studio is hosted on the same origin under /social-studio/ with its own worker and 'ss-' caches:
+// only this app's 'lt-' caches are cleaned up, and its pages are left to its own worker.
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('lt-') && k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.includes('/social-studio/')) return;
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
     return res;
