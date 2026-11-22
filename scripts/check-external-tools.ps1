@@ -116,6 +116,13 @@ try {
     $blenderStatus = 'cli-pass'
 } catch { $blenderStatus = 'unavailable' }
 $rows += [PSCustomObject]@{ Tool='blender'; AvailableTo='Both'; Status=$blenderStatus; Check='version (offline; opens no .blend, never renders); scene tests: blender.ps1 test' }
+$mptStatus = 'unavailable'
+try {
+    # `version` reads the pinned commit and package version only: offline, never renders.
+    $null = Invoke-Version (Join-Path $PSHOME 'powershell.exe') ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $RepoRoot 'scripts\mpt.ps1') + '" version')
+    $mptStatus = 'cli-pass'
+} catch { $mptStatus = 'unavailable' }
+$rows += [PSCustomObject]@{ Tool='mpt'; AvailableTo='Both'; Status=$mptStatus; Check='version (offline; never renders); Edge TTS needs network' }
 if ($Json) { ConvertTo-Json -InputObject @($rows) -Depth 3 }
 else {
     $rows | Format-Table -AutoSize
