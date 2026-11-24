@@ -119,6 +119,8 @@ Applies whenever the media shows a real place, property, product or business tha
 - Quote: `higgsfield generate cost <model> <flags>` creates no job, but it uploads local paths given to media flags, so quote with job or upload ids. Balance: `higgsfield account status`. Spend history: `higgsfield account transactions`.
 - Generate: `higgsfield generate create <model> --prompt "..." [--start-image|--image <path-or-id>] [--param value]... --wait --json`. Params use the model's schema names (`higgsfield model get <model> --json`), for example `--mode omni_reference --duration 5 --aspect_ratio 9:16 --resolution 480p --draft true --generate_audio true`.
 - A previous job id works as a media input, so a saved character frame is reused without a new upload.
+- **Codex models for media dispatches (2026-11-24):** gpt-6.2-sol for making and editing media, gpt-6.2-astra for scripts, briefs and independent visual reviews (`codex.cmd exec --sandbox read-only -m gpt-6.2-astra -i <image> ... -`). Both need Codex CLI 0.172.0 or later: 0.160.0 rejected them with "not supported when using Codex with a ChatGPT account" although `models_cache.json` already listed them. Check `codex.cmd --version` before blaming the model.
+- **Media-generate needs full access:** `workspace-write` cannot read `%USERPROFILE%\.config\higgsfield\config.json`, so the CLI fails "Access is denied" (FRICTION.md 2026-11-24). Ask for `codex-full-access` together with the paid-action approval.
 
 ## Pilot media task (2026-10-25, HF-P1, 50 credits)
 

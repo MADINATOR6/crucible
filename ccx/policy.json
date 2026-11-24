@@ -18,8 +18,8 @@
       "reviewSubagent": "ccx-reviewer"
     },
     "codex": {
-      "default": "gpt-6-astra",
-      "fallbacks": ["gpt-6.1-sol", "gpt-6-sol"],
+      "default": "gpt-6.2-astra",
+      "fallbacks": ["gpt-6.2-sol", "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol"],
       "note": "default serves complex and higher classes; a class's codexModel overrides it. A model missing from the catalog falls back to default, then fallbacks.",
       "catalogFile": "models_cache.json",
       "unavailableBackoffMinutes": 60,
@@ -34,7 +34,7 @@
       "requiredVerification": ["independent-review", "deterministic", "human-approval-if-consequential"],
       "fallback": [
         { "agent": "claude", "model": "claude-opus-5-5", "effort": "max" },
-        { "agent": "codex", "model": "gpt-6-astra", "effort": "xhigh" }
+        { "agent": "codex", "model": "gpt-6.2-astra", "effort": "xhigh" }
       ],
       "note": "Escalation-only tier. Set available=true, agent and model only when the account has legitimate, authorised access. Never spoof identifiers or work around provider controls."
     }
@@ -52,13 +52,13 @@
 
   "classes": {
     "routine": {
-      "codexModel": "gpt-6.1-sol",
+      "codexModel": "gpt-6.2-sol",
       "effort": { "codex": { "base": "low", "max": "medium" }, "claude": { "base": "medium", "max": "medium" }, "min": "low" },
       "verification": ["deterministic"],
       "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 1, "maxParallel": 1, "timeoutMinutes": 30, "tokenTarget": 150000 }
     },
     "normal": {
-      "codexModel": "gpt-6.1-sol",
+      "codexModel": "gpt-6.2-sol",
       "effort": { "codex": { "base": "medium", "max": "high" }, "claude": { "base": "medium", "max": "high" }, "min": "low" },
       "verification": ["deterministic", "cross-model-review"],
       "budget": { "maxDispatches": 2, "maxModelEscalations": 1, "maxReviewCycles": 1, "maxAgents": 2, "maxParallel": 1, "timeoutMinutes": 60, "tokenTarget": 400000 }

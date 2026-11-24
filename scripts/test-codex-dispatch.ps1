@@ -229,7 +229,7 @@ function Ccx-Case([string]$name, [scriptblock]$ccxBody) {
     [void][IO.Directory]::CreateDirectory($fixture)
     [IO.File]::Copy((Join-Path $root 'ccx/policy.json'), $env:CCX_POLICY)
     [void][IO.Directory]::CreateDirectory($env:CODEX_HOME)
-    Write-Utf8File (Join-Path $env:CODEX_HOME 'models_cache.json') '{"models":[{"slug":"gpt-6-astra"}]}'
+    Write-Utf8File (Join-Path $env:CODEX_HOME 'models_cache.json') '{"models":[{"slug":"gpt-6.2-astra"}]}'
     try { & $ccxBody } finally {
       foreach ($key in $previous.Keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }
     }
@@ -601,9 +601,9 @@ else {
     $log = Join-Path $scratch 'routed.json'
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready' 'fake' $false 25 $log
     Check-Code $r 0
-    Assert ($r.Stdout -match 'Route: worker gpt-6-astra medium') 'normal route absent'
+    Assert ($r.Stdout -match 'Route: worker gpt-6\.2-astra medium') 'normal route absent'
     $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
-    Assert (($args -join '|') -match '\|-m\|gpt-6-astra\|') 'routed model absent'
+    Assert (($args -join '|') -match '\|-m\|gpt-6\.2-astra\|') 'routed model absent'
     Assert ($args -contains 'model_reasoning_effort=medium') 'routed medium effort absent'
     Assert ($args[-1] -match 'ccx-task.md\.$') 'task file not selected'
   }
