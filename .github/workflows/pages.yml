@@ -64,8 +64,8 @@ jobs:
           mkdir -p ../_site/social-studio
           cp -r index.html styles.css manifest.webmanifest sw.js icon.svg icons src ../_site/social-studio/
       - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
