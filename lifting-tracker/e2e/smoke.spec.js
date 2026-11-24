@@ -174,6 +174,48 @@ test('a restored backup brings back a set that was deleted after the export', as
   expect(errors).toEqual([]);
 });
 
+test('an exercise swap and a skipped session survive a reload', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await expect(page.locator('.train-focus-lift')).toContainText('Low Bar Squat');
+  const title = await page.locator('.day-switch h1').textContent();
+
+  // Swap the current exercise for this session: the planned weight goes, the substitute's name shows.
+  await page.locator('.train-focus-more [data-swap]').click();
+  const sheet = page.locator('.sheet[role="dialog"]');
+  await expect(sheet).toContainText('Swap exercise');
+  await sheet.locator('[data-to="high_bar_squat"]').click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('.train-focus-lift')).toContainText('High Bar Squat');
+  await expect(page.locator('.train-swap-note')).toContainText('Instead of Low Bar Squat');
+  await expect(page.locator('.train-focus-prescription')).not.toContainText('kg');
+
+  await logCurrentSet(page, { weight: '120', reps: '5', rpe: '7' });
+  await page.reload();
+  // The swap and the set both reached storage: the next set is still the substitute, and the row names it.
+  await expect(page.locator('.train-focus-lift')).toContainText('High Bar Squat');
+  await openFullWorkout(page);
+  await expect(page.locator('.set-row.is-done').first()).toContainText(/5\s*×\s*120.*High Bar Squat/);
+
+  // Skip the rest: Train moves to the next session and stays there after a reload.
+  await page.locator('#skip-day').click();
+  await expect(page.locator('.day-switch h1')).not.toHaveText(title);
+  const moved = await page.locator('.day-switch h1').textContent();
+  await page.reload();
+  await expect(page.locator('.day-switch h1')).toHaveText(moved);
+
+  // The skipped day says so in the picker and can be reopened.
+  await page.locator('#pick').click();
+  await sheet.locator('.chip:has-text("skipped")').click();
+  await expect(page.locator('.day-switch h1')).toHaveText(title);
+  await page.locator('#unskip-day').click();
+  await expect(page.locator('#unskip-day')).toHaveCount(0);
+  await expect(page.locator('#skip-day')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow, 'Train scrolls sideways').toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
 test('an interrupted workout: unsaved inputs resume without logging, the rest timer keeps its deadline, Undo restores the old numbers', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/');

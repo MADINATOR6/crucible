@@ -38,7 +38,7 @@ function programmeWeekEvents(app, blockNumber, weekNumber, mode) {
   week.days.forEach((d) => d.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
     const logged = app.loggedFor({ blockNumber, weekNumber, dayNumber: d.number, entryIndex: ei, setIndex: si });
     if (mode === 'done' && !(s.completed || logged)) return;
-    events.push({ date: weekStart, exerciseId: logged?.exerciseId || e.exerciseId || ('custom:' + e.name), weightKg: 1, reps: 1, rpe: null, isWarmup: false, order: order++, source: 'programme' });
+    events.push({ date: weekStart, exerciseId: logged?.exerciseId || (!s.completed && app.exerciseFor?.({ blockNumber, weekNumber, dayNumber: d.number, entryIndex: ei }, e).id) || e.exerciseId || ('custom:' + e.name), weightKg: 1, reps: 1, rpe: null, isWarmup: false, order: order++, source: 'programme' });
   })));
   return { events, weekStart, estimated: !!start };
 }

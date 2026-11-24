@@ -11,7 +11,7 @@ const SHELL = [
   'src/ui/views/train.js', 'src/ui/views/muscles.js', 'src/ui/views/progress.js', 'src/ui/views/plates.js', 'src/ui/views/data.js', 'src/ui/views/meet.js', 'src/ui/views/plan.js', 'src/ui/views/body.js',
   'src/core/units.js', 'src/core/e1rm.js', 'src/core/sets.js', 'src/core/prs.js', 'src/core/weeks.js', 'src/core/muscles.js', 'src/core/schedule.js', 'src/core/lifts.js', 'src/core/rpe.js', 'src/core/attempts.js', 'src/core/rpe-chart.js',
   'src/plates/loading.js', 'src/plates/tolerance.js', 'src/core/coach.js', 'src/core/request.js', 'src/core/generator.js', 'src/core/athlete.js', 'src/core/template.js', 'src/import/xlsx.js', 'src/import/programme.js', 'src/store/db.js', 'src/store/backup.js', 'src/store/programme-schema.js',
-  'src/core/session.js', 'src/core/progress.js', 'src/core/calories.js', 'src/core/targets.js', 'src/core/foods.js',
+  'src/core/session.js', 'src/core/swaps.js', 'src/core/progress.js', 'src/core/calories.js', 'src/core/targets.js', 'src/core/foods.js',
   'src/ui/heatmap3d.js', 'src/ui/barbell3d.js',
 ];
 
