@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14121f">
+  <meta name="color-scheme" content="dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Studio">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="Social Studio: research, plan, approve and measure your TikTok, Instagram and YouTube content.">
+  <title>Social Studio</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <span class="brand" aria-label="Social Studio">◆ Social Studio</span>
+    <span id="status" class="status" role="status" aria-live="polite"></span>
+  </header>
+  <nav class="nav" aria-label="Main">
+    <a href="#scout" data-route="scout"><span aria-hidden="true">🔎</span>Scout</a>
+    <a href="#plan" data-route="plan"><span aria-hidden="true">🗓</span>Plan</a>
+    <a href="#pipeline" data-route="pipeline"><span aria-hidden="true">▤</span>Pipeline</a>
+    <a href="#results" data-route="results"><span aria-hidden="true">📈</span>Results</a>
+    <a href="#setup" data-route="setup"><span aria-hidden="true">⚙</span>Setup</a>
+  </nav>
+  <main id="main" tabindex="-1"><p class="empty">Loading…</p></main>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <noscript>Social Studio needs JavaScript.</noscript>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

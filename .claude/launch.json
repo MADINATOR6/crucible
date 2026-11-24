@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["lifting-tracker/dev-server.mjs", "5173"],
       "port": 5173
+    },
+    {
+      "name": "social-studio",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["social-studio/dev-server.mjs", "5175"],
+      "port": 5175
     }
   ]
 }

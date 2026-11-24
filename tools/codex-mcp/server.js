@@ -5,7 +5,7 @@
 //   node server.js --stdio [options]      local stdio server, no token
 // Options: --public-host <name[,name]>  tunnel hostname(s) to accept   --port <n> (8787)
 //          --hours <n> (8, max 24)        --max-jobs <n> (20)             --max-tokens <n> (5000000)
-//          --model <slug> (gpt-6.1-sol)
+//          --model <slug> (gpt-6.2-sol)
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
@@ -96,7 +96,7 @@ async function main() {
   const maxJobs = wholeOption('--max-jobs', 20, 1, 200);
   const maxTokens = wholeOption('--max-tokens', 5_000_000, 10_000, 100_000_000);
   const port = wholeOption('--port', 8787, 1024, 65535);
-  const model = option('--model', 'gpt-6.1-sol');
+  const model = option('--model', 'gpt-6.2-sol');
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(model)) fail('--model has characters that are not allowed');
   const publicHosts = String(option('--public-host', '')).split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
   for (const host of publicHosts) {

@@ -19,7 +19,7 @@ USER ──> Claude Code session (orchestrator: AGENTS.md, HANDOFF.md)
            ├── Orchestrator ................ Claude + ccx task           (decompose, sequence, merge)
            │
            ├── Workers
-           │     Codex ..................... scripts\codex-dispatch.ps1 [-TaskId]  (gpt-6-astra)
+           │     Codex ..................... scripts\codex-dispatch.ps1 [-TaskId]  (gpt-6.2-sol or gpt-6.2-astra by class)
            │     Claude .................... this session (claude-opus-5-5)
            │     Claude subagents .......... .claude/agents/ccx-scout (haiku), ccx-reviewer (opus)
            │     Codex subagents ........... ~/.codex/agents (user's: researcher/worker/advisor)
@@ -62,7 +62,7 @@ Run any command as `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\
 ```
 ccx route -Type git-state                        # deterministic: no LLM, just run the tool
 ccx task add -Id T7 -Title "..." -Type implement -Class normal -Risk low -Owner codex -Owns scripts/foo.ps1 -TaskFile tasks/T7.md
-ccx route -TaskId T7                              # codex gpt-6-astra medium, budget, verification list
+ccx route -TaskId T7                              # codex gpt-6.2-sol medium, budget, verification list
 ccx worktree add -TaskId T7                       # optional isolation: .ccx-worktrees/codex-T7 on codex/t7
 scripts\codex-dispatch.ps1 -TaskId T7             # from the task's worktree; routed model and effort
 ccx task escalate -Id T7 -Reason "..."            # only when route says premium: hands the task to Claude
@@ -111,7 +111,7 @@ Inputs: task type (see `taskTypes` in the policy), class (routine, normal, compl
 | Claude (lead, orchestrator) | claude-opus-5-5 | the session; policy `models.claude.lead` |
 | Claude cheap subagent | claude-haiku-4-5 (`ccx-scout`) | `.claude/agents/ccx-scout.md` |
 | Claude independent reviewer | opus, effort high (`ccx-reviewer`) | `.claude/agents/ccx-reviewer.md` |
-| Codex dispatches | gpt-6-astra; falls back to gpt-6-sol, then gpt-5.6-sol, when the catalog lacks it | policy `models.codex` |
+| Codex dispatches | gpt-6.2-sol (routine, normal) or gpt-6.2-astra (complex and higher); a model missing from the catalog falls back to the default gpt-6.2-astra, then gpt-6.2-sol, gpt-6-astra, gpt-6.1-sol, gpt-6-sol | policy `models.codex` |
 | Codex everyday use (outside dispatches) | the user's global default (gpt-6-sol, medium) | `~/.codex/config.toml`, unchanged |
 
 Effort by class (Codex base → max; Claude base → max):
@@ -144,7 +144,7 @@ Mythos-class is an escalation tier, not a worker.
 - ccx never probes providers, spoofs model identifiers or works around access controls.
 
 ### 5.2a Codex model per class
-A class's `codexModel` overrides `models.codex.default`: routine and normal work use `gpt-6.1-sol` (the catalog's latest workhorse) and save `gpt-6-astra` (frontier) quota for complex and higher classes. A model missing from the catalog falls back to the default, then `fallbacks`. `ccx health` line `codex-updates` warns when the catalog ranks a model above every policy model, or a policy model is retiring.
+A class's `codexModel` overrides `models.codex.default`: routine and normal work use `gpt-6.2-sol` (the catalog's latest workhorse, since 2026-11-24) and save `gpt-6.2-astra` (frontier) quota for complex and higher classes. A model missing from the catalog falls back to the default, then `fallbacks`. `ccx health` line `codex-updates` warns when the catalog ranks a model above every policy model, or a policy model is retiring.
 
 ### 5.3 Other providers (Ollama, LM Studio, DeepSeek, Gemini)
 - **Fallback chain while OpenAI Codex is at its limit:** `gemini`, then `ollama-cloud`, then defer. A provider that hits its own limit is recorded in `state.providerLimits` (reset time, else the 60-minute backoff) and skipped until then; that run does not use a retry. Verified live 2026-10-01: Codex out, Gemini quota hit and recorded, Nemotron finished the task (110 s, scope PASS).

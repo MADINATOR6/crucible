@@ -50,7 +50,7 @@ Get-Content "$env:LOCALAPPDATA\Crucible\codex-mcp\token" | Set-Clipboard
 node tools/codex-mcp/server.js --public-host <your-tunnel-host>
 ```
 
-Options: `--public-host a,b` (tunnel host names to accept; loopback is always accepted), `--port` (8787), `--hours` (8, max 24), `--max-jobs` (20), `--max-tokens` (5000000), `--model` (`gpt-6.1-sol`).
+Options: `--public-host a,b` (tunnel host names to accept; loopback is always accepted), `--port` (8787), `--hours` (8, max 24), `--max-jobs` (20), `--max-tokens` (5000000), `--model` (`gpt-6.2-sol`; needs Codex CLI 0.172.0 or later).
 
 - `--init --rotate` makes a new token file with fresh permissions. A running bridge switches to it on the next request, and the old token stops working.
 - `CODEX_MCP_TOKEN` overrides the file, but then rotation needs a restart and the file checks are skipped. Prefer the file.
