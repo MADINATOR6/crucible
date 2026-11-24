@@ -47,6 +47,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
 .check input { accent-color: var(--accent); margin: 0; }
 input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lbl { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; }
+.lbl output { color: var(--accent); font-variant-numeric: tabular-nums; }
+.acts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.acts button { font: 500 12px var(--body); padding: 7px 0; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.acts button:hover { border-color: var(--accent); }
+.acts button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.acts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hint { margin: 0; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
 .loading { position: fixed; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 1.2rem; color: var(--muted); pointer-events: none; }
 @media (max-width: 520px) {
@@ -74,7 +81,17 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
       <label for="flap">Wing beat <output id="flapOut" for="flap">1.0 Hz</output></label>
       <input type="range" id="flap" min="0" max="3" step="0.1" value="1.0">
     </div>
+    <div class="row">
+      <span class="lbl">Behaviour <output id="actOut">Hovering</output></span>
+      <div class="acts" role="group" aria-label="Behaviour">
+        <button type="button" data-act="hunt" aria-pressed="false">Hunt</button>
+        <button type="button" data-act="feed" aria-pressed="false">Feed</button>
+        <button type="button" data-act="stalk" aria-pressed="false">Stalk</button>
+        <button type="button" data-act="rejoin" aria-pressed="false">Rejoin</button>
+      </div>
+    </div>
     <div class="checks">
+      <label class="check" for="cycle"><input type="checkbox" id="cycle" checked> Cycle behaviours</label>
       <label class="check" for="spin"><input type="checkbox" id="spin"> Auto-rotate</label>
       <label class="check" for="storm"><input type="checkbox" id="storm" checked> Storm</label>
       <label class="check" for="stare"><input type="checkbox" id="stare" checked> She watches you</label>
@@ -405,7 +422,8 @@ for (let i = 0; i < 11; i++) {
   const p = V(t * 0.035, -0.018, 0.068 + (1 - t * t) * 0.03);
   jaw.add(cone(p.clone().add(V(0, fang ? 0.018 : 0.009, 0)), fang ? 0.005 : 0.0035, fang ? 0.036 : 0.018, tooth, V(0, 1, 0.1)));
 }
-jaw.add(tube([V(0, -0.02, 0.07), V(0, -0.03, 0.14), V(0.02, -0.12, 0.2), V(-0.03, -0.26, 0.22), V(0.015, -0.4, 0.18), V(-0.01, -0.55, 0.12)], 0.0045, tongueMat, 64));
+const tongueRest = tube([V(0, -0.02, 0.07), V(0, -0.03, 0.14), V(0.02, -0.12, 0.2), V(-0.03, -0.26, 0.22), V(0.015, -0.4, 0.18), V(-0.01, -0.55, 0.12)], 0.0045, tongueMat, 64);
+jaw.add(tongueRest);
 const eyeGlow = new THREE.PointLight(0xff2a14, 0.04, 0.4, 2);
 eyeGlow.position.set(0, 0.012, 0.16);
 head.add(eyeGlow);
@@ -943,6 +961,122 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
+// =====================================================================
+//  BEHAVIOURS: hunt, feed, stalk, rejoin. Each is a timeline that drives where she flies and what she does.
+// =====================================================================
+const seg = (x, a, b) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+const ease = (x) => x * x * (3 - 2 * x);
+const DUR = { hover: 4.5, hunt: 11, feed: 12, stalk: 9.5, rejoin: 8.5 };
+const SEQ = ['hunt', 'feed', 'stalk', 'rejoin'];
+const LABEL = { hover: 'Hovering', hunt: 'Hunting', feed: 'Feeding', stalk: 'Stalking you', rejoin: 'Rejoining' };
+const act = { mode: 'hover', t: 0, next: 0, manual: null, a0: 0, prev: null, yaw: 0, burst: false };
+const cycleIn = $('cycle'), actOut = $('actOut'), actBtns = [...document.querySelectorAll('.acts button')];
+if (reduceMotion) cycleIn.checked = false;
+function setMode(m, manual = false) {
+  act.mode = m; act.t = 0; act.burst = false;
+  if (manual) act.manual = m === 'hover' ? null : m;
+  act.a0 = Math.atan2(camera.position.x, camera.position.z) + Math.PI / 2;
+  actBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.act === act.manual)));
+}
+actBtns.forEach((b) => b.addEventListener('click', () => setMode(act.manual === b.dataset.act ? 'hover' : b.dataset.act, true)));
+cycleIn.addEventListener('change', () => { if (!cycleIn.checked && !act.manual) setMode('hover'); });
+function advance() {
+  if (act.mode === 'hover') {
+    if (cycleIn.checked) { act.next = (act.next + 0) % SEQ.length; setMode(SEQ[act.next]); act.next = (act.next + 1) % SEQ.length; }
+    else act.t = 0;
+  } else if (act.manual && !cycleIn.checked) setMode(act.manual);
+  else { if (act.manual) { act.manual = null; actBtns.forEach((b) => b.setAttribute('aria-pressed', 'false')); } setMode('hover'); }
+}
+const fwdOfCam = () => controls.target.clone().sub(camera.position).normalize();
+function behave(tt, hover) {
+  const b = { pos: null, sep: null, jaw: 0, reach: 0, flap: 1, stare: true, roll: 0, headYaw: 0, headPitch: 0, pitch: null, spin: 0, tongue: 0, tongueTo: null, shake: 0, flicker: false, label: LABEL[act.mode] };
+  const m = act.mode;
+  if (m === 'hunt') {
+    b.sep = 1; b.flap = 1.8;
+    const H = (k) => { const a = act.a0 + k * Math.PI * 1.7, r = 3.6; return V(Math.sin(a) * r, 3.1 + Math.sin(a * 2) * 0.5, Math.cos(a) * r - 1.0); };
+    const face = camera.position.clone().addScaledVector(fwdOfCam(), 0.95).add(V(0, -0.78, 0));
+    if (tt < 6) b.pos = hover.clone().lerp(H(seg(tt, 0, 6)), ease(seg(tt, 0, 1.2)));
+    else if (tt < 7.4) { b.pos = H(1).lerp(face, ease(seg(tt, 6, 7.4))); b.flap = 2.6; b.jaw = 0.5; b.reach = 0.4; b.label = 'Swooping'; }
+    else if (tt < 8.8) { b.pos = face; b.jaw = 1; b.reach = 0.8; b.shake = 0.018; b.tongue = ease(seg(tt, 7.5, 8.0)) * (1 - ease(seg(tt, 8.4, 8.8))) * 0.75; b.tongueTo = camera.position.clone(); b.label = 'Screaming'; }
+    else b.pos = face.lerp(hover, ease(seg(tt, 8.8, 11)));
+  } else if (m === 'feed') {
+    b.sep = 1;
+    const hut = huts[0].position, over = hut.clone().add(V(0, 4.5, 0.45)), inside = hut.clone().add(V(0, 1.6, 0));
+    if (tt < 3) { const k = ease(seg(tt, 0, 3)); b.pos = hover.clone().lerp(over, k); b.pos.y += Math.sin(Math.PI * k) * 1.2; b.flap = 1.8; b.label = 'Flying to a house'; }
+    else if (tt < 10.5) {
+      b.pos = over.clone(); b.pitch = 0.55; b.stare = false; b.headPitch = 0.65; b.jaw = 0.45; b.flap = 0.8;
+      b.tongue = ease(seg(tt, 3.5, 5.2)) * (1 - ease(seg(tt, 9.5, 10.5))); b.tongueTo = inside;
+      b.label = tt < 5.2 ? 'Tongue through the roof' : 'Feeding';
+      if (tt > 8 && tt < 9.5) { b.stare = true; b.headPitch = 0; b.label = 'She saw you'; }
+    } else { const k = ease(seg(tt, 10.5, 12)); b.pos = over.clone().lerp(hover, k); b.pos.y += Math.sin(Math.PI * k) * 0.8; b.flap = 1.6; }
+  } else if (m === 'stalk') {
+    b.sep = 1; b.flap = 0.35; b.flicker = tt < 7;
+    const near = camera.position.clone().addScaledVector(fwdOfCam(), 1.5).add(V(0, -0.8, 0));
+    if (tt < 6) {
+      const p = seg(tt, 0, 6) * 7, f = Math.floor(p), stop = (f + (p - f) ** 10) / 7;   // stop-motion creep
+      b.pos = hover.clone().lerp(near, stop);
+      b.roll = 1.35 * ease(seg(tt, 0.5, 1.5)); b.headYaw = Math.PI * 2 * ease(seg(tt, 3.0, 3.7));
+      b.jaw = 0.35 * seg(tt, 0, 6); b.reach = 0.5;
+      b.label = tt > 3 && tt < 3.7 ? 'Turning her head' : 'Stalking you';
+    } else if (tt < 7.2) { b.pos = near; b.jaw = 1; b.reach = 0.9; b.shake = 0.02; b.label = 'Screaming'; }
+    else { b.pos = near.lerp(hover, ease(seg(tt, 7.2, 9.5))); b.flap = 1.5; }
+  } else if (m === 'rejoin') {
+    if (tt < 3) { b.sep = 1 - ease(seg(tt, 0, 3)) * 0.93; b.label = 'Rejoining her legs'; }
+    else if (tt < 4.3) { b.sep = 0.07; b.shake = 0.03; b.jaw = 1; b.reach = 0.8; b.label = 'The salt burns'; if (!act.burst) { act.burst = true; saltBurst(); } }
+    else if (tt < 5.6) { b.sep = 0.07 + ease(seg(tt, 4.3, 5.6)) * 0.93; b.spin = Math.PI * 2 * ease(seg(tt, 4.3, 5.6)); b.jaw = 0.8; b.flap = 2.4; b.label = 'Recoiling'; }
+    else b.sep = 1;
+  }
+  return b;
+}
+// dynamic tongue, rebuilt each frame while it is out
+const tongueDyn = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshPhysicalMaterial({ color: 0x7d1a2a, roughness: 0.25, clearcoat: 1 }));
+tongueDyn.frustumCulled = false; tongueDyn.castShadow = true;
+scene.add(tongueDyn);
+function updateTongue(ext, to, t) {
+  tongueRest.visible = ext < 0.03; tongueDyn.visible = ext >= 0.03;
+  if (!tongueDyn.visible) return;
+  const m = jaw.localToWorld(V(0, -0.03, 0.1));
+  const dir = m.clone().lerp(to, ext).sub(m), L = dir.length();
+  const side = new THREE.Vector3().crossVectors(dir, UP).normalize();
+  if (side.lengthSq() < 0.01) side.set(1, 0, 0);
+  const pts = [];
+  for (let i = 0; i <= 16; i++) {
+    const k = i / 16, p = m.clone().addScaledVector(dir, k);
+    p.addScaledVector(side, Math.sin(t * 9 - k * 12) * 0.05 * k * Math.min(1, L));
+    p.y += Math.sin(t * 7 - k * 9) * 0.03 * k;
+    pts.push(p);
+  }
+  tongueDyn.geometry.dispose();
+  tongueDyn.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, 0.0055 * (1 + 0.3 * Math.sin(t * 10)), 6);
+}
+// salt burn: sparks and smoke where her waist touches the salted half
+const BURST = 160;
+const burstPos = new Float32Array(BURST * 3), burstVel = Array.from({ length: BURST }, () => V(0, 0, 0));
+const burstGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(burstPos, 3));
+const burstMat = new THREE.PointsMaterial({ color: new THREE.Color(4, 1.8, 0.5), size: 0.035, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+const burstPts = new THREE.Points(burstGeo, burstMat); burstPts.frustumCulled = false; scene.add(burstPts);
+const burnLight = new THREE.PointLight(0xffa040, 0, 4, 2); burnLight.position.set(0, 1.15, 0.1); scene.add(burnLight);
+let burnT = 0;
+function saltBurst() {
+  for (let i = 0; i < BURST; i++) {
+    burstPos.set([rand(-0.15, 0.15), 1.08, rand(-0.1, 0.1)], i * 3);
+    burstVel[i].set(rand(-1.2, 1.2), rand(0.5, 2.8), rand(-1.2, 1.2));
+  }
+  burnT = 1.6; scream = 1.6;
+}
+function stepBurst(dt) {
+  burnT = Math.max(0, burnT - dt);
+  burstMat.opacity = Math.min(1, burnT);
+  burnLight.intensity = burnT > 0 ? 6 * burnT + Math.random() * 4 : 0;
+  if (burnT <= 0) return;
+  for (let i = 0; i < BURST; i++) {
+    burstVel[i].y -= 3 * dt;
+    burstPos[i * 3] += burstVel[i].x * dt; burstPos[i * 3 + 1] += burstVel[i].y * dt; burstPos[i * 3 + 2] += burstVel[i].z * dt;
+  }
+  burstGeo.attributes.position.needsUpdate = true;
+}
+const lerpAngle = (a, b, k) => a + ((((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI) * k;
+
 const clock = new THREE.Clock();
 let phase = 0, sepSmooth = +sepIn.value;
 let nextFlash = 4, flash = 0, flashSeq = [];
@@ -954,14 +1088,29 @@ const baseSky = new THREE.Color(0x07060c), flashSky = new THREE.Color(0x3c3a52);
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   uni.uTime.value = t; grain.uniforms.uTime.value = t;
-  sepSmooth += (+sepIn.value - sepSmooth) * Math.min(1, dt * 4);
-  const s = sepSmooth, hz = +flapIn.value;
+  act.t += dt;
+  if (act.t > DUR[act.mode]) advance();
+  const hoverAt = (sv) => V(Math.sin(t * 0.4) * 0.05 * sv, 1.05 + sv * 1.55, 0.15 * sv);
+  const b = behave(act.t, hoverAt(1));
+  actOut.textContent = b.label;
+  const sepGoal = b.sep ?? +sepIn.value;
+  sepSmooth += (sepGoal - sepSmooth) * Math.min(1, dt * (b.sep !== null ? 6 : 4));
+  const s = sepSmooth, hz = b.flap > 1 ? Math.max(+flapIn.value, 0.8) * b.flap : +flapIn.value * b.flap;
   phase += dt * hz * Math.PI * 2;
   const beat = Math.sin(phase);
   const bob = s * (Math.sin(phase - 1.2) * 0.07 + Math.sin(t * 0.7) * 0.05);
 
-  upper.position.set(Math.sin(t * 0.4) * 0.05 * s, 1.05 + s * 1.55 + bob, 0.15 * s);
-  upper.rotation.set(0.16 * s + Math.sin(t * 0.6) * 0.03 * s, Math.sin(t * 0.3) * 0.12 * s, Math.sin(t * 0.45) * 0.03 * s);
+  const pos = b.pos ? b.pos.clone() : hoverAt(s);
+  pos.y += bob;
+  if (b.shake) pos.add(V(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(b.shake));
+  const vel = act.prev ? pos.clone().sub(act.prev).divideScalar(Math.max(dt, 1e-3)) : V(0, 0, 0);
+  act.prev = pos.clone();
+  const speed = Math.hypot(vel.x, vel.z);
+  const faceYaw = speed > 0.8 ? Math.atan2(vel.x, vel.z) : Math.atan2(camera.position.x - pos.x, camera.position.z - pos.z);
+  act.yaw = lerpAngle(act.yaw, faceYaw * s, 1 - Math.exp(-dt * 4));
+  upper.position.copy(pos);
+  const pitch = b.pitch ?? Math.min(0.6, 0.16 * s + speed * 0.05);
+  upper.rotation.set(pitch + Math.sin(t * 0.6) * 0.03 * s, act.yaw + b.spin + Math.sin(t * 0.3) * 0.08 * s, Math.sin(t * 0.45) * 0.03 * s - Math.max(-0.5, Math.min(0.5, (vel.x * Math.cos(act.yaw) - vel.z * Math.sin(act.yaw)) * 0.08)));
   entrails.scale.set(1, Math.max(0.001, s), 1);
   entrails.visible = s > 0.02;
   uni.uAmt.value = 0.4 + s * 0.6 + hz * 0.15;
@@ -978,13 +1127,13 @@ function frame() {
   if (nextScream < 0) { scream = 1.4; nextScream = rand(5, 9); }
   scream = Math.max(0, scream - dt);
   const screamAmt = Math.min(1, scream * 2) * Math.min(1, scream);
-  jaw.rotation.x = 0.12 + Math.max(0, Math.sin(t * 2.1)) ** 6 * 0.15 + screamAmt * 0.55;
+  jaw.rotation.x = Math.max(0.12 + Math.max(0, Math.sin(t * 2.1)) ** 6 * 0.15 + screamAmt * 0.55, 0.12 + b.jaw * 0.6);
   nextTwitch -= dt;
   if (nextTwitch < 0) { twitch.set(rand(-0.25, 0.25), rand(-0.4, 0.4), rand(-0.35, 0.35)); nextTwitch = rand(1.2, 3.5); }
   twitch.x *= 0.88; twitch.y *= 0.88; twitch.z *= 0.88;
 
   arms.forEach(({ shoulder, elbow, hand, fingers }, i) => {
-    const reach = Math.sin(t * 1.1 + i * 0.8) * 0.12 + screamAmt * 0.3;
+    const reach = Math.sin(t * 1.1 + i * 0.8) * 0.12 + screamAmt * 0.3 + b.reach;
     shoulder.rotation.set(-0.6 * s - 0.15 + reach * s, 0, 0.3 + 0.15 * s + screamAmt * 0.2);
     elbow.rotation.set(-0.65 - 0.35 * s - reach * s, 0, 0);
     hand.rotation.set(-0.3, 0, 0);
@@ -993,19 +1142,22 @@ function frame() {
   });
 
   // head: rest pose, then turn to stare at the camera, then the twitch on top
-  head.rotation.set(-0.12 * s + Math.sin(t * 0.9) * 0.05 - screamAmt * 0.25, Math.sin(t * 0.5) * 0.3, 0);
+  head.rotation.set(-0.12 * s + Math.sin(t * 0.9) * 0.05 - screamAmt * 0.25 + b.headPitch, Math.sin(t * 0.5) * 0.3, 0);
   qRest.copy(head.quaternion);
-  if (stareIn.checked) {
+  if (stareIn.checked && b.stare) {
     upper.updateMatrixWorld(true);
     head.lookAt(camera.position);
     qLook.copy(head.quaternion);
     qGoal.copy(qRest).slerp(qLook, 0.9);
   } else qGoal.copy(qRest);
   head.userData.q = (head.userData.q || qGoal.clone()).slerp(qGoal, 1 - Math.exp(-dt * 6));
-  head.quaternion.copy(head.userData.q).multiply(new THREE.Quaternion().setFromEuler(twitch));
+  head.quaternion.copy(head.userData.q).multiply(new THREE.Quaternion().setFromEuler(twitch))
+    .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, b.headYaw, b.roll)));
 
   // blood drips
   upper.updateMatrixWorld(true);
+  updateTongue(b.tongue, b.tongueTo || camera.position, t);
+  stepBurst(dt);
   for (const d of dropState) {
     if (d.p.y < 0.01) {
       if (s > 0.3 && rnd() < dt * 3) {
@@ -1025,7 +1177,9 @@ function frame() {
   }
   if (flashSeq.length && (flashSeq[0] -= dt) <= 0) { flash = rand(0.7, 1); flashSeq.shift(); }
   flash *= Math.exp(-dt * 9);
-  hemi.intensity = 0.45 + flash * 5;
+  const flick = b.flicker && Math.random() < 0.18 ? 0.12 : 1;
+  key.intensity = 45 * flick;
+  hemi.intensity = (0.45 + flash * 5) * flick;
   if (bolt) { bolt.visible = flash > 0.08; boltMat.opacity = Math.min(1, flash * 1.5); }
   skyMat.uniforms.uFlash.value = flash; skyMat.uniforms.uTime.value = t;
   moonLight.intensity = 1.5 + flash * 4;
