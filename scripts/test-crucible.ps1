@@ -140,6 +140,7 @@ if (kind === 'agy') {
     Assert ($task.lastDispatch.input -match '^[0-9a-f]{12}$' -and @($task.runs).Count -eq 1) 'input version or run trail missing'
     $args = Get-Content (Join-Path $scratch 'agy-args.log') -Raw
     Assert ($args -match '"accept-edits"' -and $args -match '"--sandbox"' -and $args -match '"--settings"' -and $args -notmatch 'dangerously') "agy flags wrong: $args"
+    Assert ($args -match '"--model","gemini-4-neon-medium"' -and $args -notmatch '"--effort"') "normal Gemini brief should route to gemini-4-neon-medium without conflicting --effort: $args"
     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Select-Object -First 1
     $settingsText = Get-Content $settings.FullName -Raw
     $agySettings = $settingsText | ConvertFrom-Json
@@ -150,6 +151,21 @@ if (kind === 'agy') {
     Assert ($status -match '\(current\)' -and $status -match '\[\[Reference/out.md\]\]' -and $status -match 'Agent suggests next: codex') 'status note incomplete'
     Assert ($task.verification.status -eq 'PASS') ('ccx verify did not pass: ' + (Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter 'crucible-G1-*.log' | Get-Content -Raw))
     Assert ([IO.File]::ReadAllText((Join-Path $repo 'Status/Board.md'), $utf8) -match '(?s)## Ready to review or resume.*G1') 'board does not list G1 for review'
+  }
+
+  Case 'Gemini routes by class to tiered Antigravity models and escalates effort' {
+    $rRoutine = (Ccx @('route', '-Type', 'source-research', '-Class', 'routine', '-Json')).Out | ConvertFrom-Json
+    $rNormal = (Ccx @('route', '-Type', 'source-research', '-Class', 'normal', '-Json')).Out | ConvertFrom-Json
+    $rComplex = (Ccx @('route', '-Type', 'source-research', '-Class', 'complex', '-Json')).Out | ConvertFrom-Json
+    $rCritical = (Ccx @('route', '-Type', 'source-research', '-Class', 'critical', '-Json')).Out | ConvertFrom-Json
+    $rRetry = (Ccx @('route', '-Type', 'source-research', '-Class', 'normal', '-Attempt', '2', '-Json')).Out | ConvertFrom-Json
+    $rRoutineRetry = (Ccx @('route', '-Type', 'source-research', '-Class', 'routine', '-Attempt', '2', '-Json')).Out | ConvertFrom-Json
+    Assert ($rRoutine.model -eq 'gemini-3.8-flash-low' -and $rRoutine.effort -eq 'low') "routine Gemini route wrong: $($rRoutine | ConvertTo-Json -Compress)"
+    Assert ($rNormal.model -eq 'gemini-4-neon-medium' -and $rNormal.effort -eq 'medium') "normal Gemini route wrong: $($rNormal | ConvertTo-Json -Compress)"
+    Assert ($rComplex.model -eq 'gemini-4-neon-high' -and $rComplex.effort -eq 'high') "complex Gemini route wrong: $($rComplex | ConvertTo-Json -Compress)"
+    Assert ($rCritical.model -eq 'gemini-4-neon-xhigh' -and $rCritical.effort -eq 'xhigh') "critical Gemini route wrong: $($rCritical | ConvertTo-Json -Compress)"
+    Assert ($rRetry.model -eq 'gemini-4-neon-high' -and $rRetry.effort -eq 'high') "normal retry escalation did not upgrade Gemini model tier: $($rRetry | ConvertTo-Json -Compress)"
+    Assert ($rRoutineRetry.model -eq 'gemini-3.8-flash-medium' -and $rRoutineRetry.effort -eq 'medium') "routine retry escalation did not upgrade Gemini model tier: $($rRoutineRetry | ConvertTo-Json -Compress)"
   }
 
   Case 'writing another brief during a run is not a scope violation, other files still are' {

@@ -97,6 +97,7 @@ function Get-CcxPolicy {
             }
             if ($classPolicy.effort.min -notin $ladder) { throw "Unknown minimum effort in $className" }
             if ($classPolicy.ContainsKey('codexModel') -and [string]$classPolicy.codexModel -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$') { throw "Invalid codexModel in $className" }
+            if ($classPolicy.ContainsKey('geminiModel') -and [string]$classPolicy.geminiModel -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$') { throw "Invalid geminiModel in $className" }
             foreach ($field in @('maxDispatches','maxModelEscalations','maxReviewCycles','maxAgents','maxParallel','timeoutMinutes','tokenTarget')) {
                 $number = $classPolicy.budget[$field]
                 if ($null -eq $number -or $number -is [string] -or $number -is [bool] -or $number -isnot [ValueType] -or [double]$number -lt 0) { throw "Invalid budget $className.$field" }
@@ -919,9 +920,9 @@ function Invoke-CcxRoute {
                     $decision.reasons += 'Gemini unavailable: ' + $blocker + '. Wait, or switch the owner.'
                     return (Complete-CcxRoute $decision $Type $TaskId)
                 }
-                $decision.provider = 'gemini'; $decision.model = $policy.providers.gemini.model
-                # The CLI takes no effort setting; the launcher still records one, so use the class base.
-                $decision.effort = $policy.classes[$Class].effort.codex.base
+                $decision.provider = 'gemini'
+                $preferred = @(@($policy.classes[$Class].geminiModel, $policy.providers.gemini.model) | Where-Object { $_ })
+                $decision.model = $preferred[0]
             }
             'claude-subagent' { $decision.model = $policy.models.claude.cheap; $decision.subagent = $policy.models.claude.cheapSubagent; $decision.effort = 'agent-defined' }
             default { throw (New-CcxError 'Policy specifies an unsupported routing agent.') }
@@ -943,9 +944,9 @@ function Invoke-CcxRoute {
                 }
             }
         }
-        if ($decision.agent -in @('claude','codex')) {
+        if ($decision.agent -in @('claude','codex','gemini')) {
             $ladder = @($policy.effortLadder)
-            $efforts = $policy.classes[$Class].effort[$decision.agent]
+            $efforts = if ($policy.classes[$Class].effort.ContainsKey($decision.agent)) { $policy.classes[$Class].effort[$decision.agent] } else { $policy.classes[$Class].effort.codex }
             $baseIndex = [array]::IndexOf($ladder,$efforts.base)
             $maxIndex = [array]::IndexOf($ladder,$efforts.max)
             $steps = ($Attempt - 1) * $policy.escalation.stepsOnFailedAttempt
@@ -963,7 +964,17 @@ function Invoke-CcxRoute {
                 $decision.reasons += 'highest effort requires more failed attempts'
             }
             $decision.effort = $ladder[$index]
-            if ($index -gt $baseIndex) { $decision.escalation = @{ from=$efforts.base; to=$decision.effort; reason='failed attempts or ambiguity' } }
+            if ($index -gt $baseIndex) {
+                $decision.escalation = @{ from=$efforts.base; to=$decision.effort; reason='failed attempts or ambiguity' }
+                if ($decision.agent -eq 'gemini' -and $decision.model) {
+                    $tier = if ($decision.effort -eq 'max') { 'xhigh' } else { $decision.effort }
+                    if ($decision.model -match '^(gemini-3\.8-flash)-(low|medium|high)$' -and $tier -in @('low','medium','high')) {
+                        $decision.model = $Matches[1] + '-' + $tier
+                    } elseif ($decision.model -match '^(gemini-4-neon|gemini-4-hydrogen)-(low|medium|high|xhigh)$' -and $tier -in @('low','medium','high','xhigh')) {
+                        $decision.model = $Matches[1] + '-' + $tier
+                    }
+                }
+            }
             if ($session -and -not $IgnoreSessionPreference -and -not $RequestMythos -and $decision.provider -in @($null,'openai')) {
                 $lesson = Get-CcxRoutePreference $session $task $decision
                 Set-CcxLearnedEffort $decision $lesson $policy $efforts $priorFailures -Constrained:($Ambiguous -or $Attempt -gt 1 -or $Class -notin @('routine','normal') -or $Risk -eq $policy.risk.levels[-1])

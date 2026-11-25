@@ -430,8 +430,10 @@ try {
     [IO.File]::WriteAllText($base + '.settings.json', (ConvertTo-Json $settings -Depth 5), $utf8)
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'accept-edits' }
     $agyModel = if ($Model -and $Model -ne 'auto') { @('--model', $Model) } else { @() }
+    # agy rejects --effort when the model slug already carries a tier suffix (e.g. gemini-4-neon-medium).
+    $agyEffort = if ($Effort -in @('low','medium','high','xhigh','max') -and (-not $Model -or $Model -eq 'auto' -or $Model -notmatch '-(low|medium|high|xhigh|max)$')) { @('--effort', $Effort) } else { @() }
     $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, '--sandbox', '--disable-slash-commands',
-      '--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel
+      '--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel + $agyEffort
   } elseif ($isClaude) {
     $claude = Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $claude) { throw "$($policy.models.claude.headless.command) not found on PATH" }
