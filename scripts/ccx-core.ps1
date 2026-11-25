@@ -8,6 +8,8 @@ $script:CcxLockState = $null
 $script:CcxRootCache = @{}
 $script:CcxCommonCache = @{}
 $script:CcxPolicyCache = $null
+# Agents that can own a task, review one or take an escalation.
+$script:CcxOwners = @('claude','codex','gemini')
 
 function New-CcxError {
     param([string]$Message, [int]$Code = 1)
@@ -437,8 +439,18 @@ function Get-CcxFingerprint {
 function Test-CcxScope {
     param($Task, [string]$Root = (Get-CcxRepoRoot))
     foreach ($path in @(Get-CcxChangedPaths -Root $Root)) {
-        if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $Task.baselineDirty) { $path }
+        if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $Task.baselineDirty -and -not (Test-CcxBrief -Root $Root -Path $path)) { $path }
     }
+}
+function Test-CcxBrief {
+    # An Obsidian brief (tasks/*.md with "crucible: brief" frontmatter) is the user's input, edited while
+    # other runs work; each run records its brief's input version, so a change shows as STALE, not as scope.
+    param([string]$Root, [string]$Path)
+    if ($Path -notmatch '^tasks/[^/]+\.md$') { return $false }
+    $file = Join-Path $Root $Path
+    if (-not [IO.File]::Exists($file)) { return $false }
+    $head = [IO.File]::ReadAllText($file, $script:CcxUtf8).TrimStart([char]0xFEFF)
+    return [regex]::IsMatch($head.Substring(0, [Math]::Min(400, $head.Length)), '^---\r?\n(?:.*\r?\n)*?crucible:\s*brief\s*(?:#.*)?\r?\n')
 }
 function Test-CcxSecretsInPaths {
     param([string]$Root, [string[]]$Paths)
@@ -697,25 +709,32 @@ function Get-CcxProviderKey([string]$Name) {
     return $value
 }
 
+function Get-CcxProviderBlocker {
+    # Why a provider cannot take work now, or $null when it can: disabled, at its own usage limit
+    # (state.providerLimits, set by the launcher), CLI missing, cloud key unset, or local server silent.
+    param($Policy, [string]$Name, $State)
+    if (-not $Policy.ContainsKey('providers') -or -not $Policy.providers.ContainsKey($Name)) { return 'not configured' }
+    $provider = $Policy.providers[$Name]
+    if (-not $provider.enabled) { return 'disabled in policy' }
+    if ($State -and $State.ContainsKey('providerLimits') -and $State.providerLimits.ContainsKey($Name) -and
+        [DateTime]::Parse($State.providerLimits[$Name]).ToUniversalTime() -gt [DateTime]::UtcNow) { return 'at its usage limit until ' + $State.providerLimits[$Name] }
+    if ($provider.command -and -not (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)) { return $provider.command + ' not on PATH' }
+    if ($provider.kind -eq 'cloud' -and -not (Get-CcxProviderKey $provider.envKey)) { return $provider.envKey + ' is not set' }
+    # Installed is not running: a local server that does not answer would waste an attempt.
+    if ($provider.probeUrl) {
+        try { $null = Invoke-WebRequest -Uri $provider.probeUrl -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop } catch { return 'local server not answering' }
+    }
+    return $null
+}
 function Get-CcxProvider {
     # First enabled provider (policy order) serving this purpose whose prerequisite exists:
     # a local CLI on PATH, or a cloud API key in the environment (setting the key is the opt-in).
-    # A provider at its own usage limit (state.providerLimits, set by the launcher) is skipped until it resets.
     param($Policy, [string]$Purpose, $State)
     if (-not $Policy.ContainsKey('providers')) { return $null }
     foreach ($name in @($Policy.providers.Keys)) {
         $provider = $Policy.providers[$name]
         if (-not $provider.enabled -or $Purpose -notin @($provider.use)) { continue }
-        if ($State -and $State.ContainsKey('providerLimits') -and $State.providerLimits.ContainsKey($name) -and
-            [DateTime]::Parse($State.providerLimits[$name]).ToUniversalTime() -gt [DateTime]::UtcNow) { continue }
-        $hasCommand = -not $provider.command -or [bool](Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)
-        $ready = if ($provider.kind -eq 'local') { $hasCommand }
-                 else { $hasCommand -and [bool](Get-CcxProviderKey $provider.envKey) }
-        # Installed is not running: a local server that does not answer would waste an attempt.
-        if ($ready -and $provider.probeUrl) {
-            try { $null = Invoke-WebRequest -Uri $provider.probeUrl -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop } catch { $ready = $false }
-        }
-        if ($ready) { return @{ name = $name; model = $provider.model; kind = $provider.kind } }
+        if ($null -eq (Get-CcxProviderBlocker $Policy $name $State)) { return @{ name = $name; model = $provider.model; kind = $provider.kind } }
     }
     return $null
 }
@@ -758,12 +777,12 @@ function Invoke-CcxRoute {
     $decision.budget = Get-CcxBudget $policy $Class $task
     $decision.agent = $typePolicy.agent
     if ($decision.agent -eq 'cross-model') {
-        if ($AuthoredBy -notin @('claude','codex')) { throw (New-CcxError 'Cross-model review requires AuthoredBy claude or codex.' 2) }
+        if ($AuthoredBy -notin $script:CcxOwners) { throw (New-CcxError 'Cross-model review requires AuthoredBy claude, codex or gemini.' 2) }
         $decision.agent = if ($AuthoredBy -eq 'claude') { 'codex' } else { 'claude' }
     }
     # The task's owner does its own type of work (an escalation changes the owner).
     $ownTaskWork = $task -and $Type -eq $task.type
-    if ($ownTaskWork -and $typePolicy.agent -ne 'cross-model' -and $decision.agent -in @('claude','codex') -and $task.owner -in @('claude','codex') -and $task.owner -ne $decision.agent) {
+    if ($ownTaskWork -and $typePolicy.agent -ne 'cross-model' -and $decision.agent -in $script:CcxOwners -and $task.owner -in $script:CcxOwners -and $task.owner -ne $decision.agent) {
         $decision.reasons += 'task owner ' + $task.owner + ' replaces the type default ' + $decision.agent
         $decision.agent = $task.owner
         if ($decision.agent -ne 'codex') { $decision.codexRole = $null }
@@ -869,6 +888,18 @@ function Invoke-CcxRoute {
                 }
             }
             'claude' { $decision.model = $policy.models.claude.lead }
+            'gemini' {
+                # Gemini leads its own task through the Gemini CLI provider; it is never silently replaced.
+                $blocker = Get-CcxProviderBlocker $policy 'gemini' $state
+                if ($blocker) {
+                    $decision.route = 'defer'
+                    $decision.reasons += 'Gemini unavailable: ' + $blocker + '. Wait, or switch the owner.'
+                    return (Complete-CcxRoute $decision $Type $TaskId)
+                }
+                $decision.provider = 'gemini'; $decision.model = $policy.providers.gemini.model
+                # The CLI takes no effort setting; the launcher still records one, so use the class base.
+                $decision.effort = $policy.classes[$Class].effort.codex.base
+            }
             'claude-subagent' { $decision.model = $policy.models.claude.cheap; $decision.subagent = $policy.models.claude.cheapSubagent; $decision.effort = 'agent-defined' }
             default { throw (New-CcxError 'Policy specifies an unsupported routing agent.') }
         }
@@ -1142,7 +1173,7 @@ function Invoke-CcxCmdTask {
             foreach ($name in @('Title','Type','Class','Risk','Owner','Owns')) {
                 if (-not $Parameters[$name]) { throw (New-CcxError "task add requires $name." 2) }
             }
-            if (-not $policy.taskTypes.ContainsKey($Parameters.Type) -or -not $policy.classes.ContainsKey($Parameters.Class) -or $Parameters.Risk -notin $policy.risk.levels -or $Parameters.Owner -notin @('claude','codex')) { throw (New-CcxError 'Unknown task type, class, risk or owner.' 2) }
+            if (-not $policy.taskTypes.ContainsKey($Parameters.Type) -or -not $policy.classes.ContainsKey($Parameters.Class) -or $Parameters.Risk -notin $policy.risk.levels -or $Parameters.Owner -notin $script:CcxOwners) { throw (New-CcxError 'Unknown task type, class, risk or owner.' 2) }
             $owns = @(Split-CcxList $Parameters.Owns | ForEach-Object {
                 $owned = ConvertTo-CcxOwnedPath $_
                 if (-not $owned.EndsWith('/') -and (Test-Path -LiteralPath (Join-Path (Get-CcxRepoRoot) $owned) -PathType Container)) {
@@ -1217,11 +1248,19 @@ function Invoke-CcxCmdTask {
                 foreach ($field in @('Worktree','Branch')) {
                     if ($Parameters.ContainsKey($field)) { Assert-CcxExactField $Parameters[$field] $field; $task[$field.ToLowerInvariant()] = $Parameters[$field] }
                 }
+                if ($Parameters.Owner -and $Parameters.Owner -ne $task.owner) {
+                    # A user handoff, not an escalation: no escalation cap, and the new owner gets its own attempts.
+                    if ($Parameters.Owner -notin $script:CcxOwners) { throw (New-CcxError 'Owner must be claude, codex or gemini.' 2) }
+                    if ($task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal tasks cannot change owner.' 2) }
+                    $task.checkpoints = @($task.checkpoints) + @(@{at=Get-CcxNow; note=('Owner ' + $task.owner + ' -> ' + $Parameters.Owner)})
+                    $task.owner = $Parameters.Owner
+                    $task.attemptBase = [int]$task.dispatches
+                }
                 if ($Parameters.Note) { $task.checkpoints = @($task.checkpoints) + @(@{at=Get-CcxNow; note=$Parameters.Note}) }
             }
             'review' {
                 $kind = if ($Parameters.Kind) { $Parameters.Kind } else { 'review' }
-                if ($Parameters.Result -notin @('pass','changes') -or $Parameters.By -notin @('claude','codex') -or $kind -notin @('review','verifier')) { throw (New-CcxError 'Invalid review result, reviewer or kind.' 2) }
+                if ($Parameters.Result -notin @('pass','changes') -or $Parameters.By -notin $script:CcxOwners -or $kind -notin @('review','verifier')) { throw (New-CcxError 'Invalid review result, reviewer or kind.' 2) }
                 if ($kind -eq 'review' -and $Parameters.By -eq $task.owner) { throw (New-CcxError 'author cannot review own work' 2) }
                 $task.reviews = @($task.reviews) + @(@{at=Get-CcxNow; by=$Parameters.By; kind=$kind; result=$Parameters.Result; note=$Parameters.Note})
                 if ($Parameters.Result -eq 'changes') { $task.reviewCycles++ }
@@ -1236,7 +1275,7 @@ function Invoke-CcxCmdTask {
                 if ([string]::IsNullOrWhiteSpace($Parameters.Reason)) { throw (New-CcxError 'Escalation requires Reason.' 2) }
                 if ($task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal tasks cannot be escalated.' 2) }
                 $target = if ($Parameters.Agent) { $Parameters.Agent } else { 'claude' }
-                if ($target -notin @('claude','codex')) { throw (New-CcxError 'Escalation agent must be claude or codex.' 2) }
+                if ($target -notin $script:CcxOwners) { throw (New-CcxError 'Escalation agent must be claude, codex or gemini.' 2) }
                 if ([int]$task.modelEscalations -ge [int]$budget.maxModelEscalations) {
                     $null = Add-CcxNotification -State $state -Level action -Text ('Escalation cap reached for ' + $task.id + ': decide on evidence or ask the user') -TaskId $task.id -Key ('escalation-cap:' + $task.id)
                     throw (New-CcxError 'ESCALATION CAP REACHED: decide on evidence or ask the user.' 8)

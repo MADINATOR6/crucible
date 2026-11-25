@@ -1,0 +1,9 @@
+{
+  "id": "crucible",
+  "name": "Crucible",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Launch a brief through ccx (Gemini, Claude, Codex or automatic), stop it, and refresh the generated Status notes.",
+  "author": "Crucible (this repository)",
+  "isDesktopOnly": true
+}

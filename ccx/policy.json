@@ -15,7 +15,8 @@
       "standard": "claude-sonnet-5",
       "cheap": "claude-haiku-4-5-20251001",
       "cheapSubagent": "ccx-scout",
-      "reviewSubagent": "ccx-reviewer"
+      "reviewSubagent": "ccx-reviewer",
+      "headless": { "command": "claude.exe", "note": "A claude-owned task launched through codex-dispatch.ps1 (for example from Obsidian) runs claude -p: acceptEdits for implement (file edits, no shell except the permitted checks), plan mode otherwise. Interactive Claude sessions are unchanged." }
     },
     "codex": {
       "default": "gpt-6.2-astra",
@@ -44,7 +45,7 @@
     "ollama": { "kind": "local", "enabled": false, "note": "Installed 2026-10-01 (Ollama 0.35.0). Smoke test on this 4 GB GPU: qwen2.5-coder:3b printed a fake tool call, qwen3:4b saw no file tool; neither edited a file, so routing them would waste one of the two attempts. Enable with a model that passes a real codex exec edit.", "command": "ollama", "codexFlags": ["--oss", "--local-provider", "ollama"], "reasoningEffort": "none", "model": "qwen2.5-coder:3b", "use": ["routine"] },
     "lmstudio": { "kind": "local", "enabled": false, "note": "not installed; same small-model limit as ollama", "command": "lms", "codexFlags": ["--oss", "--local-provider", "lmstudio"], "reasoningEffort": "none", "model": "qwen2.5-coder-3b-instruct", "use": ["routine"] },
     "deepseek": { "kind": "cloud", "enabled": false, "note": "Codex CLI accepts only wire_api=responses (chat was removed); enable once the endpoint or a local proxy serves /v1/responses and ~/.codex/config.toml has [model_providers.deepseek]", "envKey": "DEEPSEEK_API_KEY", "codexFlags": ["-c", "model_provider=deepseek"], "model": "deepseek-chat", "use": ["fallback"] },
-    "gemini": { "kind": "cloud", "enabled": true, "cli": "gemini", "note": "Runs Google Gemini CLI (npm @google/gemini-cli, API-key auth; Google sign-in free tier was refused 2026-10-01), not Codex. No sandbox on Windows, so the launcher never uses yolo: auto_edit (file edits, no shell) for implement, plan (read-only) otherwise. model auto lets the CLI choose. Passed one-file edits 2026-10-01 (56-142 s).", "command": "gemini.cmd", "envKey": "GEMINI_API_KEY", "codexFlags": [], "model": "auto", "use": ["fallback"] },
+    "gemini": { "kind": "cloud", "enabled": true, "cli": "gemini", "note": "Runs Google Gemini CLI (npm @google/gemini-cli, API-key auth; Google sign-in was refused 2026-10-01 and again 2026-11-25 with UNSUPPORTED_CLIENT, so a Google AI Pro plan does not reach this CLI). Leads tasks it owns (types source-research, creative, ux-review, or any task with owner gemini) and stays the first fallback while Codex is at its limit. No sandbox on Windows, so the launcher never uses yolo: auto_edit (file edits, no shell) for implement, plan (read-only) otherwise. The saved key is free tier: Pro models have a quota of 0 (seen 2026-11-25, so model auto failed), and gemini-3-flash-preview answered in 5 s; a Pro model needs billing on the key's AI Studio project. Passed one-file edits 2026-10-01 (56-142 s).", "command": "gemini.cmd", "envKey": "GEMINI_API_KEY", "codexFlags": [], "model": "gemini-3-flash-preview", "use": ["fallback"] },
     "ollama-cloud": { "kind": "local", "enabled": true, "note": "Ollama free-plan cloud model, reached through the local Ollama app (signed in). Passed a one-file codex exec edit 2026-10-01 (137 s, ~281k tokens; its summary misnamed the file). Free-plan DeepSeek, GLM, Kimi and MiniMax cloud models return 402.", "command": "ollama", "probeUrl": "http://localhost:11434/api/version", "codexFlags": ["--oss", "--local-provider", "ollama"], "reasoningEffort": "medium", "model": "nemotron-3-super:cloud", "use": ["fallback"] }
   },
 
@@ -122,7 +123,18 @@
     "verify": { "route": "worker", "agent": "codex", "codexRole": "verify", "level": "L0", "verification": ["deterministic", "cross-model-review"] },
     "review": { "route": "worker", "agent": "cross-model", "level": "L0" },
     "architecture": { "route": "premium", "agent": "claude", "level": "L0" },
-    "plan": { "route": "premium", "agent": "claude", "level": "L0" }
+    "plan": { "route": "premium", "agent": "claude", "level": "L0" },
+    "source-research": { "route": "worker", "agent": "gemini", "level": "L1", "note": "Research or source synthesis that ends in a deliverable file; quotes source passages (check: sources)." },
+    "creative": { "route": "worker", "agent": "gemini", "level": "L1", "note": "Creative development, scripts and storyboards that end in a deliverable file." },
+    "ux-review": { "route": "worker", "agent": "gemini", "level": "L1", "note": "Visual, video or user-experience review of shareable material; findings carry frames or timestamps." }
+  },
+
+  "checks": {
+    "about": "Permitted checks a brief may name (checks: [..]). Gemini and headless Claude may run exactly these command prefixes without approval; crucible.ps1 reruns the brief's checks after every run and records the result as evidence. Codex runs them in its own sandbox.",
+    "sources": { "run": "node scripts/check-sources.mjs", "args": "files", "note": "Every quoted source passage in the deliverable exists verbatim in the cited file." },
+    "lt-unit": { "run": "node --test", "cwd": "lifting-tracker" },
+    "lt-browser": { "run": "npx.cmd playwright test", "cwd": "lifting-tracker" },
+    "lt-persist": { "run": "npx.cmd playwright test -g unchanged --project=android", "cwd": "lifting-tracker", "note": "One browser smoke test: a logged set is still there, unchanged, after a reload." }
   },
 
   "permissions": {
@@ -221,6 +233,7 @@
       { "name": "tests-dispatch", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-codex-dispatch.ps1", "when": ["scripts/codex-dispatch.ps1", "scripts/test-codex-dispatch.ps1", "scripts/ccx-core.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
       { "name": "tests-mirror", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-sync-mirror.ps1", "when": ["scripts/sync-mirror.ps1", "scripts/test-sync-mirror.ps1"], "timeoutMinutes": 30 },
       { "name": "tests-higgsfield", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-higgsfield.ps1", "when": ["scripts/higgsfield.ps1", "scripts/test-higgsfield.ps1"], "timeoutMinutes": 10 },
+      { "name": "tests-crucible", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-crucible.ps1", "when": ["scripts/crucible.ps1", "scripts/test-crucible.ps1", "scripts/check-sources.mjs", "scripts/ccx-core.ps1", "scripts/codex-dispatch.ps1", "ccx/policy.json", ".obsidian/plugins/crucible/*"], "timeoutMinutes": 15 },
       { "name": "tests-external-tools", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-external-tools.ps1", "when": ["scripts/check-external-tools.ps1", "scripts/test-external-tools.ps1", "AGENTS.md", "CLAUDE.md"], "timeoutMinutes": 15 }
     ],
     "logsMax": 20

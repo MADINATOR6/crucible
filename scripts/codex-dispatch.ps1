@@ -197,7 +197,8 @@ try {
         throw (New-CcxError "run from the task's worktree: $($task.worktree)" 7)
       }
       if ($Role -eq 'implement') {
-        if ($task.owner -ne 'codex') { throw (New-CcxError 'Role implement requires task.owner = codex.' 7) }
+        # Gemini runs through its CLI provider; Claude runs headless (claude -p), e.g. a brief launched from Obsidian.
+        if ($task.owner -notin @('codex','gemini','claude')) { throw (New-CcxError 'Role implement requires task.owner codex, gemini or claude.' 7) }
       }
       # A planned task is started only after the writer lock (below), whatever the role: any role can
       # be given a writable sandbox, and a BUSY refusal must leave status, baseline and attempts
@@ -220,6 +221,9 @@ try {
     if (-not [IO.File]::Exists($taskPath)) { throw "Task file not found: $taskPath" }
     $body = [IO.File]::ReadAllText($taskPath, $utf8) -replace '(?s)<!--.*?-->', '' -replace '(?m)^\s*#{1,6}(?:\s.*)?\r?$', ''
     if ([string]::IsNullOrWhiteSpace($body)) { throw "Task file is empty or unfilled: $taskPath" }
+    # The input version this run answers: a result is stale once the brief's bytes change.
+    $shaInput = [Security.Cryptography.SHA256]::Create()
+    try { $inputSha = [BitConverter]::ToString($shaInput.ComputeHash([IO.File]::ReadAllBytes($taskPath))).Replace('-', '').Substring(0, 12).ToLowerInvariant() } finally { $shaInput.Dispose() }
     $class = Get-CcxClass -Policy $policy -Class $task.class -Risk $task.risk
     $budget = Get-CcxBudget -Policy $policy -Class $class -Task $task
     $used = [long]$task.tokens.input - [long]$task.tokens.cached + [long]$task.tokens.output
@@ -234,13 +238,23 @@ try {
     if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
     $decision = Invoke-CcxRoute @routeArgs
     # A cloud fallback provider may run while OpenAI Codex is at its usage limit; nothing else may.
-    if ($codexOut -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
+    if ($codexOut -and $decision.agent -eq 'codex' -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
       $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
       throw (New-CcxError "USAGE LIMIT (recorded): Codex resumes at $resume" 4)
     }
-    if ($decision.agent -ne 'codex' -or $decision.route -notin @('worker','cheap','script')) {
-      throw (New-CcxError ("Route: $($decision.route) - " + ($decision.reasons -join '; ')) 8)
+    # Codex takes its routes; Gemini and headless Claude take only work their task owns (never an automatic escalation).
+    $runnable = ($decision.agent -eq 'codex' -and $decision.route -in @('worker','cheap','script')) -or
+                ($decision.agent -in @('gemini','claude') -and $decision.route -eq 'worker' -and $Role -eq 'implement' -and $task.owner -eq $decision.agent)
+    if (-not $runnable) {
+      throw (New-CcxError ("Route: $($decision.route) $($decision.agent) - " + ($decision.reasons -join '; ')) 8)
     }
+    if ($decision.agent -eq 'claude') {
+      $providerName = 'claude'
+      if (-not $policy.models.claude.headless -or [string]$policy.models.claude.headless.command -notmatch '^[A-Za-z0-9._-]{1,64}$') { throw 'Policy models.claude.headless.command is missing or invalid.' }
+      # Before the lock and the attempt count: a missing CLI must not leave a run that never started.
+      if (-not (Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue)) { throw (New-CcxError "$($policy.models.claude.headless.command) not found on PATH" 8) }
+    }
+    if ($decision.agent -eq 'gemini') { $providerName = 'gemini'; $providerPolicy = $policy.providers.gemini }
     if (-not $explicit) {
       $Model = $decision.model; $Effort = $decision.effort
       if ($Model -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$' -or $Effort -notin @('low','medium','high','xhigh','max')) {
@@ -354,14 +368,36 @@ try {
   Write-Output "Dispatching $(if ($providerName) { $providerName } else { 'Codex' }): HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
   $modelArguments = if ($Model) { @('-m', $Model) } else { @() }
   $isGemini = $providerPolicy -and $providerPolicy.cli -eq 'gemini'
+  $isClaude = $providerName -eq 'claude'
+  # Permitted checks (policy.checks): the only shell commands Gemini or headless Claude may run unasked.
+  $checkPrefixes = @()
+  if ($TaskId -and $Sandbox -ne 'read-only' -and $policy.ContainsKey('checks')) {
+    foreach ($entry in @($policy.checks.Values | Where-Object { $_ -is [Collections.IDictionary] -and $_.run })) {
+      if ([string]$entry.run -notmatch '^[A-Za-z0-9 ._/:=-]{1,120}$') { throw 'Policy checks.<name>.run must be a plain command prefix.' }
+      $checkPrefixes += [string]$entry.run
+    }
+  }
   if ($isGemini) {
     $gemini = Get-Command $providerPolicy.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $gemini) { throw "$($providerPolicy.command) not found on PATH" }
     if ($gemini.Source -match '[%"]') { throw 'Gemini CLI path must not contain % or double quotes.' }
-    # No sandbox on Windows: never yolo. Implement may edit files (no shell); other roles are read-only.
+    # No sandbox on Windows: never yolo. Implement may edit files and run only the permitted checks; other roles are read-only.
     $approval = if ($Sandbox -eq 'read-only') { 'plan' } else { 'auto_edit' }
     $geminiModel = if ($Model -and $Model -ne 'auto') { @('-m', $Model) } else { @() }
-    $arguments = @($gemini.Source, '--skip-trust', '--approval-mode', $approval, '-o', 'json') + $geminiModel + @('-p', $prompt)
+    $policyArguments = @()
+    if ($checkPrefixes.Count) {
+      $rules = @($checkPrefixes | ForEach-Object { "[[rule]]`ntoolName = `"run_shell_command`"`ncommandPrefix = `"$_`"`ndecision = `"allow`"`npriority = 100`n" })
+      [IO.File]::WriteAllText($base + '.policy.toml', ($rules -join "`n"), $utf8)
+      $policyArguments = @('--policy', ($base + '.policy.toml'))
+    }
+    $arguments = @($gemini.Source, '--skip-trust', '--approval-mode', $approval, '-o', 'json') + $policyArguments + $geminiModel + @('-p', $prompt)
+  } elseif ($isClaude) {
+    $claude = Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $claude) { throw "$($policy.models.claude.headless.command) not found on PATH" }
+    if ($claude.Source -match '[%"]') { throw 'Claude CLI path must not contain % or double quotes.' }
+    $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'acceptEdits' }
+    $allowed = @($checkPrefixes | ForEach-Object { '--allowedTools'; "Bash($_`:*)" })
+    $arguments = @($claude.Source, '-p', $prompt, '--output-format', 'json', '--permission-mode', $mode) + $(if ($Model) { @('--model', $Model) } else { @() }) + $allowed
   } else {
     $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
   }
@@ -374,6 +410,8 @@ try {
   $info.UseShellExecute = $false
   $info.CreateNoWindow = $true
   Clear-GitOverrides $info
+  # A nested Claude Code session refuses to start, and Obsidian has none of these anyway.
+  if ($isClaude) { foreach ($name in @('CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_SSE_PORT')) { [void]$info.EnvironmentVariables.Remove($name) } }
   if ($providerPolicy -and $providerPolicy.envKey -and -not $info.EnvironmentVariables[$providerPolicy.envKey]) {
     # A key saved for the Windows user after this shell started; passed to the child only, never logged.
     $info.EnvironmentVariables[$providerPolicy.envKey] = Get-CcxProviderKey $providerPolicy.envKey
@@ -425,7 +463,21 @@ try {
       }
     } catch { }
   }
-  foreach ($line in $(if ($isGemini) { @() } else { [IO.File]::ReadLines($base + '.events.jsonl', $utf8) })) {
+  if ($isClaude) {
+    # claude -p --output-format json prints one result object: result, is_error, usage.
+    try {
+      $result = [IO.File]::ReadAllText($base + '.events.jsonl', $utf8) | ConvertFrom-Json -ErrorAction Stop
+      if ($result.is_error) { $messages.Add([string]$result.result) }
+      elseif ($result.result) { [IO.File]::WriteAllText($base + '.report.md', [string]$result.result, $utf8) }
+      if ($result.usage) {
+        $hasUsage = $true
+        $cachedTokens += [long]$result.usage.cache_read_input_tokens
+        $inputTokens += [long]$result.usage.input_tokens + [long]$result.usage.cache_read_input_tokens + [long]$result.usage.cache_creation_input_tokens
+        $outputTokens += [long]$result.usage.output_tokens
+      }
+    } catch { }
+  }
+  foreach ($line in $(if ($isGemini -or $isClaude) { @() } else { [IO.File]::ReadLines($base + '.events.jsonl', $utf8) })) {
     try { $event = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($event.type -eq 'turn.completed' -and $event.usage) {
       $hasUsage = $true
@@ -441,8 +493,9 @@ try {
   }
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
-  $limitMessages = @($messages | Where-Object { $_ -match 'hit your usage limit|Quota exceeded|usage not included' })
-  $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match 'hit your usage limit|Quota exceeded|usage not included' })
+  $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit'
+  $limitMessages = @($messages | Where-Object { $_ -match $limitPattern })
+  $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $limitPattern })
   foreach ($message in ($limitMessages | Select-Object -Unique)) {
     Write-Output "USAGE LIMIT: $message"
     if ($message -match '(?i)try again at\s+([^\r\n]+)') { Write-Output "RESETS: $($Matches[1].Trim().TrimEnd('.'))" }
@@ -506,11 +559,22 @@ try {
         $now = Get-CcxNow
         $dispatch.exit = $code; $dispatch.status = $status; $dispatch.endedAt = $now
         $dispatch.durationSec = $duration; $dispatch.tokens = $tokens; $dispatch.postChecks = $postChecks
+        $dispatch.capture = $base; $dispatch.input = $inputSha
         $task.lastDispatch = $dispatch; $task.updated = $now
+        # Every run's input version, output and verdict, so a cross-agent task keeps its whole trail.
+        $task.runs = @(@($task.runs | Where-Object { $_ }) + @($dispatch.Clone()) | Select-Object -Last 20)
         if ($limitMessages.Count -gt 0) {
           $resetText = ''
           foreach ($message in $limitMessages) {
             if ($message -match '(?i)try again at\s+([^\r\n]+)') { $resetText = $Matches[1].Trim().TrimEnd('.'); break }
+          }
+          # Gemini says "Please retry in 15h22m7.08s": turn it into a time the reset parser accepts.
+          if (-not $resetText) {
+            foreach ($message in $limitMessages) {
+              if ($message -match '(?i)retry in (?:(\d+)h)?(?:(\d+)m)?' -and ($Matches[1] -or $Matches[2])) {
+                $resetText = [DateTime]::Now.AddHours([int]$Matches[1]).AddMinutes([int]$Matches[2] + 1).ToString('MMM d, yyyy h:mm tt', [Globalization.CultureInfo]::InvariantCulture); break
+              }
+            }
           }
           # Another provider's limit says nothing about OpenAI Codex quota.
           if ($providerName) {
@@ -527,7 +591,7 @@ try {
         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
         Write-CcxTelemetry -Record @{
           at=$now; kind='dispatch'; taskId=$TaskId; type=$task.type; class=$task.class; risk=$task.risk
-          role=$Role; agent=$(if ($providerPolicy -and $providerPolicy.cli) { $providerPolicy.cli } else { 'codex' }); provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
+          role=$Role; agent=$(if ($isClaude) { 'claude' } elseif ($providerPolicy -and $providerPolicy.cli) { $providerPolicy.cli } else { 'codex' }); provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
           exit=$code; status=$status; tokens=$tokens; durationSec=$duration
           scopeViolations=$scopeViolations.Count; postChecksPass=$(if ($postChecks) { $postChecks.pass } else { $null })
         }

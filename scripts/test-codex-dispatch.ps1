@@ -555,10 +555,16 @@ else {
     Check-Code $r 7
     Assert ($r.Stdout -match "run from the task's worktree") 'worktree message absent'
   }
-  Ccx-Case 'claude owner implement refused' {
+  Ccx-Case 'claude owner implement goes to headless Claude, never Codex' {
+    # Since 2026-11-25 a claude-owned task launched here runs claude -p (test-crucible.ps1 covers the run).
+    # With no claude CLI on this PATH it fails closed instead of falling back to Codex.
     Add-CcxTask 'T1' 'owned.txt' 'claude'
-    $r = Run-Launcher $repo ($common + @('-TaskId','T1'))
-    Check-Code $r 7
+    $log = Join-Path $scratch 'claude-owner.json'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'success' 'fake' $false 25 $log
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'claude\.exe not found on PATH') 'claude owner did not route to headless Claude'
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 0) 'a run that never started used an attempt'
+    Assert (-not (Test-Path -LiteralPath $log)) 'Codex ran for a claude-owned task'
   }
   Ccx-Case 'dispatch cap refused by route' {
     Add-CcxTask
@@ -757,10 +763,10 @@ else {
     try {
       $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
       Check-Code $r 0
-      Assert ($r.Stdout -match 'Route: \w+ gemini/auto') 'gemini route absent'
+      Assert ($r.Stdout -match 'Route: \w+ gemini/gemini-3-flash-preview') 'gemini route absent'
       $args = [IO.File]::ReadAllText($argLog)
       # The launcher quotes every argument.
-      Assert ($args -match '"--approval-mode" "auto_edit"' -and $args -notmatch 'yolo' -and $args -notmatch '"-m"') "gemini flags wrong: $args"
+      Assert ($args -match '"--approval-mode" "auto_edit"' -and $args -notmatch 'yolo' -and $args -match '"-m" "gemini-3-flash-preview"') "gemini flags wrong: $args"
       $task = (Read-CcxState).tasks.T1
       Assert ($task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'gemini dispatch not recorded'
       Assert ($task.tokens.input -eq 10 -and $task.tokens.output -eq 4) 'gemini tokens not parsed'    } finally { Remove-Item -LiteralPath $fakeGemini -Force }

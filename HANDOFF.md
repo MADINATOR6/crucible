@@ -174,6 +174,15 @@ Final git status --short: <output>
 
 READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it never means approved to commit.
 
+### Briefs from Obsidian (any owner)
+
+A brief launched from Obsidian (`scripts/crucible.ps1 launch`, `Start Here.md`) is a task file with frontmatter. Gemini, headless Claude and Codex all follow the Implementer instruction above for it, with these meanings:
+- `owns:` is the write allowlist. `checks:` names permitted checks (`ccx/policy.json`, `checks`): run them yourself where your runtime allows; the launcher reruns them after you and records the result as evidence either way.
+- `## Answers` holds the user's replies to an earlier BLOCKED report. Read the previous report (the brief's Status, Latest report) and the existing outputs first, and continue from them (step 8).
+- Research and synthesis quote their sources: one line per finding, `> "exact passage" — [file](relative/path)`; `node scripts/check-sources.mjs <file>` must pass. Wrap a path with spaces in angle brackets, `[Start Here](<../Start Here.md>)`, so Obsidian renders the link. Visual findings give the frame or timestamp; software claims give a command that reproduces them.
+- End the report with `Next owner: <gemini|codex|claude|user> - <what they do next>` when someone else should continue. The user switches owner in the brief and launches again; the next agent reads the same brief, report and outputs, so write nothing that only lives in the chat.
+- Status STALE means the brief changed after the run you are reading: the earlier report answered an older brief.
+
 ## Judge checklist (both agents)
 
 Adapted from [fable-method](https://github.com/Sahir619/fable-method) (MIT, Sahir619); its eval reports the lift at false-completion and weakened-test traps. A report is a set of claims, not evidence: believe only what you observed in this run. Claude runs it as `/fable-judge` (`.claude/skills/fable-judge/`); Codex follows it from here. The verdict is evidence for `ccx task review`; only ccx approves done.

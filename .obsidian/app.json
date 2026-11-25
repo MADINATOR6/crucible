@@ -1,0 +1,14 @@
+{
+  "userIgnoreFilters": [
+    "node_modules/",
+    "lifting-tracker/vendor/",
+    "lifting-tracker/test-results/",
+    "lifting-tracker/playwright-report/",
+    "finance-shorts/.venv/",
+    "instagram/.venv/",
+    "ext/"
+  ],
+  "newFileLocation": "folder",
+  "newFileFolderPath": "tasks",
+  "alwaysUpdateLinks": false
+}

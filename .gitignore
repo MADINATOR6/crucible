@@ -38,3 +38,14 @@ lifting-tracker/playwright-report/
 # Empty lock files a local tool drops in the repo root (seen 2026-11-13)
 /service.conf.lock
 /system.conf.lock
+# Obsidian: the repository root is the vault. Commit only the shared plugin and settings above;
+# per-device layout and the generated Status/ views (from ccx state) stay local.
+.obsidian/*
+!.obsidian/app.json
+!.obsidian/core-plugins.json
+!.obsidian/community-plugins.json
+!.obsidian/plugins/
+.obsidian/plugins/*
+!.obsidian/plugins/crucible/
+.obsidian/plugins/crucible/data.json
+/Status/

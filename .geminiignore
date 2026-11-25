@@ -1,0 +1,12 @@
+# Gemini CLI never reads these, even when a brief asks (privacy.excludePaths and private data).
+nursing-a2/
+*.xlsx
+*.xls
+*.xlsm
+lifting-tracker/private/
+lifting-tracker/data/private/
+.env
+.env.*
+*.pem
+*.key
+Status/.runs/
