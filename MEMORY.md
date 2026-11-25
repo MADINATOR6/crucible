@@ -2,7 +2,13 @@
 
 Operating state for autonomous sessions on this repo. Read first every session. Cap 400 lines; archive old entries to MEMORY-ARCHIVE.md.
 
-## Active task (2026-10-04 evening, unattended; user said "full access, do your best, ill be away")
+## Active task (2026-11-26 overnight, unattended: "GOODNIGHT AND FINISH EVERYTHING"; Codex weekly limit almost spent)
+- Tri-agent workflow upgrade (UPGRADE-*). Projects (lifting-tracker, media, agency, nursing) out of scope. Leave `agency/`, `tasks/AGENCY-*`, `Reference/Obsidian ribbon smoke.md`, `tasks/OBSIDIAN-RIBBON-SMOKE.md` alone (not mine).
+- Done: 25c8ba0 pushed (A-0157, both suites green), Pages run 45693126889.
+- Phase 0: dirty README/BOOTSTRAP/ccx help/test/playbook judged commit-worthy by Claude (Codex spared: limit). Gemini audit UPGRADE-0-AUDIT → `handoffs/UPGRADE-friction-audit.md`.
+- Fallback order if Codex exits 4: Gemini (agy) takes the work; log each switch here.
+
+## Earlier task (2026-10-04 evening, unattended; user said "full access, do your best, ill be away")
 - `lifting-tracker` (master prompt `prompts/lifting-tracker-master-prompt.md`): offline PWA in `lifting-tracker/` (plain ES modules, no deps; `node --test` from that folder; `node lifting-tracker/dev-server.mjs`). Workbook used for inspection: `~/Downloads/Madison Arnido (2).xlsx` (private; `*.xlsx` gitignored; never give it to Codex or commit derived data). Findings are in `lifting-tracker/ARCHITECTURE.md`.
 - Done and merged on main: gitignore rule, `xlsx.js` reader, LT-1 core (e1RM/PRs/weeks/muscles/schedule/lifts/rpe) and LT-7a plates logic via Codex (re-registered as LT-1r/LT-7ar after a bookkeeping error), UI shell (train/muscles/progress/plates/data), store + backup, PWA files.
 - LT-0 importer: Codex implemented (worktree `.ccx-worktrees/codex-LT-0`, task LT-0r), merged to main (f912367) with fixes (395a5fc). Three Codex verifier runs each found real issues (phone redaction shapes, partial/shifted headers, comment-only "Load" row), all fixed with regression tests; ccx review cap reached, so LT-0r stays `verifying` (merged, no verifier pass). Real workbook: 13 blocks, 66 weeks, 3190 sets, 1465 date-reps, 11 unparsed cells. Hard-coded name regex removed (test asserts it).
