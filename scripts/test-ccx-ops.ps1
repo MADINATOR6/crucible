@@ -272,7 +272,7 @@ try {
     $registered = @( (Read-Json $sourcePolicy).verify.stages | Where-Object { $_.builtin -and ($_.name -match 'symmetr' -or $_.builtin -match 'symmetr') })
     Assert ($registered.Count -eq 1) 'instruction symmetry stage is not registered exactly once in policy'
     $stageName = $registered[0].name
-    $policy.verify.stages += $registered[0]; Save-Policy
+    $policy.verify.stages += $registered[0].psobject.BaseObject; Save-Policy
     Write-Text (Join-Path $repo 'AGENTS.md') 'fixture agents'
     Write-Text (Join-Path $repo 'CLAUDE.md') 'fixture claude'
     $null = Run-Git @('add','AGENTS.md','CLAUDE.md')
