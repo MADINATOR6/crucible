@@ -13,8 +13,9 @@ Exit codes: 0 done; 2 bad brief or arguments; 3 refused as a duplicate (already 
 ran on this exact brief); 1 other failure.
 #>
 param(
-  [Parameter(Position = 0)][ValidateSet('new', 'launch', 'stop', 'board', 'run')] [string]$Command = 'board',
-  [string]$Note, [string]$Title, [string]$Owner = 'auto', [string]$Type, [string]$Id, [switch]$Again
+  [Parameter(Position = 0)][ValidateSet('new', 'launch', 'stop', 'board', 'run', 'review-pack')] [string]$Command = 'board',
+  [string]$Note, [string]$Title, [string]$Owner = 'auto', [string]$Type, [string]$Id, [switch]$Again,
+  [string]$TaskId, [string]$Base
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ccx-core.ps1')
@@ -348,6 +349,49 @@ function Get-Report($Run) {
   return $null
 }
 
+function Invoke-ReviewPack {
+  if ($TaskId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}\z' -or
+      $TaskId -match '^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])\.') { Fail 'review-pack needs a safe -TaskId.' }
+  if ([string]::IsNullOrWhiteSpace($Base)) { Fail 'review-pack needs -Base <commit ref>.' }
+  $task = (Get-CcxState).tasks[$TaskId]
+  if (-not $task) { Fail "Unknown task: $TaskId" }
+  $expected = if ($task.worktree) { $task.worktree } else { Get-CcxMainRoot -Root $root }
+  if ($root -ne [IO.Path]::GetFullPath($expected).TrimEnd([char]92)) { Fail "Run review-pack from the task checkout: $expected" }
+
+  try { $baseSha = (Invoke-CcxGit -Root $root -Arguments @('rev-parse', '--verify', '--end-of-options', "${Base}^{commit}")).Trim() }
+  catch { Fail "Invalid base commit ref: $Base" }
+  $headSha = (Invoke-CcxGit -Root $root -Arguments @('rev-parse', '--verify', 'HEAD^{commit}')).Trim()
+  $range = "$baseSha..$headSha"
+  $paths = (Invoke-CcxGit -Root $root -Arguments @('diff', '--name-only', $range, '--')).TrimEnd("`r", "`n")
+  $handoff = [IO.File]::ReadAllText((Join-Path $root 'HANDOFF.md'), $utf8)
+  $critique = [regex]::Match($handoff, '(?ms)^### Plan critique \(Claude\)[ \t]*\r?\n.*?(?=^#{1,3} |\z)')
+  if (-not $critique.Success) { Fail 'HANDOFF.md is missing the Plan critique (Claude) section.' }
+
+  $runs = @($task.runs)
+  [array]::Reverse($runs)
+  $report = $null
+  foreach ($run in (@($task.lastDispatch) + $runs)) {
+    try { $report = Get-Report $run } catch [IO.IOException], [UnauthorizedAccessException] { continue }
+    if ($report) { break }
+  }
+  $untested = if ($report) {
+    ([regex]::Matches($report, '(?im)^[ \t*-]*Untested[ \t*]*:[^\r\n]*') | ForEach-Object { $_.Value }) -join "`n"
+  }
+  if (-not $untested) { $untested = if ($report) { 'No Untested lines in the latest readable report.' } else { 'No readable report recorded.' } }
+  $checklistPath = 'Reference/Review checklist.md'
+  $checklist = if ([IO.File]::Exists((Join-Path $root $checklistPath))) {
+    [IO.File]::ReadAllText((Join-Path $root $checklistPath), $utf8)
+  } else { "Missing: $checklistPath" }
+
+  $pack = @("# Review pack: $($task.id)", '', "Title: $($task.title)", "Task file: $($task.taskFile)", "Range: $range",
+    '', '## Changed paths', '', $(if ($paths) { $paths -replace '(?m)^', '- ' } else { 'None.' }),
+    '', '## Plan critique', '', $critique.Value.TrimEnd(), '', '## Untested', '', $untested,
+    '', '## Review checklist', '', $checklist, '')
+  $destination = "handoffs/$TaskId-review.md"
+  Write-Text (Join-Path $root $destination) ($pack -join "`n")
+  Write-Output $destination
+}
+
 function Get-TaskView($Task, $State, $Policy) {
   # Everything the board and the status note say about one task, derived only from ccx state, the brief and git.
   $briefFile = if ($Task.taskFile) { Join-Path $root $Task.taskFile } else { $null }
@@ -401,16 +445,17 @@ function Invoke-Board {
   $recent = [DateTime]::UtcNow.AddDays(-7)
   foreach ($view in $views) {
     $task = $view.task
-    # Status notes only for briefs that embed one (crucible briefs); older task files are listed on the board.
-    $briefPath = if ($task.taskFile) { Join-Path $root $task.taskFile } else { $null }
-    if (-not $briefPath -or -not [IO.File]::Exists($briefPath) -or
-        -not ([IO.File]::ReadAllText($briefPath, $utf8)).Contains("![[Status/$($task.id)]]")) { continue }
+    if (-not $view.brief -or $task.id -eq 'Terminal') { continue }
     if ($task.status -in @('done', 'abandoned') -and [DateTime]::Parse($task.updated).ToUniversalTime() -lt $recent) { continue }
     Write-Text (Join-Path $statusDir "$($task.id).md") (Format-StatusNote $view)
   }
   $section = {
     param([string]$Heading, [string]$Bucket, [string]$Empty)
-    $rows = @($views | Where-Object { $_.bucket -eq $Bucket -and ($Bucket -ne 'done' -or [DateTime]::Parse($_.task.updated).ToUniversalTime() -ge $recent) })
+    $rows = if ($Bucket -eq 'terminal') {
+      @($views | Where-Object { -not $_.brief -and $_.task.status -notin @('done', 'abandoned') })
+    } else {
+      @($views | Where-Object { $_.brief -and $_.bucket -eq $Bucket -and ($Bucket -ne 'done' -or [DateTime]::Parse($_.task.updated).ToUniversalTime() -ge $recent) })
+    }
     $lines = @("## $Heading")
     if (-not $rows.Count) { $lines += "_$($Empty)_" }
     foreach ($v in $rows) {
@@ -420,7 +465,10 @@ function Invoke-Board {
     ($lines -join "`n") + "`n"
   }
   $pending = @($state.approvals.Values | Where-Object { $_.status -eq 'pending' })
-  $actions = @($state.notifications | Where-Object { $_.level -eq 'action' -and -not $_.ack } | Select-Object -Last 5)
+  $actions = @($state.notifications | Where-Object {
+    $_.level -eq 'action' -and -not $_.ack -and
+      (-not $_.taskId -or $state.tasks[$_.taskId].status -notin @('done', 'abandoned'))
+  } | Select-Object -Last 5)
   $board = @("# Board", "_Generated $([DateTime]::Now.ToString('yyyy-MM-dd HH:mm')) from ccx state. Edit briefs, not this note._", '')
   $board += & $section 'Needs you' 'needs' $(if ($pending.Count) { 'No brief is waiting on you; approvals below.' } else { 'Nothing waiting on you.' })
   if ($pending.Count) {
@@ -428,13 +476,15 @@ function Invoke-Board {
     $board += @($pending | ForEach-Object { "- $($_.id) $($_.level) $($_.action) $($_.target): ``powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ccx.ps1 approve -Id $($_.id)``" })
     $board += ''
   }
-  if ($actions.Count) { $board += '**ccx notices:**'; $board += @($actions | ForEach-Object { "- $($_.id): $($_.text)" }); $board += '' }
   $board += & $section 'Running' 'running' 'Nothing running.'
   $board += & $section 'Ready to review or resume' 'review' 'Nothing to review.'
   $board += & $section 'Blocked' 'blocked' 'Nothing blocked.'
   $board += & $section 'In progress' 'progress' 'Nothing else open.'
   $board += & $section 'Done this week' 'done' 'Nothing finished this week.'
-  $board += & $section 'Other open ccx tasks (not briefs)' 'other' 'None.'
+  $board += '[[Status/Terminal|Terminal tasks and notices]]'
+  $terminal = @('# Terminal tasks and notices', '', (& $section 'Other open ccx tasks (not briefs)' 'terminal' 'None.'), '## ccx notices')
+  if ($actions.Count) { $terminal += @($actions | ForEach-Object { "- $($_.id): $($_.text)" }) } else { $terminal += '_None._' }
+  Write-Text (Join-Path $statusDir 'Terminal.md') ($terminal -join "`n")
   Write-Text (Join-Path $statusDir 'Board.md') ($board -join "`n")
 }
 
@@ -504,6 +554,7 @@ try {
     'launch' { if (-not $Note) { Fail 'launch needs -Note <brief path>.' }; Invoke-Launch }
     'stop' { if (-not $Note) { Fail 'stop needs -Note <brief path>.' }; Invoke-Stop }
     'board' { Invoke-Board; Write-Output 'Board updated: Status/Board.md' }
+    'review-pack' { Invoke-ReviewPack }
     'run' { if ($Id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { Fail 'run needs -Id.' }; Invoke-Run }
   }
   exit 0
