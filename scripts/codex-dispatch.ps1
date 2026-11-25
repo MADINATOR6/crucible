@@ -4,12 +4,14 @@ Parameters: -Effort low|medium|high|xhigh|max (medium), -Model <slug> (Codex's
 configured default when omitted), -Role implement|verify|research
 (implement), -TaskFile <path> (TASK.md; required for research),
 -TaskId <id> (optional ccx task integration),
+  which can launch Codex, Gemini via its CLI, or Claude via headless claude -p,
 -CaptureDir <path> (%USERPROFILE%\codex-captures), -TimeoutMinutes <n> (60; fractions allowed),
 -Sandbox read-only|workspace-write|danger-full-access (workspace-write for
 implement, read-only otherwise). Relative paths use the caller's directory.
 Exit codes: 0 success; Codex's own code otherwise; 3 missing/blank report;
 4 usage limit; 5 timeout; 6 busy writer; 1 refusal or launcher failure.
-With -TaskId: 7 ownership/worktree; 8 budget/route; 9 post-checks; 10 approval.
+With -TaskId: 7 ownership/worktree, including when the owner is not codex,
+gemini or claude for -Role implement; 8 budget/route; 9 post-checks; 10 approval.
 The execution-policy bypass, if supplied by the caller, affects that process only.
 #>
 param(
