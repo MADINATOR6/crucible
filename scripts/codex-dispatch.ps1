@@ -372,9 +372,12 @@ try {
   $isGemini = $providerPolicy -and $providerPolicy.cli -eq 'gemini'
   $isClaude = $providerName -eq 'claude'
   # Permitted checks (policy.checks): the only shell commands Gemini or headless Claude may run unasked.
-  $checkPrefixes = @()
-  if ($TaskId -and $Sandbox -ne 'read-only' -and $policy.ContainsKey('checks')) {
-    foreach ($entry in @($policy.checks.Values | Where-Object { $_ -is [Collections.IDictionary] -and $_.run })) {
+  # Neither has a sandbox here, so only agentSafe checks (they execute no repository code), and none when
+  # the task owns anything under a protected path such as scripts/ (the checker itself).
+  $checkPrefixes = @(); $protectedPaths = @($policy.agentProtectedPaths | Where-Object { $_ })
+  $ownsProtected = $TaskId -and @($task.owns | Where-Object { $o = $_; @($protectedPaths | Where-Object { Test-CcxPathOverlap $o $_ }).Count }).Count
+  if ($TaskId -and $Sandbox -ne 'read-only' -and $policy.ContainsKey('checks') -and -not $ownsProtected) {
+    foreach ($entry in @($policy.checks.Values | Where-Object { $_ -is [Collections.IDictionary] -and $_.run -and $_.agentSafe -eq $true })) {
       if ([string]$entry.run -notmatch '^[A-Za-z0-9 ._/:=-]{1,120}$') { throw 'Policy checks.<name>.run must be a plain command prefix.' }
       $checkPrefixes += [string]$entry.run
     }
@@ -387,8 +390,13 @@ try {
     $approval = if ($Sandbox -eq 'read-only') { 'plan' } else { 'auto_edit' }
     $geminiModel = if ($Model -and $Model -ne 'auto') { @('-m', $Model) } else { @() }
     $policyArguments = @()
-    if ($checkPrefixes.Count) {
+    if ($Sandbox -ne 'read-only') {
       $rules = @($checkPrefixes | ForEach-Object { "[[rule]]`ntoolName = `"run_shell_command`"`ncommandPrefix = `"$_`"`ndecision = `"allow`"`npriority = 100`n" })
+      # Never let the unsandboxed agent rewrite the launcher stack that later runs on this machine.
+      foreach ($path in $protectedPaths) {
+        $pattern = '"file_path"\s*:\s*"(?:[^"]*[\\/])?' + [regex]::Escape($path.TrimEnd('/')) + '(?:[\\/"])'
+        $rules += "[[rule]]`ntoolName = [`"write_file`", `"replace`"]`nargsPattern = '$pattern'`ndecision = `"deny`"`npriority = 200`n"
+      }
       [IO.File]::WriteAllText($base + '.policy.toml', ($rules -join "`n"), $utf8)
       $policyArguments = @('--policy', ($base + '.policy.toml'))
     }
@@ -399,6 +407,7 @@ try {
     if ($claude.Source -match '[%"]') { throw 'Claude CLI path must not contain % or double quotes.' }
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'acceptEdits' }
     $allowed = @($checkPrefixes | ForEach-Object { '--allowedTools'; "Bash($_`:*)" })
+    foreach ($path in $protectedPaths) { $allowed += @('--disallowedTools', "Edit($(if ($path.EndsWith('/')) { $path + '**' } else { $path }))") }
     $arguments = @($claude.Source, '-p', $prompt, '--output-format', 'json', '--permission-mode', $mode) + $(if ($Model) { @('--model', $Model) } else { @() }) + $allowed
   } else {
     $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
@@ -425,6 +434,9 @@ try {
   $process.StartInfo = $info
   $eventsStream = [IO.File]::Open($base + '.events.jsonl', 'Create', 'Write', 'Read')
   $stderrStream = [IO.File]::Open($base + '.stderr.log', 'Create', 'Write', 'Read')
+  # Briefs are user inputs exempt from scope; snapshot them so a brief changed during this run is reported.
+  $briefHashes = @{}
+  foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'tasks') -Filter *.md -File -ErrorAction SilentlyContinue)) { $briefHashes[$file.Name] = (Get-FileHash -LiteralPath $file.FullName).Hash }
   [void]$process.Start()
   $processStarted = $true
   $process.StandardInput.Close()
@@ -493,6 +505,10 @@ try {
     if ($message -and -not $messages.Contains($message)) { $messages.Add($message) }
     if ($event.type -eq 'item.completed' -and $event.item -and $event.item.type -eq 'agent_message' -and $event.item.text) { $lastMessage = [string]$event.item.text }
   }
+  $briefsChanged = @(foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'tasks') -Filter *.md -File -ErrorAction SilentlyContinue)) {
+    if (-not $briefHashes.ContainsKey($file.Name) -or $briefHashes[$file.Name] -ne (Get-FileHash -LiteralPath $file.FullName).Hash) { 'tasks/' + $file.Name }
+  }) + @($briefHashes.Keys | Where-Object { -not [IO.File]::Exists((Join-Path $root "tasks/$_")) } | ForEach-Object { "tasks/$_" })
+  foreach ($path in $briefsChanged) { Write-Output "BRIEF CHANGED DURING RUN: $path (by you or the agent; check it)" }
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
   $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit'
@@ -561,7 +577,7 @@ try {
         $now = Get-CcxNow
         $dispatch.exit = $code; $dispatch.status = $status; $dispatch.endedAt = $now
         $dispatch.durationSec = $duration; $dispatch.tokens = $tokens; $dispatch.postChecks = $postChecks
-        $dispatch.capture = $base; $dispatch.input = $inputSha
+        $dispatch.capture = $base; $dispatch.input = $inputSha; $dispatch.briefsChanged = @($briefsChanged)
         $task.lastDispatch = $dispatch; $task.updated = $now
         # Every run's input version, output and verdict, so a cross-agent task keeps its whole trail.
         $task.runs = @(@($task.runs | Where-Object { $_ }) + @($dispatch.Clone()) | Select-Object -Last 20)

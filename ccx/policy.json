@@ -129,9 +129,11 @@
     "ux-review": { "route": "worker", "agent": "gemini", "level": "L1", "note": "Visual, video or user-experience review of shareable material; findings carry frames or timestamps." }
   },
 
+  "agentProtectedPaths": [".obsidian/", "scripts/", "ccx/", ".claude/", ".codex/", ".github/", ".geminiignore", ".gitignore", ".mcp.json", "AGENTS.md", "CLAUDE.md", "HANDOFF.md"],
+
   "checks": {
-    "about": "Permitted checks a brief may name (checks: [..]). Gemini and headless Claude may run exactly these command prefixes without approval; crucible.ps1 reruns the brief's checks after every run and records the result as evidence. Codex runs them in its own sandbox.",
-    "sources": { "run": "node scripts/check-sources.mjs", "args": "files", "note": "Every quoted source passage in the deliverable exists verbatim in the cited file." },
+    "about": "Permitted checks a brief may name (checks: [..]). Only agentSafe checks (they read files and execute none of the repository's code) may be run unasked by Gemini or headless Claude, which have no sandbox; the others run in Codex's sandbox, or are rerun by crucible.ps1 after the run only when the task owns plain documents. agentProtectedPaths: no brief launched from Obsidian may own these, and Gemini and headless Claude are denied writes there.",
+    "sources": { "run": "node scripts/check-sources.mjs", "args": "files", "agentSafe": true, "note": "Every quoted source passage in the deliverable exists verbatim in the cited file." },
     "lt-unit": { "run": "node --test", "cwd": "lifting-tracker" },
     "lt-browser": { "run": "npx.cmd playwright test", "cwd": "lifting-tracker" },
     "lt-persist": { "run": "npx.cmd playwright test -g unchanged --project=android", "cwd": "lifting-tracker", "note": "One browser smoke test: a logged set is still there, unchanged, after a reload." }

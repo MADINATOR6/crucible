@@ -79,7 +79,14 @@ function Test-Brief($Brief, $Policy) {
   if (-not $Policy.classes.ContainsKey($fm.class) -or $fm.risk -notin $Policy.risk.levels) { Fail 'class or risk is not in ccx/policy.json.' }
   $fm.owns = @($fm.owns | Where-Object { $_ })
   if (-not $fm.owns.Count) { Fail 'owns: list the files or folders this task may change (the deliverable).' }
-  foreach ($path in $fm.owns) { $null = ConvertTo-CcxOwnedPath $path -Policy $Policy }
+  foreach ($path in $fm.owns) {
+    $null = ConvertTo-CcxOwnedPath $path -Policy $Policy
+    # Owned paths reach a cmd.exe command line as check arguments: no cmd metacharacters.
+    if ($path -match '[%^&!()<>|`]') { Fail "owns path '$path' has a character cmd.exe would interpret (% ^ & ! ( ) < > | backtick)." }
+    foreach ($protected in @($Policy.agentProtectedPaths)) {
+      if (Test-CcxPathOverlap $path $protected) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
+    }
+  }
   $fm.checks = @($fm.checks | Where-Object { $_ })
   foreach ($check in $fm.checks) {
     if (-not $Policy.ContainsKey('checks') -or -not ($Policy.checks[$check] -is [Collections.IDictionary])) {
@@ -106,7 +113,7 @@ function Get-Run([string]$TaskId) {
   } elseif ($run.startedAt -and ([DateTime]::UtcNow - [DateTime]::Parse($run.startedAt).ToUniversalTime()).TotalSeconds -lt 60) {
     $live = $true # claimed a moment ago and still starting
   }
-  @{ path = $path; live = [bool]$live; pid = $run.pid; startedAt = $run.startedAt; input = $run.input; log = $run.log; owner = $run.owner }
+  @{ path = $path; live = [bool]$live; pid = $run.pid; startedAt = $run.startedAt; input = $run.input; log = $run.log; owner = $run.owner; checks = @($run.checks) }
 }
 
 function Invoke-New {
@@ -200,11 +207,13 @@ function Invoke-Launch {
       }
     }
     $log = Join-Path (Join-Path $env:USERPROFILE 'codex-captures') ("crucible-$taskId-" + [DateTime]::Now.ToString('yyyyMMdd-HHmmss') + '.log')
-    $claimText = ConvertTo-Json @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log } -Compress
+    # The checks this launch approved: the run uses these, never the brief as it reads after the agent ran.
+    $checks = @($fm.checks)
+    $claimText = ConvertTo-Json @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; checks = $checks } -Compress
     $bytes = $utf8.GetBytes($claimText); $claim.Write($bytes, 0, $bytes.Length); $claim.Dispose(); $claim = $null
     if ($env:CRUCIBLE_INLINE -eq '1') {
       # Tests and debugging: run in this process, with this process's environment (CCX_STATE_DIR, PATH).
-      [IO.File]::WriteAllText($runPath, (ConvertTo-Json @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; pid = $PID; ticks = (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks } -Compress), $utf8)
+      [IO.File]::WriteAllText($runPath, (ConvertTo-Json @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; checks = $checks; pid = $PID; ticks = (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks } -Compress), $utf8)
       $launched = $true
       $script:Id = $taskId
       Invoke-Run
@@ -218,7 +227,7 @@ function Invoke-Launch {
     $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $commandLine; CurrentDirectory = $root; ProcessStartupInformation = $startup }
     if ($created.ReturnValue -ne 0) { Fail "Could not start the background run (WMI code $($created.ReturnValue))." 1 }
     $child = Get-Process -Id ([int]$created.ProcessId)
-    $record = @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; pid = $child.Id; ticks = $child.StartTime.ToUniversalTime().Ticks }
+    $record = @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; checks = $checks; pid = $child.Id; ticks = $child.StartTime.ToUniversalTime().Ticks }
     [IO.File]::WriteAllText($runPath, (ConvertTo-Json $record -Compress), $utf8)
     $launched = $true
     Write-Output "Launched $taskId with $owner (input $inputSha). Follow it in Status/$taskId."
@@ -243,10 +252,15 @@ function Invoke-Run {
     $exit = $LASTEXITCODE
     Add-Content -LiteralPath $log -Value "`n=== dispatch exit $exit ===" -Encoding utf8
     $task = Get-CcxTask -Id $Id
-    $brief = Read-Brief $task.taskFile
-    Test-Brief $brief (Get-CcxPolicy)
     $results = @()
-    foreach ($check in $brief.fm.checks) { $results += Invoke-Check $check $brief }
+    $policyNow = Get-CcxPolicy
+    # Code-executing checks run on this machine, outside any sandbox: only when the task owns plain documents.
+    $docOnly = -not @($task.owns | Where-Object { $_.EndsWith('/') -or $_ -notmatch '\.(md|txt|csv|json)$' }).Count
+    foreach ($check in @($run.checks | Where-Object { $_ })) {
+      if (-not ($policyNow.checks[$check] -is [Collections.IDictionary])) { continue }
+      if ($policyNow.checks[$check].agentSafe -eq $true -or $docOnly) { $results += Invoke-Check $check $task }
+      else { $results += @{ name = $check; command = $policyNow.checks[$check].run; result = 'NOT RUN'; tail = 'The task owns files that can hold code; run this check from a terminal or a Codex verify run.' } }
+    }
     $verify = $null
     if ($exit -eq 0) {
       $verify = Invoke-Ccx @('verify', '-TaskId', $Id)
@@ -267,13 +281,13 @@ function Invoke-Run {
   }
 }
 
-function Invoke-Check([string]$Name, $Brief) {
+function Invoke-Check([string]$Name, $Task) {
   $ErrorActionPreference = 'Continue'
   $spec = (Get-CcxPolicy).checks[$Name]
   $cwd = if ($spec.cwd) { Join-Path $root $spec.cwd } else { $root }
   $argText = ''
   if ($spec.args -eq 'files') {
-    $argText = (@($Brief.fm.owns | Where-Object { $_ -like '*.md' } | ForEach-Object { '"' + $_ + '"' }) -join ' ')
+    $argText = (@($Task.owns | Where-Object { $_ -like '*.md' } | ForEach-Object { '"' + $_ + '"' }) -join ' ')
   }
   $command = ($spec.run + ' ' + $argText).Trim()
   $out = & (Join-Path ([Environment]::SystemDirectory) 'cmd.exe') /d /c "cd /d `"$cwd`" && $command" 2>&1 | Out-String
@@ -354,6 +368,8 @@ function Get-TaskView($Task, $State, $Policy) {
   if (-not $isBrief -and $view.bucket -in @('progress', 'blocked', 'review')) {
     $view.bucket = 'other'; $view.next = "ccx status $($Task.status), updated $($Task.updated); managed from a terminal."
   }
+  $otherBriefs = @($last.briefsChanged | Where-Object { $_ -and $_ -ne $Task.taskFile })
+  if ($last -and $otherBriefs.Count -and $view.bucket -ne 'done') { $view.next += " Briefs changed while it ran: $($otherBriefs -join ', '); if you did not edit them, read them before launching." }
   if ($nextLine -and $nextLine.Success -and $view.bucket -in @('review', 'progress')) { $view.next += " Agent suggests next: $($nextLine.Groups[1].Value.Trim())" }
   $view
 }
@@ -449,6 +465,7 @@ function Format-StatusNote($View) {
     $evidenceFile = if ($r.capture -and [IO.File]::Exists($r.capture + '.report.md')) { @('report', $r.capture + '.report.md') }
                     elseif ($r.capture -and [IO.File]::Exists($r.capture + '.stderr.log')) { @('no report; stderr', $r.capture + '.stderr.log') } else { $null }
     $out += "- run $number **$agent** $($r.model) $($r.role) ($($r.startedAt)): exit $($r.exit), $($r.status), $($r.durationSec)s, input $($r.input)" +
+      $(if (@($r.briefsChanged | Where-Object { $_ }).Count) { ' **Briefs changed during this run (check them): ' + (@($r.briefsChanged) -join ', ') + '**' } else { '' }) +
       $(if ($evidenceFile) { " ([$($evidenceFile[0])](<file:///$(([string]$evidenceFile[1]).Replace('\', '/'))>))" } else { '' })
   }
   if ($View.report) {

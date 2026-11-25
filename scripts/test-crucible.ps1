@@ -100,7 +100,7 @@ if (kind === 'gemini') {
   }
   # The fixture repository: HANDOFF.md (the launcher requires it) and one source file to cite.
   Write-File (Join-Path $repo 'HANDOFF.md') "# Handoff`n"
-  Write-File (Join-Path $repo '.gitignore') "/Status/`n"
+  Write-File (Join-Path $repo '.gitignore') "/Status/`n/Microsoft/`n"
   Write-File (Join-Path $repo 'src.md') "Synthetic source line for citations.`n"
   [void][IO.Directory]::CreateDirectory((Join-Path $repo 'scripts')); Copy-Item (Join-Path $PSScriptRoot 'check-sources.mjs') (Join-Path $repo 'scripts/check-sources.mjs')
   [void][IO.Directory]::CreateDirectory((Join-Path $repo 'Reference'))
@@ -212,6 +212,32 @@ if (kind === 'gemini') {
     $again = Crucible @('launch', '-Note', 'tasks/Q1.md', '-Again')
     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/Board.md'), $utf8)
     Assert ($status -match '(?s)Q1.*refused before any agent started') "deferred launch not explained: $($again.Out)"
+  }
+
+  Case 'unsandboxed agents get only agent-safe checks and cannot write the launcher stack' {
+    $toml = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.policy.toml | Sort-Object LastWriteTime | Select-Object -Last 1
+    $text = Get-Content $toml.FullName -Raw
+    Assert ($text -notmatch 'playwright|node --test') 'code-executing check offered to an unsandboxed agent'
+    Assert ($text -match '(?s)write_file.*\\\.obsidian.*decision = "deny"') 'launcher stack not write-protected for Gemini'
+    $claudeArgs = Get-Content (Join-Path $scratch 'claude-args.log') -Raw
+    Assert ($claudeArgs -match 'Edit\(\.obsidian/\*\*\)' -and $claudeArgs -match 'Edit\(scripts/\*\*\)') "launcher stack not write-protected for Claude: $claudeArgs"
+  }
+
+  Case 'a brief may not own the launcher stack or cmd metacharacters' {
+    New-Brief 'S1' 'gemini' 'creative' 'scripts/crucible.ps1'
+    $r = Crucible @('launch', '-Note', 'tasks/S1.md')
+    Assert ($r.Code -eq 2 -and $r.Out -match 'launcher stack') "protected path accepted: $($r.Out)"
+    New-Brief 'S2' 'gemini' 'creative' 'Reference/a%PATH%b.md'
+    $r = Crucible @('launch', '-Note', 'tasks/S2.md')
+    Assert ($r.Code -eq 2 -and $r.Out -match 'cmd.exe would interpret') "cmd metacharacter accepted: $($r.Out)"
+  }
+
+  Case 'checks come from the launch, and code-executing checks never run on code the agent wrote' {
+    New-Brief 'K1' 'codex' 'implement' 'lib/k1.js' 'lt-unit'
+    $r = Crucible @('launch', '-Note', 'tasks/K1.md')
+    Assert ($r.Code -eq 0) $r.Out
+    $evidence = Get-Content (Join-Path $repo 'Status/.data/K1.json') -Raw | ConvertFrom-Json
+    Assert (@($evidence.runs)[-1].checks[0].result -eq 'NOT RUN') 'lt-unit ran on agent-owned code'
   }
 
   Case 'routine Codex work keeps one agent and no review round' {
