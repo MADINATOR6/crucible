@@ -128,6 +128,20 @@ if (kind === 'agy') {
     $again = Crucible @('new', '-Title', 'Write a guide!')
     Assert ($again.Out.Trim() -eq 'tasks/WRITE-A-GUIDE-2.md') "second brief did not get a new id: $($again.Out)"
   }
+  Case 'new validates a launch-ready brief' {
+    $types = Crucible @('types')
+    Assert ($types.Code -eq 0 -and $types.Out -match '(?m)^docs\r?$' -and $types.Out -notmatch '(?m)^(media-generate|test)\r?$') "types list wrong: $($types.Out)"
+    $r = Crucible @('new', '-Title', 'Typed brief', '-Owner', 'claude', '-Type', 'docs', '-Owns', 'Reference/My note.md')
+    Assert ($r.Code -eq 0) $r.Out
+    $brief = Join-Path $repo 'tasks/TYPED-BRIEF.md'
+    $text = [IO.File]::ReadAllText($brief, $utf8)
+    Assert ($text -match 'type: docs' -and $text -match 'owns: \[Reference/My note\.md\]') "typed brief frontmatter wrong: $text"
+    foreach ($bad in @(@('-Type', 'media-generate', '-Owns', 'Reference/x.md'), @('-Type', 'docs', '-Owns', 'scripts/x.ps1'), @('-Type', 'docs', '-Owns', 'a.md,b.md'))) {
+      $refused = Crucible (@('new', '-Title', 'Refused brief') + $bad)
+      Assert ($refused.Code -ne 0 -and -not [IO.File]::Exists((Join-Path $repo 'tasks/REFUSED-BRIEF.md'))) "bad brief was created: $($bad -join ' ') -> $($refused.Out)"
+    }
+    [IO.File]::Delete($brief)
+  }
 
   Case 'Gemini-owned brief: launch, deliverable, layout save, check, verify, status' {
     New-Brief 'G1' 'gemini' 'source-research' 'Reference/out.md' 'sources'

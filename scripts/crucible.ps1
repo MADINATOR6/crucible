@@ -13,8 +13,8 @@ Exit codes: 0 done; 2 bad brief or arguments; 3 refused as a duplicate (already 
 ran on this exact brief); 1 other failure.
 #>
 param(
-  [Parameter(Position = 0)][ValidateSet('new', 'launch', 'stop', 'board', 'run', 'review-pack')] [string]$Command = 'board',
-  [string]$Note, [string]$Title, [string]$Owner = 'auto', [string]$Type, [string]$Id, [switch]$Again,
+  [Parameter(Position = 0)][ValidateSet('new', 'launch', 'stop', 'board', 'run', 'review-pack', 'types')] [string]$Command = 'board',
+  [string]$Note, [string]$Title, [string]$Owner = 'auto', [string]$Type, [string]$Id, [switch]$Again, [string]$Owns,
   [string]$TaskId, [string]$Base
 )
 $ErrorActionPreference = 'Stop'
@@ -127,6 +127,13 @@ function Invoke-New {
   $state = Get-CcxState
   while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId)) { $taskId = "$slug-$n"; $n++ }
   $briefType = if ($Type) { $Type } elseif ($Owner -eq 'gemini') { 'source-research' } else { 'implement' }
+  $ownsLine = '[]'
+  if ($Owns) {
+    # From the Obsidian modal: validate exactly as a launch would, before any file exists.
+    if ($Owns -match ',') { Fail "owns path '$Owns' has a comma; give one file or folder." }
+    Test-Brief @{ fm = @{ id = $taskId; owner = $Owner; type = $briefType; owns = @($Owns.Trim()); checks = @() } } (Get-CcxPolicy)
+    $ownsLine = "[$($Owns.Trim())]"
+  }
   $rel = "tasks/$taskId.md"
   Write-Text (Join-Path $root $rel) @"
 ---
@@ -136,7 +143,7 @@ owner: $Owner          # gemini | claude | codex | auto (ccx picks by type)
 type: $briefType      # implement, debug, docs, source-research, creative, ux-review, ...
 class: normal       # routine (one agent, deterministic checks) | normal | complex
 risk: low
-owns: []            # files or folders this task may change, e.g. [Reference/My note.md]
+owns: $ownsLine            # files or folders this task may change, e.g. [Reference/My note.md]
 checks: []          # permitted checks from ccx/policy.json: sources, lt-unit, lt-browser
 ---
 # $Title
@@ -555,6 +562,11 @@ try {
     'stop' { if (-not $Note) { Fail 'stop needs -Note <brief path>.' }; Invoke-Stop }
     'board' { Invoke-Board; Write-Output 'Board updated: Status/Board.md' }
     'review-pack' { Invoke-ReviewPack }
+    'types' {
+      # Types a brief may use (Test-Brief's rule): not tool-only, no approval gate.
+      $policy = Get-CcxPolicy
+      @($policy.taskTypes.Keys | Where-Object { $policy.taskTypes[$_].route -ne 'tool' -and -not @($policy.taskTypes[$_].gates | Where-Object { $_ }).Count } | Sort-Object) | ForEach-Object { Write-Output $_ }
+    }
     'run' { if ($Id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { Fail 'run needs -Id.' }; Invoke-Run }
   }
   exit 0
