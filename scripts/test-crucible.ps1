@@ -136,7 +136,12 @@ if (kind === 'agy') {
     $brief = Join-Path $repo 'tasks/TYPED-BRIEF.md'
     $text = [IO.File]::ReadAllText($brief, $utf8)
     Assert ($text -match 'type: docs' -and $text -match 'owns: \[Reference/My note\.md\]') "typed brief frontmatter wrong: $text"
-    foreach ($bad in @(@('-Type', 'media-generate', '-Owns', 'Reference/x.md'), @('-Type', 'docs', '-Owns', 'scripts/x.ps1'), @('-Type', 'docs', '-Owns', 'a.md,b.md'))) {
+    # Gemini review of UPGRADE-2A: types a launch refuses, YAML metacharacters, unvalidated -Type, owner/route mismatch.
+    Assert ($types.Out -notmatch '(?m)^(plan|architecture|extract|review)\r?$') "types offers unlaunchable types: $($types.Out)"
+    foreach ($bad in @(@('-Type', 'media-generate', '-Owns', 'Reference/x.md'), @('-Type', 'docs', '-Owns', 'scripts/x.ps1'), @('-Type', 'docs', '-Owns', 'a.md,b.md'),
+                       @('-Type', 'media-generate'), @('-Type', 'plan'), @('-Owner', 'claude', '-Type', 'research', '-Owns', 'Reference/x.md'),
+                       @('-Type', 'docs', '-Owns', 'Reference/a #b.md'), @('-Type', 'docs', '-Owns', 'AGENTS.md] #x'), @('-Type', 'docs', '-Owns', "'AGENTS.md'"),
+                       @('-Type', 'docs', '-Owns', 'Reference/doc[1].md'), @('-Type', 'docs', '-Owns', 'Reference/{a}.md'))) {
       $refused = Crucible (@('new', '-Title', 'Refused brief') + $bad)
       Assert ($refused.Code -ne 0 -and -not [IO.File]::Exists((Join-Path $repo 'tasks/REFUSED-BRIEF.md'))) "bad brief was created: $($bad -join ' ') -> $($refused.Out)"
     }
@@ -228,6 +233,8 @@ if (kind === 'agy') {
     Assert ($r.Code -eq 0) $r.Out
     $task = (State).tasks.G1
     Assert ($task.owner -eq 'codex' -and $task.lastDispatch.provider -eq 'openai' -and @($task.runs).Count -eq 3) 'handoff to codex failed'
+    # The fake Codex must have answered: a nonzero exit here once meant the real codex.cmd ran (PATH order).
+    Assert ($task.lastDispatch.exit -eq 0 -and (Get-Content (Join-Path $scratch 'codex-args.log') -Raw)) "Codex run did not use the fake CLI: exit $($task.lastDispatch.exit)"
     Assert (@($task.checkpoints | Where-Object { $_.note -eq 'Owner gemini -> codex' }).Count -eq 1) 'handoff not recorded'
     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/G1.md'), $utf8)
     Assert ($status -match 'run 1 \*\*gemini\*\*' -and $status -match 'run 3 \*\*codex\*\*') 'run trail lost an agent'

@@ -65,16 +65,29 @@ function Read-Brief([string]$Path) {
   @{ rel = $rel; full = $full; text = $text; fm = $fm; title = $(if ($titleMatch.Success) { $titleMatch.Groups[1].Value.Trim() } else { $fm.id }) }
 }
 
+function Test-BriefType($Policy, [string]$Name) {
+  # A type a launch can actually run: a worker, cheap or script route (not tool or premium), an agent the
+  # launcher dispatches (not a Claude subagent or a cross-model review), and no approval gate.
+  $t = $Policy.taskTypes[$Name]
+  $t -and $t.route -in @('worker', 'cheap', 'script') -and $t.agent -notin @('claude-subagent', 'cross-model') -and
+    -not @($t.gates | Where-Object { $_ }).Count
+}
+
+function Assert-BriefType($Policy, [string]$Type, [string]$Owner) {
+  if (-not (Test-BriefType $Policy $Type)) {
+    Fail ("type must be one of: " + (@($Policy.taskTypes.Keys | Where-Object { Test-BriefType $Policy $_ } | Sort-Object) -join ', '))
+  }
+  # Gemini and headless Claude run only worker routes (codex-dispatch.ps1, runnable check).
+  if ($Owner -in @('gemini', 'claude') -and $Policy.taskTypes[$Type].route -ne 'worker') { Fail "type $Type runs on a $($Policy.taskTypes[$Type].route) route, which $Owner cannot take; choose owner codex or auto." }
+}
+
 function Test-Brief($Brief, $Policy) {
   $fm = $Brief.fm
   if ($fm.id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { Fail "id '$($fm.id)' must be letters, digits, dot, dash or underscore (40 max)." }
   if (-not $fm.owner) { $fm.owner = 'auto' }
   if ($fm.owner -notin @('auto') + $owners) { Fail "owner must be auto, gemini, claude or codex (got '$($fm.owner)')." }
   if (-not $fm.type) { $fm.type = 'implement' }
-  if (-not $Policy.taskTypes.ContainsKey($fm.type) -or $Policy.taskTypes[$fm.type].route -eq 'tool') {
-    Fail ("type must be one of: " + (@($Policy.taskTypes.Keys | Where-Object { $Policy.taskTypes[$_].route -ne 'tool' }) -join ', '))
-  }
-  if (@($Policy.taskTypes[$fm.type].gates | Where-Object { $_ }).Count) { Fail "type $($fm.type) needs an approval gate; register it with ccx in a terminal instead." }
+  Assert-BriefType $Policy $fm.type $fm.owner
   if (-not $fm.class) { $fm.class = 'normal' }
   if (-not $fm.risk) { $fm.risk = 'low' }
   if (-not $Policy.classes.ContainsKey($fm.class) -or $fm.risk -notin $Policy.risk.levels) { Fail 'class or risk is not in ccx/policy.json.' }
@@ -84,6 +97,8 @@ function Test-Brief($Brief, $Policy) {
     $null = ConvertTo-CcxOwnedPath $path -Policy $Policy
     # Owned paths reach a cmd.exe command line as check arguments: no cmd metacharacters.
     if ($path -match '[%^&!()<>|`]') { Fail "owns path '$path' has a character cmd.exe would interpret (% ^ & ! ( ) < > | backtick)." }
+    # ...nor YAML flow or comment syntax: the brief stores owns as an inline [list], which these would break.
+    if ($path -match "[#\[\]{}'`"\u0085  ]" -or $path -match '^[@&*!|>?:-]') { Fail "owns path '$path' has a character YAML would misread (# [ ] { } quotes, or a leading @ & * ! | > ? : -). Rename the file or folder." }
     foreach ($protected in @($Policy.agentProtectedPaths)) {
       if (Test-CcxPathOverlap $path $protected) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
     }
@@ -128,6 +143,7 @@ function Invoke-New {
   while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId)) { $taskId = "$slug-$n"; $n++ }
   $briefType = if ($Type) { $Type } elseif ($Owner -eq 'gemini') { 'source-research' } else { 'implement' }
   $ownsLine = '[]'
+  if ($Type -or $Owner -ne 'auto') { Assert-BriefType (Get-CcxPolicy) $briefType $Owner }
   if ($Owns) {
     # From the Obsidian modal: validate exactly as a launch would, before any file exists.
     if ($Owns -match ',') { Fail "owns path '$Owns' has a comma; give one file or folder." }
@@ -259,7 +275,8 @@ function Invoke-Run {
   # It may also lack the profile folders those entries are written with (%LOCALAPPDATA%\agy\bin).
   if (-not $env:LOCALAPPDATA) { $env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData') }
   if (-not $env:APPDATA) { $env:APPDATA = [Environment]::GetFolderPath('ApplicationData') }
-  $env:Path = (@([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) + @($env:Path -split ';') |
+  # This process's PATH stays first (an inline test run's fake CLIs must win); registry entries are only appended.
+  $env:Path = (@($env:Path -split ';') + @([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) |
     Where-Object { $_ } | ForEach-Object { $_ -split ';' } | Where-Object { $_ } | ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } | Select-Object -Unique) -join ';'
   Add-Content -LiteralPath $log -Value "agy on PATH: $([bool](Get-Command agy.exe -ErrorAction SilentlyContinue))" -Encoding utf8
   try {
@@ -563,9 +580,9 @@ try {
     'board' { Invoke-Board; Write-Output 'Board updated: Status/Board.md' }
     'review-pack' { Invoke-ReviewPack }
     'types' {
-      # Types a brief may use (Test-Brief's rule): not tool-only, no approval gate.
+      # Types a brief may use (Test-BriefType, the rule a launch applies).
       $policy = Get-CcxPolicy
-      @($policy.taskTypes.Keys | Where-Object { $policy.taskTypes[$_].route -ne 'tool' -and -not @($policy.taskTypes[$_].gates | Where-Object { $_ }).Count } | Sort-Object) | ForEach-Object { Write-Output $_ }
+      @($policy.taskTypes.Keys | Where-Object { Test-BriefType $policy $_ } | Sort-Object) | ForEach-Object { Write-Output $_ }
     }
     'run' { if ($Id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { Fail 'run needs -Id.' }; Invoke-Run }
   }
