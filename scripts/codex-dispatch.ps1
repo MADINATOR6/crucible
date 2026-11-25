@@ -570,6 +570,15 @@ try {
     Write-Output "USAGE LIMIT: $message"
     if ($message -match '(?i)try again at\s+([^\r\n]+)') { Write-Output "RESETS: $($Matches[1].Trim().TrimEnd('.'))" }
   }
+  # A provider capacity error or 5xx that ended the turn (no completed turn, nonzero exit) is transient: like a
+  # usage limit it says nothing about the task, but it records no quota reset. A recovered 5xx is not one.
+  $transientPattern = '(?i)\bat capacity\b|\boverloaded\b|\bservice unavailable\b|\b(?:HTTP|status)[ /:]*5\d\d\b|\b5\d\d (?:Internal Server Error|Bad Gateway|Gateway Timeout)\b'
+  $transientMessages = @()
+  if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage) {
+    $transientMessages = @($messages | Where-Object { $_ -match $transientPattern })
+    $transientMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $transientPattern })
+  }
+  foreach ($message in ($transientMessages | Select-Object -Unique)) { Write-Output "TRANSIENT PROVIDER FAILURE: $message (no attempt used)" }
   if ($limitMessages.Count -eq 0) {
     foreach ($message in $messages) { Write-Output "Codex error: $message" }
   }
@@ -585,7 +594,7 @@ try {
     Write-Output '--- report ---'
     Write-Output $report
   }
-  if ($limitMessages.Count -gt 0) { $code = 4 }
+  if ($limitMessages.Count -gt 0 -or $transientMessages.Count -gt 0) { $code = 4 }
   if ($protectedChanged.Count) { $code = 9 }
   if ($timedOut) { $code = 5 }
   if ($guardNoEdit) {
@@ -658,6 +667,9 @@ try {
           }
           # A run cut off by the usage limit says nothing about the task: it does not use a retry.
           if ($Role -eq 'implement') { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
+        } elseif ($transientMessages.Count -gt 0 -and $Role -eq 'implement') {
+          # Transient provider failure: refund the attempt, record no reset; outputs and captures stay for review.
+          $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1)
         }
         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
         Write-CcxTelemetry -Record @{
@@ -669,7 +681,7 @@ try {
         $eventKey = "dispatch:${TaskId}:$($dispatch.n)"
         $startedStamp = [DateTime]::Parse($dispatch.startedAt).ToUniversalTime().ToString('yyyyMMddHHmmss')
         if ($Role -ne 'implement') { $eventKey = "dispatch:${TaskId}:${Role}:$startedStamp" }
-        elseif ($limitMessages.Count -gt 0) { $eventKey += ":limit:$startedStamp" }
+        elseif ($limitMessages.Count -gt 0 -or $transientMessages.Count -gt 0) { $eventKey += ":limit:$startedStamp" }
         $null = Add-CcxEvent -State $state -Type dispatch-finished -TaskId $TaskId -Key $eventKey -Data @{exit=$code; status=$status; dispatch=$dispatch.n; role=$Role}
       }
     } catch {
