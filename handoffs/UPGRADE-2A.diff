@@ -1,0 +1,133 @@
+diff --git a/.obsidian/plugins/crucible/main.js b/.obsidian/plugins/crucible/main.js
+index a080fed..aa78b65 100644
+--- a/.obsidian/plugins/crucible/main.js
++++ b/.obsidian/plugins/crucible/main.js
+@@ -6,7 +6,8 @@ const { execFile } = require('child_process');
+ const path = require('path');
+ 
+ class NewBriefModal extends Modal {
+-  constructor(app, onSubmit) { super(app); this.onSubmit = onSubmit; this.title = ''; this.owner = 'auto'; }
++  // types: the brief-eligible work types from `crucible.ps1 types` (empty if that failed).
++  constructor(app, types, onSubmit) { super(app); this.types = types; this.onSubmit = onSubmit; this.title = ''; this.owner = 'auto'; this.type = ''; this.owns = ''; }
+   onOpen() {
+     const { contentEl } = this;
+     contentEl.createEl('h3', { text: 'New brief' });
+@@ -14,9 +15,15 @@ class NewBriefModal extends Modal {
+     new Setting(contentEl).setName('Owner').addDropdown((d) => d
+       .addOptions({ auto: 'Automatic (ccx picks)', gemini: 'Gemini', claude: 'Claude', codex: 'Codex' })
+       .setValue('auto').onChange((v) => { this.owner = v; }));
++    const typeOptions = { '': 'Default for the owner' };
++    for (const t of this.types) typeOptions[t] = t;
++    new Setting(contentEl).setName('Work type').addDropdown((d) => d
++      .addOptions(typeOptions).setValue('').onChange((v) => { this.type = v; }));
++    new Setting(contentEl).setName('Output file').setDesc('The file or folder this brief may change, e.g. Reference/My note.md. Needed before launch.')
++      .addText((t) => t.onChange((v) => { this.owns = v; }));
+     new Setting(contentEl).addButton((b) => b.setButtonText('Create').setCta().onClick(() => {
+       if (!this.title.trim()) { new Notice('Give the brief a title.'); return; }
+-      this.close(); this.onSubmit(this.title.trim(), this.owner);
++      this.close(); this.onSubmit(this.title.trim(), this.owner, this.type, this.owns.trim());
+     }));
+   }
+   onClose() { this.contentEl.empty(); }
+@@ -28,7 +35,11 @@ module.exports = class CruciblePlugin extends Plugin {
+     this.addRibbonIcon('rocket', 'Crucible: launch this brief', () => this.launch());
+     this.addCommand({ id: 'launch-brief', name: 'Launch this brief', callback: () => this.launch() });
+     this.addCommand({ id: 'stop-brief', name: 'Stop this brief\'s run', callback: () => this.stop() });
+-    this.addCommand({ id: 'new-brief', name: 'New brief', callback: () => new NewBriefModal(this.app, (t, o) => this.create(t, o)).open() });
++    this.addCommand({ id: 'new-brief', name: 'New brief', callback: async () => {
++      const r = await this.script(['types']);
++      const types = r.code === 0 ? r.out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) : [];
++      new NewBriefModal(this.app, types, (t, o, type, owns) => this.create(t, o, type, owns)).open();
++    } });
+     this.addCommand({ id: 'refresh-board', name: 'Refresh board', callback: () => this.run(['board'], 'Board refreshed.') });
+     this.addCommand({ id: 'open-start-here', name: 'Open Start Here', callback: () => this.app.workspace.openLinkText('Start Here', '', false) });
+     // Runs finish in the background and rewrite Status/; refresh the board when Obsidian opens.
+@@ -75,8 +86,11 @@ module.exports = class CruciblePlugin extends Plugin {
+     if (file) await this.run(['stop', '-Note', file.path], 'Stop requested.');
+   }
+ 
+-  async create(title, owner) {
+-    const r = await this.script(['new', '-Title', title, '-Owner', owner]);
++  async create(title, owner, type, owns) {
++    const args = ['new', '-Title', title, '-Owner', owner];
++    if (type) args.push('-Type', type);
++    if (owns) args.push('-Owns', owns);
++    const r = await this.script(args);
+     if (r.code !== 0) { new Notice(`Crucible: ${r.out}`, 10000); return; }
+     const rel = r.out.split(/\r?\n/).pop().trim();
+     // The new file may not be indexed yet; openLinkText resolves it by path.
+diff --git a/scripts/crucible.ps1 b/scripts/crucible.ps1
+index 9e5688f..e9d8604 100644
+--- a/scripts/crucible.ps1
++++ b/scripts/crucible.ps1
+@@ -13,8 +13,8 @@ Exit codes: 0 done; 2 bad brief or arguments; 3 refused as a duplicate (already
+ ran on this exact brief); 1 other failure.
+ #>
+ param(
+-  [Parameter(Position = 0)][ValidateSet('new', 'launch', 'stop', 'board', 'run', 'review-pack')] [string]$Command = 'board',
+-  [string]$Note, [string]$Title, [string]$Owner = 'auto', [string]$Type, [string]$Id, [switch]$Again,
++  [Parameter(Position = 0)][ValidateSet('new', 'launch', 'stop', 'board', 'run', 'review-pack', 'types')] [string]$Command = 'board',
++  [string]$Note, [string]$Title, [string]$Owner = 'auto', [string]$Type, [string]$Id, [switch]$Again, [string]$Owns,
+   [string]$TaskId, [string]$Base
+ )
+ $ErrorActionPreference = 'Stop'
+@@ -127,6 +127,13 @@ function Invoke-New {
+   $state = Get-CcxState
+   while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId)) { $taskId = "$slug-$n"; $n++ }
+   $briefType = if ($Type) { $Type } elseif ($Owner -eq 'gemini') { 'source-research' } else { 'implement' }
++  $ownsLine = '[]'
++  if ($Owns) {
++    # From the Obsidian modal: validate exactly as a launch would, before any file exists.
++    if ($Owns -match ',') { Fail "owns path '$Owns' has a comma; give one file or folder." }
++    Test-Brief @{ fm = @{ id = $taskId; owner = $Owner; type = $briefType; owns = @($Owns.Trim()); checks = @() } } (Get-CcxPolicy)
++    $ownsLine = "[$($Owns.Trim())]"
++  }
+   $rel = "tasks/$taskId.md"
+   Write-Text (Join-Path $root $rel) @"
+ ---
+@@ -136,7 +143,7 @@ owner: $Owner          # gemini | claude | codex | auto (ccx picks by type)
+ type: $briefType      # implement, debug, docs, source-research, creative, ux-review, ...
+ class: normal       # routine (one agent, deterministic checks) | normal | complex
+ risk: low
+-owns: []            # files or folders this task may change, e.g. [Reference/My note.md]
++owns: $ownsLine            # files or folders this task may change, e.g. [Reference/My note.md]
+ checks: []          # permitted checks from ccx/policy.json: sources, lt-unit, lt-browser
+ ---
+ # $Title
+@@ -555,6 +562,11 @@ try {
+     'stop' { if (-not $Note) { Fail 'stop needs -Note <brief path>.' }; Invoke-Stop }
+     'board' { Invoke-Board; Write-Output 'Board updated: Status/Board.md' }
+     'review-pack' { Invoke-ReviewPack }
++    'types' {
++      # Types a brief may use (Test-Brief's rule): not tool-only, no approval gate.
++      $policy = Get-CcxPolicy
++      @($policy.taskTypes.Keys | Where-Object { $policy.taskTypes[$_].route -ne 'tool' -and -not @($policy.taskTypes[$_].gates | Where-Object { $_ }).Count } | Sort-Object) | ForEach-Object { Write-Output $_ }
++    }
+     'run' { if ($Id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { Fail 'run needs -Id.' }; Invoke-Run }
+   }
+   exit 0
+diff --git a/scripts/test-crucible.ps1 b/scripts/test-crucible.ps1
+index 6e7385b..21aedac 100644
+--- a/scripts/test-crucible.ps1
++++ b/scripts/test-crucible.ps1
+@@ -128,6 +128,20 @@ if (kind === 'agy') {
+     $again = Crucible @('new', '-Title', 'Write a guide!')
+     Assert ($again.Out.Trim() -eq 'tasks/WRITE-A-GUIDE-2.md') "second brief did not get a new id: $($again.Out)"
+   }
++  Case 'new validates a launch-ready brief' {
++    $types = Crucible @('types')
++    Assert ($types.Code -eq 0 -and $types.Out -match '(?m)^docs\r?$' -and $types.Out -notmatch '(?m)^(media-generate|test)\r?$') "types list wrong: $($types.Out)"
++    $r = Crucible @('new', '-Title', 'Typed brief', '-Owner', 'claude', '-Type', 'docs', '-Owns', 'Reference/My note.md')
++    Assert ($r.Code -eq 0) $r.Out
++    $brief = Join-Path $repo 'tasks/TYPED-BRIEF.md'
++    $text = [IO.File]::ReadAllText($brief, $utf8)
++    Assert ($text -match 'type: docs' -and $text -match 'owns: \[Reference/My note\.md\]') "typed brief frontmatter wrong: $text"
++    foreach ($bad in @(@('-Type', 'media-generate', '-Owns', 'Reference/x.md'), @('-Type', 'docs', '-Owns', 'scripts/x.ps1'), @('-Type', 'docs', '-Owns', 'a.md,b.md'))) {
++      $refused = Crucible (@('new', '-Title', 'Refused brief') + $bad)
++      Assert ($refused.Code -ne 0 -and -not [IO.File]::Exists((Join-Path $repo 'tasks/REFUSED-BRIEF.md'))) "bad brief was created: $($bad -join ' ') -> $($refused.Out)"
++    }
++    [IO.File]::Delete($brief)
++  }
+ 
+   Case 'Gemini-owned brief: launch, deliverable, layout save, check, verify, status' {
+     New-Brief 'G1' 'gemini' 'source-research' 'Reference/out.md' 'sources'
