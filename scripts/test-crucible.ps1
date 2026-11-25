@@ -74,7 +74,7 @@ try {
   foreach ($dir in @($repo, $state, $fake)) { [void][IO.Directory]::CreateDirectory($dir) }
   # Policy: the real one, with fake commands and a fake key so nothing real can run.
   $policyText = [IO.File]::ReadAllText((Join-Path $root 'ccx/policy.json'), $utf8)
-  $policyText = $policyText.Replace('"envKey": "GEMINI_API_KEY"', '"envKey": "CRUCIBLE_FAKE_KEY"').Replace('"command": "claude.exe"', '"command": "claude.cmd"')
+  $policyText = $policyText.Replace('"command": "agy.exe"', '"command": "agy.cmd"').Replace('"command": "claude.exe"', '"command": "claude.cmd"')
   Write-File $policyPath $policyText
   # Fakes: each logs its arguments, writes the deliverable it is told about, and prints its CLI's result shape.
   Write-File (Join-Path $fake 'fake.js') @'
@@ -82,9 +82,13 @@ const fs = require('fs'); const path = require('path');
 const [kind, ...args] = process.argv.slice(2);
 fs.appendFileSync(path.join(process.env.USERPROFILE, kind + '-args.log'), JSON.stringify(args) + '\n');
 const mode = fs.existsSync('fake-mode.txt') ? fs.readFileSync('fake-mode.txt', 'utf8').trim() : 'ok';
+if (mode === 'tamper') { fs.mkdirSync('Scripts', { recursive: true }); fs.writeFileSync('Scripts/planted.ps1', 'x'); }
 if (mode === 'deliver') fs.writeFileSync('Reference/out.md', '# Out\n\n> "Synthetic source line" -- [src](../src.md)\n');
 const report = 'Status: READY_FOR_CLAUDE_REVIEW\nNext owner: codex\n';
-if (kind === 'gemini') {
+if (kind === 'agy') {
+  if (mode === 'quota') { console.log(JSON.stringify({ status: 'ERROR', error: { message: 'RESOURCE_EXHAUSTED: quota exceeded. Please retry in 2h5m.' } })); process.exit(1); }
+  console.log(JSON.stringify({ status: 'SUCCESS', response: report, usage: { input_tokens: 5, cache_read_tokens: 1, output_tokens: 2, thinking_tokens: 0 } }));
+} else if (kind === 'gemini') {
   if (mode === 'quota') { console.log(JSON.stringify({ error: { message: 'Quota exceeded for quota metric' } })); process.exit(1); }
   console.log(JSON.stringify({ response: report, stats: { models: { m: { tokens: { prompt: 5, cached: 1, candidates: 2, thoughts: 0 } } } } }));
 } else if (kind === 'claude') {
@@ -95,7 +99,7 @@ if (kind === 'gemini') {
   console.log(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 4, cached_input_tokens: 0, output_tokens: 1 } }));
 }
 '@
-  foreach ($kind in @('gemini', 'codex', 'claude')) {
+  foreach ($kind in @('agy', 'gemini', 'codex', 'claude')) {
     Write-File (Join-Path $fake "$kind.cmd") "@echo off`r`n`"$node`" `"%~dp0fake.js`" $kind %*`r`n"
   }
   # The fixture repository: HANDOFF.md (the launcher requires it) and one source file to cite.
@@ -124,10 +128,11 @@ if (kind === 'gemini') {
     $task = (State).tasks.G1
     Assert ($task.owner -eq 'gemini' -and $task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.exit -eq 0) ('gemini run not recorded: ' + (Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter 'crucible-G1-*.log' | Get-Content -Raw))
     Assert ($task.lastDispatch.input -match '^[0-9a-f]{12}$' -and @($task.runs).Count -eq 1) 'input version or run trail missing'
-    $args = Get-Content (Join-Path $scratch 'gemini-args.log') -Raw
-    Assert ($args -match '"auto_edit"' -and $args -match '"--policy"' -and $args -notmatch 'yolo') "gemini flags wrong: $args"
-    $toml = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.policy.toml | Select-Object -First 1
-    Assert ($toml -and (Get-Content $toml.FullName -Raw) -match 'commandPrefix = "node scripts/check-sources.mjs"') 'permitted checks not passed to Gemini'
+    $args = Get-Content (Join-Path $scratch 'agy-args.log') -Raw
+    Assert ($args -match '"accept-edits"' -and $args -match '"--sandbox"' -and $args -match '"--settings"' -and $args -notmatch 'dangerously') "agy flags wrong: $args"
+    $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Select-Object -First 1
+    $settingsText = Get-Content $settings.FullName -Raw
+    Assert ($settingsText -match 'command\(node scripts/check-sources.mjs\)' -and $settingsText -match '"useG1Credits":\s*false') 'permitted checks or no-purchase setting not passed to agy'
     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/G1.md'), $utf8)
     Assert ($status -match 'node scripts/check-sources.mjs "Reference/out.md"`: \*\*PASS\*\*') "check evidence missing: $status"
     Assert ($status -match '\(current\)' -and $status -match '\[\[Reference/out.md\]\]' -and $status -match 'Agent suggests next: codex') 'status note incomplete'
@@ -215,10 +220,10 @@ if (kind === 'gemini') {
   }
 
   Case 'unsandboxed agents get only agent-safe checks and cannot write the launcher stack' {
-    $toml = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.policy.toml | Sort-Object LastWriteTime | Select-Object -Last 1
-    $text = Get-Content $toml.FullName -Raw
-    Assert ($text -notmatch 'playwright|node --test') 'code-executing check offered to an unsandboxed agent'
-    Assert ($text -match '(?s)write_file.*\\\.obsidian.*decision = "deny"') 'launcher stack not write-protected for Gemini'
+    $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1
+    $text = Get-Content $settings.FullName -Raw
+    Assert ($text -notmatch 'command\([^)]*(playwright|node --test)') 'code-executing check offered to Gemini'
+    Assert ($text -match 'write_file\(\.obsidian/\*\*\)' -and $text -match 'write_file\(scripts/\*\*\)') 'launcher stack not write-protected for Gemini'
     $claudeArgs = Get-Content (Join-Path $scratch 'claude-args.log') -Raw
     Assert ($claudeArgs -match 'Edit\(\.obsidian/\*\*\)' -and $claudeArgs -match 'Edit\(scripts/\*\*\)') "launcher stack not write-protected for Claude: $claudeArgs"
   }
@@ -238,6 +243,20 @@ if (kind === 'gemini') {
     Assert ($r.Code -eq 0) $r.Out
     $evidence = Get-Content (Join-Path $repo 'Status/.data/K1.json') -Raw | ConvertFrom-Json
     Assert (@($evidence.runs)[-1].checks[0].result -eq 'NOT RUN') 'lt-unit ran on agent-owned code'
+  }
+
+  Case 'a run that changes the launcher stack (any letter case) skips checks and verify and is flagged' {
+    New-Brief 'T1' 'gemini' 'creative' 'Reference/t1.md' 'sources'
+    $s = Get-Content (Join-Path $state 'state.json') -Raw | ConvertFrom-Json
+    $s.PSObject.Properties.Remove('providerLimits')
+    Write-File (Join-Path $state 'state.json') ($s | ConvertTo-Json -Depth 30)
+    Write-File (Join-Path $repo 'fake-mode.txt') 'tamper'
+    $r = Crucible @('launch', '-Note', 'tasks/T1.md')
+    Remove-Item (Join-Path $repo 'fake-mode.txt')
+    $evidence = @((Get-Content (Join-Path $repo 'Status/.data/T1.json') -Raw | ConvertFrom-Json).runs)[-1]
+    Assert (@($evidence.tampered) -contains 'scripts/planted.ps1' -and -not @($evidence.checks).Count -and -not $evidence.verify) "tampering not caught: $($r.Out)"
+    Assert ([IO.File]::ReadAllText((Join-Path $repo 'Status/Board.md'), $utf8) -match '(?s)## Needs you.*T1.*SECURITY') 'tampering not on the board'
+    Remove-Item -Recurse (Join-Path $repo 'Scripts\planted.ps1')
   }
 
   Case 'routine Codex work keeps one agent and no review round' {

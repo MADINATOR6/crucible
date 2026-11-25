@@ -749,24 +749,24 @@ else {
     $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
     Assert ($args -contains 'model_provider=deepseek' -and $args -contains 'deepseek-chat') 'cloud fallback flags absent'
   }
-  Ccx-Case 'gemini fallback runs edit-only, never yolo' {
-    # FAKE_MODE is always set in the launcher child: it stands in for a real API key.
-    $text = [IO.File]::ReadAllText($env:CCX_POLICY) -replace '"envKey": "GEMINI_API_KEY"', '"envKey": "FAKE_MODE"'
+  Ccx-Case 'gemini fallback runs agy sandboxed with edits only, never skipping permissions' {
+    # Gemini runs through the Antigravity CLI on the user's own sign-in (auth account): no key to fake.
+    $text = [IO.File]::ReadAllText($env:CCX_POLICY).Replace('"command": "agy.exe"', '"command": "agy.cmd"')
     Write-Utf8File $env:CCX_POLICY $text
     Add-CcxTask
     $state = Read-CcxState
     $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
     Write-CcxState $state
     $argLog = Join-Path $scratch 'gemini-args.txt'
-    $fakeGemini = Join-Path $fakeDir 'gemini.cmd'
-    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`necho {`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`",`"stats`":{`"models`":{`"m`":{`"tokens`":{`"prompt`":10,`"cached`":2,`"candidates`":3,`"thoughts`":1}}}}}`r`n")
+    $fakeGemini = Join-Path $fakeDir 'agy.cmd'
+    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`necho {`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`",`"usage`":{`"input_tokens`":10,`"cache_read_tokens`":2,`"output_tokens`":3,`"thinking_tokens`":1}}`r`n")
     try {
       $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
       Check-Code $r 0
-      Assert ($r.Stdout -match 'Route: \w+ gemini/gemini-3-flash-preview') 'gemini route absent'
+      Assert ($r.Stdout -match 'Route: \w+ gemini/gemini-4-neon-medium') 'gemini route absent'
       $args = [IO.File]::ReadAllText($argLog)
       # The launcher quotes every argument.
-      Assert ($args -match '"--approval-mode" "auto_edit"' -and $args -notmatch 'yolo' -and $args -match '"-m" "gemini-3-flash-preview"') "gemini flags wrong: $args"
+      Assert ($args -match '"--mode" "accept-edits"' -and $args -match '"--sandbox"' -and $args -match '"--settings"' -and $args -notmatch 'dangerously' -and $args -match '"--model" "gemini-4-neon-medium"') "agy flags wrong: $args"
       $task = (Read-CcxState).tasks.T1
       Assert ($task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'gemini dispatch not recorded'
       Assert ($task.tokens.input -eq 10 -and $task.tokens.output -eq 4) 'gemini tokens not parsed'    } finally { Remove-Item -LiteralPath $fakeGemini -Force }

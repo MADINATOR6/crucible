@@ -370,6 +370,7 @@ try {
   Write-Output "Dispatching $(if ($providerName) { $providerName } else { 'Codex' }): HEAD=$head model=$modelName effort=$Effort sandbox=$Sandbox"
   $modelArguments = if ($Model) { @('-m', $Model) } else { @() }
   $isGemini = $providerPolicy -and $providerPolicy.cli -eq 'gemini'
+  $isAgy = $providerPolicy -and $providerPolicy.cli -eq 'agy'
   $isClaude = $providerName -eq 'claude'
   # Permitted checks (policy.checks): the only shell commands Gemini or headless Claude may run unasked.
   # Neither has a sandbox here, so only agentSafe checks (they execute no repository code), and none when
@@ -394,13 +395,30 @@ try {
       $rules = @($checkPrefixes | ForEach-Object { "[[rule]]`ntoolName = `"run_shell_command`"`ncommandPrefix = `"$_`"`ndecision = `"allow`"`npriority = 100`n" })
       # Never let the unsandboxed agent rewrite the launcher stack that later runs on this machine.
       foreach ($path in $protectedPaths) {
-        $pattern = '"file_path"\s*:\s*"(?:[^"]*[\\/])?' + [regex]::Escape($path.TrimEnd('/')) + '(?:[\\/"])'
+        # Windows paths ignore case and Gemini's policy engine uses JavaScript regex (no inline (?i)): [sS][cC]...
+        $caseless = -join @($path.TrimEnd('/').ToCharArray() | ForEach-Object {
+          if ([char]::IsLetter($_)) { '[' + [char]::ToLowerInvariant($_) + [char]::ToUpperInvariant($_) + ']' } else { [regex]::Escape([string]$_) } })
+        $pattern = '"file_path"\s*:\s*"(?:[^"]*[\\/])?' + $caseless + '(?:[\\/"])'
         $rules += "[[rule]]`ntoolName = [`"write_file`", `"replace`"]`nargsPattern = '$pattern'`ndecision = `"deny`"`npriority = 200`n"
       }
       [IO.File]::WriteAllText($base + '.policy.toml', ($rules -join "`n"), $utf8)
       $policyArguments = @('--policy', ($base + '.policy.toml'))
     }
     $arguments = @($gemini.Source, '--skip-trust', '--approval-mode', $approval, '-o', 'json') + $policyArguments + $geminiModel + @('-p', $prompt)
+  } elseif ($isAgy) {
+    $agy = Get-Command $providerPolicy.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $agy) { throw "$($providerPolicy.command) not found on PATH" }
+    if ($agy.Source -match '[%"]') { throw 'Antigravity CLI path must not contain % or double quotes.' }
+    # Session-only settings (never saved): no AI-credit purchases, terminal sandbox on, reviewed tools only;
+    # the permitted checks are allowed and the launcher stack is denied (deny wins over allow).
+    $deny = @(foreach ($path in $protectedPaths) { if ($path.EndsWith('/')) { "write_file($path**)" } else { "write_file($path)" } })
+    $settings = @{ useG1Credits = $false; enableTerminalSandbox = $true; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
+      permissions = @{ allow = @($checkPrefixes | ForEach-Object { "command($_)" }); deny = $deny } }
+    [IO.File]::WriteAllText($base + '.settings.json', (ConvertTo-Json $settings -Depth 5), $utf8)
+    $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'accept-edits' }
+    $agyModel = if ($Model -and $Model -ne 'auto') { @('--model', $Model) } else { @() }
+    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, '--sandbox', '--disable-slash-commands',
+      '--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel
   } elseif ($isClaude) {
     $claude = Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $claude) { throw "$($policy.models.claude.headless.command) not found on PATH" }
@@ -436,7 +454,7 @@ try {
   $stderrStream = [IO.File]::Open($base + '.stderr.log', 'Create', 'Write', 'Read')
   # Briefs are user inputs exempt from scope; snapshot them so a brief changed during this run is reported.
   $briefHashes = @{}
-  foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'tasks') -Filter *.md -File -ErrorAction SilentlyContinue)) { $briefHashes[$file.Name] = (Get-FileHash -LiteralPath $file.FullName).Hash }
+  foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'tasks') -Recurse -Filter *.md -File -ErrorAction SilentlyContinue)) { $briefHashes['tasks/' + $file.FullName.Substring((Join-Path $root 'tasks').Length + 1).Replace('\', '/')] = (Get-FileHash -LiteralPath $file.FullName).Hash }
   [void]$process.Start()
   $processStarted = $true
   $process.StandardInput.Close()
@@ -477,6 +495,19 @@ try {
       }
     } catch { }
   }
+  if ($isAgy) {
+    # agy -p --output-format json prints one object: status (SUCCESS), response, usage, and an error when it fails.
+    try {
+      $result = [IO.File]::ReadAllText($base + '.events.jsonl', $utf8) | ConvertFrom-Json -ErrorAction Stop
+      if ($result.status -eq 'SUCCESS' -and $result.response) { [IO.File]::WriteAllText($base + '.report.md', [string]$result.response, $utf8) }
+      elseif ($result.status -ne 'SUCCESS') { $messages.Add([string]$(if ($result.error.message) { $result.error.message } elseif ($result.error) { $result.error } else { "agy status $($result.status)" })) }
+      if ($result.usage) {
+        $hasUsage = $true
+        $inputTokens += [long]$result.usage.input_tokens; $cachedTokens += [long]$result.usage.cache_read_tokens
+        $outputTokens += [long]$result.usage.output_tokens + [long]$result.usage.thinking_tokens
+      }
+    } catch { }
+  }
   if ($isClaude) {
     # claude -p --output-format json prints one result object: result, is_error, usage.
     try {
@@ -491,7 +522,7 @@ try {
       }
     } catch { }
   }
-  foreach ($line in $(if ($isGemini -or $isClaude) { @() } else { [IO.File]::ReadLines($base + '.events.jsonl', $utf8) })) {
+  foreach ($line in $(if ($isGemini -or $isAgy -or $isClaude) { @() } else { [IO.File]::ReadLines($base + '.events.jsonl', $utf8) })) {
     try { $event = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($event.type -eq 'turn.completed' -and $event.usage) {
       $hasUsage = $true
@@ -505,13 +536,14 @@ try {
     if ($message -and -not $messages.Contains($message)) { $messages.Add($message) }
     if ($event.type -eq 'item.completed' -and $event.item -and $event.item.type -eq 'agent_message' -and $event.item.text) { $lastMessage = [string]$event.item.text }
   }
-  $briefsChanged = @(foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'tasks') -Filter *.md -File -ErrorAction SilentlyContinue)) {
-    if (-not $briefHashes.ContainsKey($file.Name) -or $briefHashes[$file.Name] -ne (Get-FileHash -LiteralPath $file.FullName).Hash) { 'tasks/' + $file.Name }
-  }) + @($briefHashes.Keys | Where-Object { -not [IO.File]::Exists((Join-Path $root "tasks/$_")) } | ForEach-Object { "tasks/$_" })
+  $briefsChanged = @(foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'tasks') -Recurse -Filter *.md -File -ErrorAction SilentlyContinue)) {
+    $key = 'tasks/' + $file.FullName.Substring((Join-Path $root 'tasks').Length + 1).Replace('\', '/')
+    if (-not $briefHashes.ContainsKey($key) -or $briefHashes[$key] -ne (Get-FileHash -LiteralPath $file.FullName).Hash) { $key }
+  }) + @($briefHashes.Keys | Where-Object { -not [IO.File]::Exists((Join-Path $root $_)) })
   foreach ($path in $briefsChanged) { Write-Output "BRIEF CHANGED DURING RUN: $path (by you or the agent; check it)" }
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
-  $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit'
+  $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit|RESOURCE_EXHAUSTED|quota (?:exceeded|exhausted)'
   $limitMessages = @($messages | Where-Object { $_ -match $limitPattern })
   $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $limitPattern })
   foreach ($message in ($limitMessages | Select-Object -Unique)) {
@@ -609,7 +641,7 @@ try {
         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
         Write-CcxTelemetry -Record @{
           at=$now; kind='dispatch'; taskId=$TaskId; type=$task.type; class=$task.class; risk=$task.risk
-          role=$Role; agent=$(if ($isClaude) { 'claude' } elseif ($providerPolicy -and $providerPolicy.cli) { $providerPolicy.cli } else { 'codex' }); provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
+          role=$Role; agent=$(if ($isClaude) { 'claude' } elseif ($isGemini -or $isAgy) { 'gemini' } else { 'codex' }); provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; attempt=$dispatch.n
           exit=$code; status=$status; tokens=$tokens; durationSec=$duration
           scopeViolations=$scopeViolations.Count; postChecksPass=$(if ($postChecks) { $postChecks.pass } else { $null })
         }

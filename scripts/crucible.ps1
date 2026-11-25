@@ -166,6 +166,7 @@ function Invoke-Launch {
   foreach ($excluded in @($policy.privacy.excludePaths)) {
     if ($brief.rel.StartsWith($excluded, [StringComparison]::OrdinalIgnoreCase)) { Fail 'This brief is in a private folder (privacy.excludePaths) and is never sent to an agent.' }
   }
+  if ($brief.rel -notmatch '^tasks/[^/]+\.md$') { Fail 'Briefs live directly in tasks/ (tasks/<ID>.md); move this one there to launch it.' }
   if ($brief.text -notmatch [regex]::Escape("![[Status/$taskId]]")) {
     [IO.File]::AppendAllText($brief.full, "`n## Status`n![[Status/$taskId]]`n", $utf8)
     $brief = Read-Brief $Note; Test-Brief $brief $policy; $fm = $brief.fm
@@ -238,6 +239,18 @@ function Invoke-Launch {
   Invoke-Board
 }
 
+function Get-ProtectedHashes {
+  # Every file under agentProtectedPaths with its hash. The deny rules given to agents are a first line;
+  # this independent before/after comparison is what decides (case-insensitive, like the file system).
+  $hashes = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([StringComparer]::OrdinalIgnoreCase)
+  foreach ($protected in @((Get-CcxPolicy).agentProtectedPaths)) {
+    $full = Join-Path $root $protected.TrimEnd('/')
+    $files = if ([IO.Directory]::Exists($full)) { @(Get-ChildItem -LiteralPath $full -Recurse -File -Force -ErrorAction SilentlyContinue) } elseif ([IO.File]::Exists($full)) { @(Get-Item -LiteralPath $full -Force) } else { @() }
+    foreach ($file in $files) { $hashes[$file.FullName.Substring($root.Length + 1).Replace('\', '/')] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
+  }
+  return ,$hashes
+}
+
 function Invoke-Run {
   $runPath = Join-Path $runsDir "$Id.json"
   $run = Get-Run $Id
@@ -246,23 +259,31 @@ function Invoke-Run {
   $launchedAt = Get-CcxNow
   try {
     Invoke-Board
+    $protectedBefore = Get-ProtectedHashes
     $dispatch = Join-Path $PSScriptRoot 'codex-dispatch.ps1'
     $ErrorActionPreference = 'Continue'
     & $powershell -NoProfile -ExecutionPolicy Bypass -File $dispatch -TaskId $Id *>&1 | Out-File -LiteralPath $log -Encoding utf8
     $exit = $LASTEXITCODE
     Add-Content -LiteralPath $log -Value "`n=== dispatch exit $exit ===" -Encoding utf8
     $task = Get-CcxTask -Id $Id
+    $protectedAfter = Get-ProtectedHashes
+    $tampered = @(@($protectedAfter.Keys | Where-Object { -not $protectedBefore.ContainsKey($_) -or $protectedBefore[$_] -ne $protectedAfter[$_] }) +
+                  @($protectedBefore.Keys | Where-Object { -not $protectedAfter.ContainsKey($_) }))
+    foreach ($path in $tampered) { Add-Content -LiteralPath $log -Value "PROTECTED FILE CHANGED DURING RUN: $path" -Encoding utf8 }
     $results = @()
     $policyNow = Get-CcxPolicy
     # Code-executing checks run on this machine, outside any sandbox: only when the task owns plain documents.
-    $docOnly = -not @($task.owns | Where-Object { $_.EndsWith('/') -or $_ -notmatch '\.(md|txt|csv|json)$' }).Count
-    foreach ($check in @($run.checks | Where-Object { $_ })) {
+    $docOnly = -not @($task.owns | Where-Object { $_.EndsWith('/') -or $_ -notmatch '\.(md|txt|csv)$' }).Count
+    # Only a Codex run (its own sandbox) may be followed by checks that execute repository code.
+    $docOnly = $docOnly -and $task.lastDispatch -and $task.lastDispatch.provider -eq 'openai'
+    # A changed launcher stack runs nothing more: no checks, no verify. The user reviews it first.
+    foreach ($check in @($run.checks | Where-Object { $_ -and -not $tampered.Count })) {
       if (-not ($policyNow.checks[$check] -is [Collections.IDictionary])) { continue }
       if ($policyNow.checks[$check].agentSafe -eq $true -or $docOnly) { $results += Invoke-Check $check $task }
       else { $results += @{ name = $check; command = $policyNow.checks[$check].run; result = 'NOT RUN'; tail = 'The task owns files that can hold code; run this check from a terminal or a Codex verify run.' } }
     }
     $verify = $null
-    if ($exit -eq 0) {
+    if ($exit -eq 0 -and -not $tampered.Count) {
       $verify = Invoke-Ccx @('verify', '-TaskId', $Id)
       Add-Content -LiteralPath $log -Value "`n=== ccx verify exit $($verify.code) ===`n$($verify.out)" -Encoding utf8
     }
@@ -272,7 +293,7 @@ function Invoke-Run {
     # fresh: the agent actually started; otherwise the launcher refused first (route, ownership, busy, approval).
     $fresh = $task.lastDispatch -and [string]$task.lastDispatch.startedAt -ge $launchedAt
     $tail = Protect-CcxText ((@(Get-Content -LiteralPath $log -Encoding utf8 | Where-Object { $_.Trim() }) | Select-Object -Last 4) -join ' | ') -Full
-    $entry = @{ dispatch = $task.lastDispatch.n; input = $task.lastDispatch.input; at = Get-CcxNow; exit = $exit; fresh = [bool]$fresh; tail = $tail; log = $log; checks = $results
+    $entry = @{ dispatch = $task.lastDispatch.n; input = $task.lastDispatch.input; at = Get-CcxNow; exit = $exit; fresh = [bool]$fresh; tail = $tail; tampered = @($tampered); log = $log; checks = $results
       verify = $(if ($verify) { @{ code = $verify.code } } else { $null }) }
     Write-Text $evidencePath (ConvertTo-Json @{ runs = @(@($previous | Select-Object -Last 19) + @($entry)) } -Depth 6)
   } finally {
@@ -341,11 +362,13 @@ function Get-TaskView($Task, $State, $Policy) {
   $stale = $last -and $last.input -and $currentInput -and $last.input -ne $currentInput
   $nextLine = if ($report) { [regex]::Match($report, '(?im)^[ \t*-]*(?:Next owner|Next)[ \t*]*:[ \t*]*(.+)$') } else { $null }
   $evidence = Read-Evidence $Task.id
+  $tamperedPaths = if ($evidence) { @($evidence[-1].tampered | Where-Object { $_ }) } else { @() }
   $refused = if ($evidence -and -not $evidence[-1].fresh -and $evidence[-1].exit -ne 0) { $evidence[-1] } else { $null }
   $approvals = @($State.approvals.Values | Where-Object { $_.status -eq 'pending' -and ($_.target -ceq $Task.id -or $_.taskId -ceq $Task.id) })
   $isBrief = $briefFile -and [IO.File]::Exists($briefFile) -and ([IO.File]::ReadAllText($briefFile, $utf8)).Contains("![[Status/$($Task.id)]]")
   $view = @{ brief = $isBrief; task = $Task; run = $run; report = $report; stale = $stale; input = $currentInput; approvals = $approvals; bucket = 'progress'; next = '' }
-  if ($run -and $run.live) { $view.bucket = 'running'; $view.next = "Wait: $($run.owner) is working (started $($run.startedAt))." }
+  if ($tamperedPaths.Count -and -not ($run -and $run.live)) { $view.bucket = 'needs'; $view.next = "SECURITY: the last run changed protected launcher files ($($tamperedPaths -join ', ')). Checks and verify were skipped. Review and undo them (git diff) before running anything else." }
+  elseif ($run -and $run.live) { $view.bucket = 'running'; $view.next = "Wait: $($run.owner) is working (started $($run.startedAt))." }
   elseif ($run -and -not $run.live) { $view.bucket = 'needs'; $view.next = 'Interrupted: the run stopped without finishing. Partial output is in its capture; launch again to resume.' }
   elseif ($Task.status -eq 'done') { $view.bucket = 'done'; $view.next = 'Done.' }
   elseif ($Task.status -eq 'abandoned') { $view.bucket = 'done'; $view.next = 'Abandoned.' }
@@ -368,7 +391,7 @@ function Get-TaskView($Task, $State, $Policy) {
   if (-not $isBrief -and $view.bucket -in @('progress', 'blocked', 'review')) {
     $view.bucket = 'other'; $view.next = "ccx status $($Task.status), updated $($Task.updated); managed from a terminal."
   }
-  $otherBriefs = @($last.briefsChanged | Where-Object { $_ -and $_ -ne $Task.taskFile })
+  $otherBriefs = @($last.briefsChanged | Where-Object { $_ })
   if ($last -and $otherBriefs.Count -and $view.bucket -ne 'done') { $view.next += " Briefs changed while it ran: $($otherBriefs -join ', '); if you did not edit them, read them before launching." }
   if ($nextLine -and $nextLine.Success -and $view.bucket -in @('review', 'progress')) { $view.next += " Agent suggests next: $($nextLine.Groups[1].Value.Trim())" }
   $view

@@ -23,9 +23,9 @@ Each brief ends with its own live **Status**: owner, input version, outputs (lin
 ## Who leads what
 | Owner | Leads | How it runs |
 | --- | --- | --- |
-| Gemini | research and source synthesis, creative development, storyboards, visual or video analysis, UX review (`source-research`, `creative`, `ux-review`) | Gemini CLI with the saved API key (free tier: small daily quota; the board shows when it resets): file edits allowed, shell only for permitted checks |
-| Codex | implementation, debugging, automation, tests, technical verification | Codex CLI in its workspace-write sandbox |
-| Claude | ambiguous projects, planning, architecture, tradeoffs, consequential reviews | headless `claude -p` from a brief; interactive Claude Code for planning sessions |
+| Gemini | research and source synthesis, creative development, storyboards, visual or video analysis, UX review (`source-research`, `creative`, `ux-review`) | Antigravity CLI (`agy`) on your Google AI Pro plan: sandboxed, file edits allowed, shell only for the agent-safe checks |
+| Codex | implementation, debugging, automation, tests, technical verification | Codex CLI on your ChatGPT plan, in its workspace-write sandbox |
+| Claude | ambiguous projects, planning, architecture, tradeoffs, consequential reviews | headless `claude -p` on your Claude plan; interactive Claude Code for planning sessions |
 | Automatic | ccx picks by the brief's `type:` | |
 
 A brief's `owner:` wins over these defaults. Completion still follows ccx: `ccx verify`, a review by a different agent (normal class and up), then `ccx task done`. A routine-class brief needs no review round.
