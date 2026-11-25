@@ -128,6 +128,20 @@ if (kind === 'agy') {
     $again = Crucible @('new', '-Title', 'Write a guide!')
     Assert ($again.Out.Trim() -eq 'tasks/WRITE-A-GUIDE-2.md') "second brief did not get a new id: $($again.Out)"
   }
+  Case 'new validates a launch-ready brief' {
+    $types = Crucible @('types')
+    Assert ($types.Code -eq 0 -and $types.Out -match '(?m)^docs\r?$' -and $types.Out -notmatch '(?m)^(media-generate|test)\r?$') "types list wrong: $($types.Out)"
+    $r = Crucible @('new', '-Title', 'Typed brief', '-Owner', 'claude', '-Type', 'docs', '-Owns', 'Reference/My note.md')
+    Assert ($r.Code -eq 0) $r.Out
+    $brief = Join-Path $repo 'tasks/TYPED-BRIEF.md'
+    $text = [IO.File]::ReadAllText($brief, $utf8)
+    Assert ($text -match 'type: docs' -and $text -match 'owns: \[Reference/My note\.md\]') "typed brief frontmatter wrong: $text"
+    foreach ($bad in @(@('-Type', 'media-generate', '-Owns', 'Reference/x.md'), @('-Type', 'docs', '-Owns', 'scripts/x.ps1'), @('-Type', 'docs', '-Owns', 'a.md,b.md'))) {
+      $refused = Crucible (@('new', '-Title', 'Refused brief') + $bad)
+      Assert ($refused.Code -ne 0 -and -not [IO.File]::Exists((Join-Path $repo 'tasks/REFUSED-BRIEF.md'))) "bad brief was created: $($bad -join ' ') -> $($refused.Out)"
+    }
+    [IO.File]::Delete($brief)
+  }
 
   Case 'Gemini-owned brief: launch, deliverable, layout save, check, verify, status' {
     New-Brief 'G1' 'gemini' 'source-research' 'Reference/out.md' 'sources'
@@ -326,6 +340,87 @@ if (kind === 'agy') {
     Write-File (Join-Path $repo 'private/P1.md') $text
     $r = Crucible @('launch', '-Note', 'private/P1.md')
     Assert ($r.Code -eq 2 -and $r.Out -match 'private folder' -and -not (State).tasks.P1) "private brief launched: $($r.Out)"
+  }
+  Case 'board separates briefs from terminal work' {
+    New-Brief 'TERMINAL' 'codex' 'implement' 'Reference/terminal.md'
+    $s = State
+    $updated = [DateTime]::UtcNow.ToString('o')
+    foreach ($entry in @(
+      @{ id = 'TERMINAL'; status = 'planned'; taskFile = 'tasks/TERMINAL.md' },
+      @{ id = 'CLI-OPEN'; status = 'active' },
+      @{ id = 'CLI-DONE'; status = 'done' },
+      @{ id = 'CLI-ABANDONED'; status = 'abandoned' }
+    )) {
+      $entry.updated = $updated
+      $entry.owner = 'codex'
+      $entry.title = $entry.id
+      $s.tasks | Add-Member -NotePropertyName $entry.id -NotePropertyValue $entry
+    }
+    $s.approvals | Add-Member -NotePropertyName 'BOARD-APPROVAL' -NotePropertyValue @{
+      id = 'BOARD-APPROVAL'; action = 'push'; level = 'L4'; status = 'pending'; target = 'CLI-OPEN'
+    }
+    $s.notifications = @(
+      @{ id = 'EXTRA-NOTICE'; level = 'action'; text = 'older extra' }
+      1..5 | ForEach-Object { @{ id = "KEEP-NOTICE-$_"; level = 'action'; text = 'open notice'; taskId = 'NO-MATCH' } }
+      @{ id = 'DONE-NOTICE'; level = 'action'; taskId = 'CLI-DONE' }
+      @{ id = 'ABANDONED-NOTICE'; level = 'action'; taskId = 'CLI-ABANDONED' }
+      @{ id = 'ACK-NOTICE'; level = 'action'; ack = $true }
+      @{ id = 'INFO-NOTICE'; level = 'info' }
+    )
+    Write-File (Join-Path $state 'state.json') ($s | ConvertTo-Json -Depth 30)
+    $r = Crucible @('board')
+    Assert ($r.Code -eq 0) $r.Out
+    $board = [IO.File]::ReadAllText((Join-Path $repo 'Status/Board.md'), $utf8)
+    $terminal = [IO.File]::ReadAllText((Join-Path $repo 'Status/Terminal.md'), $utf8)
+    Assert ($board -match '\|TERMINAL\]\]' -and $board -match 'BOARD-APPROVAL' -and
+      $board -notmatch '\*\*CLI-OPEN\*\*|ccx notices|KEEP-NOTICE' -and
+      $board.TrimEnd().EndsWith('[[Status/Terminal|Terminal tasks and notices]]')) 'board rows, approvals or footer wrong'
+    Assert ($terminal.StartsWith('# Terminal tasks and notices') -and $terminal -match '\*\*CLI-OPEN\*\*.*Approve in a terminal' -and
+      $terminal -notmatch 'CLI-DONE|CLI-ABANDONED|EXTRA-NOTICE|DONE-NOTICE|ABANDONED-NOTICE|ACK-NOTICE|INFO-NOTICE' -and
+      ([regex]::Matches($terminal, 'KEEP-NOTICE-')).Count -eq 5) 'terminal tasks or filtered notices wrong'
+  }
+
+  Case 'review pack uses explicit commit range and recorded evidence' {
+    $base = (& $git -C $repo rev-parse HEAD).Trim()
+    Write-File (Join-Path $repo 'HANDOFF.md') "# Handoff`n`n### Plan critique (Claude)`n`n1. Synthetic critique.`n`n### Worked examples`nExcluded example.`n"
+    Write-File (Join-Path $repo 'review-output.md') 'Committed review output.'
+    & $git -C $repo add -- review-output.md
+    & $git -C $repo -c user.email=t@t -c user.name=t commit -q -m review-output
+    Assert ($LASTEXITCODE -eq 0) 'could not commit synthetic review output'
+    $head = (& $git -C $repo rev-parse HEAD).Trim()
+    $s = State
+    $task = $s.tasks.G1
+    $capture = Join-Path $scratch 'older-review.log'
+    Write-File "$capture.report.md" "Status: READY_FOR_CLAUDE_REVIEW`nUntested: synthetic device check`n"
+    $task.runs = @(@{ capture = $capture })
+    $task.lastDispatch.capture = Join-Path $scratch 'missing-review.log'
+    $stateFile = Join-Path $state 'state.json'
+    Write-File $stateFile ($s | ConvertTo-Json -Depth 30)
+    $checklist = Join-Path $repo 'Reference/Review checklist.md'
+    Write-File $checklist '- Synthetic review criterion.'
+    $destination = Join-Path $repo 'handoffs/G1-review.md'
+    $argsForPack = @('review-pack', '-TaskId', 'G1')
+    $r = Crucible ($argsForPack + @('-Base', 'HEAD~1'))
+    Assert ($r.Code -eq 0) $r.Out
+    $pack = [IO.File]::ReadAllText($destination, $utf8)
+    Assert ($pack.Contains("Range: $base..$head") -and $pack.Contains('Task file: tasks/G1.md') -and
+      $pack.Contains("Title: $($task.title)") -and $pack.Contains('- review-output.md') -and
+      $pack.Contains('1. Synthetic critique.') -and -not $pack.Contains('Excluded example.') -and
+      $pack.Contains('Untested: synthetic device check') -and $pack.Contains('- Synthetic review criterion.')) 'review evidence wrong'
+    Remove-Item -LiteralPath $checklist
+    $r = Crucible ($argsForPack + @('-Base', $base))
+    Assert ($r.Code -eq 0) $r.Out
+    $pack = [IO.File]::ReadAllText($destination, $utf8)
+    Assert ($pack.Contains('Missing: Reference/Review checklist.md')) 'missing checklist not reported'
+    foreach ($badBase in @(@{ args = @() }, @{ args = @('-Base', 'missing-ref') }, @{ args = @('-Base', 'HEAD:review-output.md') })) {
+      $r = Crucible ($argsForPack + $badBase.args)
+      Assert ($r.Code -ne 0 -and [IO.File]::ReadAllText($destination, $utf8) -ceq $pack) 'bad base overwrote valid pack'
+    }
+    $task.worktree = Join-Path $scratch 'another-checkout'
+    Write-File $stateFile ($s | ConvertTo-Json -Depth 30)
+    $r = Crucible ($argsForPack + @('-Base', $base))
+    Assert ($r.Code -ne 0 -and $r.Out -match 'task checkout' -and
+      [IO.File]::ReadAllText($destination, $utf8) -ceq $pack) 'wrong checkout overwrote valid pack'
   }
 } finally {
   Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
