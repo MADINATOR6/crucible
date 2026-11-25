@@ -573,10 +573,14 @@ try {
   # A provider capacity error or 5xx that ended the turn (no completed turn, nonzero exit) is transient: like a
   # usage limit it says nothing about the task, but it records no quota reset. A recovered 5xx is not one.
   $transientPattern = '(?i)\bat capacity\b|\boverloaded\b|\bservice unavailable\b|\b(?:HTTP|status)[ /:]*5\d\d\b|\b5\d\d (?:Internal Server Error|Bad Gateway|Gateway Timeout)\b'
+  # Only the failure that ended the run counts: the last error message, or the last stderr line. A timeout or a
+  # protected-file change keeps its own verdict and spends the attempt.
+  # ponytail: "last line" heuristic; a provider that logs a 5xx last and then dies of something else still reads
+  # as transient. Parse the terminal turn.failed reason per provider if that shows up in FRICTION.md.
   $transientMessages = @()
-  if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage) {
-    $transientMessages = @($messages | Where-Object { $_ -match $transientPattern })
-    $transientMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $transientPattern })
+  if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage -and -not $timedOut -and -not $protectedChanged.Count) {
+    $lastStderr = @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_.Trim() }) | Select-Object -Last 1
+    $transientMessages = @(@(@($messages) | Select-Object -Last 1) + @($lastStderr) | Where-Object { $_ -and $_ -match $transientPattern })
   }
   foreach ($message in ($transientMessages | Select-Object -Unique)) { Write-Output "TRANSIENT PROVIDER FAILURE: $message (no attempt used)" }
   if ($limitMessages.Count -eq 0) {
@@ -667,7 +671,7 @@ try {
           }
           # A run cut off by the usage limit says nothing about the task: it does not use a retry.
           if ($Role -eq 'implement') { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
-        } elseif ($transientMessages.Count -gt 0 -and $Role -eq 'implement') {
+        } elseif ($transientMessages.Count -gt 0 -and $code -eq 4 -and $Role -eq 'implement') {
           # Transient provider failure: refund the attempt, record no reset; outputs and captures stay for review.
           $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1)
         }

@@ -440,8 +440,14 @@ function Get-CcxFingerprint {
 }
 function Test-CcxScope {
     param($Task, [string]$Root = (Get-CcxRepoRoot))
+    # The baseline of the checkout being checked, never another checkout's (no laundering between worktrees).
+    # Legacy tasks without a baselines map keep their single baselineDirty.
+    $baseline = if ($Task.baselines -is [Collections.IDictionary]) {
+        $key = [IO.Path]::GetFullPath($Root).TrimEnd('\','/').ToLowerInvariant()
+        @($Task.baselines[$key] | Where-Object { $_ })
+    } else { @($Task.baselineDirty) }
     foreach ($path in @(Get-CcxChangedPaths -Root $Root)) {
-        if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $Task.baselineDirty -and -not (Test-CcxBrief -Root $Root -Path $path)) { $path }
+        if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $baseline -and -not (Test-CcxBrief -Root $Root -Path $path)) { $path }
     }
 }
 function Get-CcxProtectedHashes {
