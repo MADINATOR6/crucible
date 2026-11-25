@@ -1,0 +1,414 @@
+diff --git a/ccx/policy.json b/ccx/policy.json
+index 854c99c..42df975 100644
+--- a/ccx/policy.json
++++ b/ccx/policy.json
+@@ -234,6 +234,7 @@
+       { "name": "secrets", "builtin": "secret-scan", "quick": true },
+       { "name": "scope", "builtin": "task-scope", "quick": true },
+       { "name": "memory", "builtin": "memory-lint", "quick": true },
++      { "name": "symmetry", "builtin": "instruction-symmetry", "quick": true },
+       { "name": "format", "command": null, "note": "No formatter configured for this repository." },
+       { "name": "lint", "command": null, "note": "No linter configured (PSScriptAnalyzer is not installed); the parse stage checks PowerShell syntax." },
+       { "name": "tests-ccx", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
+diff --git a/scripts/ccx-core.ps1 b/scripts/ccx-core.ps1
+index 0d29cfe..a472c2e 100644
+--- a/scripts/ccx-core.ps1
++++ b/scripts/ccx-core.ps1
+@@ -881,7 +881,12 @@ function Invoke-CcxRoute {
+                     $altProvider = Get-CcxProvider $policy $Class $state
+                     if ($altProvider) { $decision.reasons += 'local provider ' + $altProvider.name + ' for ' + $Class + ' work' }
+                 }
+-                if ($altProvider) { $decision.provider = $altProvider.name; $decision.model = $altProvider.model; break }
++                if ($altProvider) {
++                    $decision.provider = $altProvider.name; $decision.model = $altProvider.model
++                    # Gemini as fallback takes the same class-tier model as Gemini-owned work.
++                    if ($altProvider.name -eq 'gemini' -and $policy.classes[$Class].geminiModel) { $decision.model = $policy.classes[$Class].geminiModel }
++                    break
++                }
+                 $decision.provider = 'openai'
+                 # The class's model (cheaper workhorse for routine/normal work), else the default.
+                 $preferred = @(@($policy.classes[$Class].codexModel, $policy.models.codex.default) | Where-Object { $_ })
+@@ -966,7 +971,7 @@ function Invoke-CcxRoute {
+             $decision.effort = $ladder[$index]
+             if ($index -gt $baseIndex) {
+                 $decision.escalation = @{ from=$efforts.base; to=$decision.effort; reason='failed attempts or ambiguity' }
+-                if ($decision.agent -eq 'gemini' -and $decision.model) {
++                if (($decision.agent -eq 'gemini' -or $decision.provider -eq 'gemini') -and $decision.model) {
+                     $tier = if ($decision.effort -eq 'max') { 'xhigh' } else { $decision.effort }
+                     if ($decision.model -match '^(gemini-3\.8-flash)-(low|medium|high)$' -and $tier -in @('low','medium','high')) {
+                         $decision.model = $Matches[1] + '-' + $tier
+@@ -1242,10 +1247,15 @@ function Invoke-CcxCmdTask {
+                 }
+             }
+             $now = Get-CcxNow
++            # Baseline at registration: files already dirty here belong to other work, so verify can run on a
++            # task that is never dispatched. task start keeps it for this checkout; another worktree takes its own.
++            $addRoot = Get-CcxRepoRoot
++            $addKey = [IO.Path]::GetFullPath($addRoot).TrimEnd('\','/').ToLowerInvariant()
++            $addDirty = @(Get-CcxChangedPaths -Root $addRoot | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $owns) })
+             $task = @{
+                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
+                 owner=$Parameters.Owner; parent=$Parameters.Parent; dependsOn=@(Split-CcxList $Parameters.DependsOn)
+-                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=@(); baselines=@{}
++                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
+                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
+                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
+                 creditCap=$creditCap
+diff --git a/scripts/ccx-ops.ps1 b/scripts/ccx-ops.ps1
+index 78c955e..d00b1ee 100644
+--- a/scripts/ccx-ops.ps1
++++ b/scripts/ccx-ops.ps1
+@@ -334,11 +334,21 @@ function Invoke-CcxVerify {
+                             # No baseline for this checkout (task update -Status active, or never started): every
+                             # unrelated dirty file would read as a violation. Name the repair, never recapture here.
+                             $baselineKey = [IO.Path]::GetFullPath($root).TrimEnd('\','/').ToLowerInvariant()
+-                            if ($task.baselines -is [Collections.IDictionary] -and -not $task.baselines.ContainsKey($baselineKey)) {
++                            # A legacy registration with no baselines map that was never started has no baseline either.
++                            $missing = if ($task.baselines -is [Collections.IDictionary]) { -not $task.baselines.ContainsKey($baselineKey) } else { $task.status -eq 'planned' }
++                            if ($missing) {
+                                 $hits = @("no baseline recorded for this checkout: run ccx task start -Id $($task.id) here, then verify again")
+                             } else { $hits = @(Test-CcxScope -Task $task -Root $root) }
+                         }
+                     }
++                    'instruction-symmetry' {
++                        # Symmetry rule (AGENTS.md/CLAUDE.md line 1): uncommitted changes, staged or not, touch both or neither.
++                        $changed = @(Get-CcxChangedPaths -Root $root)
++                        $agents = 'AGENTS.md' -in $changed; $claude = 'CLAUDE.md' -in $changed
++                        if ($agents -xor $claude) {
++                            $hits = @($(if ($agents) { 'AGENTS.md changed without CLAUDE.md' } else { 'CLAUDE.md changed without AGENTS.md' }) + ' (symmetry rule: change both in the same commit)')
++                        }
++                    }
+                     'memory-lint' {
+                         $lint = Invoke-CcxMemoryLint -Root $root
+                         $details = @($lint.stages | Where-Object { $_.result -ne 'PASS' } | ForEach-Object { "$($_.result) $($_.name): " + ($_.details -join '; ') })
+@@ -664,6 +674,15 @@ function Invoke-CcxHealth {
+                 if (-not (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)) { $detail = "$($provider.command) not installed; route skips it" }
+                 elseif (-not $answers) { $result = 'WARN'; $detail = "$($provider.command) installed but not running ($($provider.probeUrl)); route skips it" }
+                 else { $result = 'PASS'; $detail = "$($provider.command) present; model $($provider.model)" }
++            } elseif ($provider.auth -eq 'account' -and $provider.command) {
++                # The CLI holds the user's own sign-in (agy): no key to check. Only --version runs; agy has no
++                # non-interactive sign-in status command, so sign-in stays unknown until a run uses it.
++                $cli = Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
++                if (-not $cli) { $detail = "$($provider.command) not installed; route skips it" }
++                else {
++                    $version = try { [string](& $cli.Source --version 2>&1 | Select-Object -First 1) } catch { '' }
++                    $result = 'PASS'; $detail = "$($provider.command) $(if ($version) { $version.Trim() } else { 'version unknown' }); sign-in unknown"
++                }
+             } elseif (-not (Get-CcxProviderKey $provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
+             elseif ($provider.cli) {
+                 if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; $($provider.envKey) set" }
+diff --git a/scripts/codex-dispatch.ps1 b/scripts/codex-dispatch.ps1
+index 3b824af..65ce290 100644
+--- a/scripts/codex-dispatch.ps1
++++ b/scripts/codex-dispatch.ps1
+@@ -570,6 +570,15 @@ try {
+     Write-Output "USAGE LIMIT: $message"
+     if ($message -match '(?i)try again at\s+([^\r\n]+)') { Write-Output "RESETS: $($Matches[1].Trim().TrimEnd('.'))" }
+   }
++  # A provider capacity error or 5xx that ended the turn (no completed turn, nonzero exit) is transient: like a
++  # usage limit it says nothing about the task, but it records no quota reset. A recovered 5xx is not one.
++  $transientPattern = '(?i)\bat capacity\b|\boverloaded\b|\bservice unavailable\b|\b(?:HTTP|status)[ /:]*5\d\d\b|\b5\d\d (?:Internal Server Error|Bad Gateway|Gateway Timeout)\b'
++  $transientMessages = @()
++  if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage) {
++    $transientMessages = @($messages | Where-Object { $_ -match $transientPattern })
++    $transientMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $transientPattern })
++  }
++  foreach ($message in ($transientMessages | Select-Object -Unique)) { Write-Output "TRANSIENT PROVIDER FAILURE: $message (no attempt used)" }
+   if ($limitMessages.Count -eq 0) {
+     foreach ($message in $messages) { Write-Output "Codex error: $message" }
+   }
+@@ -585,7 +594,7 @@ try {
+     Write-Output '--- report ---'
+     Write-Output $report
+   }
+-  if ($limitMessages.Count -gt 0) { $code = 4 }
++  if ($limitMessages.Count -gt 0 -or $transientMessages.Count -gt 0) { $code = 4 }
+   if ($protectedChanged.Count) { $code = 9 }
+   if ($timedOut) { $code = 5 }
+   if ($guardNoEdit) {
+@@ -658,6 +667,9 @@ try {
+           }
+           # A run cut off by the usage limit says nothing about the task: it does not use a retry.
+           if ($Role -eq 'implement') { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
++        } elseif ($transientMessages.Count -gt 0 -and $Role -eq 'implement') {
++          # Transient provider failure: refund the attempt, record no reset; outputs and captures stay for review.
++          $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1)
+         }
+         $task.checkpoints = @($task.checkpoints) + @(@{at=$now; note="dispatch $($dispatch.n) end exit $code status $status"})
+         Write-CcxTelemetry -Record @{
+@@ -669,7 +681,7 @@ try {
+         $eventKey = "dispatch:${TaskId}:$($dispatch.n)"
+         $startedStamp = [DateTime]::Parse($dispatch.startedAt).ToUniversalTime().ToString('yyyyMMddHHmmss')
+         if ($Role -ne 'implement') { $eventKey = "dispatch:${TaskId}:${Role}:$startedStamp" }
+-        elseif ($limitMessages.Count -gt 0) { $eventKey += ":limit:$startedStamp" }
++        elseif ($limitMessages.Count -gt 0 -or $transientMessages.Count -gt 0) { $eventKey += ":limit:$startedStamp" }
+         $null = Add-CcxEvent -State $state -Type dispatch-finished -TaskId $TaskId -Key $eventKey -Data @{exit=$code; status=$status; dispatch=$dispatch.n; role=$Role}
+       }
+     } catch {
+diff --git a/scripts/test-ccx-ops.ps1 b/scripts/test-ccx-ops.ps1
+index c0eff39..314ac50 100644
+--- a/scripts/test-ccx-ops.ps1
++++ b/scripts/test-ccx-ops.ps1
+@@ -268,6 +268,38 @@ try {
+     Assert (-not (Get-Process -Id $sleepPid -ErrorAction SilentlyContinue)) 'timed-out child still running'
+     Check-Code (Run-Cli @('verify','-Stage','unknown-stage')) 2
+   }
++  Case 'Instruction symmetry stage' {
++    $registered = @( (Read-Json $sourcePolicy).verify.stages | Where-Object { $_.builtin -and ($_.name -match 'symmetr' -or $_.builtin -match 'symmetr') })
++    Assert ($registered.Count -eq 1) 'instruction symmetry stage is not registered exactly once in policy'
++    $stageName = $registered[0].name
++    $policy.verify.stages += $registered[0].psobject.BaseObject; Save-Policy
++    Write-Text (Join-Path $repo 'AGENTS.md') 'fixture agents'
++    Write-Text (Join-Path $repo 'CLAUDE.md') 'fixture claude'
++    $null = Run-Git @('add','AGENTS.md','CLAUDE.md')
++    $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','instructions')
++    foreach ($change in @(
++      @{name='neither';agents=$false;claude=$false;stage=''},
++      @{name='agents unstaged';agents=$true;claude=$false;stage=''},
++      @{name='claude unstaged';agents=$false;claude=$true;stage=''},
++      @{name='both unstaged';agents=$true;claude=$true;stage=''},
++      @{name='agents staged';agents=$true;claude=$false;stage='AGENTS.md'},
++      @{name='claude staged';agents=$false;claude=$true;stage='CLAUDE.md'},
++      @{name='both staged';agents=$true;claude=$true;stage='AGENTS.md,CLAUDE.md'},
++      @{name='agents staged, claude unstaged';agents=$true;claude=$true;stage='AGENTS.md'},
++      @{name='claude staged, agents unstaged';agents=$true;claude=$true;stage='CLAUDE.md'}
++    )) {
++      $null = Run-Git @('restore','--source=HEAD','--staged','--worktree','--','AGENTS.md','CLAUDE.md')
++      if ($change.agents) { Write-Text (Join-Path $repo 'AGENTS.md') 'changed agents' }
++      if ($change.claude) { Write-Text (Join-Path $repo 'CLAUDE.md') 'changed claude' }
++      if ($change.stage) { $null = Run-Git (@('add') + @($change.stage.Split(','))) }
++      $r = Run-Cli @('verify','-Stage',$stageName,'-Json')
++      $expected = if ($change.agents -xor $change.claude) { 'FAIL' } else { 'PASS' }
++      Assert ($r.Code -eq $(if ($expected -eq 'FAIL') { 1 } else { 0 })) "symmetry $($change.name): exit $($r.Code), expected $expected; $($r.Out) $($r.Err)"
++      $checks = $json.DeserializeObject($r.Out)
++      $stage = @($checks.stages | Where-Object { $_.name -eq $stageName })
++      Assert ($stage.Count -eq 1 -and $stage[0].result -eq $expected) "symmetry $($change.name): expected named stage $expected"
++    }
++  }
+   Case 'memory lint secret, line limit, duplicate and checkpoints' {
+     $memory = Join-Path $repo 'MEMORY.md'
+     $secret = 'ghp_' + ('B' * 36)
+@@ -314,6 +346,8 @@ try {
+     # Regression (CCX-7): the ownership check ran a full task start in the caller's worktree, leaving a
+     # stale baseline there that a later move of the task into that worktree reused.
+     Add-Task 'T1' 'src/one.txt'
++    # This regression starts with no caller baseline; registration now records one in this checkout.
++    State-Edit { param($s) $s.tasks.T1.baselines = @{} }
+     Write-Text (Join-Path $repo 'notes.txt') 'caller dirt'
+     try {
+       Check-Code (Run-Cli @('worktree','add','-TaskId','T1')) 0
+@@ -401,6 +435,31 @@ try {
+     [IO.File]::Delete((Join-Path $repo ".claude/agents/$($policy.models.claude.cheapSubagent).md"))
+     Check-Code (Run-Cli @('health')) 1
+   }
++  Case 'Account-auth agy health reports version and unknown sign-in' {
++    $bin = Join-Path (Split-Path $repo -Parent) 'bin'
++    [void][IO.Directory]::CreateDirectory((Join-Path $repo '.claude/agents'))
++    foreach ($name in @($policy.models.claude.cheapSubagent,$policy.models.claude.reviewSubagent)) {
++      Write-Text (Join-Path $repo ".claude/agents/$name.md") "---`nname: $name`ndescription: Fixture`ntools: Read`n---`n"
++    }
++    Write-Text (Join-Path $bin 'agy.cmd') @'
++@echo off
++echo %*>>"%~dp0agy-calls.log"
++if "%1"=="--version" (
++  echo agy-fixture 1.5.17
++  exit /b 0
++)
++exit /b 1
++'@
++    $policy.providers.gemini.command = 'agy.cmd'; Save-Policy
++    $r = Run-Cli @('health','-Json'); Check-Code $r 0
++    $checks = $json.DeserializeObject($r.Out)
++    $stage = @($checks | Where-Object { $_.name -eq 'provider-gemini' })
++    Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'PASS') 'account-auth provider health did not PASS'
++    $detail = $stage[0].details -join ' '
++    Assert ($detail -match 'agy-fixture 1\.5\.17' -and $detail -match 'sign-in unknown' -and $detail -notmatch 'not set') "account-auth provider health omitted version or unknown sign-in: $detail"
++    $calls = @([IO.File]::ReadAllLines((Join-Path $bin 'agy-calls.log')))
++    Assert ($calls.Count -eq 1 -and $calls[0].Trim() -ceq '--version') "account-auth health invoked unsafe or extra CLI arguments: $($calls -join '; ')"
++  }
+   Case 'status sections, bounded brief and JSON' {
+     Add-Task; Queue 'user' 'status-tick'
+     $r = Run-Cli @('status'); Check-Code $r 0
+diff --git a/scripts/test-ccx.ps1 b/scripts/test-ccx.ps1
+index 4dd9d85..196a336 100644
+--- a/scripts/test-ccx.ps1
++++ b/scripts/test-ccx.ps1
+@@ -713,9 +713,12 @@ try {
+     Check-Code (Run-Cli @('task','done','-Id','T1')) 0
+   }
+   Case 'verify scope names a missing baseline instead of listing unrelated files (CRU-AUDIT-F3b)' {
+-    # A task that was activated without task start has no baseline for this checkout. The scope stage
+-    # must say so, not list every unrelated dirty file; task start then repairs it and scope passes.
++    # Older registrations had a baselines map with no entry for this checkout.
+     Add-Task
++    Add-Task 'T2' 'docs/'
++    Invoke-CcxLocked { param($state)
++      foreach ($id in 'T1','T2') { $state.tasks[$id].baselines = @{} }
++    } | Out-Null
+     Write-Utf8File (Join-Path $script:repo 'unrelated-dirty.txt') 'another task owns this'
+     Check-Code (Run-Cli @('task','update','-Id','T1','-Status','active')) 0
+     Assert (@((Get-TestTask).baselineDirty).Count -eq 0) 'fixture: update should not have taken a baseline'
+@@ -727,11 +730,44 @@ try {
+     Assert (@((Get-TestTask).baselineDirty) -contains 'unrelated-dirty.txt') 'task start did not baseline the unrelated file'
+     Check-Code (Run-Cli @('verify','-TaskId','T1','-Stage','scope')) 0
+     # A planned task that was never started gets the same hint.
+-    Add-Task 'T2' 'docs/'
+     $planned = Run-Cli @('verify','-TaskId','T2','-Stage','scope')
+     Check-Code $planned 1
+     Assert ($planned.Stdout -match 'ccx task start -Id T2') 'planned task did not get the hint'
+   }
++  Case 'Registration fixes the scope baseline before first dispatch' {
++    Write-Utf8File (Join-Path $repo 'before-add.txt') 'already dirty'
++    Add-Task
++    Assert ((Get-TestTask).status -eq 'planned') 'registration started the task'
++    $scope = @('verify','-TaskId','T1','-Stage','scope')
++    $r = Run-Cli $scope
++    Assert ($r.Code -eq 0 -and $r.Stdout -match 'PASS scope') "pre-add dirt failed direct scope verify: $($r.Stdout) $($r.Stderr)"
++
++    Write-Utf8File (Join-Path $repo 'after-add.txt') 'dirtied before the first start'
++    foreach ($phase in 'planned','started','restarted') {
++      if ($phase -ne 'planned') { Check-Code (Run-Cli @('task','start','-Id','T1')) 0 }
++      $r = Run-Cli $scope
++      Check-Code $r 1
++      $stage = @((Get-TestTask).verification.stages | Where-Object { $_.name -eq 'scope' })
++      Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'FAIL' -and
++        @($stage[0].details).Count -eq 1 -and $stage[0].details[0] -eq 'after-add.txt') "${phase}: expected scope to name only after-add.txt: $($r.Stdout)"
++    }
++    [IO.File]::Delete((Join-Path $repo 'after-add.txt'))
++    $r = Run-Cli $scope
++    Check-Code $r 0
++    Assert ($r.Stdout -match 'PASS scope') 'pre-add dirt failed scope after restart'
++
++  }
++  Case 'Legacy registration without a baselines map names the missing baseline' {
++    Add-Task 'LEGACY' 'docs/'
++    Invoke-CcxLocked { param($state)
++      $state.tasks.LEGACY.Remove('baselines')
++      $state.tasks.LEGACY.baselineDirty = @()
++    } | Out-Null
++    Write-Utf8File (Join-Path $repo 'unrelated.txt') 'unrelated legacy dirt'
++    $legacy = Run-Cli @('verify','-TaskId','LEGACY','-Stage','scope')
++    Check-Code $legacy 1
++    Assert ($legacy.Stdout -match 'ccx task start -Id LEGACY' -and $legacy.Stdout -notmatch 'unrelated\.txt') "missing legacy baseline diagnostic: $($legacy.Stdout)"
++  }
+   Case 'stale scan ignores the missing worktree of a finished task' {
+     # A done or abandoned task keeps its old worktree path; once that folder is removed, every tick
+     # used to raise a "worktree is missing" warning nobody can act on. Open tasks are still flagged.
+diff --git a/scripts/test-codex-dispatch.ps1 b/scripts/test-codex-dispatch.ps1
+index dbb35f0..420d2bc 100644
+--- a/scripts/test-codex-dispatch.ps1
++++ b/scripts/test-codex-dispatch.ps1
+@@ -281,6 +281,16 @@ else if (mode === 'usage') {
+   process.stderr.write(usage + '\n');
+   process.exit(1);
+ }
++else if (mode === 'capacity' || mode === 'http503' || mode === 'ordinary-error' || mode === 'recovered503') {
++  fs.writeFileSync('owned.txt', 'partial synthetic output');
++  const message = mode === 'capacity' ? 'Provider at capacity' : mode === 'ordinary-error' ? 'ordinary provider failure' : 'HTTP 503 Service Unavailable';
++  if (mode === 'http503') { process.stderr.write(message + '\n'); event({type:'error', message:'provider request failed'}); }
++  else event({type:'error', message});
++  if (mode === 'recovered503') event({type:'turn.completed', usage:{input_tokens:10,cached_input_tokens:0,output_tokens:2}});
++  else event({type:'turn.failed', error:{message:mode === 'http503' ? 'provider request failed' : message}});
++  write('Status: PARTIAL\n');
++  if (mode !== 'recovered503') process.exit(1);
++}
+ else if (mode === 'ready' || mode === 'partial' || mode === 'stray' || mode === 'spaced') {
+   fs.writeFileSync(mode === 'stray' ? 'stray.txt' : mode === 'spaced' ? 'a b.txt' : 'owned.txt', 'synthetic change');
+   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
+@@ -771,6 +781,78 @@ else {
+       Assert ($task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'gemini dispatch not recorded'
+       Assert ($task.tokens.input -eq 10 -and $task.tokens.output -eq 4) 'gemini tokens not parsed'    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
+   }
++  foreach ($mode in @('capacity', 'http503')) {
++    $caseName = if ($mode -eq 'capacity') { 'Terminal capacity and provider 503 preserve output and attempt balance' } else { 'Provider HTTP 503 on stderr preserves output and attempt balance' }
++    Ccx-Case $caseName {
++      Add-CcxTask
++      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) $mode
++      Check-Code $r 4
++      $state = Read-CcxState
++      Assert ($state.tasks.T1.dispatches -eq 0) "$mode consumed an implementation attempt"
++      Assert (([IO.File]::ReadAllText((Join-Path $repo 'owned.txt'))) -eq 'partial synthetic output') "$mode lost owned partial output"
++      Assert (-not $state.agents.codex.unavailableUntil) "$mode set Codex quota reset"
++      Assert (-not $state.providerLimits) "$mode set provider quota reset"
++      $capturePath = [regex]::Match($r.Stdout, '(?m)Codex exit=\d+; capture=([^\r\n]+)').Groups[1].Value
++      Assert ($capturePath -ne '') "$mode did not report capture path"
++      Assert (Test-Path -LiteralPath ($capturePath + '.report.md')) "$mode lost its report capture"
++    }
++  }
++  Ccx-Case 'Ordinary terminal error spends an attempt' {
++    Add-CcxTask
++    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ordinary-error'
++    Check-Code $r 1
++    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'ordinary failure did not spend one attempt'
++  }
++  Ccx-Case 'Recovered 503 with completed turn and report is not transient' {
++    Add-CcxTask
++    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'recovered503'
++    Assert ($r.Code -ne 4) 'recovered 503 was treated as terminal transient failure'
++    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'recovered 503 did not spend one attempt'
++  }
++  Ccx-Case 'Codex limit dispatches the class model through agy' {
++    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
++    $expectedModel = $policy.classes.complex.geminiModel
++    Assert ($expectedModel -ne $policy.providers.gemini.model) 'fixture class and provider Gemini models must differ'
++    $policy.providers.gemini.command = 'agy.cmd'
++    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
++    Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Complex synthetic task','-Type','implement','-Class','complex','-Risk','low','-Owner','codex','-Owns','owned.txt','-TaskFile','TASK.md')) 0
++    $state = Read-CcxState
++    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
++    Write-CcxState $state
++    $argLog = Join-Path $scratch 'complex-agy-args.txt'
++    $fakeGemini = Join-Path $fakeDir 'agy.cmd'
++    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`necho {`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`"}`r`n")
++    try {
++      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
++      Check-Code $r 0
++      $args = [IO.File]::ReadAllText($argLog)
++      Assert ($args -match ('"--model" "' + [regex]::Escape($expectedModel) + '"')) "complex fallback did not pass class Gemini model: $args"
++      $task = (Read-CcxState).tasks.T1
++      Assert ($task.owner -eq 'codex' -and $task.lastDispatch.provider -eq 'gemini') 'fallback changed task owner or provider'
++    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
++  }
++  Ccx-Case 'Blocked Gemini fallback defers without invoking agy' {
++    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
++    $policy.providers.gemini.command = 'agy.cmd'
++    $policy.providers.'ollama-cloud'.enabled = $false
++    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
++    Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Complex synthetic task','-Type','implement','-Class','complex','-Risk','low','-Owner','codex','-Owns','owned.txt','-TaskFile','TASK.md')) 0
++    $state = Read-CcxState
++    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
++    $state | Add-Member -NotePropertyName providerLimits -NotePropertyValue @{ gemini = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ') } -Force
++    Write-CcxState $state
++    $argLog = Join-Path $scratch 'blocked-agy-args.txt'
++    $fakeGemini = Join-Path $fakeDir 'agy.cmd'
++    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`n")
++    try {
++      $route = Run-Ccx @('route','-TaskId','T1','-Json')
++      Check-Code $route 0
++      Assert (($route.Stdout | ConvertFrom-Json).route -eq 'defer') "blocked Gemini route was not deferred: $($route.Stdout)"
++      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
++      Check-Code $r 4
++      Assert (-not (Test-Path -LiteralPath $argLog)) 'agy ran despite blocked Gemini route'
++    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
++  }
+   Ccx-Case 'usage reset recorded' {
+     Add-CcxTask
+     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'usage'
+@@ -867,15 +949,15 @@ else {
+     Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'NONE') 'malformed status accepted'
+   }
+   Ccx-Case 'baseline dirty permits pre-existing path' {
+-    Add-CcxTask
+     Write-Utf8File (Join-Path $repo 'stray.txt') 'existing synthetic edit'
++    Add-CcxTask
+     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'stray'
+     Check-Code $r 0
+     Assert ((Read-CcxState).tasks.T1.baselineDirty -contains 'stray.txt') 'baselineDirty was not captured'
+   }
+   Ccx-Case 'verify run does not consume implementation cap' {
+-    Add-CcxTask 'T1' 'owned.txt' 'claude'
+     Write-Utf8File (Join-Path $repo 'stray.txt') 'existing synthetic edit'
++    Add-CcxTask 'T1' 'owned.txt' 'claude'
+     $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','verify')) 'success'
+     Check-Code $r 0
+     Assert ((Read-CcxState).tasks.T1.status -eq 'active') 'verify did not start planned task'
