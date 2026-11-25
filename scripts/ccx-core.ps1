@@ -29,7 +29,8 @@ function Invoke-CcxGit {
         [void]$info.EnvironmentVariables.Remove($name)
     }
     $info.FileName = 'git.exe'
-    $info.Arguments = (@($Arguments | ForEach-Object { ConvertTo-CcxArgument $_ }) -join ' ')
+    # Never run a repository-configured fsmonitor helper (.git/config is agent-writable in some routes).
+    $info.Arguments = '-c core.fsmonitor=false ' + (@($Arguments | ForEach-Object { ConvertTo-CcxArgument $_ }) -join ' ')
     $info.WorkingDirectory = $Root
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
@@ -441,6 +442,22 @@ function Test-CcxScope {
     foreach ($path in @(Get-CcxChangedPaths -Root $Root)) {
         if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $Task.baselineDirty -and -not (Test-CcxBrief -Root $Root -Path $path)) { $path }
     }
+}
+function Get-CcxProtectedHashes {
+    # Every file under policy agentProtectedPaths with its hash, keyed case-insensitively like the file system.
+    # Agent deny rules are a first line; this before/after comparison is what decides.
+    param([string]$Root, $Policy = (Get-CcxPolicy))
+    $Root = [IO.Path]::GetFullPath($Root).TrimEnd('\')
+    $hashes = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($protected in @($Policy.agentProtectedPaths | Where-Object { $_ })) {
+        $full = Join-Path $Root $protected.TrimEnd('/')
+        $files = if ([IO.Directory]::Exists($full)) { @(Get-ChildItem -LiteralPath $full -Recurse -File -Force -ErrorAction SilentlyContinue) } elseif ([IO.File]::Exists($full)) { @(Get-Item -LiteralPath $full -Force) } else { @() }
+        foreach ($file in $files) { $hashes[$file.FullName.Substring($Root.Length + 1).Replace('\', '/')] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
+    }
+    return ,$hashes
+}
+function Compare-CcxProtectedHashes($Before, $After) {
+    @(@($After.Keys | Where-Object { -not $Before.ContainsKey($_) -or $Before[$_] -ne $After[$_] }) + @($Before.Keys | Where-Object { -not $After.ContainsKey($_) }))
 }
 function Test-CcxBrief {
     # An Obsidian brief (tasks/*.md with "crucible: brief" frontmatter) is the user's input, edited while

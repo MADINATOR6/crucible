@@ -133,6 +133,7 @@ if (kind === 'agy') {
     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Select-Object -First 1
     $settingsText = Get-Content $settings.FullName -Raw
     Assert ($settingsText -match 'command\(node scripts/check-sources.mjs\)' -and $settingsText -match '"useG1Credits":\s*false') 'permitted checks or no-purchase setting not passed to agy'
+    Assert ($settingsText -match 'command\(git status\)' -and $args -match 'Your shell is limited to commands starting with: node scripts/check-sources.mjs; git status') "agent shell allowlist missing: $args"
     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/G1.md'), $utf8)
     Assert ($status -match 'node scripts/check-sources.mjs "Reference/out.md"`: \*\*PASS\*\*') "check evidence missing: $status"
     Assert ($status -match '\(current\)' -and $status -match '\[\[Reference/out.md\]\]' -and $status -match 'Agent suggests next: codex') 'status note incomplete'
@@ -255,6 +256,7 @@ if (kind === 'agy') {
     Remove-Item (Join-Path $repo 'fake-mode.txt')
     $evidence = @((Get-Content (Join-Path $repo 'Status/.data/T1.json') -Raw | ConvertFrom-Json).runs)[-1]
     Assert (@($evidence.tampered) -contains 'scripts/planted.ps1' -and -not @($evidence.checks).Count -and -not $evidence.verify) "tampering not caught: $($r.Out)"
+    Assert ((State).tasks.T1.lastDispatch.exit -eq 9) 'the launcher did not fail the run that changed protected files'
     Assert ([IO.File]::ReadAllText((Join-Path $repo 'Status/Board.md'), $utf8) -match '(?s)## Needs you.*T1.*SECURITY') 'tampering not on the board'
     Remove-Item -Recurse (Join-Path $repo 'Scripts\planted.ps1')
   }

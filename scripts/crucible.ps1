@@ -239,17 +239,7 @@ function Invoke-Launch {
   Invoke-Board
 }
 
-function Get-ProtectedHashes {
-  # Every file under agentProtectedPaths with its hash. The deny rules given to agents are a first line;
-  # this independent before/after comparison is what decides (case-insensitive, like the file system).
-  $hashes = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([StringComparer]::OrdinalIgnoreCase)
-  foreach ($protected in @((Get-CcxPolicy).agentProtectedPaths)) {
-    $full = Join-Path $root $protected.TrimEnd('/')
-    $files = if ([IO.Directory]::Exists($full)) { @(Get-ChildItem -LiteralPath $full -Recurse -File -Force -ErrorAction SilentlyContinue) } elseif ([IO.File]::Exists($full)) { @(Get-Item -LiteralPath $full -Force) } else { @() }
-    foreach ($file in $files) { $hashes[$file.FullName.Substring($root.Length + 1).Replace('\', '/')] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
-  }
-  return ,$hashes
-}
+function Get-ProtectedHashes { Get-CcxProtectedHashes -Root $root }
 
 function Invoke-Run {
   $runPath = Join-Path $runsDir "$Id.json"
@@ -257,6 +247,13 @@ function Invoke-Run {
   $log = if ($run -and $run.log) { $run.log } else { Join-Path (Join-Path $env:USERPROFILE 'codex-captures') "crucible-$Id.log" }
   [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($log))
   $launchedAt = Get-CcxNow
+  # A WMI-started run inherits the PATH from logon; a CLI installed since (agy) is only in the registry.
+  # It may also lack the profile folders those entries are written with (%LOCALAPPDATA%\agy\bin).
+  if (-not $env:LOCALAPPDATA) { $env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData') }
+  if (-not $env:APPDATA) { $env:APPDATA = [Environment]::GetFolderPath('ApplicationData') }
+  $env:Path = (@([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) + @($env:Path -split ';') |
+    Where-Object { $_ } | ForEach-Object { $_ -split ';' } | Where-Object { $_ } | ForEach-Object { [Environment]::ExpandEnvironmentVariables($_) } | Select-Object -Unique) -join ';'
+  Add-Content -LiteralPath $log -Value "agy on PATH: $([bool](Get-Command agy.exe -ErrorAction SilentlyContinue))" -Encoding utf8
   try {
     Invoke-Board
     $protectedBefore = Get-ProtectedHashes
@@ -267,8 +264,7 @@ function Invoke-Run {
     Add-Content -LiteralPath $log -Value "`n=== dispatch exit $exit ===" -Encoding utf8
     $task = Get-CcxTask -Id $Id
     $protectedAfter = Get-ProtectedHashes
-    $tampered = @(@($protectedAfter.Keys | Where-Object { -not $protectedBefore.ContainsKey($_) -or $protectedBefore[$_] -ne $protectedAfter[$_] }) +
-                  @($protectedBefore.Keys | Where-Object { -not $protectedAfter.ContainsKey($_) }))
+    $tampered = @(Compare-CcxProtectedHashes $protectedBefore $protectedAfter)
     foreach ($path in $tampered) { Add-Content -LiteralPath $log -Value "PROTECTED FILE CHANGED DURING RUN: $path" -Encoding utf8 }
     $results = @()
     $policyNow = Get-CcxPolicy

@@ -129,7 +129,8 @@
     "ux-review": { "route": "worker", "agent": "gemini", "level": "L1", "note": "Visual, video or user-experience review of shareable material; findings carry frames or timestamps." }
   },
 
-  "agentProtectedPaths": [".obsidian/", "scripts/", "ccx/", ".claude/", ".codex/", ".gemini/", ".agents/", ".agy/", ".vscode/", ".cursor/", ".github/", ".geminiignore", ".gitignore", ".mcp.json", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "HANDOFF.md", "lifting-tracker/package.json", "lifting-tracker/package-lock.json", "lifting-tracker/playwright.config.js"],
+  "agentShell": ["git status", "git rev-parse", "git diff", "git log", "git show"],
+  "agentProtectedPaths": [".git/config", ".git/hooks/", ".obsidian/", "scripts/", "ccx/", ".claude/", ".codex/", ".gemini/", ".agents/", ".agy/", ".vscode/", ".cursor/", ".github/", ".geminiignore", ".gitignore", ".mcp.json", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "HANDOFF.md", "lifting-tracker/package.json", "lifting-tracker/package-lock.json", "lifting-tracker/playwright.config.js"],
 
   "checks": {
     "about": "Permitted checks a brief may name (checks: [..]). Only agentSafe checks (they read files and execute none of the repository's code) may be run unasked by Gemini or headless Claude, which have no sandbox; the others run in Codex's sandbox, or are rerun by crucible.ps1 after the run only when the task owns plain documents. agentProtectedPaths: no brief launched from Obsidian may own these, and Gemini and headless Claude are denied writes there.",

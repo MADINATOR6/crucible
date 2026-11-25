@@ -37,6 +37,7 @@ $timedOut = $false
 $eventsStream = $null
 $stderrStream = $null
 $code = 1
+$protectedBefore = $null
 
 function Read-LockPid([string]$Path) {
   $stream = $null
@@ -383,6 +384,12 @@ try {
       $checkPrefixes += [string]$entry.run
     }
   }
+  $agentShell = @($checkPrefixes) + @($(if ($Sandbox -ne 'read-only' -and $TaskId) { @($policy.agentShell | Where-Object { $_ -match '^[A-Za-z0-9 ._/:=-]{1,120}$' }) }))
+  if (($isGemini -or $isAgy -or $isClaude) -and $TaskId) {
+    $prompt += " Your shell is limited to commands starting with: $(if ($agentShell.Count) { $agentShell -join '; ' } else { 'none' }). Any other command is refused and ends your run, so do not try one; say in the report what you could not run."
+    # Unsandboxed or account-run agents: the launcher stack is hashed before and after, whatever their deny rules miss.
+    $protectedBefore = Get-CcxProtectedHashes -Root $root -Policy $policy
+  }
   if ($isGemini) {
     $gemini = Get-Command $providerPolicy.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $gemini) { throw "$($providerPolicy.command) not found on PATH" }
@@ -411,9 +418,9 @@ try {
     if ($agy.Source -match '[%"]') { throw 'Antigravity CLI path must not contain % or double quotes.' }
     # Session-only settings (never saved): no AI-credit purchases, terminal sandbox on, reviewed tools only;
     # the permitted checks are allowed and the launcher stack is denied (deny wins over allow).
-    $deny = @(foreach ($path in $protectedPaths) { if ($path.EndsWith('/')) { "write_file($path**)" } else { "write_file($path)" } })
+    $deny = @(foreach ($path in $protectedPaths) { foreach ($tool in @('write_file', 'edit_file')) { if ($path.EndsWith('/')) { "$tool($path**)" } else { "$tool($path)" } } })
     $settings = @{ useG1Credits = $false; enableTerminalSandbox = $true; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
-      permissions = @{ allow = @($checkPrefixes | ForEach-Object { "command($_)" }); deny = $deny } }
+      permissions = @{ allow = @($agentShell | ForEach-Object { "command($_)" }); deny = $deny } }
     [IO.File]::WriteAllText($base + '.settings.json', (ConvertTo-Json $settings -Depth 5), $utf8)
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'accept-edits' }
     $agyModel = if ($Model -and $Model -ne 'auto') { @('--model', $Model) } else { @() }
@@ -424,7 +431,7 @@ try {
     if (-not $claude) { throw "$($policy.models.claude.headless.command) not found on PATH" }
     if ($claude.Source -match '[%"]') { throw 'Claude CLI path must not contain % or double quotes.' }
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'acceptEdits' }
-    $allowed = @($checkPrefixes | ForEach-Object { '--allowedTools'; "Bash($_`:*)" })
+    $allowed = @($agentShell | ForEach-Object { '--allowedTools'; "Bash($_`:*)" })
     foreach ($path in $protectedPaths) { $allowed += @('--disallowedTools', "Edit($(if ($path.EndsWith('/')) { $path + '**' } else { $path }))") }
     $arguments = @($claude.Source, '-p', $prompt, '--output-format', 'json', '--permission-mode', $mode) + $(if ($Model) { @('--model', $Model) } else { @() }) + $allowed
   } else {
@@ -541,6 +548,11 @@ try {
     if (-not $briefHashes.ContainsKey($key) -or $briefHashes[$key] -ne (Get-FileHash -LiteralPath $file.FullName).Hash) { $key }
   }) + @($briefHashes.Keys | Where-Object { -not [IO.File]::Exists((Join-Path $root $_)) })
   foreach ($path in $briefsChanged) { Write-Output "BRIEF CHANGED DURING RUN: $path (by you or the agent; check it)" }
+  $protectedChanged = @()
+  if ($protectedBefore) {
+    $protectedChanged = @(Compare-CcxProtectedHashes $protectedBefore (Get-CcxProtectedHashes -Root $root -Policy $policy))
+    foreach ($path in $protectedChanged) { Write-Output "PROTECTED FILE CHANGED DURING RUN: $path (review and undo before running anything)" }
+  }
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
   $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit|RESOURCE_EXHAUSTED|quota (?:exceeded|exhausted)'
@@ -566,6 +578,7 @@ try {
     Write-Output $report
   }
   if ($limitMessages.Count -gt 0) { $code = 4 }
+  if ($protectedChanged.Count) { $code = 9 }
   if ($timedOut) { $code = 5 }
   if ($guardNoEdit) {
     $snapshotAfter = Get-RepoSnapshot
