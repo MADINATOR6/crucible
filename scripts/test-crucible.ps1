@@ -8,7 +8,11 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $crucible = Join-Path $PSScriptRoot 'crucible.ps1'
 $ccx = Join-Path $PSScriptRoot 'ccx.ps1'
-$scratch = Join-Path $env:TEMP ('crucible-t-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+# Codex's sandbox can deny TEMP (FRICTION.md 2026-11-12): fall back to the gitignored .test-scratch here.
+$scratchParent = $env:TEMP
+try { $probe = Join-Path $env:TEMP ('crucible-probe-' + [Guid]::NewGuid().ToString('N')); [void][IO.Directory]::CreateDirectory($probe); [IO.Directory]::Delete($probe) }
+catch { $scratchParent = Join-Path $root '.test-scratch' }
+$scratch = Join-Path $scratchParent ('crucible-t-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 $utf8 = New-Object Text.UTF8Encoding $false
 $powershell = Join-Path $PSHOME 'powershell.exe'
 $git = (Get-Command git.exe -ErrorAction Stop).Source

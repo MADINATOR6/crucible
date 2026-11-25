@@ -7,7 +7,11 @@ $root = Split-Path -Parent $PSScriptRoot
 $launcher = Join-Path $PSScriptRoot 'codex-dispatch.ps1'
 $ccx = Join-Path $PSScriptRoot 'ccx.ps1'
 $scratchName = 'ccx-t2-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
-$scratch = Join-Path $env:TEMP $scratchName
+# Codex's sandbox can deny TEMP (FRICTION.md 2026-11-12): fall back to the gitignored .test-scratch here.
+$scratchParent = $env:TEMP
+try { $probe = Join-Path $env:TEMP ($scratchName + '-probe'); [void][IO.Directory]::CreateDirectory($probe); [IO.Directory]::Delete($probe) }
+catch { $scratchParent = Join-Path $root '.test-scratch' }
+$scratch = Join-Path $scratchParent $scratchName
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $powershell = Join-Path $PSHOME 'powershell.exe'
 $git = (Get-Command git.exe -ErrorAction Stop).Source
@@ -146,7 +150,7 @@ function Run-Launcher {
 }
 function Remove-Scratch {
   $actual = [IO.Path]::GetFullPath($scratch).TrimEnd('\')
-  $expected = [IO.Path]::GetFullPath((Join-Path $env:TEMP $scratchName)).TrimEnd('\')
+  $expected = [IO.Path]::GetFullPath((Join-Path $scratchParent $scratchName)).TrimEnd('\')
   Assert ($actual -ieq $expected) 'scratch path escaped approved temp directory'
   if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
 }
@@ -279,6 +283,12 @@ else if (mode === 'usage') {
   event({type:'error', message:usage});
   event({type:'turn.failed', error:{message:usage}});
   process.stderr.write(usage + '\n');
+  process.exit(1);
+}
+else if (mode === 'early503') {
+  // A 5xx the provider recovered from, then a failure that is the task's own: not transient.
+  event({type:'error', message:'Reconnecting... HTTP 503 Service Unavailable'});
+  event({type:'turn.failed', error:{message:'invalid_request_error'}});
   process.exit(1);
 }
 else if (mode === 'capacity' || mode === 'http503' || mode === 'ordinary-error' || mode === 'recovered503') {
@@ -508,6 +518,8 @@ else {
     $r = Run-Launcher $other $common; Check-Code $r 1
   }
   Case 'outside repository' {
+    # The .test-scratch fallback sits inside this checkout, so no folder there is outside a repository.
+    if ($scratchParent -ne $env:TEMP) { throw 'SKIP: TEMP was denied, so scratch is inside the checkout; run where TEMP is writable' }
     $outside = Join-Path $scratch 'outside'
     [void](New-Item -ItemType Directory -Path $outside)
     $r = Run-Launcher $outside $common; Check-Code $r 1
@@ -808,6 +820,12 @@ else {
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'recovered503'
     Assert ($r.Code -ne 4) 'recovered 503 was treated as terminal transient failure'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'recovered 503 did not spend one attempt'
+  }
+  Ccx-Case 'An early recovered 503 does not excuse a later ordinary failure (Gemini review 1.2)' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'early503'
+    Check-Code $r 1
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'early 503 refunded an ordinary failure'
   }
   Ccx-Case 'Codex limit dispatches the class model through agy' {
     $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json

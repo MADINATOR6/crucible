@@ -12,7 +12,11 @@ $git = (Get-Command git.exe -ErrorAction Stop).Source
 Add-Type -AssemblyName System.Web.Extensions
 $json = New-Object Web.Script.Serialization.JavaScriptSerializer
 $json.MaxJsonLength = [int]::MaxValue
-$scratch = Join-Path $env:TEMP ('ccx-t1-' + [guid]::NewGuid().ToString('N'))
+# Codex's sandbox can deny TEMP (FRICTION.md 2026-11-12): fall back to the gitignored .test-scratch here.
+$scratchParent = $env:TEMP
+try { $probe = Join-Path $env:TEMP ('ccx-probe-' + [guid]::NewGuid().ToString('N')); [void][IO.Directory]::CreateDirectory($probe); [IO.Directory]::Delete($probe) }
+catch { $scratchParent = Join-Path (Split-Path $PSScriptRoot -Parent) '.test-scratch' }
+$scratch = Join-Path $scratchParent ('ccx-t1-' + [guid]::NewGuid().ToString('N'))
 $originalLocation = Get-Location
 $oldEnv = @{}
 foreach ($name in @('CCX_STATE_DIR', 'CCX_POLICY', 'CODEX_HOME')) {
@@ -166,8 +170,8 @@ function Pending-Id([string]$Action, [string]$Target = '') {
 function Remove-Scratch {
   if (-not $createdScratch) { return }
   $actual = [IO.Path]::GetFullPath($scratch).TrimEnd('\')
-  $parent = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\')
-  Assert ((Split-Path $actual -Parent) -ieq $parent) 'scratch escaped TEMP'
+  $parent = [IO.Path]::GetFullPath($scratchParent).TrimEnd('\')
+  Assert ((Split-Path $actual -Parent) -ieq $parent) 'scratch escaped its parent (TEMP or .test-scratch)'
   Assert ((Split-Path $actual -Leaf) -cmatch '^ccx-t1-[0-9a-f]{32}$') 'scratch name is not owned by this run'
   if (Test-Path -LiteralPath $actual) { Remove-Item -LiteralPath $actual -Recurse -Force }
 }
@@ -733,6 +737,18 @@ try {
     $planned = Run-Cli @('verify','-TaskId','T2','-Stage','scope')
     Check-Code $planned 1
     Assert ($planned.Stdout -match 'ccx task start -Id T2') 'planned task did not get the hint'
+  }
+  Case 'a baseline taken in another checkout exempts nothing here (Gemini review 1.1)' {
+    Add-Task
+    $here = [IO.Path]::GetFullPath($repo).TrimEnd('\','/').ToLowerInvariant()
+    Invoke-CcxLocked { param($state)
+      # Started elsewhere, where leak.txt was already dirty; this checkout's own baseline is empty.
+      $state.tasks.T1.baselines = @{ $here = @(); 'c:\elsewhere\other-checkout' = @('leak.txt') }
+      $state.tasks.T1.baselineDirty = @('leak.txt')
+    } | Out-Null
+    Write-Utf8File (Join-Path $repo 'leak.txt') 'dirtied here after task add'
+    Assert (@(Test-CcxScope -Task (Get-TestTask) -Root $repo) -contains 'leak.txt') 'another checkout''s baseline laundered leak.txt'
+    [IO.File]::Delete((Join-Path $repo 'leak.txt'))
   }
   Case 'Registration fixes the scope baseline before first dispatch' {
     Write-Utf8File (Join-Path $repo 'before-add.txt') 'already dirty'
