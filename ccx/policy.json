@@ -129,7 +129,7 @@
     "ux-review": { "route": "worker", "agent": "gemini", "level": "L1", "note": "Visual, video or user-experience review of shareable material; findings carry frames or timestamps." }
   },
 
-  "agentShell": ["git status", "git rev-parse", "git diff", "git log", "git show"],
+  "agentShell": [],
   "agentProtectedPaths": [".git/config", ".git/hooks/", ".obsidian/", "scripts/", "ccx/", ".claude/", ".codex/", ".gemini/", ".agents/", ".agy/", ".vscode/", ".cursor/", ".github/", ".geminiignore", ".gitignore", ".mcp.json", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "HANDOFF.md", "lifting-tracker/package.json", "lifting-tracker/package-lock.json", "lifting-tracker/playwright.config.js"],
 
   "checks": {
