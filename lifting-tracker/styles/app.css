@@ -420,7 +420,11 @@ details.options > .options-body { padding: 0 var(--s-4) var(--s-4); display: gri
 .set-row .main small { font-weight: 600; }
 .set-row.is-done .main { color: var(--text-2); }
 .set-row .trail { font-size: var(--t-xs); }
-@media (max-width: 380px) { .set-row .trail { display: none; } }
+/* Phones: the "plan ..." comparison drops to its own line under the logged numbers instead of squeezing them. */
+@media (max-width: 480px) {
+  .set-row { flex-wrap: wrap; row-gap: 0; }
+  .set-row .trail { order: 1; flex: 0 0 100%; padding-left: calc(24px + var(--s-3)); white-space: normal; }
+}
 .plan-link { width: 100%; }
 .picker-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: var(--s-2); }
 .picker-days .chip { padding: 0 8px; }

@@ -58,6 +58,9 @@ test('a logged set is still there, unchanged, after a reload', async ({ page }) 
   const row = page.locator('.set-row.is-done').first();
   await expect(row).toContainText(/4\s*×\s*142\.5/); // what was logged, not the planned 5 × 147.5
   await expect(row).toContainText(/@8\.5/);
+  // The plan comparison stays, but never truncates the logged numbers (it was squeezing them on a Pixel 5).
+  await expect(row.locator('.trail')).toContainText(/plan 5/);
+  expect(await row.locator('.main').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
 
