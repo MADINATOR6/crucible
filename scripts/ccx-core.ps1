@@ -444,7 +444,7 @@ function Test-CcxScope {
     }
 }
 function Get-CcxProtectedHashes {
-    # Every file under policy agentProtectedPaths with its hash, keyed case-insensitively like the file system.
+    # Protected launcher files, keyed case-insensitively like the file system.
     # Agent deny rules are a first line; this before/after comparison is what decides.
     param([string]$Root, $Policy = (Get-CcxPolicy))
     $Root = [IO.Path]::GetFullPath($Root).TrimEnd('\')
@@ -452,7 +452,12 @@ function Get-CcxProtectedHashes {
     foreach ($protected in @($Policy.agentProtectedPaths | Where-Object { $_ })) {
         $full = Join-Path $Root $protected.TrimEnd('/')
         $files = if ([IO.Directory]::Exists($full)) { @(Get-ChildItem -LiteralPath $full -Recurse -File -Force -ErrorAction SilentlyContinue) } elseif ([IO.File]::Exists($full)) { @(Get-Item -LiteralPath $full -Force) } else { @() }
-        foreach ($file in $files) { $hashes[$file.FullName.Substring($Root.Length + 1).Replace('\', '/')] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash }
+        foreach ($file in $files) {
+            $relative = $file.FullName.Substring($Root.Length + 1).Replace('\', '/')
+            # Obsidian saves this ignored tab layout during runs. Agent write rules still cover .obsidian/.
+            if ($relative -ieq '.obsidian/workspace.json') { continue }
+            $hashes[$relative] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+        }
     }
     return ,$hashes
 }

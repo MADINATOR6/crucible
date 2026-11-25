@@ -82,8 +82,18 @@ const fs = require('fs'); const path = require('path');
 const [kind, ...args] = process.argv.slice(2);
 fs.appendFileSync(path.join(process.env.USERPROFILE, kind + '-args.log'), JSON.stringify(args) + '\n');
 const mode = fs.existsSync('fake-mode.txt') ? fs.readFileSync('fake-mode.txt', 'utf8').trim() : 'ok';
-if (mode === 'tamper') { fs.mkdirSync('Scripts', { recursive: true }); fs.writeFileSync('Scripts/planted.ps1', 'x'); }
-if (mode === 'deliver') fs.writeFileSync('Reference/out.md', '# Out\n\n> "Synthetic source line" -- [src](../src.md)\n');
+if (mode === 'tamper') {
+  fs.mkdirSync('Scripts', { recursive: true });
+  fs.writeFileSync('Scripts/planted.ps1', 'x');
+  fs.mkdirSync('.obsidian/plugins/crucible', { recursive: true });
+  fs.writeFileSync('.obsidian/plugins/crucible/main.js', 'x');
+}
+if (mode === 'deliver') {
+  fs.writeFileSync('Reference/out.md', '# Out\n\n> "Synthetic source line" -- [src](../src.md)\n');
+  // Simulate Obsidian saving its tab layout during the agent run.
+  fs.mkdirSync('.obsidian', { recursive: true });
+  fs.writeFileSync('.obsidian/workspace.json', '{"active":"synthetic"}');
+}
 const report = 'Status: READY_FOR_CLAUDE_REVIEW\nNext owner: codex\n';
 if (kind === 'agy') {
   if (mode === 'quota') { console.log(JSON.stringify({ status: 'ERROR', error: { message: 'RESOURCE_EXHAUSTED: quota exceeded. Please retry in 2h5m.' } })); process.exit(1); }
@@ -104,7 +114,7 @@ if (kind === 'agy') {
   }
   # The fixture repository: HANDOFF.md (the launcher requires it) and one source file to cite.
   Write-File (Join-Path $repo 'HANDOFF.md') "# Handoff`n"
-  Write-File (Join-Path $repo '.gitignore') "/Status/`n/Microsoft/`n"
+  Write-File (Join-Path $repo '.gitignore') "/Status/`n/Microsoft/`n/.obsidian/workspace.json`n"
   Write-File (Join-Path $repo 'src.md') "Synthetic source line for citations.`n"
   [void][IO.Directory]::CreateDirectory((Join-Path $repo 'scripts')); Copy-Item (Join-Path $PSScriptRoot 'check-sources.mjs') (Join-Path $repo 'scripts/check-sources.mjs')
   [void][IO.Directory]::CreateDirectory((Join-Path $repo 'Reference'))
@@ -119,7 +129,7 @@ if (kind === 'agy') {
     Assert ($again.Out.Trim() -eq 'tasks/WRITE-A-GUIDE-2.md') "second brief did not get a new id: $($again.Out)"
   }
 
-  Case 'Gemini-owned brief: launch, deliverable, check, verify, status' {
+  Case 'Gemini-owned brief: launch, deliverable, layout save, check, verify, status' {
     New-Brief 'G1' 'gemini' 'source-research' 'Reference/out.md' 'sources'
     Write-File (Join-Path $repo 'fake-mode.txt') 'deliver'
     $r = Crucible @('launch', '-Note', 'tasks/G1.md')
@@ -132,8 +142,9 @@ if (kind === 'agy') {
     Assert ($args -match '"accept-edits"' -and $args -match '"--sandbox"' -and $args -match '"--settings"' -and $args -notmatch 'dangerously') "agy flags wrong: $args"
     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Select-Object -First 1
     $settingsText = Get-Content $settings.FullName -Raw
-    Assert ($settingsText -match 'command\(node scripts/check-sources.mjs\)' -and $settingsText -match '"useG1Credits":\s*false') 'permitted checks or no-purchase setting not passed to agy'
-    Assert ($settingsText -match 'command\(git status\)' -and $args -match 'Your shell is limited to commands starting with: node scripts/check-sources.mjs; git status') "agent shell allowlist missing: $args"
+    $agySettings = $settingsText | ConvertFrom-Json
+    Assert ($agySettings.useG1Credits -eq $false -and $agySettings.permissions.allow.Count -eq 0 -and $agySettings.permissions.deny -contains 'command(*)') 'agy must deny shell commands and disable credit purchases'
+    Assert ($args -match 'Use built-in file tools only.*start HEAD [0-9a-f]+ and initial git status') "shell-free prompt or Git baseline missing: $args"
     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/G1.md'), $utf8)
     Assert ($status -match 'node scripts/check-sources.mjs "Reference/out.md"`: \*\*PASS\*\*') "check evidence missing: $status"
     Assert ($status -match '\(current\)' -and $status -match '\[\[Reference/out.md\]\]' -and $status -match 'Agent suggests next: codex') 'status note incomplete'
@@ -224,7 +235,7 @@ if (kind === 'agy') {
     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1
     $text = Get-Content $settings.FullName -Raw
     Assert ($text -notmatch 'command\([^)]*(playwright|node --test)') 'code-executing check offered to Gemini'
-    Assert ($text -match 'write_file\(\.obsidian/\*\*\)' -and $text -match 'write_file\(scripts/\*\*\)') 'launcher stack not write-protected for Gemini'
+    Assert ($text -match 'write_file\(\.obsidian/\)' -and $text -match 'write_file\(scripts/\)' -and $text -notmatch 'edit_file') 'launcher stack not write-protected with valid agy actions'
     $claudeArgs = Get-Content (Join-Path $scratch 'claude-args.log') -Raw
     Assert ($claudeArgs -match 'Edit\(\.obsidian/\*\*\)' -and $claudeArgs -match 'Edit\(scripts/\*\*\)') "launcher stack not write-protected for Claude: $claudeArgs"
   }
@@ -255,10 +266,11 @@ if (kind === 'agy') {
     $r = Crucible @('launch', '-Note', 'tasks/T1.md')
     Remove-Item (Join-Path $repo 'fake-mode.txt')
     $evidence = @((Get-Content (Join-Path $repo 'Status/.data/T1.json') -Raw | ConvertFrom-Json).runs)[-1]
-    Assert (@($evidence.tampered) -contains 'scripts/planted.ps1' -and -not @($evidence.checks).Count -and -not $evidence.verify) "tampering not caught: $($r.Out)"
+    Assert (@($evidence.tampered) -contains 'scripts/planted.ps1' -and @($evidence.tampered) -contains '.obsidian/plugins/crucible/main.js' -and -not @($evidence.checks).Count -and -not $evidence.verify) "tampering not caught: $($r.Out)"
     Assert ((State).tasks.T1.lastDispatch.exit -eq 9) 'the launcher did not fail the run that changed protected files'
     Assert ([IO.File]::ReadAllText((Join-Path $repo 'Status/Board.md'), $utf8) -match '(?s)## Needs you.*T1.*SECURITY') 'tampering not on the board'
     Remove-Item -Recurse (Join-Path $repo 'Scripts\planted.ps1')
+    Remove-Item -LiteralPath (Join-Path $repo '.obsidian/plugins/crucible/main.js')
   }
 
   Case 'routine Codex work keeps one agent and no review round' {

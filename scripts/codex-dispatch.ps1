@@ -386,7 +386,9 @@ try {
   }
   $agentShell = @($checkPrefixes) + @($(if ($Sandbox -ne 'read-only' -and $TaskId) { @($policy.agentShell | Where-Object { $_ -match '^[A-Za-z0-9 ._/:=-]{1,120}$' }) }))
   if (($isGemini -or $isAgy -or $isClaude) -and $TaskId) {
-    $prompt += " Your shell is limited to commands starting with: $(if ($agentShell.Count) { $agentShell -join '; ' } else { 'none' }). Any other command is refused and ends your run, so do not try one; say in the report what you could not run."
+    if (-not $isAgy) {
+      $prompt += " Your shell is limited to commands starting with: $(if ($agentShell.Count) { $agentShell -join '; ' } else { 'none' }). Any other command is refused and ends your run, so do not try one; say in the report what you could not run."
+    }
     # Unsandboxed or account-run agents: the launcher stack is hashed before and after, whatever their deny rules miss.
     $protectedBefore = Get-CcxProtectedHashes -Root $root -Policy $policy
   }
@@ -416,11 +418,15 @@ try {
     $agy = Get-Command $providerPolicy.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $agy) { throw "$($providerPolicy.command) not found on PATH" }
     if ($agy.Source -match '[%"]') { throw 'Antigravity CLI path must not contain % or double quotes.' }
-    # Session-only settings (never saved): no AI-credit purchases, terminal sandbox on, reviewed tools only;
-    # the permitted checks are allowed and the launcher stack is denied (deny wins over allow).
-    $deny = @(foreach ($path in $protectedPaths) { foreach ($tool in @('write_file', 'edit_file')) { if ($path.EndsWith('/')) { "$tool($path**)" } else { "$tool($path)" } } })
+    $status = Invoke-Git 'status --short'
+    if (-not $head -or $null -eq $status) { throw 'Cannot capture the starting Git state for Antigravity.' }
+    # Keep unrelated filenames out of the cloud prompt and cmd.exe arguments.
+    $startingChanges = @($status -split '\r?\n' | Where-Object { $_ }).Count
+    $prompt = "Use built-in file tools only. Do not call the shell, including for Git, file checks, app tests, or source verification. The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs with file tools before editing. Report checks requiring the shell as NOT RUN and leave final Git status to the launcher operator. $prompt"
+    # write_file is the permission action for workspace edits, including replacements.
+    $deny = @('command(*)') + @(foreach ($path in $protectedPaths) { "write_file($path)" })
     $settings = @{ useG1Credits = $false; enableTerminalSandbox = $true; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
-      permissions = @{ allow = @($agentShell | ForEach-Object { "command($_)" }); deny = $deny } }
+      permissions = @{ allow = @(); deny = $deny } }
     [IO.File]::WriteAllText($base + '.settings.json', (ConvertTo-Json $settings -Depth 5), $utf8)
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'accept-edits' }
     $agyModel = if ($Model -and $Model -ne 'auto') { @('--model', $Model) } else { @() }

@@ -23,7 +23,7 @@ Each brief ends with its own live **Status**: owner, input version, outputs (lin
 ## Who leads what
 | Owner | Leads | How it runs |
 | --- | --- | --- |
-| Gemini | research and source synthesis, creative development, storyboards, visual or video analysis, UX review (`source-research`, `creative`, `ux-review`) | Antigravity CLI (`agy`) on your Google AI Pro plan: sandboxed, file edits allowed, shell only for the agent-safe checks |
+| Gemini | research and source synthesis, creative development, storyboards, visual or video analysis, UX review (`source-research`, `creative`, `ux-review`) | Antigravity CLI (`agy`) on your Google AI Pro plan. Gemini uses its file tools and Crucible runs permitted follow-up checks. |
 | Codex | implementation, debugging, automation, tests, technical verification | Codex CLI on your ChatGPT plan, in its workspace-write sandbox |
 | Claude | ambiguous projects, planning, architecture, tradeoffs, consequential reviews | headless `claude -p` on your Claude plan; interactive Claude Code for planning sessions |
 | Automatic | ccx picks by the brief's `type:` | |
