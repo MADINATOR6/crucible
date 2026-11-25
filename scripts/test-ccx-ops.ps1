@@ -268,6 +268,38 @@ try {
     Assert (-not (Get-Process -Id $sleepPid -ErrorAction SilentlyContinue)) 'timed-out child still running'
     Check-Code (Run-Cli @('verify','-Stage','unknown-stage')) 2
   }
+  Case 'Instruction symmetry stage' {
+    $registered = @( (Read-Json $sourcePolicy).verify.stages | Where-Object { $_.builtin -and ($_.name -match 'symmetr' -or $_.builtin -match 'symmetr') })
+    Assert ($registered.Count -eq 1) 'instruction symmetry stage is not registered exactly once in policy'
+    $stageName = $registered[0].name
+    $policy.verify.stages += $registered[0].psobject.BaseObject; Save-Policy
+    Write-Text (Join-Path $repo 'AGENTS.md') 'fixture agents'
+    Write-Text (Join-Path $repo 'CLAUDE.md') 'fixture claude'
+    $null = Run-Git @('add','AGENTS.md','CLAUDE.md')
+    $null = Run-Git @('-c','core.hooksPath=NUL','commit','-qm','instructions')
+    foreach ($change in @(
+      @{name='neither';agents=$false;claude=$false;stage=''},
+      @{name='agents unstaged';agents=$true;claude=$false;stage=''},
+      @{name='claude unstaged';agents=$false;claude=$true;stage=''},
+      @{name='both unstaged';agents=$true;claude=$true;stage=''},
+      @{name='agents staged';agents=$true;claude=$false;stage='AGENTS.md'},
+      @{name='claude staged';agents=$false;claude=$true;stage='CLAUDE.md'},
+      @{name='both staged';agents=$true;claude=$true;stage='AGENTS.md,CLAUDE.md'},
+      @{name='agents staged, claude unstaged';agents=$true;claude=$true;stage='AGENTS.md'},
+      @{name='claude staged, agents unstaged';agents=$true;claude=$true;stage='CLAUDE.md'}
+    )) {
+      $null = Run-Git @('restore','--source=HEAD','--staged','--worktree','--','AGENTS.md','CLAUDE.md')
+      if ($change.agents) { Write-Text (Join-Path $repo 'AGENTS.md') 'changed agents' }
+      if ($change.claude) { Write-Text (Join-Path $repo 'CLAUDE.md') 'changed claude' }
+      if ($change.stage) { $null = Run-Git (@('add') + @($change.stage.Split(','))) }
+      $r = Run-Cli @('verify','-Stage',$stageName,'-Json')
+      $expected = if ($change.agents -xor $change.claude) { 'FAIL' } else { 'PASS' }
+      Assert ($r.Code -eq $(if ($expected -eq 'FAIL') { 1 } else { 0 })) "symmetry $($change.name): exit $($r.Code), expected $expected; $($r.Out) $($r.Err)"
+      $checks = $json.DeserializeObject($r.Out)
+      $stage = @($checks.stages | Where-Object { $_.name -eq $stageName })
+      Assert ($stage.Count -eq 1 -and $stage[0].result -eq $expected) "symmetry $($change.name): expected named stage $expected"
+    }
+  }
   Case 'memory lint secret, line limit, duplicate and checkpoints' {
     $memory = Join-Path $repo 'MEMORY.md'
     $secret = 'ghp_' + ('B' * 36)
@@ -314,6 +346,8 @@ try {
     # Regression (CCX-7): the ownership check ran a full task start in the caller's worktree, leaving a
     # stale baseline there that a later move of the task into that worktree reused.
     Add-Task 'T1' 'src/one.txt'
+    # This regression starts with no caller baseline; registration now records one in this checkout.
+    State-Edit { param($s) $s.tasks.T1.baselines = @{} }
     Write-Text (Join-Path $repo 'notes.txt') 'caller dirt'
     try {
       Check-Code (Run-Cli @('worktree','add','-TaskId','T1')) 0
@@ -400,6 +434,31 @@ try {
     $policy.models.mythos.available = $false; Save-Policy
     [IO.File]::Delete((Join-Path $repo ".claude/agents/$($policy.models.claude.cheapSubagent).md"))
     Check-Code (Run-Cli @('health')) 1
+  }
+  Case 'Account-auth agy health reports version and unknown sign-in' {
+    $bin = Join-Path (Split-Path $repo -Parent) 'bin'
+    [void][IO.Directory]::CreateDirectory((Join-Path $repo '.claude/agents'))
+    foreach ($name in @($policy.models.claude.cheapSubagent,$policy.models.claude.reviewSubagent)) {
+      Write-Text (Join-Path $repo ".claude/agents/$name.md") "---`nname: $name`ndescription: Fixture`ntools: Read`n---`n"
+    }
+    Write-Text (Join-Path $bin 'agy.cmd') @'
+@echo off
+echo %*>>"%~dp0agy-calls.log"
+if "%1"=="--version" (
+  echo agy-fixture 1.5.17
+  exit /b 0
+)
+exit /b 1
+'@
+    $policy.providers.gemini.command = 'agy.cmd'; Save-Policy
+    $r = Run-Cli @('health','-Json'); Check-Code $r 0
+    $checks = $json.DeserializeObject($r.Out)
+    $stage = @($checks | Where-Object { $_.name -eq 'provider-gemini' })
+    Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'PASS') 'account-auth provider health did not PASS'
+    $detail = $stage[0].details -join ' '
+    Assert ($detail -match 'agy-fixture 1\.5\.17' -and $detail -match 'sign-in unknown' -and $detail -notmatch 'not set') "account-auth provider health omitted version or unknown sign-in: $detail"
+    $calls = @([IO.File]::ReadAllLines((Join-Path $bin 'agy-calls.log')))
+    Assert ($calls.Count -eq 1 -and $calls[0].Trim() -ceq '--version') "account-auth health invoked unsafe or extra CLI arguments: $($calls -join '; ')"
   }
   Case 'status sections, bounded brief and JSON' {
     Add-Task; Queue 'user' 'status-tick'

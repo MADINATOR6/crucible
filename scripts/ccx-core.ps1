@@ -440,8 +440,14 @@ function Get-CcxFingerprint {
 }
 function Test-CcxScope {
     param($Task, [string]$Root = (Get-CcxRepoRoot))
+    # The baseline of the checkout being checked, never another checkout's (no laundering between worktrees).
+    # Legacy tasks without a baselines map keep their single baselineDirty.
+    $baseline = if ($Task.baselines -is [Collections.IDictionary]) {
+        $key = [IO.Path]::GetFullPath($Root).TrimEnd('\','/').ToLowerInvariant()
+        @($Task.baselines[$key] | Where-Object { $_ })
+    } else { @($Task.baselineDirty) }
     foreach ($path in @(Get-CcxChangedPaths -Root $Root)) {
-        if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $Task.baselineDirty -and -not (Test-CcxBrief -Root $Root -Path $path)) { $path }
+        if (-not (Test-CcxPathOwned -Path $path -Owns $Task.owns) -and $path -notin $baseline -and -not (Test-CcxBrief -Root $Root -Path $path)) { $path }
     }
 }
 function Get-CcxProtectedHashes {
@@ -881,7 +887,12 @@ function Invoke-CcxRoute {
                     $altProvider = Get-CcxProvider $policy $Class $state
                     if ($altProvider) { $decision.reasons += 'local provider ' + $altProvider.name + ' for ' + $Class + ' work' }
                 }
-                if ($altProvider) { $decision.provider = $altProvider.name; $decision.model = $altProvider.model; break }
+                if ($altProvider) {
+                    $decision.provider = $altProvider.name; $decision.model = $altProvider.model
+                    # Gemini as fallback takes the same class-tier model as Gemini-owned work.
+                    if ($altProvider.name -eq 'gemini' -and $policy.classes[$Class].geminiModel) { $decision.model = $policy.classes[$Class].geminiModel }
+                    break
+                }
                 $decision.provider = 'openai'
                 # The class's model (cheaper workhorse for routine/normal work), else the default.
                 $preferred = @(@($policy.classes[$Class].codexModel, $policy.models.codex.default) | Where-Object { $_ })
@@ -966,7 +977,7 @@ function Invoke-CcxRoute {
             $decision.effort = $ladder[$index]
             if ($index -gt $baseIndex) {
                 $decision.escalation = @{ from=$efforts.base; to=$decision.effort; reason='failed attempts or ambiguity' }
-                if ($decision.agent -eq 'gemini' -and $decision.model) {
+                if (($decision.agent -eq 'gemini' -or $decision.provider -eq 'gemini') -and $decision.model) {
                     $tier = if ($decision.effort -eq 'max') { 'xhigh' } else { $decision.effort }
                     if ($decision.model -match '^(gemini-3\.8-flash)-(low|medium|high)$' -and $tier -in @('low','medium','high')) {
                         $decision.model = $Matches[1] + '-' + $tier
@@ -1242,10 +1253,15 @@ function Invoke-CcxCmdTask {
                 }
             }
             $now = Get-CcxNow
+            # Baseline at registration: files already dirty here belong to other work, so verify can run on a
+            # task that is never dispatched. task start keeps it for this checkout; another worktree takes its own.
+            $addRoot = Get-CcxRepoRoot
+            $addKey = [IO.Path]::GetFullPath($addRoot).TrimEnd('\','/').ToLowerInvariant()
+            $addDirty = @(Get-CcxChangedPaths -Root $addRoot | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $owns) })
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
                 owner=$Parameters.Owner; parent=$Parameters.Parent; dependsOn=@(Split-CcxList $Parameters.DependsOn)
-                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=@(); baselines=@{}
+                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
                 creditCap=$creditCap

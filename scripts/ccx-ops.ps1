@@ -334,9 +334,19 @@ function Invoke-CcxVerify {
                             # No baseline for this checkout (task update -Status active, or never started): every
                             # unrelated dirty file would read as a violation. Name the repair, never recapture here.
                             $baselineKey = [IO.Path]::GetFullPath($root).TrimEnd('\','/').ToLowerInvariant()
-                            if ($task.baselines -is [Collections.IDictionary] -and -not $task.baselines.ContainsKey($baselineKey)) {
+                            # A legacy registration with no baselines map that was never started has no baseline either.
+                            $missing = if ($task.baselines -is [Collections.IDictionary]) { -not $task.baselines.ContainsKey($baselineKey) } else { $task.status -eq 'planned' }
+                            if ($missing) {
                                 $hits = @("no baseline recorded for this checkout: run ccx task start -Id $($task.id) here, then verify again")
                             } else { $hits = @(Test-CcxScope -Task $task -Root $root) }
+                        }
+                    }
+                    'instruction-symmetry' {
+                        # Symmetry rule (AGENTS.md/CLAUDE.md line 1): uncommitted changes, staged or not, touch both or neither.
+                        $changed = @(Get-CcxChangedPaths -Root $root)
+                        $agents = 'AGENTS.md' -in $changed; $claude = 'CLAUDE.md' -in $changed
+                        if ($agents -xor $claude) {
+                            $hits = @($(if ($agents) { 'AGENTS.md changed without CLAUDE.md' } else { 'CLAUDE.md changed without AGENTS.md' }) + ' (symmetry rule: change both in the same commit)')
                         }
                     }
                     'memory-lint' {
@@ -664,6 +674,15 @@ function Invoke-CcxHealth {
                 if (-not (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue)) { $detail = "$($provider.command) not installed; route skips it" }
                 elseif (-not $answers) { $result = 'WARN'; $detail = "$($provider.command) installed but not running ($($provider.probeUrl)); route skips it" }
                 else { $result = 'PASS'; $detail = "$($provider.command) present; model $($provider.model)" }
+            } elseif ($provider.auth -eq 'account' -and $provider.command) {
+                # The CLI holds the user's own sign-in (agy): no key to check. Only --version runs; agy has no
+                # non-interactive sign-in status command, so sign-in stays unknown until a run uses it.
+                $cli = Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+                if (-not $cli) { $detail = "$($provider.command) not installed; route skips it" }
+                else {
+                    $version = try { [string](& $cli.Source --version 2>&1 | Select-Object -First 1) } catch { '' }
+                    $result = 'PASS'; $detail = "$($provider.command) $(if ($version) { $version.Trim() } else { 'version unknown' }); sign-in unknown"
+                }
             } elseif (-not (Get-CcxProviderKey $provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
             elseif ($provider.cli) {
                 if (Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue) { $result = 'PASS'; $detail = "$($provider.command) present; $($provider.envKey) set" }

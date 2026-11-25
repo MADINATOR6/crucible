@@ -234,6 +234,7 @@
       { "name": "secrets", "builtin": "secret-scan", "quick": true },
       { "name": "scope", "builtin": "task-scope", "quick": true },
       { "name": "memory", "builtin": "memory-lint", "quick": true },
+      { "name": "symmetry", "builtin": "instruction-symmetry", "quick": true },
       { "name": "format", "command": null, "note": "No formatter configured for this repository." },
       { "name": "lint", "command": null, "note": "No linter configured (PSScriptAnalyzer is not installed); the parse stage checks PowerShell syntax." },
       { "name": "tests-ccx", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-ccx.ps1", "when": ["scripts/ccx*.ps1", "scripts/test-ccx*.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
