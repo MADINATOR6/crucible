@@ -808,6 +808,14 @@ function Invoke-CcxCmdStatus($P) {
     Write-CcxOutput "notifications ($($value.notifications.Count))" $P
     foreach ($notification in $value.notifications) { Write-CcxOutput "$($notification.id) $($notification.level) $($notification.text)" $P }
     Write-CcxOutput "routing ($($value.routing.Count))" $P
-    foreach ($route in $value.routing) { Write-CcxOutput "$($route.at) $($route.taskId) $($route.route) $($route.agent) $($route.model) $($route.effort)" $P }
+    foreach ($route in $value.routing) {
+        Write-CcxOutput "$($route.at) $($route.taskId) $($route.route) $($route.agent) $($route.model) $($route.effort)" $P
+        if ($route.strategy) {
+            Write-CcxOutput "  session $($route.strategy.sessionId) / $($route.strategy.context): $($route.strategy.mode), lead $($route.strategy.lead)" $P
+        }
+        foreach ($reason in @($route.reasons | Where-Object { $_ -like 'session lesson *' })) {
+            Write-CcxOutput "  $reason" $P
+        }
+    }
     return 0
 }

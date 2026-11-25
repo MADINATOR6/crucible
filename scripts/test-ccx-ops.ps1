@@ -409,6 +409,60 @@ try {
     Assert (@($brief.Out.Trim().Split([char]10)).Count -le 5) 'brief exceeds five lines'
     $null = Cli-Json @('status')
   }
+  Case 'session decisions retain required review, match evidence and narrow delegation' {
+    Add-Task 'LEAD' 'integration.md'
+    foreach ($item in @(@{id='SOURCE';owns='src/one.txt'},@{id='BROAD';owns='area/'},@{id='PRECISE';owns='next.txt'})) {
+      $null = Cli-Json @('task','add','-Id',$item.id,'-Title','Delegated fixture','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns',$item.owns,'-TaskFile','TASK.md','-Parent','LEAD','-Key','parser')
+    }
+    $success = @('task','learn','-Id','SOURCE','-Kind','verified-success','-Note','Checked parser','-Reason','Synthetic full PASS and review')
+    Check-Code (Run-Cli $success) 2
+    $null = Cli-Json @('task','start','-Id','SOURCE')
+    Write-Text (Join-Path $repo 'src/one.txt') 'changed'
+    $null = Cli-Json @('verify','-TaskId','SOURCE')
+    $refusal = Run-Cli @('task','done','-Id','SOURCE')
+    Check-Code $refusal 8
+    Assert ($refusal.Out -match 'cross-model-review') 'session bypassed required review'
+    $null = Cli-Json @('task','review','-Id','SOURCE','-Result','pass','-By','claude')
+    $null = Cli-Json @('task','done','-Id','SOURCE')
+
+    $choice = @('task','learn','-Id','SOURCE','-Kind','user-correction','-Result','high','-Note','Used medium','-Reason','Synthetic user chose high for the parser')
+    $null = Cli-Json $choice
+    $null = Cli-Json $choice
+    $null = Cli-Json $success
+    foreach ($sample in 1..$policy.adaptive.minSamples) {
+      Write-CcxTelemetry -Record @{kind='dispatch';taskId='SOURCE';type='implement';agent='codex';effort='medium';exit=1;status='PARTIAL';tokens=@{}}
+    }
+    $ordinary = Cli-Json @('route','-Type','implement','-Class','normal')
+    Assert ($ordinary.effort -eq 'medium') 'session outcomes leaked into aggregate routing outside the session'
+    $saved = (Cli-Json @('task','show','-Id','LEAD')).routingLessons
+    Assert (@($saved).Count -eq 2) 'replaying the observation duplicated it'
+    $decision = Cli-Json @('route','-TaskId','PRECISE')
+    Assert ($decision.effort -eq 'high' -and $decision.learning[0].kind -eq 'user-correction') 'verified success overrode the user correction'
+    Assert ($decision.strategy.mode -eq 'delegate' -and $decision.strategy.lead -eq 'codex' -and $decision.strategy.owns[0] -eq 'next.txt') 'delegation lacks lead or precise ownership'
+    Assert ($decision.verification -contains 'cross-model-review') 'routing lesson removed review requirements'
+
+    foreach ($id in @('SOURCE','BROAD','PRECISE')) {
+      $null = Cli-Json @('task','learn','-Id',$id,'-Kind','ownership-overlap','-Note','Compared worker scopes','-Reason','Simulated overlap in prior edits')
+    }
+    $blocked = Cli-Json @('route','-TaskId','BROAD')
+    Assert ($blocked.route -eq 'surface' -and $blocked.strategy.ownership -eq 'explicit files' -and $blocked.learning[0].projectCandidate) 'repeated overlap did not hold broad ownership and flag a review candidate'
+    $precise = Cli-Json @('route','-TaskId','PRECISE')
+    Assert ($precise.route -eq 'worker' -and $precise.strategy.ownership -eq 'explicit files') 'precise ownership did not satisfy the lesson'
+
+    $null = Cli-Json @('task','learn','-Id','SOURCE','-Kind','tool-unavailable','-Target','browser','-Note','Inspected tool list','-Reason','Synthetic browser absence')
+    $held = Cli-Json @('route','-TaskId','PRECISE')
+    Assert ($held.route -eq 'surface' -and ($held.reasons -join ' ') -match 'required tool browser') 'unavailable tool was not surfaced'
+    $status = Run-Cli @('status')
+    Check-Code $status 0
+    Assert ($status.Out.Contains($held.learning[0].id)) 'status omitted the observation'
+    $null = Cli-Json @('task','forget','-Id','LEAD','-Key','parser')
+    $restored = Cli-Json @('route','-TaskId','PRECISE')
+    Assert ($restored.route -eq 'worker' -and $restored.effort -eq 'medium' -and -not $restored.learning.Count) 'cleared context still affected routing'
+
+    $null = Cli-Json @('task','add','-Id','REVIEW','-Title','Review fixture','-Type','review','-Class','normal','-Risk','low','-Owner','codex','-Owns','review.md','-TaskFile','TASK.md','-Parent','LEAD','-Key','parser')
+    $review = Cli-Json @('route','-TaskId','REVIEW','-AuthoredBy','codex')
+    Assert ($review.agent -eq 'claude' -and $review.strategy.mode -eq 'delegate') 'task owner overrode cross-model reviewer'
+  }
   Case 'judge fixtures are complete, synthetic and withhold their answers' {
     # Structure and coverage only. This does not test anyone's judgment (HANDOFF.md, Judge fixtures).
     $path = Join-Path $PSScriptRoot 'fixtures/judge-cases.json'

@@ -560,12 +560,130 @@ function Get-CcxStats {
         }
     }
 }
+function Get-CcxLearningSession {
+    param($State, $Task)
+    if (-not $Task.routeContext) { return }
+    $session = if ($Task.parent) { $State.tasks[$Task.parent] } else { $Task }
+    if ($session -and -not $session.parent -and $session.status -notin @('done','abandoned')) { $session }
+}
+function Get-CcxLessonKey {
+    param($Task, [string]$Class, [string]$Agent, [string]$Provider, [string]$Channel)
+    (@($Task.routeContext, $Task.type, $Class, $Task.risk, $Agent, $Provider, $Channel) -join '/').ToLowerInvariant()
+}
+function Save-CcxRoutingLesson {
+    param($State, $Task, $Parameters, $Policy, [string]$Class)
+    $session = Get-CcxLearningSession $State $Task
+    if (-not $session) { throw (New-CcxError 'task learn requires -Key and a non-terminal session root.' 2) }
+    $kind = $Parameters.Kind
+    $channel = switch ($kind) {
+        'focused-failure' { 'preference' }
+        'verified-success' { 'preference' }
+        'user-correction' { 'choice' }
+        'ownership-overlap' { 'scope' }
+        'tool-unavailable' { 'capability' }
+        default { throw (New-CcxError 'Unknown routing lesson kind.' 2) }
+    }
+    foreach ($field in @('Note','Reason')) {
+        if ([string]::IsNullOrWhiteSpace($Parameters[$field])) { throw (New-CcxError "task learn requires $field." 2) }
+        Assert-CcxExactField $Parameters[$field] $field
+    }
+    $expectedRole = if ($Task.type -in @('research','verify')) { $Task.type } else { 'implement' }
+    $dispatch = $Task.lastDispatch
+    if ($Task.owner -ne 'codex' -or $dispatch.role -ne $expectedRole -or -not $dispatch.endedAt) { $dispatch = $null }
+    switch ($kind) {
+        'focused-failure' {
+            $partial = $dispatch.status -eq 'PARTIAL' -and $dispatch.exit -in @(0,3)
+            if (-not $partial -and -not ($Task.verification.full -and $Task.verification.status -eq 'FAIL')) {
+                throw (New-CcxError 'Focused failure requires a completed partial dispatch or failed full verification.' 2)
+            }
+        }
+        'verified-success' {
+            if ($Task.status -ne 'done' -or -not $Task.verification.full -or $Task.verification.status -ne 'PASS') {
+                throw (New-CcxError 'Verified success requires task done.' 2)
+            }
+            if ($dispatch.exit -ne 0 -or $dispatch.status -ne 'READY_FOR_CLAUDE_REVIEW') { $dispatch = $null }
+        }
+        'user-correction' {
+            if ($Parameters.Result -notin @($Policy.effortLadder)) { throw (New-CcxError 'User correction requires -Result <effort> from the policy ladder.' 2) }
+        }
+        'tool-unavailable' {
+            if ($Parameters.Target -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$') { throw (New-CcxError 'Tool unavailable requires -Target <tool>.' 2) }
+            Assert-CcxExactField $Parameters.Target 'Target'
+        }
+    }
+    $agent = if ($Policy.taskTypes[$Task.type].agent -eq 'claude-subagent') { 'claude-subagent' } else { $Task.owner }
+    $provider = if ($agent -eq 'codex') {
+        if ($dispatch.provider) { $dispatch.provider } else { 'openai' }
+    } else { '' }
+    $key = Get-CcxLessonKey $Task $Class $agent $provider $channel
+    $prior = @($session.routingLessons | Where-Object { $_.key -eq $key } | Select-Object -Last 1)[0]
+    $target = if ($kind -eq 'tool-unavailable') { $Parameters.Target } elseif ($kind -eq 'user-correction') { $Parameters.Result }
+    $stamp = if ($dispatch) { $dispatch.endedAt } elseif ($kind -in @('focused-failure','verified-success')) { $Task.verification.at }
+    $sameLesson = $prior -and $prior.kind -eq $kind -and $prior.target -eq $target
+    if ($sameLesson -and $prior.taskId -eq $Task.id -and $prior.observedAt -eq $stamp -and $prior.note -ceq $Parameters.Note -and $prior.evidence -ceq $Parameters.Reason) { return }
+    $observed = if ($sameLesson) { @($prior.observedTasks) } else { @() }
+    if ($Task.id -notin $observed -and $observed.Count -lt 3) { $observed = @($observed) + @($Task.id) }
+    $lesson = @{
+        id=('L-' + [guid]::NewGuid().ToString('N').Substring(0,12)); key=$key; kind=$kind
+        taskId=$Task.id; at=Get-CcxNow; observedAt=$stamp; note=$Parameters.Note; evidence=$Parameters.Reason
+        target=$target; model=$dispatch.model; effort=$dispatch.effort
+        observedTasks=@($observed); projectCandidate=(@($observed).Count -ge 3)
+    }
+    $session.routingLessons = @((@($session.routingLessons | Where-Object { $_ -and $_.key -ne $key }) + @($lesson)) |
+        Select-Object -Last ([int]$Policy.state.checkpointsMax))
+}
+function Get-CcxRouteLesson {
+    param($Session, $Task, $Decision, [string]$Channel)
+    $key = Get-CcxLessonKey $Task $Decision.class $Decision.agent $Decision.provider $Channel
+    $Session.routingLessons | Where-Object { $_.key -eq $key } | Select-Object -Last 1
+}
+function Get-CcxRoutePreference {
+    param($Session, $Task, $Decision)
+    $choice = Get-CcxRouteLesson $Session $Task $Decision 'choice'
+    if ($choice) { return $choice }
+    Get-CcxRouteLesson $Session $Task $Decision 'preference'
+}
+function Add-CcxRouteLesson {
+    param($Decision, $Lesson, [string]$Reason)
+    if ($Lesson.id -notin @($Decision.learning | ForEach-Object { $_.id })) {
+        $Decision.learning += @{id=$Lesson.id; kind=$Lesson.kind; taskId=$Lesson.taskId; projectCandidate=$Lesson.projectCandidate}
+    }
+    $Decision.reasons += "session lesson $($Lesson.id) ($($Lesson.kind) from $($Lesson.taskId)): $Reason"
+}
+function Set-CcxLearnedEffort {
+    param($Decision, $Lesson, $Policy, $Efforts, [int]$PriorFailures, [switch]$Constrained)
+    if (-not $Lesson) { return }
+    $ladder = @($Policy.effortLadder)
+    $current = [array]::IndexOf($ladder, $Decision.effort)
+    $index = switch ($Lesson.kind) {
+        'focused-failure' {
+            $observed = [array]::IndexOf($ladder, $Lesson.effort)
+            if ($observed -lt 0) { $observed = [array]::IndexOf($ladder, $Efforts.base) }
+            [Math]::Max($current, $observed + 1)
+        }
+        'verified-success' { [Math]::Max($current, [array]::IndexOf($ladder, $Lesson.effort)) }
+        'user-correction' {
+            $requested = [array]::IndexOf($ladder, $Lesson.target)
+            if ($Constrained) { [Math]::Max($requested, $current) } else { $requested }
+        }
+    }
+    $floor = [array]::IndexOf($ladder, $Policy.classes[$Decision.class].effort.min)
+    $ceiling = [array]::IndexOf($ladder, $Efforts.max)
+    if ($ceiling -eq $ladder.Count - 1 -and $PriorFailures -lt $Policy.escalation.maxEffortNeedsFailedAttempts) { $ceiling-- }
+    $index = [Math]::Min([Math]::Max($index, $floor), $ceiling)
+    if ($index -ne $current) {
+        $Decision.effort = $ladder[$index]
+        Add-CcxRouteLesson $Decision $Lesson "reasoning effort $($ladder[$current]) -> $($Decision.effort)"
+    }
+}
 function Complete-CcxRoute {
     param($Decision, [string]$Type, [string]$TaskId)
     try {
         Invoke-CcxLocked {
             param($state)
             $record = @{ at=Get-CcxNow; kind='route'; taskId=$TaskId; type=$Type; agent=$Decision.agent; model=$Decision.model; effort=$Decision.effort; route=$Decision.route; reasons=$Decision.reasons }
+            if ($Decision.strategy) { $record.strategy = $Decision.strategy }
+            if ($Decision.learning) { $record.learning = $Decision.learning }
             $state.routingLog = @($state.routingLog) + @($record)
             Write-CcxTelemetry -Record $record
         } | Out-Null
@@ -603,7 +721,7 @@ function Get-CcxProvider {
 }
 function Invoke-CcxRoute {
     param([string]$TaskId, [string]$Type, [string]$Class, [string]$Risk, [int]$Attempt = 0,
-          [switch]$Ambiguous, [string]$AuthoredBy, [switch]$RequestMythos)
+          [switch]$Ambiguous, [string]$AuthoredBy, [switch]$RequestMythos, [switch]$IgnoreSessionPreference)
     $policy = Get-CcxPolicy
     $state = Get-CcxState
     $task = $null
@@ -645,7 +763,7 @@ function Invoke-CcxRoute {
     }
     # The task's owner does its own type of work (an escalation changes the owner).
     $ownTaskWork = $task -and $Type -eq $task.type
-    if ($ownTaskWork -and $decision.agent -in @('claude','codex') -and $task.owner -in @('claude','codex') -and $task.owner -ne $decision.agent) {
+    if ($ownTaskWork -and $typePolicy.agent -ne 'cross-model' -and $decision.agent -in @('claude','codex') -and $task.owner -in @('claude','codex') -and $task.owner -ne $decision.agent) {
         $decision.reasons += 'task owner ' + $task.owner + ' replaces the type default ' + $decision.agent
         $decision.agent = $task.owner
         if ($decision.agent -ne 'codex') { $decision.codexRole = $null }
@@ -674,6 +792,26 @@ function Invoke-CcxRoute {
             return (Complete-CcxRoute $decision $Type $TaskId)
         }
         $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil + ': fallback provider ' + $altProvider.name
+    }
+    $session = if ($ownTaskWork -and $effectiveClass -eq (Get-CcxClass $policy $task.class $task.risk) -and $Risk -eq $task.risk) {
+        Get-CcxLearningSession $state $task
+    }
+    if ($session) {
+        $decision.learning = @()
+        $delegate = $Type -in @('review','verify','extract') -or ($task.parent -and ($Class -ne 'routine' -or $session.owner -ne $decision.agent))
+        $decision.strategy = @{
+            sessionId=$session.id; context=$task.routeContext; lead=$session.owner
+            mode=$(if ($delegate) { 'delegate' } else { 'lead' }); owner=$decision.agent; owns=$task.owns; taskFile=$task.taskFile
+        }
+        if ($task.parent) {
+            foreach ($owned in $task.owns) {
+                if (@($session.owns | Where-Object { Test-CcxPathOverlap -A $_ -B $owned }).Count) {
+                    $decision.route = 'surface'
+                    $decision.reasons += 'delegation overlaps the lead task; assign disjoint ownership before dispatch'
+                    return (Complete-CcxRoute $decision $Type $TaskId)
+                }
+            }
+        }
     }
     $mythosFallback = $false
     if ($RequestMythos) {
@@ -704,6 +842,13 @@ function Invoke-CcxRoute {
                 $decision.provider = 'openai'
                 # The class's model (cheaper workhorse for routine/normal work), else the default.
                 $preferred = @(@($policy.classes[$Class].codexModel, $policy.models.codex.default) | Where-Object { $_ })
+                $baseModel = $preferred[0]
+                $modelLesson = if ($session -and -not $IgnoreSessionPreference -and -not $RequestMythos) {
+                    Get-CcxRoutePreference $session $task $decision
+                }
+                if ($modelLesson.kind -eq 'focused-failure') {
+                    $preferred = @($policy.models.codex.default) + $preferred
+                }
                 $decision.model = $preferred[0]
                 $catalogHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
                 try {
@@ -715,11 +860,34 @@ function Invoke-CcxRoute {
                         if ($found.Count) { $decision.model = $found[0]; $decision.reasons += 'model ' + $preferred[0] + ' absent from catalog: using configured fallback ' + $found[0] }
                         else { $decision.route = 'surface'; $decision.reasons += 'catalog has no configured model'; return (Complete-CcxRoute $decision $Type $TaskId) }
                     }
-                } catch { $decision.reasons += 'Codex catalog missing or unreadable: retaining default model' }
+                } catch {
+                    $decision.model = $baseModel
+                    $decision.reasons += 'Codex catalog missing or unreadable: retaining default model'
+                }
+                if ($modelLesson.kind -eq 'focused-failure' -and $decision.model -eq $policy.models.codex.default -and $decision.model -ne $baseModel) {
+                    Add-CcxRouteLesson $decision $modelLesson "model $baseModel -> $($decision.model)"
+                }
             }
             'claude' { $decision.model = $policy.models.claude.lead }
             'claude-subagent' { $decision.model = $policy.models.claude.cheap; $decision.subagent = $policy.models.claude.cheapSubagent; $decision.effort = 'agent-defined' }
             default { throw (New-CcxError 'Policy specifies an unsupported routing agent.') }
+        }
+        if ($session) {
+            $capability = Get-CcxRouteLesson $session $task $decision 'capability'
+            $ownership = Get-CcxRouteLesson $session $task $decision 'scope'
+            if ($capability) {
+                $decision.route = 'surface'
+                Add-CcxRouteLesson $decision $capability "required tool $($capability.target) unavailable in this runtime; resolve before dispatch"
+                return (Complete-CcxRoute $decision $Type $TaskId)
+            }
+            if ($ownership -and $delegate) {
+                $decision.strategy.ownership = 'explicit files'
+                Add-CcxRouteLesson $decision $ownership 'delegate explicit files after overlapping edits'
+                if (@($task.owns | Where-Object { $_.EndsWith('/') }).Count) {
+                    $decision.route = 'surface'
+                    return (Complete-CcxRoute $decision $Type $TaskId)
+                }
+            }
         }
         if ($decision.agent -in @('claude','codex')) {
             $ladder = @($policy.effortLadder)
@@ -742,8 +910,13 @@ function Invoke-CcxRoute {
             }
             $decision.effort = $ladder[$index]
             if ($index -gt $baseIndex) { $decision.escalation = @{ from=$efforts.base; to=$decision.effort; reason='failed attempts or ambiguity' } }
-            if ($policy.adaptive.enabled -and -not $decision.escalation) {
-                $stats = @(Get-CcxStats | Where-Object { $_.type -eq $Type -and $_.agent -eq $decision.agent -and $_.effort -eq $decision.effort })
+            if ($session -and -not $IgnoreSessionPreference -and -not $RequestMythos -and $decision.provider -in @($null,'openai')) {
+                $lesson = Get-CcxRoutePreference $session $task $decision
+                Set-CcxLearnedEffort $decision $lesson $policy $efforts $priorFailures -Constrained:($Ambiguous -or $Attempt -gt 1 -or $Class -notin @('routine','normal') -or $Risk -eq $policy.risk.levels[-1])
+            } elseif (-not $session -and $policy.adaptive.enabled -and -not $decision.escalation) {
+                # Keep session outcomes available to stats, but out of project-wide routing decisions.
+                $records = @(Get-CcxTelemetry | Where-Object { -not $_.taskId -or -not $state.tasks[[string]$_.taskId].routeContext })
+                $stats = @(Get-CcxStats -Records $records | Where-Object { $_.type -eq $Type -and $_.agent -eq $decision.agent -and $_.effort -eq $decision.effort })
                 if ($stats.Count) {
                     $sample = $stats[0]
                     $adaptiveStep = [Math]::Min(1, [int]$policy.adaptive.maxStepsPerDecision)
@@ -959,7 +1132,7 @@ function Invoke-CcxCmdTask {
         Write-CcxOutput @($state.tasks.Values | Where-Object { $Parameters.All -or $_.status -ne 'done' } | Sort-Object { $_.id }) $Parameters
         return 0
     }
-    if ($Parameters.Sub -notin @('add','start','update','review','done','budget','escalate')) { throw (New-CcxError 'Usage: task add|start|update|review|escalate|done|budget|show|list' 2) }
+    if ($Parameters.Sub -notin @('add','start','update','review','done','budget','escalate','learn','forget')) { throw (New-CcxError 'Usage: task add|start|update|review|escalate|done|budget|show|list|learn|forget' 2) }
     if ($Parameters.Id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { throw (New-CcxError 'Invalid task Id.' 2) }
     Assert-CcxExactField $Parameters.Id 'Id'
     $result = Invoke-CcxLocked {
@@ -990,6 +1163,19 @@ function Invoke-CcxCmdTask {
             if ($typePolicy.ledger -and -not @($owns | Where-Object { $_.StartsWith($typePolicy.ledger, [StringComparison]::OrdinalIgnoreCase) -and $_.Length -gt $typePolicy.ledger.Length -and $_.EndsWith('/') }).Count) {
                 throw (New-CcxError ('Task must own a project folder under ' + $typePolicy.ledger) 2)
             }
+            if ($Parameters.ContainsKey('Key')) {
+                if ($Parameters.Key -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$' -or $typePolicy.route -eq 'tool') {
+                    throw (New-CcxError 'Key must be a context slug for a model task.' 2)
+                }
+                Assert-CcxExactField $Parameters.Key 'Key'
+                if ($Parameters.Parent) {
+                    $session = Get-CcxTask -State $state -Id $Parameters.Parent
+                    if ($session.parent -or $session.status -in @('done','abandoned')) {
+                        throw (New-CcxError 'Parent must be a non-terminal root task for session learning.' 2)
+                    }
+                    if (-not $Parameters.TaskFile) { throw (New-CcxError 'A delegated session task requires a task file.' 2) }
+                }
+            }
             $now = Get-CcxNow
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
@@ -999,6 +1185,7 @@ function Invoke-CcxCmdTask {
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
                 creditCap=$creditCap
             }
+            if ($Parameters.Key) { $task.routeContext = $Parameters.Key }
             $state.tasks[$task.id] = $task
             return @{task=$task; code=0}
         }
@@ -1008,6 +1195,14 @@ function Invoke-CcxCmdTask {
         $code = 0
         $message = $null
         switch ($Parameters.Sub) {
+            'learn' { Save-CcxRoutingLesson $state $task $Parameters $policy $effectiveClass }
+            'forget' {
+                if ($task.parent) { throw (New-CcxError 'task forget requires the session root Id.' 2) }
+                if ($Parameters.Key) {
+                    if ($Parameters.Key -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$') { throw (New-CcxError 'Key must be a context slug.' 2) }
+                    $task.routingLessons = @($task.routingLessons | Where-Object { $_ -and -not $_.key.StartsWith($Parameters.Key + '/', [StringComparison]::OrdinalIgnoreCase) })
+                } else { $task.Remove('routingLessons') | Out-Null }
+            }
             'start' { Start-CcxTaskInState -State $state -Task $task -Worktree $Parameters.Worktree -Branch $Parameters.Branch }
             'update' {
                 if ($Parameters.Status) {

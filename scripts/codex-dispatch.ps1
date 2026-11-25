@@ -229,10 +229,10 @@ try {
     $state = Get-CcxState
     $codexOut = $state.agents.codex.unavailableUntil -and [DateTime]::Parse($state.agents.codex.unavailableUntil).ToUniversalTime() -gt [DateTime]::UtcNow
     # Always route: retry caps, deferral and ownership refusals apply even with explicit -Effort/-Model.
-    $routeArgs = @{ TaskId = $TaskId; Type = $task.type }
+    $explicit = $PSBoundParameters.ContainsKey('Effort') -or $PSBoundParameters.ContainsKey('Model')
+    $routeArgs = @{ TaskId = $TaskId; Type = $task.type; IgnoreSessionPreference = $explicit }
     if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
     $decision = Invoke-CcxRoute @routeArgs
-    $explicit = $PSBoundParameters.ContainsKey('Effort') -or $PSBoundParameters.ContainsKey('Model')
     # A cloud fallback provider may run while OpenAI Codex is at its usage limit; nothing else may.
     if ($codexOut -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
       $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
@@ -254,9 +254,9 @@ try {
         # Small local models reject Codex's thinking request; the provider sets the effort Codex sends.
         if ($providerPolicy.reasoningEffort) { $codexEffort = $providerPolicy.reasoningEffort }
       }
-      $firstReason = @($decision.reasons | Select-Object -First 1)
-      Write-Output ("Route: $($decision.route) $(if ($providerName) { $providerName + '/' })$Model $Effort" + $(if ($firstReason.Count) { ' - ' + $firstReason[0] } else { '' }))
+      Write-Output "Route: $($decision.route) $(if ($providerName) { $providerName + '/' })$Model $Effort"
     } else { Write-Output 'Route: explicit' }
+    foreach ($reason in $decision.reasons) { Write-Output ('Route reason: ' + (Protect-CcxText $reason)) }
     $requiredApprovals = @()
     if ($Sandbox -eq 'danger-full-access') { $requiredApprovals += 'codex-full-access' }
     if ($Role -eq 'implement' -and @($policy.taskTypes[$task.type].gates) -contains 'paid-action') { $requiredApprovals += 'paid-action' }
@@ -327,6 +327,10 @@ try {
       $task.lastDispatch = @{
         n=$task.dispatches; role=$Role; provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
         escalated=([array]::IndexOf($ladder,$Effort) -gt [array]::IndexOf($ladder,$policy.classes[$class].effort.codex.base))
+      }
+      if ($decision.strategy) {
+        $task.lastDispatch.sessionId = $decision.strategy.sessionId
+        $task.lastDispatch.routingLessons = @($decision.learning | ForEach-Object { $_.id })
       }
       $task.lastDispatch.Clone()
     }

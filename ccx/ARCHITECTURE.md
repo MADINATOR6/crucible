@@ -78,7 +78,7 @@ Push procedure: put the commit in the target (`origin/main 166146b`), so an appr
 
 ## 4. OMNIROUTE routing
 
-`ccx route` is deterministic. The same inputs, policy and telemetry always give the same decision, and it never calls a model or the network.
+`ccx route` makes its decision locally from the task, policy, telemetry, model catalog and available runtimes. It does not call a model. Configured local fallback providers can have a readiness probe.
 
 Routing priority, cheapest reliable route first:
 
@@ -99,10 +99,24 @@ Inputs: task type (see `taskTypes` in the policy), class (routine, normal, compl
 - Gated types (`gates` in the policy, today `media-generate` with `paid-action`): the decision also lists the gates and the task's `creditCap`; the launcher consumes the approvals before dispatch (section 12).
 - Every decision is logged: `state.routingLog` and telemetry.
 
-**Adaptive routing** (bounded by `adaptive` in the policy) reads telemetry for the same type, agent and effort:
+**Adaptive routing** (bounded by `adaptive` in the policy) reads telemetry for the same type, agent and effort. It excludes records from tasks opted into session learning:
 - After at least `minSamples` accepted tasks with a first-try rate of at least 0.9, it steps effort down one level, never below the class minimum.
 - A dispatch failure rate of at least 0.5 steps it up one level, never above the class maximum.
 - It never changes permissions, and never switches agents (`allowAgentSwitch: false`).
+
+**Session-scoped routing lessons** are opt-in per related task family. The root needs no `-Key` unless recording lessons on the root itself. To opt a child in, add it with `-Parent <root-task-id> -Key <context-slug> -TaskFile <path>`. A child registered with only `-Parent` keeps ordinary routing. They persist with the root task across process restarts and apply only when root, key, task type, effective class, risk, and runtime match. The terminal root task stops application. An opted-in session task starts from the policy baseline and uses matching session evidence in place of historical aggregate adaptation. Lessons do not widen ownership, verification, budgets, agent counts, or permission levels.
+
+After observing a meaningful result, record evidence on its source task:
+
+```powershell
+ccx task learn -Id <source-task-id> -Kind <focused-failure|verified-success|ownership-overlap|tool-unavailable|user-correction> -Note '<what was tried>' -Reason '<observed evidence>'
+```
+
+Use `-Target <tool>` for `tool-unavailable` and `-Result <policy-effort>` for `user-correction`. A focused failure must have a finished PARTIAL result or structured failed verification; a verified success must be done. Capture ownership overlaps, unavailable tools, and user corrections manually. Relearn a verified success or failure when new evidence changes it. A user correction takes precedence over observational preferences. Three distinct tasks supporting the same lesson flag it as a candidate for the existing project review process. `ccx task show -Id <root-task-id>` and `ccx status` show lessons and their source tasks. `ccx task forget -Id <root-task-id> -Key <context-slug>` clears one context; omit `-Key` to clear all root lessons.
+
+Lessons guide scoped recommendations. For Codex, the launcher applies a matching learned model and effort only when neither is explicitly supplied; an explicit model or effort retains precedence. A matching unavailable-tool lesson or overly broad delegated ownership can hold that route. Claude routes, model and effort choices, and agent-budget recommendations are advisory to the active Claude runtime; ccx does not launch Claude or automatically spawn agents. Provider and subagent behavior must be checked against the runtime, not inferred from policy metadata.
+
+Example: create a root task without a key, then add two synthetic parser child tasks with `-Parent ROOT -Key parser -TaskFile <path>`. If the first Codex child ends PARTIAL after a failed parser check and evidence identifies unresolved quoting, record that focused failure. The next matching Codex route uses that scoped evidence within policy caps. After a process restart, resume the same root and key to retain the lesson. An unrelated task without that key gets no lesson.
 
 ## 5. Models and effort
 

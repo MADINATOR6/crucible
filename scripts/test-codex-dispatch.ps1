@@ -281,11 +281,11 @@ else if (mode === 'usage') {
   process.stderr.write(usage + '\n');
   process.exit(1);
 }
-else if (mode === 'ready' || mode === 'stray' || mode === 'spaced') {
+else if (mode === 'ready' || mode === 'partial' || mode === 'stray' || mode === 'spaced') {
   fs.writeFileSync(mode === 'stray' ? 'stray.txt' : mode === 'spaced' ? 'a b.txt' : 'owned.txt', 'synthetic change');
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
   event({type:'turn.completed', usage:{input_tokens:200,cached_input_tokens:20,output_tokens:7}});
-  write('Status: READY_FOR_CLAUDE_REVIEW\n');
+  write(mode === 'partial' ? 'Status: PARTIAL\n' : 'Status: READY_FOR_CLAUDE_REVIEW\n');
 }
 else if (mode === 'bold' || mode === 'bold2' || mode === 'concat') {
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
@@ -617,6 +617,90 @@ else {
     Check-Code $r 0
     $args = (Get-Content -LiteralPath $log -Raw | ConvertFrom-Json).args
     Assert ($args -contains 'model_reasoning_effort=high') 'second attempt did not route high'
+  }
+  Ccx-Case 'session lesson changes a resumed related dispatch only' {
+    $policy = Get-Content -LiteralPath $env:CCX_POLICY -Raw | ConvertFrom-Json
+    $policy.models.codex.default = 'gpt-6.2-astra'
+    $policy.classes.normal.codexModel = 'gpt-fast'
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    Write-Utf8File (Join-Path $env:CODEX_HOME 'models_cache.json') '{"models":[{"slug":"gpt-fast"},{"slug":"gpt-6.2-astra"},{"slug":"gpt-6.2-sol"}]}'
+
+    Check-Code (Run-Ccx @('task','add','-Id','ROOT','-Title','Synthetic session','-Type','implement','-Class','normal','-Risk','low','-Owner','claude','-Owns','session-root.txt')) 0
+    New-Task (Join-Path $repo 'source.md')
+    Check-Code (Run-Ccx @('task','add','-Id','SOURCE','-Title','Observed partial task','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','owned.txt,source.md','-TaskFile','source.md','-Parent','ROOT','-Key','routing-demo')) 0
+    $sourceLog = Join-Path $scratch 'lesson-source.json'
+    $sourceRun = Run-Launcher $repo ($common + @('-TaskId','SOURCE')) 'partial' 'fake' $false 25 $sourceLog
+    Check-Code $sourceRun 0
+    Assert ($sourceRun.Stdout -match 'Route: worker gpt-fast medium') 'source dispatch did not use the baseline model and effort'
+    $source = (Read-CcxState).tasks.SOURCE
+    Assert ($source.lastDispatch.status -eq 'PARTIAL' -and $source.lastDispatch.exit -eq 0 -and $source.lastDispatch.endedAt) 'observed partial result was not recorded'
+    $sourceArgs = (Get-Content -LiteralPath $sourceLog -Raw | ConvertFrom-Json).args
+    Assert (($sourceArgs -join '|') -match '\|-m\|gpt-fast\|') 'source model did not reach the child process'
+    Assert ($sourceArgs -contains 'model_reasoning_effort=medium') 'source effort did not reach the child process'
+
+    Check-Code (Run-Ccx @('task','learn','-Id','SOURCE','-Kind','focused-failure','-Note','Focused attempt stopped partial','-Reason','Synthetic Codex report recorded PARTIAL after the focused attempt')) 0
+    $rootRead = Run-Ccx @('task','show','-Id','ROOT','-Json')
+    Check-Code $rootRead 0
+    $rootTask = $rootRead.Stdout | ConvertFrom-Json
+    $lesson = @($rootTask.routingLessons)[0]
+    Assert ($lesson.kind -eq 'focused-failure' -and $lesson.taskId -eq 'SOURCE' -and $lesson.model -eq 'gpt-fast' -and $lesson.effort -eq 'medium') 'session lesson lacks observed dispatch details'
+    Assert ($lesson.evidence -match 'recorded PARTIAL') 'session lesson lacks its supporting evidence'
+
+    Check-Code (Run-Ccx @('task','update','-Id','SOURCE','-Status','abandoned')) 0
+    New-Task (Join-Path $repo 'related.md')
+    Check-Code (Run-Ccx @('task','add','-Id','RELATED','-Title','Related resumed task','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','owned.txt,related.md','-TaskFile','related.md','-Parent','ROOT','-Key','routing-demo')) 0
+    $relatedRoute = Run-Ccx @('route','-TaskId','RELATED','-Json')
+    Check-Code $relatedRoute 0
+    $relatedDecision = $relatedRoute.Stdout | ConvertFrom-Json
+    Assert ($relatedDecision.model -eq 'gpt-6.2-astra' -and $relatedDecision.effort -eq 'high') 'related resumed route ignored the session lesson'
+    Assert ($relatedDecision.learning.Count -eq 1 -and $relatedDecision.learning[0].id -eq $lesson.id) 'related route did not identify the lesson used'
+    Assert ($relatedDecision.strategy.sessionId -eq 'ROOT' -and $relatedDecision.strategy.mode -eq 'delegate' -and $relatedDecision.strategy.lead -eq 'claude') 'resumed route lost its delegation strategy'
+    $relatedLog = Join-Path $scratch 'lesson-related.json'
+    Check-Code (Run-Launcher $repo ($common + @('-TaskId','RELATED')) 'ready' 'fake' $false 25 $relatedLog) 0
+    $relatedArgs = (Get-Content -LiteralPath $relatedLog -Raw | ConvertFrom-Json).args
+    Assert (($relatedArgs -join '|') -match '\|-m\|gpt-6\.2-astra\|') 'learned model did not reach the later child process'
+    Assert ($relatedArgs -contains 'model_reasoning_effort=high') 'learned effort did not reach the later child process'
+
+    Check-Code (Run-Ccx @('verify','-TaskId','RELATED')) 0
+    $doneBeforeReview = Run-Ccx @('task','done','-Id','RELATED')
+    Check-Code $doneBeforeReview 8
+    Assert ($doneBeforeReview.Stdout -match 'cross-model-review') 'required cross-model review was not enforced'
+    $selfReview = Run-Ccx @('task','review','-Id','RELATED','-Result','pass','-By','codex')
+    Check-Code $selfReview 2
+    Assert ($selfReview.Stdout -match 'author cannot review own work') 'author was allowed to approve its own task'
+    Check-Code (Run-Ccx @('task','review','-Id','RELATED','-Result','pass','-By','claude')) 0
+    Check-Code (Run-Ccx @('task','done','-Id','RELATED')) 0
+
+    New-Task (Join-Path $repo 'unrelated.md')
+    Check-Code (Run-Ccx @('task','add','-Id','UNRELATED','-Title','Unrelated task','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','owned.txt,unrelated.md','-TaskFile','unrelated.md','-Parent','ROOT','-Key','different-context')) 0
+    $unrelatedRoute = Run-Ccx @('route','-TaskId','UNRELATED','-Json')
+    Check-Code $unrelatedRoute 0
+    $unrelatedDecision = $unrelatedRoute.Stdout | ConvertFrom-Json
+    Assert ($unrelatedDecision.model -eq 'gpt-fast' -and $unrelatedDecision.effort -eq 'medium' -and $unrelatedDecision.learning.Count -eq 0) 'unrelated context inherited the lesson'
+    $unrelatedLog = Join-Path $scratch 'lesson-unrelated.json'
+    Check-Code (Run-Launcher $repo ($common + @('-TaskId','UNRELATED')) 'ready' 'fake' $false 25 $unrelatedLog) 0
+    $unrelatedArgs = (Get-Content -LiteralPath $unrelatedLog -Raw | ConvertFrom-Json).args
+    Assert (($unrelatedArgs -join '|') -match '\|-m\|gpt-fast\|') 'unrelated model changed in the dispatched child'
+    Assert ($unrelatedArgs -contains 'model_reasoning_effort=medium') 'unrelated effort changed in the dispatched child'
+    Check-Code (Run-Ccx @('task','update','-Id','UNRELATED','-Status','abandoned')) 0
+
+    New-Task (Join-Path $repo 'explicit.md')
+    Check-Code (Run-Ccx @('task','add','-Id','EXPLICIT','-Title','Explicit override','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','owned.txt,explicit.md','-TaskFile','explicit.md','-Parent','ROOT','-Key','routing-demo')) 0
+    $explicitLog = Join-Path $scratch 'lesson-explicit.json'
+    $explicitRun = Run-Launcher $repo ($common + @('-TaskId','EXPLICIT','-Model','gpt-6.2-sol','-Effort','low')) 'ready' 'fake' $false 25 $explicitLog
+    Check-Code $explicitRun 0
+    Assert ($explicitRun.Stdout -match 'Route: explicit') 'explicit route was replaced by session learning'
+    $explicitArgs = (Get-Content -LiteralPath $explicitLog -Raw | ConvertFrom-Json).args
+    Assert (($explicitArgs -join '|') -match '\|-m\|gpt-6\.2-sol\|') 'explicit model did not reach the child process'
+    Assert ($explicitArgs -contains 'model_reasoning_effort=low') 'explicit effort did not reach the child process'
+
+    Check-Code (Run-Ccx @('task','forget','-Id','ROOT')) 0
+    New-Task (Join-Path $repo 'post-forget.md')
+    Check-Code (Run-Ccx @('task','add','-Id','POST-FORGET','-Title','After forget','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','post-forget.md','-TaskFile','post-forget.md','-Parent','ROOT','-Key','routing-demo')) 0
+    $forgotRoute = Run-Ccx @('route','-TaskId','POST-FORGET','-Json')
+    Check-Code $forgotRoute 0
+    $forgotDecision = $forgotRoute.Stdout | ConvertFrom-Json
+    Assert ($forgotDecision.model -eq 'gpt-fast' -and $forgotDecision.effort -eq 'medium' -and $forgotDecision.learning.Count -eq 0) 'forget did not restore baseline routing'
   }
   Ccx-Case 'explicit effort keeps default model' {
     Add-CcxTask
