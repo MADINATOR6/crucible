@@ -713,9 +713,12 @@ try {
     Check-Code (Run-Cli @('task','done','-Id','T1')) 0
   }
   Case 'verify scope names a missing baseline instead of listing unrelated files (CRU-AUDIT-F3b)' {
-    # A task that was activated without task start has no baseline for this checkout. The scope stage
-    # must say so, not list every unrelated dirty file; task start then repairs it and scope passes.
+    # Older registrations had a baselines map with no entry for this checkout.
     Add-Task
+    Add-Task 'T2' 'docs/'
+    Invoke-CcxLocked { param($state)
+      foreach ($id in 'T1','T2') { $state.tasks[$id].baselines = @{} }
+    } | Out-Null
     Write-Utf8File (Join-Path $script:repo 'unrelated-dirty.txt') 'another task owns this'
     Check-Code (Run-Cli @('task','update','-Id','T1','-Status','active')) 0
     Assert (@((Get-TestTask).baselineDirty).Count -eq 0) 'fixture: update should not have taken a baseline'
@@ -727,10 +730,43 @@ try {
     Assert (@((Get-TestTask).baselineDirty) -contains 'unrelated-dirty.txt') 'task start did not baseline the unrelated file'
     Check-Code (Run-Cli @('verify','-TaskId','T1','-Stage','scope')) 0
     # A planned task that was never started gets the same hint.
-    Add-Task 'T2' 'docs/'
     $planned = Run-Cli @('verify','-TaskId','T2','-Stage','scope')
     Check-Code $planned 1
     Assert ($planned.Stdout -match 'ccx task start -Id T2') 'planned task did not get the hint'
+  }
+  Case 'Registration fixes the scope baseline before first dispatch' {
+    Write-Utf8File (Join-Path $repo 'before-add.txt') 'already dirty'
+    Add-Task
+    Assert ((Get-TestTask).status -eq 'planned') 'registration started the task'
+    $scope = @('verify','-TaskId','T1','-Stage','scope')
+    $r = Run-Cli $scope
+    Assert ($r.Code -eq 0 -and $r.Stdout -match 'PASS scope') "pre-add dirt failed direct scope verify: $($r.Stdout) $($r.Stderr)"
+
+    Write-Utf8File (Join-Path $repo 'after-add.txt') 'dirtied before the first start'
+    foreach ($phase in 'planned','started','restarted') {
+      if ($phase -ne 'planned') { Check-Code (Run-Cli @('task','start','-Id','T1')) 0 }
+      $r = Run-Cli $scope
+      Check-Code $r 1
+      $stage = @((Get-TestTask).verification.stages | Where-Object { $_.name -eq 'scope' })
+      Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'FAIL' -and
+        @($stage[0].details).Count -eq 1 -and $stage[0].details[0] -eq 'after-add.txt') "${phase}: expected scope to name only after-add.txt: $($r.Stdout)"
+    }
+    [IO.File]::Delete((Join-Path $repo 'after-add.txt'))
+    $r = Run-Cli $scope
+    Check-Code $r 0
+    Assert ($r.Stdout -match 'PASS scope') 'pre-add dirt failed scope after restart'
+
+  }
+  Case 'Legacy registration without a baselines map names the missing baseline' {
+    Add-Task 'LEGACY' 'docs/'
+    Invoke-CcxLocked { param($state)
+      $state.tasks.LEGACY.Remove('baselines')
+      $state.tasks.LEGACY.baselineDirty = @()
+    } | Out-Null
+    Write-Utf8File (Join-Path $repo 'unrelated.txt') 'unrelated legacy dirt'
+    $legacy = Run-Cli @('verify','-TaskId','LEGACY','-Stage','scope')
+    Check-Code $legacy 1
+    Assert ($legacy.Stdout -match 'ccx task start -Id LEGACY' -and $legacy.Stdout -notmatch 'unrelated\.txt') "missing legacy baseline diagnostic: $($legacy.Stdout)"
   }
   Case 'stale scan ignores the missing worktree of a finished task' {
     # A done or abandoned task keeps its old worktree path; once that folder is removed, every tick

@@ -281,6 +281,16 @@ else if (mode === 'usage') {
   process.stderr.write(usage + '\n');
   process.exit(1);
 }
+else if (mode === 'capacity' || mode === 'http503' || mode === 'ordinary-error' || mode === 'recovered503') {
+  fs.writeFileSync('owned.txt', 'partial synthetic output');
+  const message = mode === 'capacity' ? 'Provider at capacity' : mode === 'ordinary-error' ? 'ordinary provider failure' : 'HTTP 503 Service Unavailable';
+  if (mode === 'http503') { process.stderr.write(message + '\n'); event({type:'error', message:'provider request failed'}); }
+  else event({type:'error', message});
+  if (mode === 'recovered503') event({type:'turn.completed', usage:{input_tokens:10,cached_input_tokens:0,output_tokens:2}});
+  else event({type:'turn.failed', error:{message:mode === 'http503' ? 'provider request failed' : message}});
+  write('Status: PARTIAL\n');
+  if (mode !== 'recovered503') process.exit(1);
+}
 else if (mode === 'ready' || mode === 'partial' || mode === 'stray' || mode === 'spaced') {
   fs.writeFileSync(mode === 'stray' ? 'stray.txt' : mode === 'spaced' ? 'a b.txt' : 'owned.txt', 'synthetic change');
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
@@ -771,6 +781,78 @@ else {
       Assert ($task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'gemini dispatch not recorded'
       Assert ($task.tokens.input -eq 10 -and $task.tokens.output -eq 4) 'gemini tokens not parsed'    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
   }
+  foreach ($mode in @('capacity', 'http503')) {
+    $caseName = if ($mode -eq 'capacity') { 'Terminal capacity and provider 503 preserve output and attempt balance' } else { 'Provider HTTP 503 on stderr preserves output and attempt balance' }
+    Ccx-Case $caseName {
+      Add-CcxTask
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) $mode
+      Check-Code $r 4
+      $state = Read-CcxState
+      Assert ($state.tasks.T1.dispatches -eq 0) "$mode consumed an implementation attempt"
+      Assert (([IO.File]::ReadAllText((Join-Path $repo 'owned.txt'))) -eq 'partial synthetic output') "$mode lost owned partial output"
+      Assert (-not $state.agents.codex.unavailableUntil) "$mode set Codex quota reset"
+      Assert (-not $state.providerLimits) "$mode set provider quota reset"
+      $capturePath = [regex]::Match($r.Stdout, '(?m)Codex exit=\d+; capture=([^\r\n]+)').Groups[1].Value
+      Assert ($capturePath -ne '') "$mode did not report capture path"
+      Assert (Test-Path -LiteralPath ($capturePath + '.report.md')) "$mode lost its report capture"
+    }
+  }
+  Ccx-Case 'Ordinary terminal error spends an attempt' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ordinary-error'
+    Check-Code $r 1
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'ordinary failure did not spend one attempt'
+  }
+  Ccx-Case 'Recovered 503 with completed turn and report is not transient' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'recovered503'
+    Assert ($r.Code -ne 4) 'recovered 503 was treated as terminal transient failure'
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'recovered 503 did not spend one attempt'
+  }
+  Ccx-Case 'Codex limit dispatches the class model through agy' {
+    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+    $expectedModel = $policy.classes.complex.geminiModel
+    Assert ($expectedModel -ne $policy.providers.gemini.model) 'fixture class and provider Gemini models must differ'
+    $policy.providers.gemini.command = 'agy.cmd'
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Complex synthetic task','-Type','implement','-Class','complex','-Risk','low','-Owner','codex','-Owns','owned.txt','-TaskFile','TASK.md')) 0
+    $state = Read-CcxState
+    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    Write-CcxState $state
+    $argLog = Join-Path $scratch 'complex-agy-args.txt'
+    $fakeGemini = Join-Path $fakeDir 'agy.cmd'
+    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`necho {`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`"}`r`n")
+    try {
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 0
+      $args = [IO.File]::ReadAllText($argLog)
+      Assert ($args -match ('"--model" "' + [regex]::Escape($expectedModel) + '"')) "complex fallback did not pass class Gemini model: $args"
+      $task = (Read-CcxState).tasks.T1
+      Assert ($task.owner -eq 'codex' -and $task.lastDispatch.provider -eq 'gemini') 'fallback changed task owner or provider'
+    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
+  }
+  Ccx-Case 'Blocked Gemini fallback defers without invoking agy' {
+    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+    $policy.providers.gemini.command = 'agy.cmd'
+    $policy.providers.'ollama-cloud'.enabled = $false
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    Check-Code (Run-Ccx @('task','add','-Id','T1','-Title','Complex synthetic task','-Type','implement','-Class','complex','-Risk','low','-Owner','codex','-Owns','owned.txt','-TaskFile','TASK.md')) 0
+    $state = Read-CcxState
+    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $state | Add-Member -NotePropertyName providerLimits -NotePropertyValue @{ gemini = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ') } -Force
+    Write-CcxState $state
+    $argLog = Join-Path $scratch 'blocked-agy-args.txt'
+    $fakeGemini = Join-Path $fakeDir 'agy.cmd'
+    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`n")
+    try {
+      $route = Run-Ccx @('route','-TaskId','T1','-Json')
+      Check-Code $route 0
+      Assert (($route.Stdout | ConvertFrom-Json).route -eq 'defer') "blocked Gemini route was not deferred: $($route.Stdout)"
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 4
+      Assert (-not (Test-Path -LiteralPath $argLog)) 'agy ran despite blocked Gemini route'
+    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
+  }
   Ccx-Case 'usage reset recorded' {
     Add-CcxTask
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'usage'
@@ -867,15 +949,15 @@ else {
     Assert ((Read-CcxState).tasks.T1.lastDispatch.status -eq 'NONE') 'malformed status accepted'
   }
   Ccx-Case 'baseline dirty permits pre-existing path' {
-    Add-CcxTask
     Write-Utf8File (Join-Path $repo 'stray.txt') 'existing synthetic edit'
+    Add-CcxTask
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'stray'
     Check-Code $r 0
     Assert ((Read-CcxState).tasks.T1.baselineDirty -contains 'stray.txt') 'baselineDirty was not captured'
   }
   Ccx-Case 'verify run does not consume implementation cap' {
-    Add-CcxTask 'T1' 'owned.txt' 'claude'
     Write-Utf8File (Join-Path $repo 'stray.txt') 'existing synthetic edit'
+    Add-CcxTask 'T1' 'owned.txt' 'claude'
     $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','verify')) 'success'
     Check-Code $r 0
     Assert ((Read-CcxState).tasks.T1.status -eq 'active') 'verify did not start planned task'
