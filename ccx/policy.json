@@ -233,7 +233,7 @@
       { "name": "tests-dispatch", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-codex-dispatch.ps1", "when": ["scripts/codex-dispatch.ps1", "scripts/test-codex-dispatch.ps1", "scripts/ccx-core.ps1", "ccx/policy.json"], "timeoutMinutes": 30 },
       { "name": "tests-mirror", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-sync-mirror.ps1", "when": ["scripts/sync-mirror.ps1", "scripts/test-sync-mirror.ps1"], "timeoutMinutes": 30 },
       { "name": "tests-higgsfield", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-higgsfield.ps1", "when": ["scripts/higgsfield.ps1", "scripts/test-higgsfield.ps1"], "timeoutMinutes": 10 },
-      { "name": "tests-crucible", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-crucible.ps1", "when": ["scripts/crucible.ps1", "scripts/test-crucible.ps1", "scripts/check-sources.mjs", "scripts/ccx-core.ps1", "scripts/codex-dispatch.ps1", "ccx/policy.json", ".obsidian/plugins/crucible/*"], "timeoutMinutes": 15 },
+      { "name": "tests-crucible", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-crucible.ps1", "when": ["scripts/crucible.ps1", "scripts/test-crucible.ps1", "scripts/check-sources.mjs", "scripts/ccx-core.ps1", "scripts/codex-dispatch.ps1", "ccx/policy.json", ".obsidian/plugins/crucible/*"], "timeoutMinutes": 15 },
       { "name": "tests-external-tools", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\test-external-tools.ps1", "when": ["scripts/check-external-tools.ps1", "scripts/test-external-tools.ps1", "AGENTS.md", "CLAUDE.md"], "timeoutMinutes": 15 }
     ],
     "logsMax": 20
