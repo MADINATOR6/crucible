@@ -98,7 +98,7 @@ Exit codes:
 - Codex's own code: 0 means the turn completed, never acceptance.
 - 1: refused, or a launcher failure. The message says why; if Codex ran, inspect the captures and the diff.
 - 3: no report.
-- 4: Codex usage limit. Do non-Codex work. `RESETS:` gives the time when Codex states one; with `-TaskId` it is recorded, and routing defers until then.
+- 4: Codex usage limit. Do non-Codex work. `RESETS:` gives the time when Codex states one; with `-TaskId` it is recorded, and routing defers until then. Also 4: `TRANSIENT PROVIDER FAILURE` (capacity or a provider 5xx in the error that ended the run, with no completed turn, timeout or protected-file change): no attempt is used and no reset is recorded; review the files on disk, then dispatch again.
 - 5: timeout. Codex's process tree was killed.
 - 6: another write dispatch is running.
 - 7: ownership or worktree conflict (`-TaskId`).
