@@ -184,7 +184,9 @@ try {
   . $core
 
   Case 'help, unknown command, JSON, task schema and comma-separated fields' {
-    Check-Code (Run-Cli @('help')) 0
+    $help = Run-Cli @('help')
+    Check-Code $help 0
+    Assert ($help.Stdout.Contains('verify, status, health') -and $help.Stdout.Trim().EndsWith('merge-check.')) 'help omits workflow commands'
     Check-Code (Run-Cli @('not-a-command')) 2
     Add-Task 'T1' 'src/one.txt,src/two.txt'
     $task = Get-TestTask

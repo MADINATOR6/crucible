@@ -23,7 +23,7 @@ try {
     }
     $null = Get-CcxPolicy
     if (-not $Command -or $Command -eq 'help') {
-        Write-CcxOutput 'Usage: ccx.ps1 <command> [sub] [options]. Commands: task, route, gate, approve, deny, event, ack, stats. Use -Json for JSON output.' $parameters
+        Write-CcxOutput 'Usage: ccx.ps1 <command> [sub] [options] [-Json]. Commands: task, route, verify, status, health, gate, approve, deny, event, ack, stats, tick, runtime, memory, worktree, merge-check.' $parameters
         exit 0
     }
     $ops = Join-Path $PSScriptRoot 'ccx-ops.ps1'
