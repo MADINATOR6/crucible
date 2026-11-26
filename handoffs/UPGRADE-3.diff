@@ -1,0 +1,233 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 9a45bdf..7925265 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -123,7 +123,7 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM
+ - **design-expert** (`.claude/agents/design-expert.md`): Claude-only UI/UX review and fixes in `lifting-tracker/src/ui` and `lifting-tracker/styles`.
+ - **video-expert** (`.claude/agents/video-expert.md`): Claude-only reviewer of media output (ffprobe, contact sheets, claude-video-vision); no generation or editing; writes review artifacts only to gitignored `media-out/`.
+ - **generalist** (`.claude/agents/generalist.md`): Claude-only all-round helper for work no specialist fits; hands off to the specialists.
+-- **Gemini (Antigravity / Google AI Studio, lead for its own briefs):** research and source synthesis, creative development, storyboards, native multimodal visual/video analysis and UX review (ccx types `source-research`, `creative`, `ux-review`), and any task whose owner is `gemini`. Runs Google's Antigravity CLI (`agy`, `%USERPROFILE%\.local\agy\bin`) through `codex-dispatch.ps1` on the user's Google AI Pro sign-in. Class-tiered routing (`ccx/policy.json`, `geminiModel`): `gemini-3.8-flash-low` for routine, `gemini-4-neon-medium` for normal, `gemini-4-neon-high` for complex, `gemini-4-neon-xhigh` for critical/exceptional, stepping up the tier suffix on retries (`agy models` also lists non-Gemini slugs such as `claude-opus-5-5-*` and `gpt-oss-120b-medium`, which count against the `gemini` provider quota and board slot when chosen via explicit `-Model`; `gpt-oss-120b-medium` retires 2026-11-30, so do not choose it, and no route or fallback names it). Headless runs use built-in file tools; per-run settings deny shell commands and writes to `agentProtectedPaths` and disable AI-credit purchases. The launcher supplies the starting Git state and Crucible runs permitted follow-up checks. A usage limit is recorded per provider and shown on the board. Gemini is the first fallback while Codex is at its limit. The Gemini app, Google AI Studio and the Antigravity app remain available for interactive and API work.
++- **Gemini (Antigravity / Google AI Studio, lead for its own briefs):** research and source synthesis, creative development, storyboards, native multimodal visual/video analysis and UX review (ccx types `source-research`, `creative`, `ux-review`), and any task whose owner is `gemini`. Runs Google's Antigravity CLI (`agy`, `%USERPROFILE%\.local\agy\bin`) through `codex-dispatch.ps1` on the user's Google AI Pro sign-in. Class-tiered routing (`ccx/policy.json`, `geminiModel`): `gemini-3.8-flash-low` for routine, `gemini-4-neon-medium` for normal, `gemini-4-neon-high` for complex, `gemini-4-neon-xhigh` for critical/exceptional, stepping up the tier suffix on retries (`agy models` also lists non-Gemini slugs such as `claude-opus-5-5-*` and `gpt-oss-120b-medium`, which count against the `gemini` provider quota and board slot when chosen via explicit `-Model`; `gpt-oss-120b-medium` retires 2026-11-30, so do not choose it, and no route or fallback names it). Gemini works alongside Claude and Codex with the same access model (user decision 2026-11-26, UPGRADE-3): its shell runs inside Antigravity's terminal sandbox (read-only and offline on Windows, like Codex's read-only sandbox: Git, search and reading work, tests that write do not), it edits files with file tools, and it may write any path its ccx task owns, the launcher stack included; writes to other `agentProtectedPaths` are denied (absolute paths) and an after-run hash check flags them (exit 9). Turbo, like Codex full access: `-Sandbox danger-full-access` runs agy with `--dangerously-skip-permissions` and no sandbox, so it can run tests and builds, behind the same per-dispatch `codex-full-access` approval. AI-credit purchases stay off. Obsidian briefs still cannot own the launcher stack. The launcher supplies the starting Git state and Crucible runs permitted follow-up checks. A usage limit is recorded per provider and shown on the board. Gemini is the first fallback while Codex is at its limit. The Gemini app, Google AI Studio and the Antigravity app remain available for interactive and API work.
+ - **Owner wins:** a brief's `owner:` (Obsidian or `ccx task add -Owner`) decides who leads; the roles above are defaults. `ccx task update -Owner <agent>` is a user handoff (no escalation cap; the new owner gets its own attempts). Headless Claude (`claude -p`, acceptEdits) runs only for a claude-owned task launched through the launcher; interactive Claude sessions are unchanged.
+ - **Obsidian:** the user's workspace. Briefs, answers and owner switches are written there; ccx state stays the record and `Status/` shows it. Agents write deliverables and reports, never `Status/`.
+ - Claude Code, Codex or Gemini may do trivial tasks directly. Never have two agents solve the same problem.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index bf6b071..a5ac049 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -10,7 +10,7 @@ Since 2026-11-01 Codex plans and Claude implements code tasks (AGENTS.md Roles;
+ 
+ Obsidian and Gemini (2026-11-25): the user starts work from `Start Here.md` in Obsidian; a brief's `owner:` (gemini, claude, codex or auto) decides who leads and overrides the Codex-plans/Claude-implements default (AGENTS.md Roles). Gemini runs through the Antigravity CLI (`agy`) on the user's Google AI Pro plan, as Codex runs on the ChatGPT plan; Gemini CLI with the free API key is no longer the route (Google refuses AI Pro sign-in there). Do not hand-edit `Status/`; rebuild it with `scripts\crucible.ps1 board` (briefs and approvals in `Status/Board.md`, other ccx tasks and notices in `Status/Terminal.md`). When a run ends at exit 4 (any agent's usage limit), its outputs are kept and the board shows the reset; ask the user before switching owner. Exit 4 with `TRANSIENT PROVIDER FAILURE` (capacity or a 5xx that ended the run) uses no attempt and records no reset. HANDOFF.md, Briefs from Obsidian, is the contract for every owner. For a blind Antigravity review, `scripts\crucible.ps1 review-pack -TaskId <id> -Base <commit>` writes `handoffs/<id>-review.md` with `Reference/Review checklist.md`; it calls no model.
+ 
+-Headless Antigravity (2026-11-26) uses built-in file tools with shell commands denied, making Crucible a three-agent workflow (Claude + Codex + Gemini via Antigravity / Google AI Studio). `ccx route` selects class-tiered Antigravity models (`gemini-3.8-flash-low` routine, `gemini-4-neon-medium` normal, `gemini-4-neon-high` complex, `gemini-4-neon-xhigh` critical/exceptional) and steps up the model tier suffix on retries; explicit `-Model` can also target other slugs in `agy models` (noting they still bill/log under the `gemini` provider; `gpt-oss-120b-medium` retires 2026-11-30, do not choose it). While Codex is at its usage limit, Codex-owned work falls back to the `gemini` provider with the same class-tier model; the owner does not change. Every `task add` records the checkout's dirty files as the baseline, so a task you never dispatch still verifies cleanly. The launcher supplies the starting Git state and Crucible runs permitted follow-up checks. See AGENTS.md Commands for the installed `agy.exe` path and version check.
++Headless Antigravity (2026-11-26) works with Codex-level access (UPGRADE-3: a sandboxed read-only shell, writes to any path its task owns, turbo via `-Sandbox danger-full-access` under the `codex-full-access` approval; AGENTS.md Roles), making Crucible a three-agent workflow (Claude + Codex + Gemini via Antigravity / Google AI Studio). `ccx route` selects class-tiered Antigravity models (`gemini-3.8-flash-low` routine, `gemini-4-neon-medium` normal, `gemini-4-neon-high` complex, `gemini-4-neon-xhigh` critical/exceptional) and steps up the model tier suffix on retries; explicit `-Model` can also target other slugs in `agy models` (noting they still bill/log under the `gemini` provider; `gpt-oss-120b-medium` retires 2026-11-30, do not choose it). While Codex is at its usage limit, Codex-owned work falls back to the `gemini` provider with the same class-tier model; the owner does not change. Every `task add` records the checkout's dirty files as the baseline, so a task you never dispatch still verifies cleanly. The launcher supplies the starting Git state and Crucible runs permitted follow-up checks. See AGENTS.md Commands for the installed `agy.exe` path and version check.
+ 
+ Codex models (2026-11-24): gpt-6.2-sol and gpt-6.2-astra need Codex CLI 0.172.0 or later (0.160.0 rejected both for a ChatGPT account). With `-TaskId`, let ccx pick model and effort by class (AGENTS.md, Effort); pass `-Model` and `-Effort` only as an intentional override, and then always both, since `-Effort` alone turns the route to the CLI default model (FRICTION.md, 2026-11-23).
+ 
+diff --git a/HANDOFF.md b/HANDOFF.md
+index e400ce3..8c8d8f7 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -86,6 +86,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\codex-dispatch.ps1
+ 
+ Options:
+ - `-Role verify` or `-Role research`: read-only sandbox unless `-Sandbox` is given; research needs `-TaskFile`. The read-only sandbox writes nowhere (not `%TEMP%`, not the worktree), so a verifier in it cannot run the PowerShell suites (`scripts/test-*.ps1` create scratch folders under `%TEMP%`). To have it run them, add `-Sandbox workspace-write`: the run takes the writer lock, and the launcher compares the working tree before and after, failing with exit 9 and `NO-EDIT VIOLATION` if anything changed. Never `danger-full-access` for this.
++- `-Sandbox danger-full-access` on a Gemini (agy) run is turbo: `--dangerously-skip-permissions`, no terminal sandbox, so it can run tests; it needs the same `codex-full-access` approval as Codex.
+ - `-TaskFile <path>` for a brief other than TASK.md.
+ - `-TaskId <id>` ties the run to ccx. It checks ownership, worktree, budget, recorded usage limits and the retry cap. OMNIROUTE picks the model and effort unless `-Model` or `-Effort` is given. Full access needs an approval. After the run it records tokens, status, post-checks and telemetry.
+ - `-Model <slug>` and `-Effort low|medium|high|xhigh|max` for runs outside ccx, or to override the route's model and effort. With `-TaskId`, caps, deferral and ownership still apply. For visual reasoning, screen-based work or a scoped code fix, select `-Model gpt-6.1-terra` with an explicit `-Effort` appropriate to the task; keep its normal permissions and verification. Automatic routes remain policy-driven.
+@@ -178,7 +179,7 @@ READY_FOR_CLAUDE_REVIEW means implementation and Codex-owned checks are done; it
+ 
+ A brief launched from Obsidian (`scripts/crucible.ps1 launch`, `Start Here.md`) is a task file with frontmatter. Gemini, headless Claude and Codex all follow the Implementer instruction above for it, with these meanings:
+ - `owns:` is the write allowlist. `checks:` names permitted checks (`ccx/policy.json`, `checks`): run them yourself where your runtime allows; the launcher reruns them after you and records the result as evidence either way.
+-- Headless Gemini uses built-in file tools. Use the starting Git state supplied by the launcher, inspect existing owned outputs with file tools, and report shell checks as NOT RUN. Crucible runs permitted follow-up checks after the agent returns.
++- Headless Gemini edits with file tools; its shell runs in Antigravity's sandbox (read-only, offline), so use it for Git, search and reading, and report checks that must write (tests, builds) as NOT RUN unless the run is turbo (`-Sandbox danger-full-access`, approved per dispatch), where it may run them. Use the starting Git state supplied by the launcher and inspect existing owned outputs before editing. Crucible runs permitted follow-up checks after the agent returns.
+ - `## Answers` holds the user's replies to an earlier BLOCKED report. Read the previous report (the brief's Status, Latest report) and the existing outputs first, and continue from them (step 8).
+ - Research and synthesis quote their sources: one line per finding, `> "exact passage" — [file](relative/path)`; `node scripts/check-sources.mjs <file>` must pass. Wrap a path with spaces in angle brackets, `[Start Here](<../Start Here.md>)`, so Obsidian renders the link. Visual findings give the frame or timestamp; software claims give a command that reproduces them.
+ - End the report with `Next owner: <gemini|codex|claude|user> - <what they do next>` when someone else should continue. The user switches owner in the brief and launches again; the next agent reads the same brief, report and outputs, so write nothing that only lives in the chat.
+diff --git a/scripts/codex-dispatch.ps1 b/scripts/codex-dispatch.ps1
+index f62ff91..f641818 100644
+--- a/scripts/codex-dispatch.ps1
++++ b/scripts/codex-dispatch.ps1
+@@ -378,6 +378,10 @@ try {
+   # the task owns anything under a protected path such as scripts/ (the checker itself).
+   $checkPrefixes = @(); $protectedPaths = @($policy.agentProtectedPaths | Where-Object { $_ })
+   $ownsProtected = $TaskId -and @($task.owns | Where-Object { $o = $_; @($protectedPaths | Where-Object { Test-CcxPathOverlap $o $_ }).Count }).Count
++  # Owned-path parity with Codex (UPGRADE-3): a protected path the task owns, or a protected folder holding
++  # one, is writable; the after-run hash check still flags every other protected change.
++  $taskOwns = if ($TaskId) { @($task.owns) } else { @() }
++  $deniedPaths = @($protectedPaths | Where-Object { $p = $_; -not @($taskOwns | Where-Object { Test-CcxPathOverlap $_ $p }).Count })
+   if ($TaskId -and $Sandbox -ne 'read-only' -and $policy.ContainsKey('checks') -and -not $ownsProtected) {
+     foreach ($entry in @($policy.checks.Values | Where-Object { $_ -is [Collections.IDictionary] -and $_.run -and $_.agentSafe -eq $true })) {
+       if ([string]$entry.run -notmatch '^[A-Za-z0-9 ._/:=-]{1,120}$') { throw 'Policy checks.<name>.run must be a plain command prefix.' }
+@@ -403,7 +407,7 @@ try {
+     if ($Sandbox -ne 'read-only') {
+       $rules = @($checkPrefixes | ForEach-Object { "[[rule]]`ntoolName = `"run_shell_command`"`ncommandPrefix = `"$_`"`ndecision = `"allow`"`npriority = 100`n" })
+       # Never let the unsandboxed agent rewrite the launcher stack that later runs on this machine.
+-      foreach ($path in $protectedPaths) {
++      foreach ($path in $deniedPaths) {
+         # Windows paths ignore case and Gemini's policy engine uses JavaScript regex (no inline (?i)): [sS][cC]...
+         $caseless = -join @($path.TrimEnd('/').ToCharArray() | ForEach-Object {
+           if ([char]::IsLetter($_)) { '[' + [char]::ToLowerInvariant($_) + [char]::ToUpperInvariant($_) + ']' } else { [regex]::Escape([string]$_) } })
+@@ -422,17 +426,30 @@ try {
+     if (-not $head -or $null -eq $status) { throw 'Cannot capture the starting Git state for Antigravity.' }
+     # Keep unrelated filenames out of the cloud prompt and cmd.exe arguments.
+     $startingChanges = @($status -split '\r?\n' | Where-Object { $_ }).Count
+-    $prompt = "Use built-in file tools only. Do not call the shell, including for Git, file checks, app tests, or source verification. The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs with file tools before editing. Report checks requiring the shell as NOT RUN and leave final Git status to the launcher operator. $prompt"
+-    # write_file is the permission action for workspace edits, including replacements.
+-    $deny = @('command(*)') + @(foreach ($path in $protectedPaths) { "write_file($path)" })
+-    $settings = @{ useG1Credits = $false; enableTerminalSandbox = $true; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
+-      permissions = @{ allow = @(); deny = $deny } }
++    # Turbo (UPGRADE-3): -Sandbox danger-full-access, behind the same codex-full-access approval as Codex.
++    $turbo = $Sandbox -eq 'danger-full-access'
++    $shellNote = if ($turbo) {
++      'You have full access (no sandbox): you may run the task''s tests and builds with the shell. Never commit, push, install software or change settings.'
++    } else {
++      'Your shell runs in Antigravity''s sandbox: read-only and offline. Use it for Git, search and reading; make edits with file tools. Commands that must write (tests, builds) fail there: report them as NOT RUN.'
++    }
++    $prompt = "$shellNote The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs before editing. Leave final Git status to the launcher operator. $prompt"
++    # write_file is the permission action for workspace edits, including replacements. The terminal sandbox
++    # rejects relative paths ("non-absolute file path"), so every deny is absolute under this checkout.
++    $deny = @(foreach ($path in $deniedPaths) {
++      $full = [IO.Path]::GetFullPath((Join-Path $root $path.TrimEnd('/')))
++      "write_file($full$(if ($path.EndsWith('/')) { [IO.Path]::DirectorySeparatorChar }))"
++    })
++    # Turbo drops only the terminal sandbox (tests must write); file tools stay inside the workspace either way.
++    $settings = @{ useG1Credits = $false; enableTerminalSandbox = -not $turbo; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
++      permissions = @{ allow = @('command(*)'); deny = $deny } }
+     [IO.File]::WriteAllText($base + '.settings.json', (ConvertTo-Json $settings -Depth 5), $utf8)
+     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'accept-edits' }
+     $agyModel = if ($Model -and $Model -ne 'auto') { @('--model', $Model) } else { @() }
+     # agy rejects --effort when the model slug already carries a tier suffix (e.g. gemini-4-neon-medium).
+     $agyEffort = if ($Effort -in @('low','medium','high','xhigh','max') -and (-not $Model -or $Model -eq 'auto' -or $Model -notmatch '-(low|medium|high|xhigh|max)$')) { @('--effort', $Effort) } else { @() }
+-    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, '--sandbox', '--disable-slash-commands',
++    $sandboxFlag = if ($turbo) { '--dangerously-skip-permissions' } else { '--sandbox' }
++    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, $sandboxFlag, '--disable-slash-commands',
+       '--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel + $agyEffort
+   } elseif ($isClaude) {
+     $claude = Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+@@ -440,7 +457,7 @@ try {
+     if ($claude.Source -match '[%"]') { throw 'Claude CLI path must not contain % or double quotes.' }
+     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'acceptEdits' }
+     $allowed = @($agentShell | ForEach-Object { '--allowedTools'; "Bash($_`:*)" })
+-    foreach ($path in $protectedPaths) { $allowed += @('--disallowedTools', "Edit($(if ($path.EndsWith('/')) { $path + '**' } else { $path }))") }
++    foreach ($path in $deniedPaths) { $allowed += @('--disallowedTools', "Edit($(if ($path.EndsWith('/')) { $path + '**' } else { $path }))") }
+     $arguments = @($claude.Source, '-p', $prompt, '--output-format', 'json', '--permission-mode', $mode) + $(if ($Model) { @('--model', $Model) } else { @() }) + $allowed
+   } else {
+     $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
+@@ -558,7 +575,9 @@ try {
+   foreach ($path in $briefsChanged) { Write-Output "BRIEF CHANGED DURING RUN: $path (by you or the agent; check it)" }
+   $protectedChanged = @()
+   if ($protectedBefore) {
+-    $protectedChanged = @(Compare-CcxProtectedHashes $protectedBefore (Get-CcxProtectedHashes -Root $root -Policy $policy))
++    # Owned protected paths are the task's own work (UPGRADE-3); every other protected change is tampering.
++    $protectedChanged = @(Compare-CcxProtectedHashes $protectedBefore (Get-CcxProtectedHashes -Root $root -Policy $policy) |
++      Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $taskOwns) })
+     foreach ($path in $protectedChanged) { Write-Output "PROTECTED FILE CHANGED DURING RUN: $path (review and undo before running anything)" }
+   }
+   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
+diff --git a/scripts/crucible.ps1 b/scripts/crucible.ps1
+index f89281d..82a9e1f 100644
+--- a/scripts/crucible.ps1
++++ b/scripts/crucible.ps1
+@@ -289,7 +289,8 @@ function Invoke-Run {
+     Add-Content -LiteralPath $log -Value "`n=== dispatch exit $exit ===" -Encoding utf8
+     $task = Get-CcxTask -Id $Id
+     $protectedAfter = Get-ProtectedHashes
+-    $tampered = @(Compare-CcxProtectedHashes $protectedBefore $protectedAfter)
++    # A protected path the task owns is its own work (UPGRADE-3); briefs cannot own one (Test-Brief), ccx tasks can.
++    $tampered = @(Compare-CcxProtectedHashes $protectedBefore $protectedAfter | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns @($task.owns)) })
+     foreach ($path in $tampered) { Add-Content -LiteralPath $log -Value "PROTECTED FILE CHANGED DURING RUN: $path" -Encoding utf8 }
+     $results = @()
+     $policyNow = Get-CcxPolicy
+diff --git a/scripts/test-codex-dispatch.ps1 b/scripts/test-codex-dispatch.ps1
+index deabe30..3a924c5 100644
+--- a/scripts/test-codex-dispatch.ps1
++++ b/scripts/test-codex-dispatch.ps1
+@@ -836,6 +836,58 @@ else {
+     Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') 'timeout reported as transient'
+     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'timeout after a 503 refunded the attempt'
+   }
++  # UPGRADE-3: Gemini gets Codex-level access. Each case writes its own fake agy.cmd.
++  $agySuccess = "echo {`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`"}"
++  function Use-FakeAgy([string]$Body) {
++    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
++    $policy.providers.gemini.command = 'agy.cmd'
++    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
++    $script:agyArgLog = Join-Path $scratch ('agy-args-' + [guid]::NewGuid().ToString('N').Substring(0, 6) + '.txt')
++    Write-Utf8File (Join-Path $fakeDir 'agy.cmd') ("@echo off`r`necho %*>`"$script:agyArgLog`"`r`n$Body`r`n$agySuccess`r`n")
++  }
++  function Get-AgySettings { Get-ChildItem $captures -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json } }
++  Ccx-Case 'Gemini runs get a sandboxed shell, absolute denies and their owned launcher paths' {
++    Use-FakeAgy "if not exist scripts mkdir scripts`r`necho owned> scripts\owned-tool.ps1"
++    try {
++      Add-CcxTask 'T1' 'owned.txt,scripts/owned-tool.ps1' 'gemini'
++      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
++      Check-Code $r 0
++      Assert ($r.Stdout -notmatch 'PROTECTED FILE CHANGED') 'owned launcher file flagged as tampering'
++      $args = [IO.File]::ReadAllText($script:agyArgLog)
++      Assert ($args -match '"--sandbox"' -and $args -notmatch 'dangerously' -and $args -match 'read-only and offline') "normal agy run lost its sandbox: $args"
++      $s = Get-AgySettings
++      $denies = @($s.permissions.deny | ForEach-Object { $_ -replace '^write_file\((.*)\)$', '$1' })
++      Assert (@($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny) -notcontains 'command(*)' -and $s.enableTerminalSandbox -eq $true) 'shell not allowed inside the sandbox'
++      Assert ($denies.Count -gt 0 -and -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted($_) }).Count) "deny paths not absolute: $($denies -join '; ')"
++      Assert (-not @($denies | Where-Object { $_ -match '[\\/]scripts[\\/]?$' }).Count -and @($denies | Where-Object { $_ -match '[\\/]\.obsidian[\\/]$' }).Count) "owned scripts/ still denied or .obsidian/ not denied: $($denies -join '; ')"
++    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
++  }
++  Ccx-Case 'an unowned launcher change from Gemini is still flagged' {
++    Use-FakeAgy "if not exist .obsidian\plugins mkdir .obsidian\plugins`r`necho planted> .obsidian\plugins\planted.js"
++    try {
++      Add-CcxTask 'T1' 'owned.txt' 'gemini'
++      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
++      Check-Code $r 9
++      Assert ($r.Stdout -match 'PROTECTED FILE CHANGED DURING RUN: \.obsidian/plugins/planted\.js') 'unowned protected change not flagged'
++    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
++  }
++  Ccx-Case 'Gemini turbo needs the full-access approval and drops the sandbox' {
++    Use-FakeAgy ''
++    try {
++      Add-CcxTask 'T1' 'owned.txt' 'gemini'
++      $turboArgs = $common + @('-TaskId','T1','-Sandbox','danger-full-access')
++      Check-Code (Run-Launcher $repo $turboArgs 'ready') 10
++      Assert (-not (Test-Path -LiteralPath $script:agyArgLog)) 'agy ran in turbo without approval'
++      $pending = @((Read-CcxState).approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'codex-full-access' -and $_.status -eq 'pending' })
++      Assert ($pending.Count -eq 1) 'turbo approval not requested'
++      Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic Gemini turbo dispatch')) 0
++      Check-Code (Run-Launcher $repo $turboArgs 'ready') 0
++      $args = [IO.File]::ReadAllText($script:agyArgLog)
++      Assert ($args -match '"--dangerously-skip-permissions"' -and $args -notmatch '"--sandbox"' -and $args -match 'full access') "turbo flags wrong: $args"
++      $s = Get-AgySettings
++      Assert ($s.enableTerminalSandbox -eq $false -and $s.useG1Credits -eq $false -and @($s.permissions.allow) -contains 'command(*)') 'turbo settings wrong'
++    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
++  }
+   Ccx-Case 'Codex limit dispatches the class model through agy' {
+     $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+     $expectedModel = $policy.classes.complex.geminiModel
+diff --git a/scripts/test-crucible.ps1 b/scripts/test-crucible.ps1
+index d2bfa3a..05dcb11 100644
+--- a/scripts/test-crucible.ps1
++++ b/scripts/test-crucible.ps1
+@@ -167,8 +167,9 @@ if (kind === 'agy') {
+     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Select-Object -First 1
+     $settingsText = Get-Content $settings.FullName -Raw
+     $agySettings = $settingsText | ConvertFrom-Json
+-    Assert ($agySettings.useG1Credits -eq $false -and $agySettings.permissions.allow.Count -eq 0 -and $agySettings.permissions.deny -contains 'command(*)') 'agy must deny shell commands and disable credit purchases'
+-    Assert ($args -match 'Use built-in file tools only.*start HEAD [0-9a-f]+ and initial git status') "shell-free prompt or Git baseline missing: $args"
++    # UPGRADE-3 (user decision 2026-11-26): the shell is allowed inside agy's read-only sandbox; credit purchases stay off.
++    Assert ($agySettings.useG1Credits -eq $false -and @($agySettings.permissions.allow) -contains 'command(*)' -and $agySettings.enableTerminalSandbox -eq $true) 'agy must keep its sandbox, allow the sandboxed shell and disable credit purchases'
++    Assert ($args -match 'read-only and offline.*start HEAD [0-9a-f]+ and initial git status') "sandboxed-shell prompt or Git baseline missing: $args"
+     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/G1.md'), $utf8)
+     Assert ($status -match 'node scripts/check-sources.mjs "Reference/out.md"`: \*\*PASS\*\*') "check evidence missing: $status"
+     Assert ($status -match '\(current\)' -and $status -match '\[\[Reference/out.md\]\]' -and $status -match 'Agent suggests next: codex') 'status note incomplete'
+@@ -276,7 +277,10 @@ if (kind === 'agy') {
+     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1
+     $text = Get-Content $settings.FullName -Raw
+     Assert ($text -notmatch 'command\([^)]*(playwright|node --test)') 'code-executing check offered to Gemini'
+-    Assert ($text -match 'write_file\(\.obsidian/\)' -and $text -match 'write_file\(scripts/\)' -and $text -notmatch 'edit_file') 'launcher stack not write-protected with valid agy actions'
++    # Deny paths are absolute since UPGRADE-3 (agy's sandbox rejects relative ones).
++    $denies = @(($text | ConvertFrom-Json).permissions.deny)
++    Assert (@($denies | Where-Object { $_ -match '^write_file\(.*[\\/]\.obsidian[\\/]\)$' }).Count -and @($denies | Where-Object { $_ -match '^write_file\(.*[\\/]scripts[\\/]\)$' }).Count -and
++      -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted(($_ -replace '^write_file\((.*)\)$', '$1')) }).Count -and $text -notmatch 'edit_file') "launcher stack not write-protected with absolute agy paths: $($denies -join '; ')"
+     $claudeArgs = Get-Content (Join-Path $scratch 'claude-args.log') -Raw
+     Assert ($claudeArgs -match 'Edit\(\.obsidian/\*\*\)' -and $claudeArgs -match 'Edit\(scripts/\*\*\)') "launcher stack not write-protected for Claude: $claudeArgs"
+   }
