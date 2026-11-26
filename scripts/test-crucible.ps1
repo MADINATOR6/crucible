@@ -167,8 +167,9 @@ if (kind === 'agy') {
     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Select-Object -First 1
     $settingsText = Get-Content $settings.FullName -Raw
     $agySettings = $settingsText | ConvertFrom-Json
-    Assert ($agySettings.useG1Credits -eq $false -and $agySettings.permissions.allow.Count -eq 0 -and $agySettings.permissions.deny -contains 'command(*)') 'agy must deny shell commands and disable credit purchases'
-    Assert ($args -match 'Use built-in file tools only.*start HEAD [0-9a-f]+ and initial git status') "shell-free prompt or Git baseline missing: $args"
+    # UPGRADE-3 (user decision 2026-11-26): the shell is allowed inside agy's read-only sandbox; credit purchases stay off.
+    Assert ($agySettings.useG1Credits -eq $false -and @($agySettings.permissions.allow) -contains 'command(*)' -and $agySettings.enableTerminalSandbox -eq $true) 'agy must keep its sandbox, allow the sandboxed shell and disable credit purchases'
+    Assert ($args -match 'read-only and offline.*start HEAD [0-9a-f]+ and initial git status') "sandboxed-shell prompt or Git baseline missing: $args"
     $status = [IO.File]::ReadAllText((Join-Path $repo 'Status/G1.md'), $utf8)
     Assert ($status -match 'node scripts/check-sources.mjs "Reference/out.md"`: \*\*PASS\*\*') "check evidence missing: $status"
     Assert ($status -match '\(current\)' -and $status -match '\[\[Reference/out.md\]\]' -and $status -match 'Agent suggests next: codex') 'status note incomplete'
@@ -276,7 +277,10 @@ if (kind === 'agy') {
     $settings = Get-ChildItem (Join-Path $scratch 'codex-captures') -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1
     $text = Get-Content $settings.FullName -Raw
     Assert ($text -notmatch 'command\([^)]*(playwright|node --test)') 'code-executing check offered to Gemini'
-    Assert ($text -match 'write_file\(\.obsidian/\)' -and $text -match 'write_file\(scripts/\)' -and $text -notmatch 'edit_file') 'launcher stack not write-protected with valid agy actions'
+    # Deny paths are absolute since UPGRADE-3 (agy's sandbox rejects relative ones).
+    $denies = @(($text | ConvertFrom-Json).permissions.deny)
+    Assert (@($denies | Where-Object { $_ -match '^write_file\(.*[\\/]\.obsidian[\\/]\)$' }).Count -and @($denies | Where-Object { $_ -match '^write_file\(.*[\\/]scripts[\\/]\)$' }).Count -and
+      -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted(($_ -replace '^write_file\((.*)\)$', '$1')) }).Count -and $text -notmatch 'edit_file') "launcher stack not write-protected with absolute agy paths: $($denies -join '; ')"
     $claudeArgs = Get-Content (Join-Path $scratch 'claude-args.log') -Raw
     Assert ($claudeArgs -match 'Edit\(\.obsidian/\*\*\)' -and $claudeArgs -match 'Edit\(scripts/\*\*\)') "launcher stack not write-protected for Claude: $claudeArgs"
   }
@@ -288,6 +292,18 @@ if (kind === 'agy') {
     New-Brief 'S2' 'gemini' 'creative' 'Reference/a%PATH%b.md'
     $r = Crucible @('launch', '-Note', 'tasks/S2.md')
     Assert ($r.Code -eq 2 -and $r.Out -match 'cmd.exe would interpret') "cmd metacharacter accepted: $($r.Out)"
+    # Gemini review of UPGRADE-3: a backslash path, a comma-smuggled scalar, and a terminal task that owns the launcher.
+    New-Brief 'S3' 'gemini' 'creative' 'scripts\crucible.ps1'
+    $r = Crucible @('launch', '-Note', 'tasks/S3.md')
+    Assert ($r.Code -eq 2 -and $r.Out -match 'launcher stack') "backslash launcher path accepted: $($r.Out)"
+    Write-File (Join-Path $repo 'tasks/S4.md') "---`ncrucible: brief`nid: S4`nowner: gemini`ntype: creative`nowns: Reference/s4.md,scripts/`n---`n# S4`n`n## Status`n![[Status/S4]]`n"
+    $r = Crucible @('launch', '-Note', 'tasks/S4.md')
+    Assert ($r.Code -eq 2 -and $r.Out -match 'comma') "comma-smuggled owns accepted: $($r.Out)"
+    Assert (-not (State).tasks.S4) 'comma-smuggled brief was registered'
+    Assert ((Ccx @('task', 'add', '-Id', 'S5', '-Title', 'Terminal launcher task', '-Type', 'implement', '-Class', 'normal', '-Risk', 'low', '-Owner', 'gemini', '-Owns', 'scripts/', '-TaskFile', 'tasks/S5.md')).Code -eq 0) 'could not register the terminal task'
+    New-Brief 'S5' 'gemini' 'creative' 'Reference/s5.md'
+    $r = Crucible @('launch', '-Note', 'tasks/S5.md')
+    Assert ($r.Code -ne 0 -and $r.Out -match 'launcher stack') "brief inherited a terminal task's launcher ownership: $($r.Out)"
   }
 
   Case 'checks come from the launch, and code-executing checks never run on code the agent wrote' {

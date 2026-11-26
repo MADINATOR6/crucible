@@ -94,13 +94,16 @@ function Test-Brief($Brief, $Policy) {
   $fm.owns = @($fm.owns | Where-Object { $_ })
   if (-not $fm.owns.Count) { Fail 'owns: list the files or folders this task may change (the deliverable).' }
   foreach ($path in $fm.owns) {
-    $null = ConvertTo-CcxOwnedPath $path -Policy $Policy
+    # ccx splits owns on commas (task add), so one brief entry must be one path (UPGRADE-3 review 1b).
+    if ($path -match ',') { Fail "owns path '$path' has a comma; list each file or folder as its own entry." }
+    # Check the launcher overlap on the normalized path ccx will store: 'scripts\ccx.ps1' is scripts/ccx.ps1 (review 1a).
+    $normalized = ConvertTo-CcxOwnedPath $path -Policy $Policy
     # Owned paths reach a cmd.exe command line as check arguments: no cmd metacharacters.
     if ($path -match '[%^&!()<>|`]') { Fail "owns path '$path' has a character cmd.exe would interpret (% ^ & ! ( ) < > | backtick)." }
     # ...nor YAML flow or comment syntax: the brief stores owns as an inline [list], which these would break.
     if ($path -match "[#\[\]{}'`"\u0085  ]" -or $path -match '^[@&*!|>?:-]') { Fail "owns path '$path' has a character YAML would misread (# [ ] { } quotes, or a leading @ & * ! | > ? : -). Rename the file or folder." }
     foreach ($protected in @($Policy.agentProtectedPaths)) {
-      if (Test-CcxPathOverlap $path $protected) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
+      if ((Test-CcxPathOverlap $path $protected) -or (Test-CcxPathOverlap $normalized $protected)) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
     }
   }
   $fm.checks = @($fm.checks | Where-Object { $_ })
@@ -226,6 +229,12 @@ function Invoke-Launch {
       if ($add.code -ne 0) { Fail "ccx task add refused: $($add.out)" 1 }
     } else {
       if ($task.taskFile -and $task.taskFile -ne $brief.rel) { Fail "ccx task $taskId belongs to $($task.taskFile); give this brief another id." }
+      # A brief never inherits a terminal task's launcher-stack ownership (UPGRADE-3 review 1c).
+      foreach ($owned in @($task.owns)) {
+        foreach ($protected in @($policy.agentProtectedPaths)) {
+          if (Test-CcxPathOverlap $owned $protected) { Fail "ccx task $taskId owns $owned (launcher stack); a brief cannot run it. Give this brief another id." }
+        }
+      }
       if ($task.owner -ne $owner) {
         $sync = Invoke-Ccx @('task', 'update', '-Id', $taskId, '-Owner', $owner, '-Note', "Owner set from $($brief.rel)")
         if ($sync.code -ne 0) { Fail "ccx refused the owner change: $($sync.out)" 1 }
@@ -289,6 +298,8 @@ function Invoke-Run {
     Add-Content -LiteralPath $log -Value "`n=== dispatch exit $exit ===" -Encoding utf8
     $task = Get-CcxTask -Id $Id
     $protectedAfter = Get-ProtectedHashes
+    # Unconditional for brief runs: a brief can never own the launcher stack (Test-Brief, Invoke-Launch), so any
+    # protected change here is tampering, and checks and verify must not run on it (UPGRADE-3 review 1c, fix 2).
     $tampered = @(Compare-CcxProtectedHashes $protectedBefore $protectedAfter)
     foreach ($path in $tampered) { Add-Content -LiteralPath $log -Value "PROTECTED FILE CHANGED DURING RUN: $path" -Encoding utf8 }
     $results = @()

@@ -836,6 +836,77 @@ else {
     Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') 'timeout reported as transient'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'timeout after a 503 refunded the attempt'
   }
+  # UPGRADE-3: Gemini gets Codex-level access. Each case writes its own fake agy.cmd.
+  $agySuccess = "echo {`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`"}"
+  function Use-FakeAgy([string]$Body) {
+    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+    $policy.providers.gemini.command = 'agy.cmd'
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    $script:agyArgLog = Join-Path $scratch ('agy-args-' + [guid]::NewGuid().ToString('N').Substring(0, 6) + '.txt')
+    Write-Utf8File (Join-Path $fakeDir 'agy.cmd') ("@echo off`r`necho %*>`"$script:agyArgLog`"`r`n$Body`r`n$agySuccess`r`n")
+  }
+  function Get-AgySettings { Get-ChildItem $captures -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json } }
+  Ccx-Case 'Gemini runs get a sandboxed shell, absolute denies and their owned launcher paths' {
+    Use-FakeAgy "if not exist scripts mkdir scripts`r`necho owned> scripts\owned-tool.ps1"
+    try {
+      Add-CcxTask 'T1' 'owned.txt,scripts/owned-tool.ps1' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 0
+      Assert ($r.Stdout -notmatch 'PROTECTED FILE CHANGED') 'owned launcher file flagged as tampering'
+      $args = [IO.File]::ReadAllText($script:agyArgLog)
+      Assert ($args -match '"--sandbox"' -and $args -notmatch 'dangerously' -and $args -match 'read-only and offline') "normal agy run lost its sandbox: $args"
+      $s = Get-AgySettings
+      $denies = @($s.permissions.deny | ForEach-Object { $_ -replace '^write_file\((.*)\)$', '$1' })
+      Assert (@($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny) -notcontains 'command(*)' -and $s.enableTerminalSandbox -eq $true) 'shell not allowed inside the sandbox'
+      Assert ($denies.Count -gt 0 -and -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted($_) }).Count) "deny paths not absolute: $($denies -join '; ')"
+      Assert (-not @($denies | Where-Object { $_ -match '[\\/]scripts[\\/]?$' }).Count -and @($denies | Where-Object { $_ -match '[\\/]\.obsidian[\\/]$' }).Count) "owned scripts/ still denied or .obsidian/ not denied: $($denies -join '; ')"
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
+  Ccx-Case 'owning one launcher file does not open its siblings (Gemini UPGRADE-3 review 2a)' {
+    Use-FakeAgy "if not exist scripts mkdir scripts`r`necho sibling> scripts\other-tool.ps1"
+    try {
+      Add-CcxTask 'T1' 'owned.txt,scripts/owned-tool.ps1' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'PROTECTED FILE CHANGED DURING RUN: scripts/other-tool\.ps1') 'sibling launcher file change not flagged'
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
+  Ccx-Case 'a protected change is not masked by a timeout (Gemini UPGRADE-3 review 2b)' {
+    if ($taskkillDenied) { throw 'SKIP: taskkill is denied here (Codex sandbox); run outside the sandbox' }
+    Use-FakeAgy "if not exist .obsidian\plugins mkdir .obsidian\plugins`r`necho planted> .obsidian\plugins\late.js`r`nping -n 30 127.0.0.1 >nul"
+    try {
+      Add-CcxTask 'T1' 'owned.txt' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1','-TimeoutMinutes','0.05')) 'ready'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'PROTECTED FILE CHANGED DURING RUN: \.obsidian/plugins/late\.js') 'protected change during a timed-out run not reported'
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force -ErrorAction SilentlyContinue }
+  }
+  Ccx-Case 'an unowned launcher change from Gemini is still flagged' {
+    Use-FakeAgy "if not exist .obsidian\plugins mkdir .obsidian\plugins`r`necho planted> .obsidian\plugins\planted.js"
+    try {
+      Add-CcxTask 'T1' 'owned.txt' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 9
+      Assert ($r.Stdout -match 'PROTECTED FILE CHANGED DURING RUN: \.obsidian/plugins/planted\.js') 'unowned protected change not flagged'
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
+  Ccx-Case 'Gemini turbo needs the full-access approval and drops the sandbox' {
+    Use-FakeAgy ''
+    try {
+      Add-CcxTask 'T1' 'owned.txt' 'gemini'
+      $turboArgs = $common + @('-TaskId','T1','-Sandbox','danger-full-access')
+      Check-Code (Run-Launcher $repo $turboArgs 'ready') 10
+      Assert (-not (Test-Path -LiteralPath $script:agyArgLog)) 'agy ran in turbo without approval'
+      $pending = @((Read-CcxState).approvals.PSObject.Properties.Value | Where-Object { $_.action -eq 'codex-full-access' -and $_.status -eq 'pending' })
+      Assert ($pending.Count -eq 1) 'turbo approval not requested'
+      Check-Code (Run-Ccx @('approve','-Id',$pending[0].id,'-Chat','-Quote','Approved synthetic Gemini turbo dispatch')) 0
+      Check-Code (Run-Launcher $repo $turboArgs 'ready') 0
+      $args = [IO.File]::ReadAllText($script:agyArgLog)
+      Assert ($args -match '"--dangerously-skip-permissions"' -and $args -notmatch '"--sandbox"' -and $args -match 'full access') "turbo flags wrong: $args"
+      $s = Get-AgySettings
+      Assert ($s.enableTerminalSandbox -eq $false -and $s.useG1Credits -eq $false -and @($s.permissions.allow) -contains 'command(*)') 'turbo settings wrong'
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
   Ccx-Case 'Codex limit dispatches the class model through agy' {
     $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
     $expectedModel = $policy.classes.complex.geminiModel

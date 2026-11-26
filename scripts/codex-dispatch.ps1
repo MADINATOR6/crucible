@@ -378,6 +378,10 @@ try {
   # the task owns anything under a protected path such as scripts/ (the checker itself).
   $checkPrefixes = @(); $protectedPaths = @($policy.agentProtectedPaths | Where-Object { $_ })
   $ownsProtected = $TaskId -and @($task.owns | Where-Object { $o = $_; @($protectedPaths | Where-Object { Test-CcxPathOverlap $o $_ }).Count }).Count
+  # Owned-path parity with Codex (UPGRADE-3): a protected path the task owns, or a protected folder holding
+  # one, is writable; the after-run hash check still flags every other protected change.
+  $taskOwns = if ($TaskId) { @($task.owns) } else { @() }
+  $deniedPaths = @($protectedPaths | Where-Object { $p = $_; -not @($taskOwns | Where-Object { Test-CcxPathOverlap $_ $p }).Count })
   if ($TaskId -and $Sandbox -ne 'read-only' -and $policy.ContainsKey('checks') -and -not $ownsProtected) {
     foreach ($entry in @($policy.checks.Values | Where-Object { $_ -is [Collections.IDictionary] -and $_.run -and $_.agentSafe -eq $true })) {
       if ([string]$entry.run -notmatch '^[A-Za-z0-9 ._/:=-]{1,120}$') { throw 'Policy checks.<name>.run must be a plain command prefix.' }
@@ -403,7 +407,7 @@ try {
     if ($Sandbox -ne 'read-only') {
       $rules = @($checkPrefixes | ForEach-Object { "[[rule]]`ntoolName = `"run_shell_command`"`ncommandPrefix = `"$_`"`ndecision = `"allow`"`npriority = 100`n" })
       # Never let the unsandboxed agent rewrite the launcher stack that later runs on this machine.
-      foreach ($path in $protectedPaths) {
+      foreach ($path in $deniedPaths) {
         # Windows paths ignore case and Gemini's policy engine uses JavaScript regex (no inline (?i)): [sS][cC]...
         $caseless = -join @($path.TrimEnd('/').ToCharArray() | ForEach-Object {
           if ([char]::IsLetter($_)) { '[' + [char]::ToLowerInvariant($_) + [char]::ToUpperInvariant($_) + ']' } else { [regex]::Escape([string]$_) } })
@@ -422,17 +426,32 @@ try {
     if (-not $head -or $null -eq $status) { throw 'Cannot capture the starting Git state for Antigravity.' }
     # Keep unrelated filenames out of the cloud prompt and cmd.exe arguments.
     $startingChanges = @($status -split '\r?\n' | Where-Object { $_ }).Count
-    $prompt = "Use built-in file tools only. Do not call the shell, including for Git, file checks, app tests, or source verification. The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs with file tools before editing. Report checks requiring the shell as NOT RUN and leave final Git status to the launcher operator. $prompt"
-    # write_file is the permission action for workspace edits, including replacements.
-    $deny = @('command(*)') + @(foreach ($path in $protectedPaths) { "write_file($path)" })
-    $settings = @{ useG1Credits = $false; enableTerminalSandbox = $true; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
-      permissions = @{ allow = @(); deny = $deny } }
+    # Turbo (UPGRADE-3): -Sandbox danger-full-access, behind the same codex-full-access approval as Codex.
+    $turbo = $Sandbox -eq 'danger-full-access'
+    $shellNote = if ($turbo) {
+      'You have full access (no sandbox): you may run the task''s tests and builds with the shell. Never commit, push, install software or change settings.'
+    } elseif ($Sandbox -eq 'read-only') {
+      'This run is read-only: do not edit files. Your shell runs in Antigravity''s sandbox (read-only, offline): use it for Git, search and reading, and report commands that must write as NOT RUN.'
+    } else {
+      'Your shell runs in Antigravity''s sandbox: read-only and offline. Use it for Git, search and reading; make edits with file tools. Commands that must write (tests, builds) fail there: report them as NOT RUN.'
+    }
+    $prompt = "$shellNote The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs before editing. Leave final Git status to the launcher operator. $prompt"
+    # write_file is the permission action for workspace edits, including replacements. The terminal sandbox
+    # rejects relative paths ("non-absolute file path"), so every deny is absolute under this checkout.
+    $deny = @(foreach ($path in $deniedPaths) {
+      $full = [IO.Path]::GetFullPath((Join-Path $root $path.TrimEnd('/')))
+      "write_file($full$(if ($path.EndsWith('/')) { [IO.Path]::DirectorySeparatorChar }))"
+    })
+    # Turbo drops only the terminal sandbox (tests must write); file tools stay inside the workspace either way.
+    $settings = @{ useG1Credits = $false; enableTerminalSandbox = -not $turbo; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
+      permissions = @{ allow = @('command(*)'); deny = $deny } }
     [IO.File]::WriteAllText($base + '.settings.json', (ConvertTo-Json $settings -Depth 5), $utf8)
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'accept-edits' }
     $agyModel = if ($Model -and $Model -ne 'auto') { @('--model', $Model) } else { @() }
     # agy rejects --effort when the model slug already carries a tier suffix (e.g. gemini-4-neon-medium).
     $agyEffort = if ($Effort -in @('low','medium','high','xhigh','max') -and (-not $Model -or $Model -eq 'auto' -or $Model -notmatch '-(low|medium|high|xhigh|max)$')) { @('--effort', $Effort) } else { @() }
-    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, '--sandbox', '--disable-slash-commands',
+    $sandboxFlag = if ($turbo) { '--dangerously-skip-permissions' } else { '--sandbox' }
+    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, $sandboxFlag, '--disable-slash-commands',
       '--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel + $agyEffort
   } elseif ($isClaude) {
     $claude = Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -440,7 +459,7 @@ try {
     if ($claude.Source -match '[%"]') { throw 'Claude CLI path must not contain % or double quotes.' }
     $mode = if ($Sandbox -eq 'read-only') { 'plan' } else { 'acceptEdits' }
     $allowed = @($agentShell | ForEach-Object { '--allowedTools'; "Bash($_`:*)" })
-    foreach ($path in $protectedPaths) { $allowed += @('--disallowedTools', "Edit($(if ($path.EndsWith('/')) { $path + '**' } else { $path }))") }
+    foreach ($path in $deniedPaths) { $allowed += @('--disallowedTools', "Edit($(if ($path.EndsWith('/')) { $path + '**' } else { $path }))") }
     $arguments = @($claude.Source, '-p', $prompt, '--output-format', 'json', '--permission-mode', $mode) + $(if ($Model) { @('--model', $Model) } else { @() }) + $allowed
   } else {
     $arguments = @($codex.Source, 'exec', '-s', $Sandbox, '-c', "model_reasoning_effort=$(if ($codexEffort) { $codexEffort } else { $Effort })") + $modelArguments + @($providerArguments) + @('--json', '--output-last-message', ($base + '.report.md'), $prompt)
@@ -558,7 +577,9 @@ try {
   foreach ($path in $briefsChanged) { Write-Output "BRIEF CHANGED DURING RUN: $path (by you or the agent; check it)" }
   $protectedChanged = @()
   if ($protectedBefore) {
-    $protectedChanged = @(Compare-CcxProtectedHashes $protectedBefore (Get-CcxProtectedHashes -Root $root -Policy $policy))
+    # Owned protected paths are the task's own work (UPGRADE-3); every other protected change is tampering.
+    $protectedChanged = @(Compare-CcxProtectedHashes $protectedBefore (Get-CcxProtectedHashes -Root $root -Policy $policy) |
+      Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $taskOwns) })
     foreach ($path in $protectedChanged) { Write-Output "PROTECTED FILE CHANGED DURING RUN: $path (review and undo before running anything)" }
   }
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
@@ -599,8 +620,9 @@ try {
     Write-Output $report
   }
   if ($limitMessages.Count -gt 0 -or $transientMessages.Count -gt 0) { $code = 4 }
-  if ($protectedChanged.Count) { $code = 9 }
   if ($timedOut) { $code = 5 }
+  # A protected-file change outranks a timeout: it must never be masked as exit 5 (UPGRADE-3 review 2b).
+  if ($protectedChanged.Count) { $code = 9 }
   if ($guardNoEdit) {
     $snapshotAfter = Get-RepoSnapshot
     $changed = if ($null -eq $snapshotAfter) { @('<snapshot failed>') } else {
