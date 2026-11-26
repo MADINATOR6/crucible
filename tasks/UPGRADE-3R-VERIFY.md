@@ -1,0 +1,5 @@
+# UPGRADE-3R-VERIFY: second (last) review cycle on Codex's UPGRADE-3 findings
+
+Do this now: follow HANDOFF.md, Verifier instruction. Review the commits on branch `claude/upgrade-3r` since `17f2284` (`git log 17f2284..HEAD`): UPGRADE-3R (`tasks/UPGRADE-3R.md`) and UPGRADE-3R-T (`tasks/UPGRADE-3R-T.md`), which answer your report on UPGRADE-CODEX-VERIFY. Also review `17f2284` itself, EXT-TOOLS-TEST (`tasks/EXT-TOOLS-TEST.md`): the external-tools inventory test now expects the mpt row.
+
+For each of your findings, confirm it is closed with the input that reproduced it (protected change + quota error refund; error A / 503 / turn.failed A; U+2028 and `cost€.md` under Windows PowerShell 5.1; silent agy health; a brief titled Terminal), and look for regressions the fixes introduce. Run `scripts\test-codex-dispatch.ps1`, `scripts\test-ccx-ops.ps1`, `scripts\test-crucible.ps1`, `scripts\test-external-tools.ps1` (each `powershell -NoProfile -ExecutionPolicy Bypass -File`), with exact counts and every SKIP. This is the last review cycle: report only open or new findings with a reproduction. Report per HANDOFF.md Report format with `Untested:`.
