@@ -96,14 +96,19 @@ function Test-Brief($Brief, $Policy) {
   foreach ($path in $fm.owns) {
     # ccx splits owns on commas (task add), so one brief entry must be one path (UPGRADE-3 review 1b).
     if ($path -match ',') { Fail "owns path '$path' has a comma; list each file or folder as its own entry." }
-    # Check the launcher overlap on the normalized path ccx will store: 'scripts\ccx.ps1' is scripts/ccx.ps1 (review 1a).
+    # ccx trims list entries, so " scripts/ccx.ps1" would be stored as scripts/ccx.ps1 (review R2-1): refuse it.
+    if ($path -cne $path.Trim()) { Fail "owns path '$path' has leading or trailing whitespace; remove it." }
+    # Check the launcher overlap on the path ccx will store: 'scripts\ccx.ps1' is scripts/ccx.ps1 (review 1a), and a
+    # folder written without '/' (lifting-tracker) is stored as a folder (review R2-2). The folder form also covers a
+    # folder that does not exist yet; a file name with '/' appended overlaps nothing it should not.
     $normalized = ConvertTo-CcxOwnedPath $path -Policy $Policy
+    $asFolder = $normalized.TrimEnd('/') + '/'
     # Owned paths reach a cmd.exe command line as check arguments: no cmd metacharacters.
     if ($path -match '[%^&!()<>|`]') { Fail "owns path '$path' has a character cmd.exe would interpret (% ^ & ! ( ) < > | backtick)." }
     # ...nor YAML flow or comment syntax: the brief stores owns as an inline [list], which these would break.
     if ($path -match "[#\[\]{}'`"\u0085  ]" -or $path -match '^[@&*!|>?:-]') { Fail "owns path '$path' has a character YAML would misread (# [ ] { } quotes, or a leading @ & * ! | > ? : -). Rename the file or folder." }
     foreach ($protected in @($Policy.agentProtectedPaths)) {
-      if ((Test-CcxPathOverlap $path $protected) -or (Test-CcxPathOverlap $normalized $protected)) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
+      if ((Test-CcxPathOverlap $path $protected) -or (Test-CcxPathOverlap $normalized $protected) -or (Test-CcxPathOverlap $asFolder $protected)) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
     }
   }
   $fm.checks = @($fm.checks | Where-Object { $_ })

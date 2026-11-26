@@ -304,6 +304,13 @@ if (kind === 'agy') {
     New-Brief 'S5' 'gemini' 'creative' 'Reference/s5.md'
     $r = Crucible @('launch', '-Note', 'tasks/S5.md')
     Assert ($r.Code -ne 0 -and $r.Out -match 'launcher stack') "brief inherited a terminal task's launcher ownership: $($r.Out)"
+    # Round 2: a quoted leading space (ccx would trim it) and a folder written without '/' (ccx would add it).
+    Write-File (Join-Path $repo 'tasks/S6.md') "---`ncrucible: brief`nid: S6`nowner: gemini`ntype: creative`nowns: `" scripts/ccx.ps1`"`n---`n# S6`n`n## Status`n![[Status/S6]]`n"
+    $r = Crucible @('launch', '-Note', 'tasks/S6.md')
+    Assert ($r.Code -eq 2 -and $r.Out -match 'whitespace' -and -not (State).tasks.S6) "space-padded launcher path accepted: $($r.Out)"
+    New-Brief 'S7' 'gemini' 'creative' 'lifting-tracker'
+    $r = Crucible @('launch', '-Note', 'tasks/S7.md')
+    Assert ($r.Code -eq 2 -and $r.Out -match 'launcher stack' -and -not (State).tasks.S7) "folder without '/' covering protected files accepted: $($r.Out)"
   }
 
   Case 'checks come from the launch, and code-executing checks never run on code the agent wrote' {

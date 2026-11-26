@@ -848,6 +848,8 @@ else {
   function Get-AgySettings { Get-ChildItem $captures -Filter *.settings.json | Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json } }
   Ccx-Case 'Gemini runs get a sandboxed shell, absolute denies and their owned launcher paths' {
     Use-FakeAgy "if not exist scripts mkdir scripts`r`necho owned> scripts\owned-tool.ps1"
+    [void][IO.Directory]::CreateDirectory((Join-Path $repo 'scripts'))
+    Write-Utf8File (Join-Path $repo 'scripts/other-tool.ps1') '# an existing launcher file the task does not own'
     try {
       Add-CcxTask 'T1' 'owned.txt,scripts/owned-tool.ps1' 'gemini'
       $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
@@ -860,6 +862,8 @@ else {
       Assert (@($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny) -notcontains 'command(*)' -and $s.enableTerminalSandbox -eq $true) 'shell not allowed inside the sandbox'
       Assert ($denies.Count -gt 0 -and -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted($_) }).Count) "deny paths not absolute: $($denies -join '; ')"
       Assert (-not @($denies | Where-Object { $_ -match '[\\/]scripts[\\/]?$' }).Count -and @($denies | Where-Object { $_ -match '[\\/]\.obsidian[\\/]$' }).Count) "owned scripts/ still denied or .obsidian/ not denied: $($denies -join '; ')"
+      # Security review: the owned file opens, its existing sibling stays denied by its own path.
+      Assert (@($denies | Where-Object { $_ -match '[\\/]scripts[\\/]other-tool\.ps1$' }).Count -and -not @($denies | Where-Object { $_ -match 'owned-tool' }).Count) "sibling not denied or owned file denied: $($denies -join '; ')"
     } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
   }
   Ccx-Case 'owning one launcher file does not open its siblings (Gemini UPGRADE-3 review 2a)' {
@@ -904,7 +908,9 @@ else {
       $args = [IO.File]::ReadAllText($script:agyArgLog)
       Assert ($args -match '"--dangerously-skip-permissions"' -and $args -notmatch '"--sandbox"' -and $args -match 'full access') "turbo flags wrong: $args"
       $s = Get-AgySettings
-      Assert ($s.enableTerminalSandbox -eq $false -and $s.useG1Credits -eq $false -and @($s.permissions.allow) -contains 'command(*)') 'turbo settings wrong'
+      Assert ($s.enableTerminalSandbox -eq $false -and $s.allowNonWorkspaceAccess -eq $false -and $s.useG1Credits -eq $false -and @($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny).Count) 'turbo settings wrong'
+      # One approval, one turbo run.
+      Check-Code (Run-Launcher $repo $turboArgs 'ready') 10
     } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
   }
   Ccx-Case 'Codex limit dispatches the class model through agy' {

@@ -381,7 +381,19 @@ try {
   # Owned-path parity with Codex (UPGRADE-3): a protected path the task owns, or a protected folder holding
   # one, is writable; the after-run hash check still flags every other protected change.
   $taskOwns = if ($TaskId) { @($task.owns) } else { @() }
-  $deniedPaths = @($protectedPaths | Where-Object { $p = $_; -not @($taskOwns | Where-Object { Test-CcxPathOverlap $_ $p }).Count })
+  $deniedPaths = @(foreach ($p in $protectedPaths) {
+    if (-not @($taskOwns | Where-Object { Test-CcxPathOverlap $_ $p }).Count) { $p; continue }
+    if (Test-CcxPathOwned -Path $p -Owns $taskOwns) { continue }  # the task owns the whole protected path
+    # The task owns part of a protected folder: keep every other file in it denied by its own path, so siblings
+    # stay blocked at run time (new files there are still caught by the after-run hash check).
+    $folder = Join-Path $root $p.TrimEnd('/')
+    if ($p.EndsWith('/') -and [IO.Directory]::Exists($folder)) {
+      foreach ($file in @(Get-ChildItem -LiteralPath $folder -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+        $rel = $file.FullName.Substring(([IO.Path]::GetFullPath($root).TrimEnd('\')).Length + 1).Replace('\', '/')
+        if (-not (Test-CcxPathOwned -Path $rel -Owns $taskOwns)) { $rel }
+      }
+    } elseif (-not $p.EndsWith('/')) { $p }  # a protected file the task does not own stays denied
+  })
   if ($TaskId -and $Sandbox -ne 'read-only' -and $policy.ContainsKey('checks') -and -not $ownsProtected) {
     foreach ($entry in @($policy.checks.Values | Where-Object { $_ -is [Collections.IDictionary] -and $_.run -and $_.agentSafe -eq $true })) {
       if ([string]$entry.run -notmatch '^[A-Za-z0-9 ._/:=-]{1,120}$') { throw 'Policy checks.<name>.run must be a plain command prefix.' }
@@ -435,7 +447,7 @@ try {
     } else {
       'Your shell runs in Antigravity''s sandbox: read-only and offline. Use it for Git, search and reading; make edits with file tools. Commands that must write (tests, builds) fail there: report them as NOT RUN.'
     }
-    $prompt = "$shellNote The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs before editing. Leave final Git status to the launcher operator. $prompt"
+    $prompt = "$shellNote The launcher confirmed the repo root, start HEAD $head and initial git status ($startingChanges entries). Inspect existing owned outputs first. Leave final Git status to the launcher operator. $prompt"
     # write_file is the permission action for workspace edits, including replacements. The terminal sandbox
     # rejects relative paths ("non-absolute file path"), so every deny is absolute under this checkout.
     $deny = @(foreach ($path in $deniedPaths) {

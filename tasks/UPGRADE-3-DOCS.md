@@ -1,3 +1,5 @@
+> **WITHDRAWN 2026-11-26:** under the user's conflict-of-interest rule, Gemini must not author changes to its own routing policy; Claude makes these edits instead. Never registered or dispatched.
+
 # UPGRADE-3-DOCS: bring the ccx docs up to date with Gemini's new access
 
 Do this now: edit only the two owned files below, then report. Follow HANDOFF.md, Implementer instruction. This task owns two launcher files on purpose (UPGRADE-3 owned-path parity); touch nothing else.
