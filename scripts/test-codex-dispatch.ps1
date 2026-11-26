@@ -271,6 +271,7 @@ const event = value => process.stdout.write(JSON.stringify(value) + '\n');
 const write = value => { if (report) fs.writeFileSync(report, value, 'utf8'); };
 const usage = "You've hit your usage limit; try again at 5:33 PM.";
 if (mode === 'sleep') { setInterval(() => {}, 1000); }
+if (mode === 'sleep503') { process.stderr.write('HTTP 503 Service Unavailable\n'); setInterval(() => {}, 1000); }
 else if (mode === 'stdin') {
   process.stdin.resume();
   process.stdin.on('end', () => { write('stdin done'); process.exit(0); });
@@ -826,6 +827,14 @@ else {
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'early503'
     Check-Code $r 1
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'early 503 refunded an ordinary failure'
+  }
+  Ccx-Case 'A 503 before a timeout keeps exit 5 and spends the attempt (Gemini UPGRADE-1M note)' {
+    if ($taskkillDenied) { throw 'SKIP: taskkill is denied here (Codex sandbox); run outside the sandbox' }
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1','-TimeoutMinutes','0.05')) 'sleep503'
+    Check-Code $r 5
+    Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') 'timeout reported as transient'
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'timeout after a 503 refunded the attempt'
   }
   Ccx-Case 'Codex limit dispatches the class model through agy' {
     $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json

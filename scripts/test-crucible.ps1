@@ -434,7 +434,11 @@ if (kind === 'agy') {
       [IO.File]::ReadAllText($destination, $utf8) -ceq $pack) 'wrong checkout overwrote valid pack'
   }
 } finally {
-  Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
+  # Delete only this run's own folder under the chosen parent (TEMP or .test-scratch), as the other suites do.
+  $actual = [IO.Path]::GetFullPath($scratch).TrimEnd('\')
+  if ((Split-Path $actual -Parent) -ieq [IO.Path]::GetFullPath($scratchParent).TrimEnd('\') -and (Split-Path $actual -Leaf) -cmatch '^crucible-t-[0-9a-f]{8}$') {
+    Remove-Item -LiteralPath $actual -Recurse -Force -ErrorAction SilentlyContinue
+  } else { Write-Output "NOT REMOVED: scratch path $actual is outside $scratchParent" }
 }
 $clock.Stop()
 Write-Output "$passed/$total passed in $([math]::Round($clock.Elapsed.TotalSeconds))s"
