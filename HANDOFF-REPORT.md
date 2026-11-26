@@ -1,32 +1,44 @@
-# Tri-agent workflow upgrade (2026-11-26, overnight)
+# Overnight 2026-11-27: Gemini self-upgrade and UPGRADE-3R
 
-Status: done in ccx and committed on `main` (36 commits from 25c8ba0 to 024d6e3, plus this report). The earlier report (lifting tracker part 2, 2026-10-05) is in git history.
+Status: done in ccx and committed on local `main` (c6ac0d1 to df6108b and this report). **Not pushed**: the push needs your yes. The previous report (tri-agent upgrade, 2026-11-26) is in git history.
 
 ## What changed, in plain words
-1. A task you register (`ccx task add`) now remembers which files were already modified, so checking it later no longer fails on other people's leftovers, even if it never went through a dispatch.
-2. A provider that is overloaded or returns a server error (5xx) no longer burns one of a task's two tries; it exits 4 with `TRANSIENT PROVIDER FAILURE`.
-3. When Codex is at its limit, Codex work falls back to Gemini (Antigravity) with the right model for the task's size; `ccx health` now shows agy's version instead of "not set".
-4. `ccx verify` has a `symmetry` stage that fails if AGENTS.md changes without CLAUDE.md, or the reverse.
-5. The test suites work when TEMP is blocked (they use a hidden `.test-scratch/` folder instead).
-6. Obsidian: the board shows only your briefs and approvals; other ccx tasks and notices moved to `Status/Terminal.md`.
-7. Obsidian: "New brief" now asks for the work type and the output file, and refuses ones that could never launch.
-8. `crucible.ps1 review-pack` builds a file you can open in the Antigravity IDE for a blind review.
-9. Bug found and fixed: `test-crucible.ps1` had been running the real Codex CLI (and spending real quota) in one case.
+1. **Codex now reads all of AGENTS.md.** Codex keeps only the first 32 KiB by default, and AGENTS.md is 46 KB, so Codex never saw Modes, Scope, Git, Security or Definition of Done. `.codex/config.toml` now raises the limit (checked with `codex debug prompt-input`).
+2. **Gemini (Antigravity) now sees its whole rulebook and Crucible's skills.** Antigravity cuts each rule file at 24,000 bytes. A new short `GEMINI.md` tells it to read the rest of AGENTS.md, and `.agents/skills.json` gives it the same skills Claude has (blender, fable-judge, generate, higgsfield, scroll-site). Nursing notes and the offensive-security modules are left out. Gemini wrote both files; Codex and Claude checked them, and live probes confirm they load.
+3. **Gemini studied the four Google repos you gave it** and wrote `handoffs/GEMINI-SELF-UPGRADE-report.md`: eight upgrade proposals with sources. Claude and Codex corrected five errors in it.
+4. **The upgrades that change Gemini's access wait for you:** `handoffs/GEMINI-UPGRADE-approvals.md`. The most useful one: Gemini runs launched from Obsidian have no working shell. Claude traced it to the launch method (WMI), not the settings.
+5. **Ponytail rules for all three agents** (AGENTS.md Scope). Caveman, if you install it, shortens only Claude's chat replies.
+6. **UPGRADE-3R is finished and merged.** These are the fixes from Codex's and Gemini's reviews of Gemini's access. Tonight's last fix stops an empty provider error message from wrongly refunding a failed attempt.
 
-## Who did what
-- Codex (gpt-6.2-astra/sol): planned UPGRADE-1 and UPGRADE-2, wrote the failing tests (UPGRADE-1T), built the board split and review pack (UPGRADE-2), then hit its weekly limit during a one-line test correction (that fix had landed; resets 21:10 today).
-- Gemini (agy, flash-low to neon-high): friction audit, Obsidian UX review, docs draft, reviewer checklist, three adversarial reviews (found 5 real defects, all fixed), FRICTION notes and changelog.
-- Claude: plan critiques, core control-plane code, the review fixes, the brief modal, the TEMP fallback (Codex's task, taken over at its limit; Gemini cannot write `scripts/`), docs, merges.
+## How the three worked together
+- **Gemini** (neon-high/xhigh): did the research and wrote GEMINI.md and the skills config.
+- **Codex** (gpt-6.2-astra/sol): ran five independent checks:
+  - found the empty-message refund bug, and four errors in Gemini's proposals;
+  - confirmed every fix.
+- **Claude:**
+  - checked Gemini's claims against the agy docs and live probes;
+  - found that Codex has the same truncation problem;
+  - caught Gemini's skills-exclude bug;
+  - fixed the launcher bug Codex found;
+  - merged everything.
 
 ## Evidence
-- Suites on the final code: test-ccx 39/39, test-ccx-ops 20/20, test-codex-dispatch 71/71, test-crucible 23/23 (all inside `ccx verify -TaskId UPGRADE-1M`, PASS). With TEMP denied: test-ccx and test-crucible pass; dispatch suite with the fallback forced 70/71 + 1 SKIP ("outside repository", which cannot hold there).
-- `ccx health`: `PASS provider-gemini agy.exe 1.5.17; sign-in unknown`.
-- Live app unchanged by this work; 25c8ba0 (lt-v31) was pushed first (A-0157) and the Pages deploy passed (live `sw.js` = lt-v31).
+- UPGRADE-3R and 3R-T closing verifies: all stages PASS. Suites: tests-ccx, tests-ccx-ops, tests-dispatch (82/82 in Claude's own run) and tests-crucible.
+- Codex VERIFY4: 5 replays pass on the fix; both new tests fail on the parent commit.
+- Live agy probes from the repo root:
+  - The 5 shared skills load and the 3 excluded ones are absent, with and without `--disable-slash-commands`.
+  - The shell works from a terminal and fails through WMI.
+- `check-sources` on the research report: 57/57.
 
-## Untested / open (next owner)
-- Your blind review: open `handoffs/UPGRADE-blind-review.md` in the Antigravity IDE with Claude Sonnet 5.5 (read-only). Findings go to Claude. (user)
-- Obsidian: reload the Crucible plugin, create one brief with a work type and output file, launch it. No agent can drive Obsidian. (user)
-- Agy sign-in is shown as "unknown": agy has no status command. (open, no fix known)
-- Low notes from Gemini (`handoffs/UPGRADE-1M-gemini-review.md`): no dedicated test for the timeout/protected-file refund guards; `test-crucible` cleanup has no path guard (pre-existing). (Claude or Codex, after the reset)
-- Codex never ran a verify of the final diff (limit); Gemini did the adversarial reviews instead. Codex can re-verify after 21:10 if you want a second model on it. (Codex)
-- You have spare Codex resets until 2026-12-13; pressing one is your call.
+## Open / next owner
+- **Push** `main` (about 25 commits; no `lifting-tracker/` change, so no Pages republish). (you: say yes, then Claude runs the push gate)
+- **Your call on the access upgrades** in `handoffs/GEMINI-UPGRADE-approvals.md`:
+  - #3, the WMI shell fix: recommended first;
+  - #4, Gemini as reviewer;
+  - #5, Rea and Higgsfield MCP for Gemini;
+  - #6, the free-tier Gemini API wrapper;
+  - #8, gemini/ worktrees;
+  - the plan-mode layer.
+- **Untested:**
+  - A fresh `.ccx-worktrees/` worktree may not be trusted by Codex. If not, Codex dispatches there still use the 32 KiB limit. Next check: `codex debug prompt-input` in a new worktree; if Security is missing, pass `-c project_doc_max_bytes=65536` in the launcher. (Claude)
+- Still from before: your blind review (`handoffs/UPGRADE-blind-review.md`) and the Obsidian plugin check.

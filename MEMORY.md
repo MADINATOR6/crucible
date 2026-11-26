@@ -2,7 +2,10 @@
 
 Operating state for autonomous sessions on this repo. Read first every session. Cap 400 lines; archive old entries to MEMORY-ARCHIVE.md.
 
-## Active task (2026-11-27 night, unattended from 02:13, stop by 06:15)
+## Active task (2026-11-27 night, unattended from 02:13): DONE 07:10
+- Closed: UPGRADE-3R, 3R-T (merged df6108b), GEMINI-CONTEXT, GEMINI-SELF-UPGRADE-RESEARCH; UPGRADE-3, CODEX-VERIFY, 3R-VERIFY, 3R-VERIFY3 abandoned as superseded. Worktrees claude-UPGRADE-3R and claude-EXT-TOOLS-TEST removed (branches kept). Not pushed: needs the user's yes. Next steps: HANDOFF-REPORT.md.
+
+## Night log (2026-11-27)
 - User: "You guys continue and finish what needs to be done and I give you 3 full access/bypass limits/turbo mode" (Claude, Codex, Antigravity); "collaborate as a team ... upgrade in all aspects". Turbo dispatches are approved for tonight's tasks (record each with `ccx gate -Action codex-full-access`, quoting this). Push is NOT approved: needs its own yes.
 - Queue: (1) Codex narrow check UPGRADE-3R-VERIFY3 at 02:45 (Route must say codex/gpt-6.2-astra) → close UPGRADE-3R, 3R-T, UPGRADE-3, CODEX-VERIFY, 3R-VERIFY → merge claude/upgrade-3r to main locally, remove its worktree. (2) Gemini GEMINI-SELF-UPGRADE-RESEARCH (agy neon-high, launched 02:11) → Claude critiques report → Gemini implements Gemini-ownable proposals (skills/context files) → Codex reviews. Routing/access proposals: spec only, user approves in the morning (Gemini never authors its own routing).
 - 02:55 UPGRADE-3R verify all PASS; 3R-T verify FAIL only `tests-dispatch LOCK TIMEOUT` (ccx state lock contended by a concurrent `ccx status` + live Gemini run, not a test failure). Re-run 3R-T verify when no dispatch is live. Friction to log.
