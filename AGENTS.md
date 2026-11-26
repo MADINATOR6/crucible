@@ -203,6 +203,8 @@ Optional: plain Dispatch without `-TaskId` works as before. The details are in `
 - Do not modify files outside the task's write allowlist.
 - Inspect files, config, scripts, tests and Git state before assuming. Never invent commands, paths, APIs, behaviour or business rules.
 - Preserve existing architecture unless the task requires changing it.
+- Ponytail (user decision 2026-11-27, all three agents): read the code the change touches first. Then stop at the first option that works: is the code needed at all, is it already in this repo, does the standard library or a built-in platform feature do it, does an installed dependency do it. Only then write the minimum new code. Fix a bug once, in the function every caller goes through. Mark a deliberate shortcut that has a known limit with a `ponytail:` comment naming the limit and the upgrade. Non-trivial logic leaves one small runnable check in the existing suites. Never simplify away validation, error handling that prevents data loss, security or accessibility. Claude also runs the `ponytail` plugin; Codex and Gemini follow this paragraph.
+- Caveman (Claude-only, optional): when installed, it shortens only Claude's chat replies. It never shortens files, briefs or reports, and never drops failures, decisions or the `Untested:`, `INTENT:` and `TWINS:` lines. Never put the Caveman CLI or proxy in front of Codex or agy, since it compresses the test output that verify and reviews depend on. Codex and Gemini reports are already short under Token Efficiency, so they need no equivalent.
 
 # Tasks and Progress
 
