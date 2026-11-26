@@ -2,7 +2,16 @@
 
 Operating state for autonomous sessions on this repo. Read first every session. Cap 400 lines; archive old entries to MEMORY-ARCHIVE.md.
 
-## Active task (2026-11-26 overnight, unattended: "GOODNIGHT AND FINISH EVERYTHING"; Codex weekly limit almost spent)
+## Active task (2026-11-27 night, unattended from 02:13, stop by 06:15)
+- User: "You guys continue and finish what needs to be done and I give you 3 full access/bypass limits/turbo mode" (Claude, Codex, Antigravity); "collaborate as a team ... upgrade in all aspects". Turbo dispatches are approved for tonight's tasks (record each with `ccx gate -Action codex-full-access`, quoting this). Push is NOT approved: needs its own yes.
+- Queue: (1) Codex narrow check UPGRADE-3R-VERIFY3 at 02:45 (Route must say codex/gpt-6.2-astra) → close UPGRADE-3R, 3R-T, UPGRADE-3, CODEX-VERIFY, 3R-VERIFY → merge claude/upgrade-3r to main locally, remove its worktree. (2) Gemini GEMINI-SELF-UPGRADE-RESEARCH (agy neon-high, launched 02:11) → Claude critiques report → Gemini implements Gemini-ownable proposals (skills/context files) → Codex reviews. Routing/access proposals: spec only, user approves in the morning (Gemini never authors its own routing).
+- 02:55 UPGRADE-3R verify all PASS; 3R-T verify FAIL only `tests-dispatch LOCK TIMEOUT` (ccx state lock contended by a concurrent `ccx status` + live Gemini run, not a test failure). Re-run 3R-T verify when no dispatch is live. Friction to log.
+- 02:27 Gemini report done (`handoffs/GEMINI-SELF-UPGRADE-report.md`, 8 proposals). Exit 9 was MY MEMORY.md edit mid-run, not Gemini. check-sources: 56/57, line 108 quote wraps a `>` line in the source (check-sources does not join wrapped blockquotes) → Gemini fixes via Answers + relaunch.
+- VERIFIED: agy caps each rule file at 24,000 bytes (`~/.gemini/antigravity-cli/builtin/skills/agy-customizations/docs/rules.md`); AGENTS.md is 46 KB, cut after "Choosing a tool". Codex caps at 32 KiB: `codex debug prompt-input` showed no Modes/Scope/Security/Done. Fixed for Codex with `project_doc_max_bytes = 65536` in `.codex/config.toml` (root verified True). TODO: confirm a fresh `.ccx-worktrees/` worktree is trusted too (else pass `-c` in codex-dispatch after the 3R merge).
+- Plan from report: GEMINI-CONTEXT (owner gemini): `GEMINI.md` pointer telling agy to read AGENTS.md past the cut + `.agents/skills.json` pointing at `.claude/skills` (agy json_configs.md `entries`), Codex reviews. Proposals 3-8 (sandbox Access denied, verify role, MCP, gemini-api wrapper, worktree prefix) are routing/access: spec for user, not implemented.
+- Done tonight: c6ac0d1 Ponytail rules for all three agents in AGENTS.md Scope; Caveman Claude-chat-only. Repos cloned read-only to `ext/gemini-refs/` (locally excluded).
+
+## Earlier task (2026-11-26 overnight, unattended: "GOODNIGHT AND FINISH EVERYTHING"; Codex weekly limit almost spent)
 - Tri-agent workflow upgrade (UPGRADE-*). Projects (lifting-tracker, media, agency, nursing) out of scope. Leave `agency/`, `tasks/AGENCY-*`, `Reference/Obsidian ribbon smoke.md`, `tasks/OBSIDIAN-RIBBON-SMOKE.md` alone (not mine).
 - Done: 25c8ba0 pushed (A-0157, both suites green), Pages run 45693126889.
 - Phase 0: dirty README/BOOTSTRAP/ccx help/test/playbook judged commit-worthy by Claude (Codex spared: limit). Gemini audit UPGRADE-0-AUDIT → `handoffs/UPGRADE-friction-audit.md`.

@@ -1,5 +1,7 @@
 # Project-local Codex settings. Codex applies them only once this folder is trusted.
 model_reasoning_effort = "medium"
+# AGENTS.md is over Codex's 32 KiB default; below it Codex silently dropped Modes, Scope, Security and Done (2026-11-27).
+project_doc_max_bytes = 65536
 
 # Higgsfield image/video generation (same server as .mcp.json). One-time sign-in: codex.cmd mcp login higgsfield
 [mcp_servers.higgsfield]
