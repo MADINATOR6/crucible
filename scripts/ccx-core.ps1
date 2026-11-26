@@ -548,6 +548,8 @@ function Get-CcxVerification {
     if ($Type -and $Policy.taskTypes.ContainsKey($Type) -and $Policy.taskTypes[$Type].ContainsKey('verification')) { return @($Policy.taskTypes[$Type].verification) }
     $requirements = @($Policy.classes[$Class].verification)
     if ($Risk -eq $Policy.risk.levels[-1]) { $requirements += @($Policy.risk.high.addVerification) }
+    # A type may also add to its class's list, never remove from it (GEMINI-PRIMARY: Gemini-led types need a non-owner review).
+    if ($Type -and $Policy.taskTypes.ContainsKey($Type) -and $Policy.taskTypes[$Type].ContainsKey('addVerification')) { $requirements += @($Policy.taskTypes[$Type].addVerification) }
     $requirements | Select-Object -Unique
 }
 function Get-CcxBudget {

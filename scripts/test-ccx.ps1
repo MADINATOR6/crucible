@@ -738,6 +738,21 @@ try {
     Check-Code $planned 1
     Assert ($planned.Stdout -match 'ccx task start -Id T2') 'planned task did not get the hint'
   }
+  Case 'Gemini-led types add a non-owner review on every class, never remove one (GEMINI-PRIMARY)' {
+    $p = $json.DeserializeObject([IO.File]::ReadAllText($sourcePolicy))  # the repo's real policy
+    foreach ($type in 'implement','refactor','docs') {
+      Assert ($p.taskTypes[$type].agent -eq 'gemini') "$type does not default to gemini"
+      $routine = @(Get-CcxVerification $p 'routine' 'low' $type)
+      $complex = @(Get-CcxVerification $p 'complex' 'low' $type)
+      $critical = @(Get-CcxVerification $p 'critical' 'low' $type)
+      Assert ($routine -contains 'cross-model-review' -and $routine -contains 'deterministic') "$type routine lacks a non-owner review: $($routine -join ',')"
+      Assert ($complex -contains 'independent-verifier' -and $complex -contains 'cross-model-review') "$type complex lost a requirement: $($complex -join ',')"
+      Assert ($critical -contains 'human-approval') "$type critical lost human approval: $($critical -join ',')"
+    }
+    # The existing replace meaning of a type's own list is unchanged, and other types gain nothing.
+    Assert ((@(Get-CcxVerification $p 'complex' 'low' 'verify') -join ',') -eq 'deterministic,cross-model-review') 'verify type list changed'
+    Assert ((@(Get-CcxVerification $p 'routine' 'low' 'source-research') -join ',') -eq 'deterministic') 'routine source-research gained a requirement'
+  }
   Case 'a baseline taken in another checkout exempts nothing here (Gemini review 1.1)' {
     Add-Task
     $here = [IO.Path]::GetFullPath($repo).TrimEnd('\','/').ToLowerInvariant()

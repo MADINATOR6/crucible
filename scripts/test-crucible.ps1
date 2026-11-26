@@ -338,7 +338,8 @@ if (kind === 'agy') {
   }
 
   Case 'routine Codex work keeps one agent and no review round' {
-    $route = (Ccx @('route', '-Type', 'implement', '-Class', 'routine', '-Risk', 'low', '-Json')).Out | ConvertFrom-Json
+    # implement now defaults to Gemini with a review (GEMINI-PRIMARY); debug still defaults to Codex.
+    $route = (Ccx @('route', '-Type', 'debug', '-Class', 'routine', '-Risk', 'low', '-Json')).Out | ConvertFrom-Json
     Assert ($route.agent -eq 'codex' -and (@($route.verification) -join ',') -eq 'deterministic') "routine route changed: $($route.agent) $($route.verification)"
   }
 
@@ -347,7 +348,7 @@ if (kind === 'agy') {
     $s.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
     $s.PSObject.Properties.Remove('providerLimits')
     Write-File (Join-Path $state 'state.json') ($s | ConvertTo-Json -Depth 30)
-    $route = (Ccx @('route', '-Type', 'implement', '-Class', 'normal', '-Risk', 'low', '-Json')).Out | ConvertFrom-Json
+    $route = (Ccx @('route', '-Type', 'debug', '-Class', 'normal', '-Risk', 'low', '-Json')).Out | ConvertFrom-Json
     Assert ($route.agent -eq 'codex' -and $route.provider -eq 'gemini') "fallback lost: $($route.provider)"
   }
 

@@ -128,6 +128,17 @@ Windows PowerShell 5.1 reads UTF-8 files without a BOM as ANSI and writes a BOM 
 - **Obsidian:** the user's workspace. Briefs, answers and owner switches are written there; ccx state stays the record and `Status/` shows it. Agents write deliverables and reports, never `Status/`.
 - Claude Code, Codex or Gemini may do trivial tasks directly. Never have two agents solve the same problem.
 
+## Gemini as primary worker
+
+User decision 2026-11-26 (GEMINI-PRIMARY). Gemini is a peer of Claude and Codex, not only a fallback.
+
+- **What Gemini leads.** `implement`, `refactor` and `docs` now default to Gemini in `ccx/policy.json`, alongside its own lanes `source-research`, `creative` and `ux-review`. Planning, architecture and review stay where they were.
+- **Owning a task.** Register Gemini's work with `ccx task add -Owner gemini` (or `owner: gemini` in a brief). The owner always wins over the type's default: a task registered `-Owner claude` or `-Owner codex` keeps that agent, so Claude's role as implementer of code tasks (Roles, above) is unchanged.
+- **Someone else checks Gemini's work.** Gemini's shell is read-only in its sandbox, so it cannot run tests or builds itself except in an approved turbo run. Every `implement`, `refactor` and `docs` task therefore needs `ccx task review` by an agent other than its owner before `task done`, on every class including routine (`addVerification` in policy, enforced by `ccx task done`). `ccx verify` runs the checks deterministically; the reviewer reads the diff and the results.
+- **While Codex is at its limit,** that reviewer is Claude, or the user through a `task-accept` approval. Codex returns to the rota when its limit resets.
+- **Gemini never authors or approves changes to its own routing.** Changes to Gemini's entries in `ccx/policy.json`, to this section, or to the launcher code that decides Gemini's access are made by Claude or Codex and approved by the user. Gemini may inspect and report on them, read-only.
+- **Gaps while Codex is out.** A review of Claude-authored work still routes to Codex in ccx, `verify` and `research` (Codex's planning route) still default to Codex, and the launcher still needs `codex.cmd` on PATH even for Gemini runs. Use Claude or the user as reviewer meanwhile; these routes work again after the reset.
+
 # Modes
 
 Pick one per task. Record the task once: in the task file (default TASK.md) for Dispatch, in the handoff note for Parallel (do not edit TASK.md on task branches). All commit and push steps anywhere in this file follow the selected mode's ownership.
