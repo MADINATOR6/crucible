@@ -681,7 +681,9 @@ function Invoke-CcxHealth {
                 if (-not $cli) { $detail = "$($provider.command) not installed; route skips it" }
                 else {
                     $version = try { [string](& $cli.Source --version 2>&1 | Select-Object -First 1) } catch { '' }
-                    $result = 'PASS'; $detail = "$($provider.command) $(if ($version) { $version.Trim() } else { 'version unknown' }); sign-in unknown"
+                    # No version means the CLI did not answer: WARN, not PASS (Codex UPGRADE-3 review).
+                    if ($version -and $version.Trim()) { $result = 'PASS'; $detail = "$($provider.command) $($version.Trim()); sign-in unknown" }
+                    else { $result = 'WARN'; $detail = "$($provider.command) present but its --version probe failed; sign-in unknown" }
                 }
             } elseif (-not (Get-CcxProviderKey $provider.envKey)) { $detail = "$($provider.envKey) not set; route skips it" }
             elseif ($provider.cli) {

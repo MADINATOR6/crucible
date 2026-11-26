@@ -527,6 +527,7 @@ try {
   [long]$inputTokens = 0; [long]$cachedTokens = 0; [long]$outputTokens = 0
   $hasUsage = $false
   $lastMessage = $null
+  $terminalError = $null  # the turn.failed message itself; $messages is de-duplicated for display
   if ($isGemini) {
     # Gemini CLI -o json prints one object: response, stats.models.<name>.tokens, optional error.
     try {
@@ -578,7 +579,7 @@ try {
     }
     $message = $null
     if ($event.type -eq 'error') { $message = $event.message }
-    if ($event.type -eq 'turn.failed') { $message = $event.error.message }
+    if ($event.type -eq 'turn.failed') { $message = $event.error.message; $terminalError = [string]$event.error.message }
     if ($message -and -not $messages.Contains($message)) { $messages.Add($message) }
     if ($event.type -eq 'item.completed' -and $event.item -and $event.item.type -eq 'agent_message' -and $event.item.text) { $lastMessage = [string]$event.item.text }
   }
@@ -613,7 +614,9 @@ try {
   $transientMessages = @()
   if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage -and -not $timedOut -and -not $protectedChanged.Count) {
     $lastStderr = @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_.Trim() }) | Select-Object -Last 1
-    $transientMessages = @(@(@($messages) | Select-Object -Last 1) + @($lastStderr) | Where-Object { $_ -and $_ -match $transientPattern })
+    # The error that ended the turn decides; de-duplication must not let an earlier 503 stand in for it (Codex review).
+    $endingError = if ($terminalError) { $terminalError } else { @($messages) | Select-Object -Last 1 }
+    $transientMessages = @(@($endingError) + @($lastStderr) | Where-Object { $_ -and $_ -match $transientPattern })
   }
   foreach ($message in ($transientMessages | Select-Object -Unique)) { Write-Output "TRANSIENT PROVIDER FAILURE: $message (no attempt used)" }
   if ($limitMessages.Count -eq 0) {
@@ -703,8 +706,9 @@ try {
             $state.agents.codex.unavailableUntil = Get-DispatchReset -Text $resetText -Policy $policy
             $state.agents.codex.reason = Protect-CcxText ($limitMessages -join '; ')
           }
-          # A run cut off by the usage limit says nothing about the task: it does not use a retry.
-          if ($Role -eq 'implement') { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
+          # A run cut off by the usage limit says nothing about the task: it does not use a retry. Only when exit 4
+          # is the final verdict: a protected change (9) or a timeout (5) still spends it (Codex review).
+          if ($Role -eq 'implement' -and $code -eq 4) { $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1) }
         } elseif ($transientMessages.Count -gt 0 -and $code -eq 4 -and $Role -eq 'implement') {
           # Transient provider failure: refund the attempt, record no reset; outputs and captures stay for review.
           $task.dispatches = [Math]::Max(0, [int]$task.dispatches - 1)

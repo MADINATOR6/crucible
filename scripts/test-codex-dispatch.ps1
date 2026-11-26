@@ -286,6 +286,13 @@ else if (mode === 'usage') {
   process.stderr.write(usage + '\n');
   process.exit(1);
 }
+else if (mode === 'ordinary503ordinary') {
+  // Codex review of UPGRADE-3: error A, a 503, then turn.failed A. De-duplication must not let the 503 decide.
+  event({type:'error', message:'ordinary provider failure'});
+  event({type:'error', message:'HTTP 503 Service Unavailable'});
+  event({type:'turn.failed', error:{message:'ordinary provider failure'}});
+  process.exit(1);
+}
 else if (mode === 'early503') {
   // A 5xx the provider recovered from, then a failure that is the task's own: not transient.
   event({type:'error', message:'Reconnecting... HTTP 503 Service Unavailable'});
@@ -911,6 +918,27 @@ else {
       Assert ($s.enableTerminalSandbox -eq $false -and $s.allowNonWorkspaceAccess -eq $false -and $s.useG1Credits -eq $false -and @($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny).Count) 'turbo settings wrong'
       # One approval, one turbo run.
       Check-Code (Run-Launcher $repo $turboArgs 'ready') 10
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
+  Ccx-Case 'an ordinary terminal error is not excused by a 503 between its repeats (Codex UPGRADE-3 review)' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ordinary503ordinary'
+    Check-Code $r 1
+    Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') 'ordinary failure classified as transient'
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'ordinary failure refunded'
+  }
+  Ccx-Case 'a quota error with a protected change is exit 9 and spends the attempt (Codex UPGRADE-3 review)' {
+    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+    $policy.providers.gemini.command = 'agy.cmd'
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    Write-Utf8File (Join-Path $fakeDir 'agy.cmd') ("@echo off`r`nif not exist .obsidian\plugins mkdir .obsidian\plugins`r`necho planted> .obsidian\plugins\quota.js`r`necho {`"status`":`"ERROR`",`"error`":{`"message`":`"RESOURCE_EXHAUSTED: quota exceeded. Please retry in 2h5m.`"}}`r`nexit /b 1`r`n")
+    try {
+      Add-CcxTask 'T1' 'owned.txt' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 9
+      $state = Read-CcxState
+      Assert ($state.tasks.T1.dispatches -eq 1) 'protected change refunded by the quota error'
+      Assert ([bool]$state.providerLimits.gemini) 'quota reset no longer recorded'
     } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
   }
   Ccx-Case 'Codex limit dispatches the class model through agy' {
