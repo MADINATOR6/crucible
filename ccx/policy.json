@@ -138,7 +138,7 @@
   "agentProtectedPaths": [".git/config", ".git/hooks/", ".obsidian/", "scripts/", "ccx/", ".claude/", ".codex/", ".gemini/", ".agents/", ".agy/", ".vscode/", ".cursor/", ".github/", ".geminiignore", ".gitignore", ".mcp.json", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "HANDOFF.md", "lifting-tracker/package.json", "lifting-tracker/package-lock.json", "lifting-tracker/playwright.config.js"],
 
   "checks": {
-    "about": "Permitted checks a brief may name (checks: [..]). Crucible runs agentSafe checks for any owner. It runs checks that execute task code after Codex only when the task owns plain documents. Headless Claude may run agentSafe commands in its allowlist, and Antigravity runs without shell access. Obsidian briefs cannot own agentProtectedPaths, and headless Claude and Antigravity are denied edits to them.",
+    "about": "Permitted checks a brief may name (checks: [..]). Crucible runs agentSafe checks for any owner. It runs checks that execute task code after Codex only when the task owns plain documents. Headless Claude may run agentSafe commands in its allowlist; Antigravity's shell runs in its read-only, offline sandbox (tests only in an approved turbo run). Obsidian briefs cannot own agentProtectedPaths, and headless Claude and Antigravity are denied edits to them.",
     "sources": { "run": "node scripts/check-sources.mjs", "args": "files", "agentSafe": true, "note": "Every quoted source passage in the deliverable exists verbatim in the cited file." },
     "lt-unit": { "run": "node --test", "cwd": "lifting-tracker" },
     "lt-browser": { "run": "npx.cmd playwright test", "cwd": "lifting-tracker" },
