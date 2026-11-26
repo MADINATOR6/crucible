@@ -165,6 +165,8 @@ try {
         $env:CRUCIBLE_CODEX_HOME = $profile
         # Synthetic Blender: prints a version and leaves the mock log alone, so the OmO record below stays last.
         $env:CRUCIBLE_BLENDER_EXE = Join-Path $temp 'blender-mock.ps1'
+        # No real MoneyPrinterTurbo install may change this result (the 8th row since e66d426).
+        $env:CRUCIBLE_MPT_DIR = Join-Path $temp 'missing-mpt'
         [IO.File]::WriteAllText($env:CRUCIBLE_BLENDER_EXE, "Write-Output 'Blender 0.0 (synthetic)'`nexit 0`n", $utf8)
         $beforeKey = $env:ANTHROPIC_AUTH_TOKEN
         try {
@@ -172,7 +174,7 @@ try {
             $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -SkillRoot $temp -Json) -join "`n"
             Assert ($LASTEXITCODE -eq 0) 'Inventory failed.'
             $rows = $json | ConvertFrom-Json
-            Assert ($rows.Count -eq 7 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 6) ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+            Assert ($rows.Count -eq 8 -and @($rows | Where-Object Status -eq 'cli-pass').Count -eq 6 -and $rows[7].Tool -eq 'mpt' -and $rows[7].Status -eq 'unavailable') ('Installed mock wrappers were not probed: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
             Assert ($rows[3].Status -eq 'files-present') 'Synthetic Markdown not detected.'
             Assert ($rows[5].Tool -eq 'higgsfield' -and $rows[5].Status -eq 'cli-pass') 'Higgsfield offline inventory failed.'
             Assert ($rows[6].Tool -eq 'blender' -and $rows[6].Status -eq 'cli-pass') 'Blender offline inventory failed.'
@@ -182,11 +184,11 @@ try {
         } finally { $env:ANTHROPIC_AUTH_TOKEN = $beforeKey }
     }
     Check 'Unavailable optional tools never block inventory or normal workflow' {
-        foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_PYTHON_EXE','CRUCIBLE_BLENDER_EXE')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
+        foreach ($name in @('CRUCIBLE_GJC_EXE','CRUCIBLE_CLAW_EXE','CRUCIBLE_CODEX_EXE','CRUCIBLE_PYTHON_EXE','CRUCIBLE_BLENDER_EXE','CRUCIBLE_MPT_DIR')) { [Environment]::SetEnvironmentVariable($name,(Join-Path $temp 'missing.exe'),'Process') }
         $json = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-external-tools.ps1') -RepoRoot $temp -SkillRoot (Join-Path $temp 'missing-library') -Json) -join "`n"
         Assert ($LASTEXITCODE -eq 0) 'Optional absence blocked inventory.'
         $rows = $json | ConvertFrom-Json
-        Assert ($rows.Count -eq 7 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 7) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
+        Assert ($rows.Count -eq 8 -and @($rows | Where-Object Status -eq 'unavailable').Count -eq 8) ('Missing tools reported as usable: ' + (($rows | ForEach-Object { $_.Tool + '=' + $_.Status }) -join ','))
     }
     Check 'OmO wrapper rejects missing hooks' {
         Remove-Item -LiteralPath (Join-Path $plugin 'hooks\test.json')
