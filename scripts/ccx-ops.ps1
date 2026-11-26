@@ -680,7 +680,9 @@ function Invoke-CcxHealth {
                 $cli = Get-Command $provider.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
                 if (-not $cli) { $detail = "$($provider.command) not installed; route skips it" }
                 else {
-                    $version = try { [string](& $cli.Source --version 2>&1 | Select-Object -First 1) } catch { '' }
+                    # Capture all output before reading the exit code: Select-Object -First would stop the pipeline early
+                    # and leave $LASTEXITCODE unreliable. A nonzero exit is a failed probe even when it printed something.
+                    $version = try { $probe = @(& $cli.Source --version 2>&1); if ($LASTEXITCODE -eq 0) { [string]($probe | Select-Object -First 1) } else { '' } } catch { '' }
                     # No version means the CLI did not answer: WARN, not PASS (Codex UPGRADE-3 review).
                     if ($version -and $version.Trim()) { $result = 'PASS'; $detail = "$($provider.command) $($version.Trim()); sign-in unknown" }
                     else { $result = 'WARN'; $detail = "$($provider.command) present but its --version probe failed; sign-in unknown" }

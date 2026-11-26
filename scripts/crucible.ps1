@@ -148,8 +148,8 @@ function Invoke-New {
   if (-not $slug) { $slug = 'BRIEF' }
   $taskId = $slug; $n = 2
   $state = Get-CcxState
-  # TERMINAL is reserved: the board writes Status/Terminal.md (Codex UPGRADE-3 review).
-  while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId) -or $taskId -eq 'TERMINAL') { $taskId = "$slug-$n"; $n++ }
+  # BOARD and TERMINAL are reserved: the board writes Status/Board.md and Status/Terminal.md (Codex UPGRADE-3 reviews).
+  while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId) -or $taskId -in @('BOARD', 'TERMINAL')) { $taskId = "$slug-$n"; $n++ }
   $briefType = if ($Type) { $Type } elseif ($Owner -eq 'gemini') { 'source-research' } else { 'implement' }
   $ownsLine = '[]'
   if ($Type -or $Owner -ne 'auto') { Assert-BriefType (Get-CcxPolicy) $briefType $Owner }
@@ -486,7 +486,7 @@ function Invoke-Board {
   $recent = [DateTime]::UtcNow.AddDays(-7)
   foreach ($view in $views) {
     $task = $view.task
-    if (-not $view.brief -or $task.id -eq 'Terminal') { continue }
+    if (-not $view.brief -or $task.id -in @('Board', 'Terminal')) { continue }
     if ($task.status -in @('done', 'abandoned') -and [DateTime]::Parse($task.updated).ToUniversalTime() -lt $recent) { continue }
     Write-Text (Join-Path $statusDir "$($task.id).md") (Format-StatusNote $view)
   }

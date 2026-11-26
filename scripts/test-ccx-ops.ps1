@@ -464,6 +464,11 @@ exit /b 1
     $r = Run-Cli @('health','-Json')
     $stage = @($json.DeserializeObject($r.Out) | Where-Object { $_.name -eq 'provider-gemini' })
     Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'WARN' -and ($stage[0].details -join ' ') -match 'probe failed') "a silent agy still reported PASS: $($stage[0].result) $($stage[0].details)"
+    # Codex review cycle 2: printing an error and exiting nonzero is a failed probe too.
+    Write-Text (Join-Path $bin 'agy.cmd') "@echo off`r`necho Error: broken agy install`r`nexit /b 1`r`n"
+    $r = Run-Cli @('health','-Json')
+    $stage = @($json.DeserializeObject($r.Out) | Where-Object { $_.name -eq 'provider-gemini' })
+    Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'WARN') "a failing agy that printed text reported PASS: $($stage[0].result) $($stage[0].details)"
   }
   Case 'status sections, bounded brief and JSON' {
     Add-Task; Queue 'user' 'status-tick'

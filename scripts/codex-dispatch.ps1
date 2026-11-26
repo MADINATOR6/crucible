@@ -528,6 +528,7 @@ try {
   $hasUsage = $false
   $lastMessage = $null
   $terminalError = $null  # the turn.failed message itself; $messages is de-duplicated for display
+  $lastErrorEvent = $null
   if ($isGemini) {
     # Gemini CLI -o json prints one object: response, stats.models.<name>.tokens, optional error.
     try {
@@ -580,6 +581,8 @@ try {
     $message = $null
     if ($event.type -eq 'error') { $message = $event.message }
     if ($event.type -eq 'turn.failed') { $message = $event.error.message; $terminalError = [string]$event.error.message }
+    # Without a turn.failed, the last error in event order decides; $messages is de-duplicated (Codex review cycle 2).
+    elseif ($message -and -not $terminalError) { $lastErrorEvent = [string]$message }
     if ($message -and -not $messages.Contains($message)) { $messages.Add($message) }
     if ($event.type -eq 'item.completed' -and $event.item -and $event.item.type -eq 'agent_message' -and $event.item.text) { $lastMessage = [string]$event.item.text }
   }
@@ -615,7 +618,7 @@ try {
   if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage -and -not $timedOut -and -not $protectedChanged.Count) {
     $lastStderr = @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_.Trim() }) | Select-Object -Last 1
     # The error that ended the turn decides; de-duplication must not let an earlier 503 stand in for it (Codex review).
-    $endingError = if ($terminalError) { $terminalError } else { @($messages) | Select-Object -Last 1 }
+    $endingError = if ($terminalError) { $terminalError } elseif ($lastErrorEvent) { $lastErrorEvent } else { @($messages) | Select-Object -Last 1 }
     $transientMessages = @(@($endingError) + @($lastStderr) | Where-Object { $_ -and $_ -match $transientPattern })
   }
   foreach ($message in ($transientMessages | Select-Object -Unique)) { Write-Output "TRANSIENT PROVIDER FAILURE: $message (no attempt used)" }
