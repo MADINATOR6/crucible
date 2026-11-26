@@ -1,0 +1,44 @@
+diff --git a/scripts/test-codex-dispatch.ps1 b/scripts/test-codex-dispatch.ps1
+index f59303f..deabe30 100644
+--- a/scripts/test-codex-dispatch.ps1
++++ b/scripts/test-codex-dispatch.ps1
+@@ -271,6 +271,7 @@ const event = value => process.stdout.write(JSON.stringify(value) + '\n');
+ const write = value => { if (report) fs.writeFileSync(report, value, 'utf8'); };
+ const usage = "You've hit your usage limit; try again at 5:33 PM.";
+ if (mode === 'sleep') { setInterval(() => {}, 1000); }
++if (mode === 'sleep503') { process.stderr.write('HTTP 503 Service Unavailable\n'); setInterval(() => {}, 1000); }
+ else if (mode === 'stdin') {
+   process.stdin.resume();
+   process.stdin.on('end', () => { write('stdin done'); process.exit(0); });
+@@ -827,6 +828,14 @@ else {
+     Check-Code $r 1
+     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'early 503 refunded an ordinary failure'
+   }
++  Ccx-Case 'A 503 before a timeout keeps exit 5 and spends the attempt (Gemini UPGRADE-1M note)' {
++    if ($taskkillDenied) { throw 'SKIP: taskkill is denied here (Codex sandbox); run outside the sandbox' }
++    Add-CcxTask
++    $r = Run-Launcher $repo ($common + @('-TaskId','T1','-TimeoutMinutes','0.05')) 'sleep503'
++    Check-Code $r 5
++    Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') 'timeout reported as transient'
++    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'timeout after a 503 refunded the attempt'
++  }
+   Ccx-Case 'Codex limit dispatches the class model through agy' {
+     $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+     $expectedModel = $policy.classes.complex.geminiModel
+diff --git a/scripts/test-crucible.ps1 b/scripts/test-crucible.ps1
+index 6e7ffab..d2bfa3a 100644
+--- a/scripts/test-crucible.ps1
++++ b/scripts/test-crucible.ps1
+@@ -434,7 +434,11 @@ if (kind === 'agy') {
+       [IO.File]::ReadAllText($destination, $utf8) -ceq $pack) 'wrong checkout overwrote valid pack'
+   }
+ } finally {
+-  Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
++  # Delete only this run's own folder under the chosen parent (TEMP or .test-scratch), as the other suites do.
++  $actual = [IO.Path]::GetFullPath($scratch).TrimEnd('\')
++  if ((Split-Path $actual -Parent) -ieq [IO.Path]::GetFullPath($scratchParent).TrimEnd('\') -and (Split-Path $actual -Leaf) -cmatch '^crucible-t-[0-9a-f]{8}$') {
++    Remove-Item -LiteralPath $actual -Recurse -Force -ErrorAction SilentlyContinue
++  } else { Write-Output "NOT REMOVED: scratch path $actual is outside $scratchParent" }
+ }
+ $clock.Stop()
+ Write-Output "$passed/$total passed in $([math]::Round($clock.Elapsed.TotalSeconds))s"
