@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "path": ".claude/skills",
+      "exclude": [
+        "nursing-notes",
+        "offensive-bug-identification",
+        "offensive-reporting"
+      ]
+    }
+  ]
+}
