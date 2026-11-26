@@ -106,7 +106,7 @@ function Test-Brief($Brief, $Policy) {
     # Owned paths reach a cmd.exe command line as check arguments: no cmd metacharacters.
     if ($path -match '[%^&!()<>|`]') { Fail "owns path '$path' has a character cmd.exe would interpret (% ^ & ! ( ) < > | backtick)." }
     # ...nor YAML flow or comment syntax: the brief stores owns as an inline [list], which these would break.
-    if ($path -match "[#\[\]{}'`"\u0085  ]" -or $path -match '^[@&*!|>?:-]') { Fail "owns path '$path' has a character YAML would misread (# [ ] { } quotes, or a leading @ & * ! | > ? : -). Rename the file or folder." }
+    if ($path -match '[#\[\]{}''"\u0085\u2028\u2029]' -or $path -match '^[@&*!|>?:-]') { Fail "owns path '$path' has a character YAML would misread (# [ ] { } quotes, or a leading @ & * ! | > ? : -). Rename the file or folder." }
     foreach ($protected in @($Policy.agentProtectedPaths)) {
       if ((Test-CcxPathOverlap $path $protected) -or (Test-CcxPathOverlap $normalized $protected) -or (Test-CcxPathOverlap $asFolder $protected)) { Fail "owns '$path' is the launcher stack ($protected). Change it from a terminal ccx task with a review, not from a brief." }
     }
@@ -148,7 +148,8 @@ function Invoke-New {
   if (-not $slug) { $slug = 'BRIEF' }
   $taskId = $slug; $n = 2
   $state = Get-CcxState
-  while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId)) { $taskId = "$slug-$n"; $n++ }
+  # BOARD and TERMINAL are reserved: the board writes Status/Board.md and Status/Terminal.md (Codex UPGRADE-3 reviews).
+  while ([IO.File]::Exists((Join-Path $root "tasks/$taskId.md")) -or $state.tasks.ContainsKey($taskId) -or $taskId -in @('BOARD', 'TERMINAL')) { $taskId = "$slug-$n"; $n++ }
   $briefType = if ($Type) { $Type } elseif ($Owner -eq 'gemini') { 'source-research' } else { 'implement' }
   $ownsLine = '[]'
   if ($Type -or $Owner -ne 'auto') { Assert-BriefType (Get-CcxPolicy) $briefType $Owner }
@@ -485,7 +486,7 @@ function Invoke-Board {
   $recent = [DateTime]::UtcNow.AddDays(-7)
   foreach ($view in $views) {
     $task = $view.task
-    if (-not $view.brief -or $task.id -eq 'Terminal') { continue }
+    if (-not $view.brief -or $task.id -in @('Board', 'Terminal')) { continue }
     if ($task.status -in @('done', 'abandoned') -and [DateTime]::Parse($task.updated).ToUniversalTime() -lt $recent) { continue }
     Write-Text (Join-Path $statusDir "$($task.id).md") (Format-StatusNote $view)
   }

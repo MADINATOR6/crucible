@@ -459,6 +459,16 @@ exit /b 1
     Assert ($detail -match 'agy-fixture 1\.5\.17' -and $detail -match 'sign-in unknown' -and $detail -notmatch 'not set') "account-auth provider health omitted version or unknown sign-in: $detail"
     $calls = @([IO.File]::ReadAllLines((Join-Path $bin 'agy-calls.log')))
     Assert ($calls.Count -eq 1 -and $calls[0].Trim() -ceq '--version') "account-auth health invoked unsafe or extra CLI arguments: $($calls -join '; ')"
+    # Codex UPGRADE-3 review: a CLI that gives no version is not healthy.
+    Write-Text (Join-Path $bin 'agy.cmd') "@echo off`r`nexit /b 1`r`n"
+    $r = Run-Cli @('health','-Json')
+    $stage = @($json.DeserializeObject($r.Out) | Where-Object { $_.name -eq 'provider-gemini' })
+    Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'WARN' -and ($stage[0].details -join ' ') -match 'probe failed') "a silent agy still reported PASS: $($stage[0].result) $($stage[0].details)"
+    # Codex review cycle 2: printing an error and exiting nonzero is a failed probe too.
+    Write-Text (Join-Path $bin 'agy.cmd') "@echo off`r`necho Error: broken agy install`r`nexit /b 1`r`n"
+    $r = Run-Cli @('health','-Json')
+    $stage = @($json.DeserializeObject($r.Out) | Where-Object { $_.name -eq 'provider-gemini' })
+    Assert ($stage.Count -eq 1 -and $stage[0].result -eq 'WARN') "a failing agy that printed text reported PASS: $($stage[0].result) $($stage[0].details)"
   }
   Case 'status sections, bounded brief and JSON' {
     Add-Task; Queue 'user' 'status-tick'

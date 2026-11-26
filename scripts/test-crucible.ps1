@@ -308,6 +308,19 @@ if (kind === 'agy') {
     Write-File (Join-Path $repo 'tasks/S6.md') "---`ncrucible: brief`nid: S6`nowner: gemini`ntype: creative`nowns: `" scripts/ccx.ps1`"`n---`n# S6`n`n## Status`n![[Status/S6]]`n"
     $r = Crucible @('launch', '-Note', 'tasks/S6.md')
     Assert ($r.Code -eq 2 -and $r.Out -match 'whitespace' -and -not (State).tasks.S6) "space-padded launcher path accepted: $($r.Out)"
+    # Codex review of UPGRADE-3 (fixed in UPGRADE-3R): Windows PowerShell 5.1 must read the line-break check as
+    # intended. U+2028 is refused; a euro sign is an ordinary character. Built with [char], never typed literally.
+    $lsep = [string][char]0x2028; $euro = [string][char]0x20AC
+    $r = Crucible @('new', '-Title', 'Line separator', '-Type', 'docs', '-Owns', "Reference/a${lsep}b.md")
+    Assert ($r.Code -ne 0 -and -not [IO.File]::Exists((Join-Path $repo 'tasks/LINE-SEPARATOR.md'))) "U+2028 in owns accepted: $($r.Out)"
+    $r = Crucible @('new', '-Title', 'Euro sign', '-Type', 'docs', '-Owns', "Reference/cost${euro}.md")
+    Assert ($r.Code -eq 0 -and [IO.File]::Exists((Join-Path $repo 'tasks/EURO-SIGN.md'))) "an ordinary non-ASCII file name was refused: $($r.Out)"
+    [IO.File]::Delete((Join-Path $repo 'tasks/EURO-SIGN.md'))
+    # The board owns Status/Terminal.md: a brief titled Terminal gets another id.
+    $r = Crucible @('new', '-Title', 'Terminal')
+    Assert ($r.Code -eq 0 -and $r.Out.Trim() -ne 'tasks/TERMINAL.md' -and -not [IO.File]::Exists((Join-Path $repo 'tasks/TERMINAL.md'))) "a brief took the reserved TERMINAL id: $($r.Out)"
+    $r = Crucible @('new', '-Title', 'Board')
+    Assert ($r.Code -eq 0 -and $r.Out.Trim() -ne 'tasks/BOARD.md' -and -not [IO.File]::Exists((Join-Path $repo 'tasks/BOARD.md'))) "a brief took the reserved BOARD id: $($r.Out)"
     New-Brief 'S7' 'gemini' 'creative' 'lifting-tracker'
     $r = Crucible @('launch', '-Note', 'tasks/S7.md')
     Assert ($r.Code -eq 2 -and $r.Out -match 'launcher stack' -and -not (State).tasks.S7) "folder without '/' covering protected files accepted: $($r.Out)"
