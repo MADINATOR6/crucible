@@ -126,6 +126,10 @@ function New-Fixture([switch]$PlainPath) {
     fakelocal = @{ kind='local'; enabled=$true; command='ccx-fake-local'; codexFlags=@('--oss','--local-provider','ollama'); model='fake-local'; use=@('routine') }
     fakecloud = @{ kind='cloud'; enabled=$true; envKey='CCX_TEST_CLOUD_KEY'; codexFlags=@('-c','model_provider=fakecloud'); model='fake-cloud'; use=@('fallback') }
   }
+  # These cases test Codex's routing mechanics through implement/refactor/docs; since GEMINI-PRIMARY those types
+  # default to Gemini, which this fixture has no provider for. Keep them on Codex here; the real Gemini default
+  # is checked against the repo policy in its own case ('Gemini-led types add a non-owner review ...').
+  foreach ($type in 'implement','refactor','docs') { $script:policy.taskTypes[$type].agent = 'codex' }
   Write-Json $env:CCX_POLICY $script:policy
   Write-Json (Join-Path $env:CODEX_HOME $script:policy.models.codex.catalogFile) @{ models = @(@{ slug = $script:policy.models.codex.default }) }
   Set-Location -LiteralPath $script:repo
