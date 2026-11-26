@@ -300,6 +300,17 @@ else if (mode === 'ordinary503ordinaryNoTurn') {
   event({type:'error', message:'ordinary provider failure'});
   process.exit(1);
 }
+else if (mode === 'emptyAfter503') {
+  // Codex narrow check: an empty ending error is still the ending error.
+  event({type:'error', message:'HTTP 503 Service Unavailable'});
+  event({type:'error', message:''});
+  process.exit(1);
+}
+else if (mode === 'emptyTurnFailed503') {
+  event({type:'turn.failed', error:{message:''}});
+  event({type:'error', message:'HTTP 503 Service Unavailable'});
+  process.exit(1);
+}
 else if (mode === 'early503') {
   // A 5xx the provider recovered from, then a failure that is the task's own: not transient.
   event({type:'error', message:'Reconnecting... HTTP 503 Service Unavailable'});
@@ -940,6 +951,15 @@ else {
     Check-Code $r 1
     Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') 'ordinary failure without turn.failed classified as transient'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'ordinary failure without turn.failed refunded'
+  }
+  foreach ($emptyMode in 'emptyAfter503','emptyTurnFailed503') {
+    Ccx-Case "an empty ending error is not hidden by a 503 ($emptyMode, Codex narrow check)" {
+      Add-CcxTask
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) $emptyMode
+      Check-Code $r 1
+      Assert ($r.Stdout -notmatch 'TRANSIENT PROVIDER FAILURE') "$emptyMode classified as transient"
+      Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) "$emptyMode refunded"
+    }
   }
   Ccx-Case 'a quota error with a protected change is exit 9 and spends the attempt (Codex UPGRADE-3 review)' {
     $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
