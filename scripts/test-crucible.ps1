@@ -319,6 +319,8 @@ if (kind === 'agy') {
     # The board owns Status/Terminal.md: a brief titled Terminal gets another id.
     $r = Crucible @('new', '-Title', 'Terminal')
     Assert ($r.Code -eq 0 -and $r.Out.Trim() -ne 'tasks/TERMINAL.md' -and -not [IO.File]::Exists((Join-Path $repo 'tasks/TERMINAL.md'))) "a brief took the reserved TERMINAL id: $($r.Out)"
+    $r = Crucible @('new', '-Title', 'Board')
+    Assert ($r.Code -eq 0 -and $r.Out.Trim() -ne 'tasks/BOARD.md' -and -not [IO.File]::Exists((Join-Path $repo 'tasks/BOARD.md'))) "a brief took the reserved BOARD id: $($r.Out)"
     New-Brief 'S7' 'gemini' 'creative' 'lifting-tracker'
     $r = Crucible @('launch', '-Note', 'tasks/S7.md')
     Assert ($r.Code -eq 2 -and $r.Out -match 'launcher stack' -and -not (State).tasks.S7) "folder without '/' covering protected files accepted: $($r.Out)"
