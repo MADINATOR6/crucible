@@ -12,8 +12,8 @@ $passed = 0; $failed = 0
 function Run([string[]]$WrapperArgs) {
     if ([IO.File]::Exists($argLog)) { [IO.File]::Delete($argLog) }
     $ErrorActionPreference = 'Continue' # the wrapper's refusals go to stderr
-    $null = & powershell -NoProfile -ExecutionPolicy Bypass -File $wrapper @WrapperArgs 2>&1
-    @{ code = $LASTEXITCODE; args = if ([IO.File]::Exists($argLog)) { [IO.File]::ReadAllText($argLog).Trim() } else { $null } }
+    $text = (& powershell -NoProfile -ExecutionPolicy Bypass -File $wrapper @WrapperArgs 2>&1 | Out-String)
+    @{ code = $LASTEXITCODE; text = $text; args = if ([IO.File]::Exists($argLog)) { [IO.File]::ReadAllText($argLog).Trim() } else { $null } }
 }
 function Case([string]$Name, [scriptblock]$Body) {
     try { & $Body; $script:passed++; Write-Output "PASS $Name" } catch { $script:failed++; Write-Output "FAIL $Name : $($_.Exception.Message)" }
@@ -74,9 +74,23 @@ try {
         $null = & cmd.exe /d /c mklink /J "$escape" "$scratch" 2>&1
         Assert (Test-Path -LiteralPath $escape) 'junction not created'
         try {
-            $via = Run @('transcribe', '-Source', $doc, '-Out', (Join-Path $escape 't.md'))
-            Assert ($via.code -eq 2 -and $null -eq $via.args) 'transcript through a junction out of media-out accepted'
+            $via = Run @('transcribe', '-Source', $doc, '-Out', (Join-Path $escape 'new\t.md'))
+            Assert ($via.code -eq 2 -and $null -eq $via.args -and $via.text -match 'leaves media-out/ through a link') "junction below media-out not refused for the link: $($via.text)"
+            Assert (-not (Test-Path -LiteralPath (Join-Path $scratch 'new'))) 'a refused junction still got a folder created at its target'
         } finally { if (Test-Path -LiteralPath $escape) { [IO.Directory]::Delete($escape) } }
+        # media-out itself as a junction: a throwaway copy of the repo layout, so no real folder is replaced.
+        $fakeRepo = Join-Path $scratch 'fake-repo'
+        foreach ($d in 'scripts', 'ccx') { [void][IO.Directory]::CreateDirectory((Join-Path $fakeRepo $d)) }
+        foreach ($f in 'gemini-api.ps1', 'invoke-external-tool.ps1') { Copy-Item (Join-Path $PSScriptRoot $f) (Join-Path $fakeRepo "scripts\$f") }
+        Copy-Item (Join-Path $repo 'ccx\policy.json') (Join-Path $fakeRepo 'ccx\policy.json')
+        $elsewhere = Join-Path $scratch 'elsewhere-root'; [void][IO.Directory]::CreateDirectory($elsewhere)
+        $null = & cmd.exe /d /c mklink /J "$(Join-Path $fakeRepo 'media-out')" "$elsewhere" 2>&1
+        Assert (Test-Path -LiteralPath (Join-Path $fakeRepo 'media-out')) 'media-out junction not created'
+        $saved = $wrapper; $script:wrapper = Join-Path $fakeRepo 'scripts\gemini-api.ps1'
+        try {
+            $root = Run @('transcribe', '-Source', $doc, '-Out', (Join-Path $fakeRepo 'media-out\t.md'))
+            Assert ($root.code -eq 2 -and $null -eq $root.args -and $root.text -match 'media-out/ is a link') "transcript through a media-out junction not refused for the link: $($root.text)"
+        } finally { $script:wrapper = $saved; [IO.Directory]::Delete((Join-Path $fakeRepo 'media-out')) }
         $good = Join-Path $repo 'media-out\gemini-api\t.md'
         $two = Run @('transcribe', '-Source', $doc, '-Source', $doc, '-Out', $good)
         Assert ($two.code -eq 2 -and $null -eq $two.args) 'two sources accepted (the CLI would treat -Out as a folder)'
