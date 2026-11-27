@@ -1,13 +1,22 @@
-# GEMINI-REVIEWER: plan brief for Codex (Planner instruction, HANDOFF.md)
+# GEMINI-REVIEWER: Gemini as reviewer and verifier, never of its own routing (+ Higgsfield for Antigravity)
 
-The user approved on 2026-11-27 ("4. do this") proposal #4 of `handoffs/GEMINI-SELF-UPGRADE-report.md` (also `handoffs/GEMINI-UPGRADE-approvals.md`): let Gemini act as a reviewer and verifier of Claude's and Codex's work, especially while Codex is at its limit, while it can never review or verify anything that touches Gemini's own routing or access. Claude implements your plan; Codex reviews the diff; Gemini authors none of it (AGENTS.md, Gemini as primary worker).
+Owner: claude (implements). Plan: Codex (`handoffs/GEMINI-REVIEWER-plan.md`, gpt-6.2-astra, 2026-11-28). Reviewer: Codex. Approved by the user in chat on 2026-11-27 ("4. do this", "5. do this"). Gemini authored none of it.
 
-Plan only; edit nothing. Read AGENTS.md (Roles, Gemini as primary worker, Control Plane), HANDOFF.md (Planner instruction, Verifier instruction), `ccx/policy.json` (`taskTypes`, `classes[*].verification`, `providers`, `agentProtectedPaths`), `scripts/ccx-core.ps1` (`Get-CcxVerification`, task review and task done), and `scripts/codex-dispatch.ps1` (role/route handling for agy, the fallback that let Gemini review UPGRADE-3R, FRICTION.md 2026-11-26).
+## Plan critique (Claude, HANDOFF.md Plan critique)
+- Accepted: explicit `-Reviewer gemini` for `-Role verify|research` with `-TaskId`; one eligibility function used at dispatch (intentional and quota fallback), at `task review` recording and at `task done`; a prohibited fallback defers instead of running; `codex.cmd` lookup moves after provider resolution; HANDOFF's `-By codex` example names the reviewing provider.
+- Simplified: no committed-review-range tracking. ccx's scope stage already refuses changes outside a task's `owns`, so a task whose `owns` avoids the protected files cannot have changed them. Eligibility = owner is not gemini, no recorded gemini implementation dispatch, and `owns` does not overlap the protected list (whole files, case-insensitive, parents included via `Test-CcxPathOverlap`).
+- Added: Higgsfield joins `.agents/plugins/crucible-tools/mcp_config.json` together with a launcher deny `mcp(crucible-tools_higgsfield/*)` in every agy settings file, turbo included (moved here from GEMINI-TOOLS).
 
-Questions the plan must answer:
-1. How a reviewer is chosen today, and the smallest change that lets `codex-dispatch.ps1 -Role verify` (and `-Role research`) run on Gemini on purpose (e.g. `-Reviewer gemini` or a route), not only as a silent fallback.
-2. Whether `ccx task review -By gemini` already counts as the cross-model review / independent verifier for a Claude- or Codex-owned task, and what must change so it does, and never for a Gemini-owned task.
-3. The guard: Gemini must never verify, review or research a task whose owned paths (or diff) touch Gemini's routing or access: Gemini's entries in `ccx/policy.json`, the agy branch of `scripts/codex-dispatch.ps1`, `scripts/crucible.ps1` launch/run, `GEMINI.md`, `.agents/`, AGENTS.md's "Gemini as primary worker" section. Where is the cheapest place to enforce it so the fallback path and the intentional path both hit it? Should the fallback for verify on such a task defer instead?
-4. Whether the launcher still needs `codex.cmd` on PATH for a Gemini-only run, and whether to fix that here or leave it.
+## Protected subjects (Gemini may not review or verify)
+`ccx/policy.json`, `scripts/codex-dispatch.ps1`, `scripts/crucible.ps1`, `scripts/ccx-core.ps1`, `GEMINI.md`, `.agents/`, `AGENTS.md`, `CLAUDE.md`.
 
-Return the plan per HANDOFF.md Planner instruction: requirements, approach, exact write allowlist, Done When with test cases (ids in `scripts/test-ccx.ps1` / `scripts/test-codex-dispatch.ps1`), Verify commands from AGENTS.md Commands or `verify.stages`, stop conditions, and the `Untested:` line.
+## Write allowlist
+`scripts/ccx-core.ps1`, `scripts/codex-dispatch.ps1`, `scripts/test-ccx.ps1`, `scripts/test-codex-dispatch.ps1`, `HANDOFF.md`, `AGENTS.md`, `CLAUDE.md`, `.agents/plugins/crucible-tools/mcp_config.json`, `EXTERNAL-TOOLS.md`, `tasks/GEMINI-REVIEWER.md`, `handoffs/GEMINI-REVIEWER-plan.md`.
+
+## Done When
+- test-ccx: GR-C1 (Gemini review and verifier rows satisfy their gates on safe Claude/Codex-owned tasks), GR-C2 (both kinds refused for Gemini-owned or Gemini-implemented subjects; a historical self-verifier row cannot satisfy `done`), GR-C3 (protected owns detected: each file, a parent folder, case variation; an unrelated path stays eligible).
+- test-codex-dispatch: GR-D1 (explicit Gemini verify/research runs fake agy read-only in plan mode, provider recorded, no implementation attempt spent), GR-D2 (explicit and fallback runs on a protected subject refuse/defer before any child starts; invalid combinations fail), GR-D3 (no `codex.cmd` on PATH: a Gemini run succeeds, a Codex run reports the missing CLI), and the Higgsfield deny appears in both normal and turbo agy settings.
+- `ccx verify -TaskId GEMINI-REVIEWER` passes; Codex reviews the diff.
+
+## Stop conditions
+Stop if GEMINI-ACCESS-1 has not closed (ownership overlap). Defer an individual Gemini run when its subject cannot be established.
