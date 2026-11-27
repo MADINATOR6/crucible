@@ -11,7 +11,7 @@ For complex, ambiguous or risky code tasks (risky ones also get the verifier run
 3. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> -Role research -TaskFile tasks/<ID>-plan.md` (read-only). `-TaskId` starts the task before any work exists, so an ownership conflict (exit 7) or a dirty baseline shows here and not at step 6; a research run uses no implementation attempt. The brief's first line: `Follow HANDOFF.md, Planner instruction (it replaces the Researcher instruction for this task).` The read-only sandbox works (FRICTION.md, 2026-10-25 row, resolved 2026-11-01). If it stops starting processes again, Claude plans and records why, or dispatches with `-Sandbox danger-full-access` under a `codex-full-access` approval.
 4. [ ] Claude runs the Plan critique below against the code, records disagreements and decisions, and writes `tasks/<ID>.md` in the usual task-file shape. At most two challenge rounds with Codex.
 5. [ ] Claude implements inside the allowlist and runs the Verify commands.
-6. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> -Role verify` (add `-Reviewer gemini` for a Gemini review, AGENTS.md, Gemini as reviewer) → `ccx verify -TaskId <ID>` → `ccx task review -Id <ID> -Result pass|changes -By <codex|gemini>` (the provider that actually ran, from the report's Route line) → `ccx task done -Id <ID>` → commit.
+6. [ ] `scripts\codex-dispatch.ps1 -TaskId <ID> -Role verify` (add `-Reviewer gemini` for a Gemini review, AGENTS.md, Gemini as reviewer) → `ccx verify -TaskId <ID>` → `ccx task review -Id <ID> -Result pass|changes -By <codex|gemini>` (the provider that actually ran: the launcher's `Route:` line, recorded as `lastDispatch.provider` in `ccx task show`) → `ccx task done -Id <ID>` → commit.
 
 ### Planner instruction (Codex)
 

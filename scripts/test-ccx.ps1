@@ -366,6 +366,21 @@ try {
     foreach ($owns in @('src/app.js', 'scripts/test-ccx.ps1', 'handoffs/report.md', 'agency/')) {
       Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns) })) "unrelated owns blocked: $owns"
     }
+    # Codex review (GEMINI-REVIEWER-2): the Gemini-implemented mark is sticky, so a trimmed run history cannot clear it.
+    Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('src/'); geminiImplemented = $true }) -match 'Gemini implemented') 'sticky Gemini-implemented mark ignored'
+  }
+  Case 'GR-C4 a protected file committed on a task branch blocks Gemini though the task owns something else (Codex review)' {
+    $wt = Join-Path $scratch ('gr-c4-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
+    Run-Git @('worktree', 'add', '-b', 'gr-c4', $wt, 'HEAD')
+    try {
+      Write-Utf8File (Join-Path $wt 'docs\note.md') 'safe'
+      & $git -C $wt add -- 'docs/note.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m safe | Out-Null
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt })) 'a safe committed change blocked Gemini'
+      Write-Utf8File (Join-Path $wt 'GEMINI.md') 'pointer'
+      & $git -C $wt add -- 'GEMINI.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m protected | Out-Null
+      $block = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }
+      Assert ($block -match 'touches GEMINI.md') "a committed protected change was missed: $block"
+    } finally { & $git -C $repo worktree remove --force $wt 2>$null | Out-Null }
   }
   Case 'media types validate credit caps and owned ledger folders and route gates' {
     $base = @('task','add','-Id','M1','-Title','Synthetic media','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','media-out/higgsfield/demo/')

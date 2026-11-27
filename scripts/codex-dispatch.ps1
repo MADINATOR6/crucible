@@ -169,6 +169,8 @@ try {
   if (-not $PSBoundParameters.ContainsKey('Sandbox') -and $Role -ne 'implement') { $Sandbox = 'read-only' }
   if ($Reviewer) {
     if (-not $TaskId -or $Role -eq 'implement') { throw '-Reviewer gemini needs -TaskId and -Role verify or research.' }
+    # The class model and effort come from routing; an override would drop or replace them (Codex review).
+    if ($PSBoundParameters.ContainsKey('Model') -or $PSBoundParameters.ContainsKey('Effort')) { throw '-Reviewer gemini takes no -Model or -Effort; ccx routes them by class.' }
     if ($Sandbox -ne 'read-only') { throw '-Reviewer gemini runs read-only; drop -Sandbox.' }
   }
   $taskPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($TaskFile)
@@ -252,10 +254,16 @@ try {
     if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
     $decision = Invoke-CcxRoute @routeArgs
     if ($Reviewer -eq 'gemini') {
+      # Same availability rules as any Gemini route: disabled, at its usage limit or agy missing stops here,
+      # before the lock and the task start (Codex review, GEMINI-REVIEWER-2).
+      $geminiBlocker = Get-CcxProviderBlocker -Policy $policy -Name 'gemini' -State $state
+      if ($geminiBlocker) { throw (New-CcxError "Gemini cannot review now: $geminiBlocker" 8) }
       # An intentional Gemini review: Gemini's class model, read-only, the task's owner unchanged (GEMINI-REVIEWER).
       $decision.agent = 'gemini'; $decision.provider = 'gemini'; $decision.route = 'worker'
       $decision.model = $policy.classes[$class].geminiModel
       $decision.reasons += 'reviewer gemini requested'
+      # The routing log recorded the default route above; record the route that actually runs (Codex review).
+      $null = Complete-CcxRoute $decision $Role $TaskId
     }
     # Gemini never reviews, verifies or researches its own work or its own routing: intentional runs are refused,
     # a quota fallback defers instead (FRICTION.md 2026-11-27: a fallback once let Gemini review its own access).
@@ -375,6 +383,8 @@ try {
         n=$task.dispatches; role=$Role; provider=$(if ($providerName) { $providerName } else { 'openai' }); model=$Model; effort=$Effort; sandbox=$Sandbox; startedAt=$now
         escalated=([array]::IndexOf($ladder,$Effort) -gt [array]::IndexOf($ladder,$policy.classes[$class].effort.codex.base))
       }
+      # Sticky: Gemini may never review this task later, even after the run history is trimmed (GEMINI-REVIEWER-2).
+      if ($providerName -eq 'gemini' -and $Role -eq 'implement') { $task.geminiImplemented = $true }
       if ($decision.strategy) {
         $task.lastDispatch.sessionId = $decision.strategy.sessionId
         $task.lastDispatch.routingLessons = @($decision.learning | ForEach-Object { $_.id })

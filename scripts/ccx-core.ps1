@@ -362,18 +362,27 @@ function ConvertTo-CcxOwnedPath {
     return $pathValue
 }
 # GEMINI-REVIEWER (user-approved 2026-11-27): Gemini may review and verify Claude's and Codex's work, never its own
-# work or anything that decides Gemini's routing or access. Scope enforcement keeps a task's changes inside its
-# owns, so checking owns covers what the task can have changed (no review-range tracking needed).
+# work or anything that decides Gemini's routing or access. Checked against the task's owns, its uncommitted scope
+# (verify's scope stage) and, for a worktree task, everything committed on its branch since it left the base
+# branch: ccx's scope stage sees only uncommitted changes (Codex review, GEMINI-REVIEWER-2).
 $script:CcxGeminiProtected = @('ccx/policy.json', 'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1',
     'GEMINI.md', '.agents/', 'AGENTS.md', 'CLAUDE.md')
 function Get-CcxGeminiReviewBlock {
     param($Task)
     if ($Task.owner -eq 'gemini') { return 'Gemini owns this task' }
+    # geminiImplemented is sticky: the run history keeps only the latest runs (Codex review, GEMINI-REVIEWER-2).
     $runs = @($Task.runs) + @($Task.lastDispatch) | Where-Object { $_ }
-    if (@($runs | Where-Object { $_.provider -eq 'gemini' -and $_.role -eq 'implement' }).Count) { return 'Gemini implemented part of this task' }
-    foreach ($owned in @($Task.owns)) {
+    if ($Task.geminiImplemented -or @($runs | Where-Object { $_.provider -eq 'gemini' -and $_.role -eq 'implement' }).Count) { return 'Gemini implemented part of this task' }
+    $subjects = @($Task.owns | ForEach-Object { ([string]$_).Replace('\', '/') })
+    if ($Task.worktree -and [IO.Directory]::Exists([string]$Task.worktree)) {
+        try {
+            $base = (Invoke-CcxGit -Root (Get-CcxMainRoot) -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
+            $subjects += @((Invoke-CcxGit -Root $Task.worktree -Arguments @('diff', '--name-only', '-z', ($base + '...HEAD'))).Split([char]0) | Where-Object { $_ })
+        } catch { return 'its committed changes cannot be listed, so the review range is unknown' }
+    }
+    foreach ($subject in $subjects) {
         foreach ($protected in $script:CcxGeminiProtected) {
-            if (Test-CcxPathOverlap -A ([string]$owned).Replace('\', '/') -B $protected) { return "the task owns $owned, which decides Gemini's routing or access" }
+            if (Test-CcxPathOverlap -A $subject -B $protected) { return "the task touches $subject, which decides Gemini's routing or access" }
         }
     }
     return $null

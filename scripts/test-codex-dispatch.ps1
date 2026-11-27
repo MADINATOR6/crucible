@@ -889,6 +889,15 @@ else {
       Assert ([IO.File]::Exists($argLog)) 'safe fallback did not run Gemini'
       Check-Code (Run-Launcher $repo ($common + @('-TaskId','S1','-Role','implement','-Reviewer','gemini')) 'ready') 1
       Check-Code (Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify','-Reviewer','gemini','-Sandbox','workspace-write')) 'ready') 1
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify','-Reviewer','gemini','-Model','gemini-4-neon-high')) 'ready') 1
+      # Codex review (GEMINI-REVIEWER-2): an explicit review obeys Gemini's availability like any Gemini route.
+      $policyNow = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+      $policyNow.providers.gemini.enabled = $false
+      Write-Utf8File $env:CCX_POLICY ($policyNow | ConvertTo-Json -Depth 20)
+      [IO.File]::Delete($argLog)
+      $r = Run-Launcher $repo ($common + @('-TaskId','S1','-Role','research','-Reviewer','gemini')) 'ready'
+      Check-Code $r 8
+      Assert ($r.Stdout -match 'Gemini cannot review now: disabled in policy' -and -not [IO.File]::Exists($argLog)) 'a disabled Gemini still reviewed'
     } finally { Remove-Item -LiteralPath $fake -Force }
   }
   Ccx-Case 'GR-D3 without codex.cmd a Gemini review runs and a Codex run reports the missing CLI before it starts' {
