@@ -102,7 +102,7 @@ Google's `gemini-api` CLI on the user's `GEMINI_API_KEY`, an AI Studio key with 
 
 ## Antigravity MCP plugin (Rea and Higgsfield for Gemini)
 
-`.agents/plugins/crucible-tools/` gives Antigravity the same `rea` (pinned stdio command) and `higgsfield` (hosted MCP) servers as `.mcp.json` and `.codex/config.toml`; Antigravity names them `crucible-tools_rea` and `crucible-tools_higgsfield`. Interactive Antigravity asks the user before each call. Headless agy denies every MCP call that has no allow rule, so dispatched Gemini runs do not call them, and the launcher also denies `mcp(crucible-tools_higgsfield/*)` in every Gemini run, turbo included (a wildcard `mcp(...)` deny held under `--dangerously-skip-permissions` in Claude's probe, 2026-11-27), so Higgsfield spending stays behind the paid-action gate. Higgsfield needs its own sign-in inside the Antigravity app; until then the server is absent.
+`.agents/plugins/crucible-tools/` gives Antigravity the same pinned `rea` stdio server as `.mcp.json` and `.codex/config.toml`; Antigravity names it `crucible-tools_rea` (229 tools in Claude's probe, 2026-11-27). Interactive Antigravity asks the user before each call; headless agy denies every MCP call that has no allow rule, so dispatched Gemini runs do not call it except in an approved turbo run. Higgsfield joins the plugin together with a launcher rule that denies `mcp(crucible-tools_higgsfield/*)` in every Gemini run, turbo included (task GEMINI-REVIEWER; a wildcard `mcp(...)` deny held under `--dangerously-skip-permissions` in Claude's probe), so its spending stays behind the paid-action gate; it also needs its own sign-in inside the Antigravity app.
 
 ## Isolated OmO and Claude equivalent
 

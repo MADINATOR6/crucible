@@ -8,16 +8,15 @@ Owner: claude. Reviewer: Codex. Approved by the user in chat on 2026-11-27 ("5. 
 - `scripts/test-gemini-api.ps1`: offline, fake binary.
 
 ## #5 Antigravity MCP
-- `.agents/plugins/crucible-tools/` (`plugin.json`, `mcp_config.json`): the same pinned `rea` stdio command and `higgsfield` hosted URL as `.mcp.json` and `.codex/config.toml`.
-- Launcher (after GEMINI-ACCESS-1 closes): every agy dispatch denies `mcp(crucible-tools_higgsfield/*)`, turbo included. Claude's probes on 2026-11-27: a wildcard `mcp(...)` deny blocked a Rea call under `--dangerously-skip-permissions`, and the same call without the rule went through.
+- `.agents/plugins/crucible-tools/` (`plugin.json`, `mcp_config.json`): the same pinned `rea` stdio command as `.mcp.json` and `.codex/config.toml`.
+- Higgsfield moved to GEMINI-REVIEWER (2026-11-28, to save a verify): it joins the plugin in the same change as the launcher deny `mcp(crucible-tools_higgsfield/*)`, so it is never reachable without the deny. Claude's probes on 2026-11-27: a wildcard `mcp(...)` deny blocked a Rea call under `--dangerously-skip-permissions`, and the same call without the rule went through.
 
 ## Write allowlist
-`scripts/gemini-api.ps1`, `scripts/test-gemini-api.ps1`, `EXTERNAL-TOOLS.md`, `.agents/plugins/`, `tasks/GEMINI-TOOLS.md`; then `scripts/codex-dispatch.ps1`, `scripts/test-codex-dispatch.ps1`, `AGENTS.md`, `CLAUDE.md`.
+`scripts/gemini-api.ps1`, `scripts/test-gemini-api.ps1`, `EXTERNAL-TOOLS.md`, `.agents/plugins/`, `tasks/GEMINI-TOOLS.md`.
 
 ## Done When
-- `scripts/test-gemini-api.ps1` passes; one live `analyze` on a synthetic file returns an answer (or a recorded transient 503).
+- `scripts/test-gemini-api.ps1` passes; one live `analyze` on a synthetic file returns an answer (or a recorded transient 503: 2026-11-27 and 11-28, every model, so a live answer is UNTESTED).
 - A headless agy probe from the repo lists `crucible-tools_rea`.
-- A dispatch test shows the Higgsfield deny in agy settings for normal and turbo runs.
 - `ccx verify -TaskId GEMINI-TOOLS` passes; Codex reviews.
 
 ## Untested by design
