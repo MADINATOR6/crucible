@@ -24,9 +24,29 @@ function Test-Private([string]$Full) {
     return $false
 }
 
+Add-Type -TypeDefinition @'
+using System; using System.IO; using System.Runtime.InteropServices; using System.Text; using Microsoft.Win32.SafeHandles;
+public static class CrucibleFinalPath {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr sec, uint disposition, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, StringBuilder path, uint size, uint flags);
+    // The path Windows actually opens: links, junctions and 8.3 short names resolved.
+    public static string Get(string path) {
+        using (SafeFileHandle h = CreateFileW(path, 0, 7, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero)) {
+            if (h.IsInvalid) throw new IOException("cannot open " + path);
+            StringBuilder sb = new StringBuilder(32768);
+            if (GetFinalPathNameByHandleW(h, sb, (uint)sb.Capacity, 0) == 0) throw new IOException("cannot resolve " + path);
+            string s = sb.ToString();
+            return s.StartsWith(@"\\?\UNC\") ? @"\\" + s.Substring(8) : (s.StartsWith(@"\\?\") ? s.Substring(4) : s);
+        }
+    }
+}
+'@
+
 $command, $rest = $args
 $rest = @($rest | Where-Object { $null -ne $_ })
-$sources = @(); $question = $null; $out = $null; $format = 'md'; $dryRun = $false
+$sources = @(); $question = $null; $tail = @(); $out = $null; $format = 'md'; $dryRun = $false
 for ($i = 0; $i -lt $rest.Count; $i++) {
     $name = $rest[$i]
     if ($name -eq '-DryRun') { $dryRun = $true; continue }
@@ -44,7 +64,10 @@ foreach ($source in $sources) {
     if ($source -match '^[a-z]+://') { Stop-Usage "only local files and YouTube URLs are allowed: $source" }
     $full = [IO.Path]::GetFullPath($source)
     if (-not [IO.File]::Exists($full)) { Stop-Usage "not a file: $source" }
-    if (Test-Private $full) { Stop-Usage "refused: $source is private (privacy.excludePaths, secrets or workbooks)" }
+    # Check the path Windows resolves (junctions, links, short names), not only the spelling given (security review).
+    $final = [CrucibleFinalPath]::Get($full)
+    if ((Test-Private $full) -or (Test-Private $final)) { Stop-Usage "refused: $source is private (privacy.excludePaths, secrets or workbooks)" }
+    $full = $final
     $toolArgs += @('-i', $full)
 }
 
@@ -54,7 +77,8 @@ switch ($command) {
         if (-not $sources.Count) { Stop-Usage 'Usage: gemini-api.ps1 analyze -Source <file|youtube url> [-Question <text>] [-DryRun]' }
         if ($out) { Stop-Usage '-Out is for transcribe' }
         $toolArgs = @('analyze') + $toolArgs
-        if ($question) { $toolArgs += $question }
+        # "--" ends option parsing, so a question can never be read as a flag (security review).
+        if ($question) { $tail = @('--', $question) }
     }
     'transcribe' {
         if (-not $sources.Count -or -not $out) { Stop-Usage 'Usage: gemini-api.ps1 transcribe -Source <file> -Out <file> [-Format md|text|json|srt] [-DryRun]' }
@@ -72,4 +96,4 @@ switch ($command) {
     default { Stop-Usage 'Usage: gemini-api.ps1 version | analyze ... | transcribe ...' }
 }
 if ($dryRun) { $toolArgs += '--dry-run' }
-exit (Invoke-ExternalTool $exe $toolArgs)
+exit (Invoke-ExternalTool $exe ($toolArgs + $tail))

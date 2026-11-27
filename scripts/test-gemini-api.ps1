@@ -28,11 +28,22 @@ try {
     Case 'analyze passes the file, the question and nothing else' {
         $r = Run @('analyze', '-Source', $doc, '-Question', 'Summarize')
         Assert ($r.code -eq 0) "exit $($r.code)"
-        Assert ($r.args -eq "analyze|-i|$doc|Summarize") "args: $($r.args)"
+        Assert ($r.args -eq "analyze|-i|$doc|--|Summarize") "args: $($r.args)"
     }
-    Case '-DryRun adds --dry-run' {
-        $r = Run @('analyze', '-Source', $doc, '-DryRun')
-        Assert ($r.args -like '*|--dry-run') "args: $($r.args)"
+    Case '-DryRun adds --dry-run, before the question' {
+        $r = Run @('analyze', '-Source', $doc, '-Question', 'Q', '-DryRun')
+        Assert ($r.args -eq "analyze|-i|$doc|--dry-run|--|Q") "args: $($r.args)"
+    }
+    Case 'a question shaped like a flag stays the question (security review)' {
+        $r = Run @('analyze', '-Source', $doc, '-Question', '--model=gemini-pro')
+        Assert ($r.code -eq 0 -and $r.args -eq "analyze|-i|$doc|--|--model=gemini-pro") "args: $($r.args)"
+    }
+    Case 'a junction into a private folder is refused (security review)' {
+        $link = Join-Path $scratch 'innocent'
+        $null = & cmd.exe /d /c mklink /J "$link" "$(Split-Path $nursing)" 2>&1
+        Assert (Test-Path (Join-Path $link 'week1.txt')) 'junction not created'
+        $r = Run @('analyze', '-Source', (Join-Path $link 'week1.txt'))
+        Assert ($r.code -eq 2 -and $null -eq $r.args) "code $($r.code), args $($r.args)"
     }
     foreach ($private in @($env1, $book, $nursing)) {
         Case "private file refused before anything runs: $([IO.Path]::GetFileName($private))" {
