@@ -374,10 +374,18 @@ function Get-CcxGeminiReviewBlock {
     $runs = @($Task.runs) + @($Task.lastDispatch) | Where-Object { $_ }
     if ($Task.geminiImplemented -or @($runs | Where-Object { $_.provider -eq 'gemini' -and $_.role -eq 'implement' }).Count) { return 'Gemini implemented part of this task' }
     $subjects = @($Task.owns | ForEach-Object { ([string]$_).Replace('\', '/') })
-    if ($Task.worktree -and [IO.Directory]::Exists([string]$Task.worktree)) {
+    # Fails closed (security review): an unknown base, a missing branch or worktree, or a failed diff blocks Gemini.
+    # The range comes from the task's branch in the main repo when recorded, so a removed worktree still counts;
+    # --no-renames lists both names of a renamed file, so a protected path cannot hide behind a rename.
+    if ($Task.branch -or $Task.worktree) {
         try {
-            $base = (Invoke-CcxGit -Root (Get-CcxMainRoot) -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
-            $subjects += @((Invoke-CcxGit -Root $Task.worktree -Arguments @('diff', '--name-only', '-z', ($base + '...HEAD'))).Split([char]0) | Where-Object { $_ })
+            $main = Get-CcxMainRoot
+            $base = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
+            if (-not $base -or $base -eq 'HEAD') { return 'the base branch is unknown (detached HEAD), so the review range is unknown' }
+            if ($Task.branch) { $diffRoot = $main; $tip = [string]$Task.branch }
+            elseif ([IO.Directory]::Exists([string]$Task.worktree)) { $diffRoot = [string]$Task.worktree; $tip = 'HEAD' }
+            else { return 'its worktree is gone and no branch is recorded, so the review range is unknown' }
+            $subjects += @((Invoke-CcxGit -Root $diffRoot -Arguments @('diff', '--no-renames', '--name-only', '-z', ($base + '...' + $tip), '--')).Split([char]0) | Where-Object { $_ })
         } catch { return 'its committed changes cannot be listed, so the review range is unknown' }
     }
     foreach ($subject in $subjects) {
