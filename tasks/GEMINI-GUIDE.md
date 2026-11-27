@@ -22,6 +22,13 @@ Cover:
 ## Inputs (read only these)
 `AGENTS.md`, `CLAUDE.md`, `HANDOFF.md` (Briefs from Obsidian), `EXTERNAL-TOOLS.md`, `Start Here.md`, `handoffs/GEMINI-UPGRADE-approvals.md`, `HANDOFF-REPORT.md`. Never read `nursing-a2/`, `*.xlsx`, `.env*` or `Status/.runs/`.
 
+## Review, cycle 1 (Claude, 2026-11-28)
+Good guide; keep its shape and length. Your worktree was cut before the user's latest approvals, so three facts are stale. Fix only these:
+1. "Gemini API tool": the user approved it on 2026-11-27 ("6. do this") and it is built and tested (task GEMINI-TOOLS, `scripts/gemini-api.ps1`, `analyze` and `transcribe` only, private files refused); say it is coming once merged, not waiting on approval. Google's free-tier servers returned "high demand" on live calls so far.
+2. "Rea and Higgsfield in Antigravity": approved ("5. do this"). Rea is built (Antigravity loads it as `crucible-tools_rea`); Higgsfield comes together with a rule that blocks its spending tools in every Gemini run.
+3. "What keeps it safe": approvals are given in chat to Claude (who records them with `ccx approve -Chat`) or in a terminal, not only in a terminal. Keep "Obsidian never approves".
+Also: commit authors were approved on 2026-11-28; Codex will be credited as `codex` and Gemini as Google's `gemini-code-assist[bot]` app.
+
 ## Done When
 - The file exists, under about 700 words, with the four parts above and a one-line note at the top that AGENTS.md is the authority.
 - Every factual claim matches one of the inputs; nothing invented (no commands, flags or features that are not in them).
