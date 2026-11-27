@@ -815,9 +815,27 @@ else {
       $args = [IO.File]::ReadAllText($argLog)
       # The launcher quotes every argument.
       Assert ($args -match '"--mode" "accept-edits"' -and $args -match '"--sandbox"' -and $args -match '"--settings"' -and $args -notmatch 'dangerously' -and $args -match '"--model" "gemini-4-neon-medium"') "agy flags wrong: $args"
+      Assert ($args -match '"--disable-slash-commands"') "writable agy run lost --disable-slash-commands: $args"
       $task = (Read-CcxState).tasks.T1
       Assert ($task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.status -eq 'READY_FOR_CLAUDE_REVIEW') 'gemini dispatch not recorded'
       Assert ($task.tokens.input -eq 10 -and $task.tokens.output -eq 4) 'gemini tokens not parsed'    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
+  }
+  Ccx-Case 'a read-only agy run keeps plan mode: no --disable-slash-commands, which makes agy ignore it (GEMINI-ACCESS-1)' {
+    $text = [IO.File]::ReadAllText($env:CCX_POLICY).Replace('"command": "agy.exe"', '"command": "agy.cmd"')
+    Write-Utf8File $env:CCX_POLICY $text
+    Add-CcxTask
+    $state = Read-CcxState
+    $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    Write-CcxState $state
+    $argLog = Join-Path $scratch 'gemini-args-ro.txt'
+    $fakeGemini = Join-Path $fakeDir 'agy.cmd'
+    Write-Utf8File $fakeGemini ("@echo off`r`necho %*>`"$argLog`"`r`necho {`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`"}`r`n")
+    try {
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Sandbox','read-only')) 'ready'
+      Assert ([IO.File]::Exists($argLog)) "agy not started: $($r.Stdout) $($r.Stderr)"
+      $args = [IO.File]::ReadAllText($argLog)
+      Assert ($args -match '"--mode" "plan"' -and $args -notmatch 'disable-slash-commands' -and $args -match '"--sandbox"') "read-only agy flags wrong: $args"
+    } finally { Remove-Item -LiteralPath $fakeGemini -Force }
   }
   foreach ($mode in @('capacity', 'http503')) {
     $caseName = if ($mode -eq 'capacity') { 'Terminal capacity and provider 503 preserve output and attempt balance' } else { 'Provider HTTP 503 on stderr preserves output and attempt balance' }

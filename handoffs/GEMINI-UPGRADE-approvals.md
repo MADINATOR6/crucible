@@ -6,6 +6,9 @@ Gemini proposed eight upgrades in `handoffs/GEMINI-SELF-UPGRADE-report.md`. Clau
 - **Codex now reads all of AGENTS.md.** Codex keeps only 32 KiB of AGENTS.md by default; `codex debug prompt-input` showed it never saw Modes, Scope, Security or Definition of Done. `.codex/config.toml` now sets `project_doc_max_bytes = 65536` (commit 1ba0441).
 - **Gemini sees its whole rulebook and Crucible's skills** (task GEMINI-CONTEXT, written by Gemini, reviewed by Codex and Claude): a short `GEMINI.md` tells Antigravity that its loader cuts AGENTS.md at 24,000 bytes and to read the rest, and `.agents/skills.json` points Antigravity at `.claude/skills` (without nursing-notes and the offensive-security modules).
 
+## Approved 2026-11-27 and built (GEMINI-ACCESS-1)
+#3 (scheduled-task launch), #8 (gemini worktrees) and the plan-mode row below. #4, #5 and #6 still wait.
+
 ## Your call
 | # | Upgrade | Claude's view | Needs |
 |---|---|---|---|

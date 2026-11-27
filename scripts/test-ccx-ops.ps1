@@ -342,6 +342,18 @@ try {
       Assert (-not (Task 'T1').worktree) 'prune did not clear task worktree'
     } finally { $null = Run-Git @('worktree','remove',$manual) }
   }
+  Case 'worktree add accepts gemini and branches under gemini/ (GEMINI-ACCESS-1)' {
+    Add-Task 'T1' 'src/one.txt'
+    try {
+      Check-Code (Run-Cli @('worktree','add','-TaskId','T1','-Agent','gemini')) 0
+      $created = (Task 'T1').worktree
+      Assert ($created -like '*gemini-t1') "worktree path not gemini-: $created"
+      Assert ((Run-Git @('rev-parse','--abbrev-ref','HEAD') $created).Trim() -eq 'gemini/t1') 'gemini worktree not on gemini/t1'
+    } finally {
+      $created = (Task 'T1').worktree
+      if ($created -and (Test-Path -LiteralPath $created)) { try { $null = Run-Git @('worktree','remove','--force',$created) } catch { } }
+    }
+  }
   Case 'worktree add records no baseline for the caller worktree' {
     # Regression (CCX-7): the ownership check ran a full task start in the caller's worktree, leaving a
     # stale baseline there that a later move of the task into that worktree reused.

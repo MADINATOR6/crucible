@@ -440,7 +440,7 @@ function Invoke-CcxCmdWorktree($P) {
         $task = Get-CcxTask -Id $P.TaskId
         if ($task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal tasks cannot create a worktree.' 2) }
         $agent = if ($P.Agent) { $P.Agent } else { $task.owner }
-        if ($agent -notin @('claude','codex') -or -not $policy.worktrees.branchPrefix.ContainsKey($agent)) { throw (New-CcxError 'Unknown worktree agent.' 2) }
+        if ($agent -notin @('claude','codex','gemini') -or -not $policy.worktrees.branchPrefix.ContainsKey($agent)) { throw (New-CcxError 'Unknown worktree agent.' 2) }
         $relative = $policy.worktrees.root.Replace('\','/').TrimEnd('/') + '/' + $agent + '-' + $task.id
         $path = Get-CcxSafeFile -Root $main -Path $relative
         $branch = $policy.worktrees.branchPrefix[$agent] + $task.id.ToLowerInvariant()

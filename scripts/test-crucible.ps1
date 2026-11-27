@@ -132,6 +132,27 @@ if (kind === 'agy') {
     $again = Crucible @('new', '-Title', 'Write a guide!')
     Assert ($again.Out.Trim() -eq 'tasks/WRITE-A-GUIDE-2.md') "second brief did not get a new id: $($again.Out)"
   }
+  Case 'stop on a brief that never ran asks the scheduler and says not running (Codex narrow check)' {
+    New-Brief 'STOP-0' 'gemini' 'source-research' 'handoffs/stop-0.md'
+    $clock = [Diagnostics.Stopwatch]::StartNew()
+    $r = Crucible @('stop', '-Note', 'tasks/STOP-0.md')
+    Assert ($r.Code -eq 0 -and $r.Out -match 'STOP-0 is not running') "unexpected stop result: $($r.Code) $($r.Out)"
+    Assert ($clock.Elapsed.TotalSeconds -lt 20) "stop waited for a run that never existed ($([int]$clock.Elapsed.TotalSeconds) s)"
+  }
+  Case 'stop waits for a starting run to record its pid, then ends it (GEMINI-ACCESS-1, Codex review)' {
+    New-Brief 'STOP-1' 'gemini' 'source-research' 'handoffs/stop-1.md'
+    $runFile = Join-Path $repo 'Status/.runs/STOP-1.json'
+    Write-File $runFile ('{"startedAt":"' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') + '","owner":"gemini"}')
+    # Stands in for the scheduled run: its record vanishes for a moment (a rewrite in progress), then it
+    # records its own pid and keeps running (Codex review 2: a missing record mid-wait is not an end).
+    $body = "Start-Sleep 1; Remove-Item -LiteralPath '$runFile' -Force; Start-Sleep 2; `$t = (Get-Process -Id `$PID).StartTime.ToUniversalTime().Ticks; [IO.File]::WriteAllText('$runFile', ('{""startedAt"":""' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') + '"",""pid"":' + `$PID + ',""ticks"":' + `$t + '}')); Start-Sleep 120"
+    $sleeper = Start-Process $powershell -ArgumentList @('-NoProfile', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($body))) -WindowStyle Hidden -PassThru
+    try {
+      $r = Crucible @('stop', '-Note', 'tasks/STOP-1.md')
+      Assert ($r.Out -match 'Stopped STOP-1') "stop did not end the starting run: $($r.Out)"
+      Assert ($sleeper.WaitForExit(10000)) 'the run process is still alive after stop'
+    } finally { if (-not $sleeper.HasExited) { $sleeper.Kill() } }
+  }
   Case 'new validates a launch-ready brief' {
     $types = Crucible @('types')
     Assert ($types.Code -eq 0 -and $types.Out -match '(?m)^docs\r?$' -and $types.Out -notmatch '(?m)^(media-generate|test)\r?$') "types list wrong: $($types.Out)"

@@ -260,15 +260,19 @@ function Invoke-Launch {
       Write-Output "Ran $taskId inline with $owner (input $inputSha)."
       return
     }
-    # Created through WMI so the run belongs to no caller's job object: closing Obsidian (or the
-    # terminal that launched it) does not end the run.
-    $startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }
-    $commandLine = "`"$powershell`" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" run -Id $taskId"
-    $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $commandLine; CurrentDirectory = $root; ProcessStartupInformation = $startup }
-    if ($created.ReturnValue -ne 0) { Fail "Could not start the background run (WMI code $($created.ReturnValue))." 1 }
-    $child = Get-Process -Id ([int]$created.ProcessId)
-    $record = @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; checks = $checks; pid = $child.Id; ticks = $child.StartTime.ToUniversalTime().Ticks }
+    # Started as a triggerless per-user scheduled task so the run belongs to no caller's job object: closing
+    # Obsidian (or the terminal that launched it) does not end the run. Not WMI: under Win32_Process.Create
+    # agy's sandboxed shell fails with "Access is denied." (GEMINI-ACCESS-1). The run writes its own pid.
+    # ponytail: one task definition per brief id is kept and overwritten on the next launch; prune \Crucible\ if it grows.
+    $record = @{ startedAt = Get-CcxNow; input = $inputSha; owner = $owner; log = $log; checks = $checks }
     [IO.File]::WriteAllText($runPath, (ConvertTo-Json $record -Compress), $utf8)
+    try {
+      $action = New-ScheduledTaskAction -Execute $powershell -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" run -Id $taskId" -WorkingDirectory $root
+      $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
+      $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
+      Register-ScheduledTask -TaskName "Run $taskId" -TaskPath '\Crucible\' -Action $action -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+      Start-ScheduledTask -TaskName "Run $taskId" -TaskPath '\Crucible\' -ErrorAction Stop
+    } catch { Fail "Could not start the background run (scheduled task: $($_.Exception.Message))." 1 }
     $launched = $true
     Write-Output "Launched $taskId with $owner (input $inputSha). Follow it in Status/$taskId."
   } finally {
@@ -286,7 +290,16 @@ function Invoke-Run {
   $log = if ($run -and $run.log) { $run.log } else { Join-Path (Join-Path $env:USERPROFILE 'codex-captures') "crucible-$Id.log" }
   [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($log))
   $launchedAt = Get-CcxNow
-  # A WMI-started run inherits the PATH from logon; a CLI installed since (agy) is only in the registry.
+  # A scheduled-task run records its own pid, so stop and the board can find it (GEMINI-ACCESS-1).
+  if ($run -and -not $run.pid -and [IO.File]::Exists($runPath)) {
+    try {
+      $record = [IO.File]::ReadAllText($runPath, $utf8) | ConvertFrom-Json
+      $record | Add-Member -NotePropertyName pid -NotePropertyValue $PID -Force
+      $record | Add-Member -NotePropertyName ticks -NotePropertyValue (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks -Force
+      [IO.File]::WriteAllText($runPath, (ConvertTo-Json $record -Compress), $utf8)
+    } catch { }
+  }
+  # A background run inherits the PATH from logon; a CLI installed since (agy) is only in the registry.
   # It may also lack the profile folders those entries are written with (%LOCALAPPDATA%\agy\bin).
   if (-not $env:LOCALAPPDATA) { $env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData') }
   if (-not $env:APPDATA) { $env:APPDATA = [Environment]::GetFolderPath('ApplicationData') }
@@ -355,11 +368,37 @@ function Invoke-Check([string]$Name, $Task) {
   @{ name = $Name; command = $command; result = $(if ($code -eq 0) { 'PASS' } else { 'FAIL' }); code = $code; tail = (Protect-CcxText ($lines -join "`n") -Full) }
 }
 
+function Get-StopTaskState([string]$TaskName) {
+  # 'Missing' when the task was never registered; any other scheduler error fails Stop (Codex narrow check).
+  try { return [string](Get-ScheduledTask -TaskName $TaskName -TaskPath '\Crucible\' -ErrorAction Stop).State }
+  catch {
+    if ($_.CategoryInfo.Category -eq 'ObjectNotFound') { return 'Missing' }
+    Fail "Could not ask Task Scheduler about ${TaskName}: $($_.Exception.Message)" 1
+  }
+}
+
 function Invoke-Stop {
   $brief = Read-Brief $Note
   $run = Get-Run $brief.fm.id
-  if (-not $run -or -not $run.live) { Write-Output "$($brief.fm.id) is not running."; return }
+  # A scheduled-task run records its pid a moment after it starts, rewriting its record in place, so a
+  # missing or unreadable record is not proof of an end: wait for the pid, and ask Task Scheduler when
+  # there is none. A scheduler that cannot be asked fails Stop rather than guessing (GEMINI-ACCESS-1, Codex reviews).
+  $taskName = "Run $($brief.fm.id)"
+  if (-not ($run -and $run.pid)) {
+    if (-not $run -and (Get-StopTaskState $taskName) -ne 'Running') { Write-Output "$($brief.fm.id) is not running."; return }
+    for ($i = 0; $i -lt 30 -and -not ($run -and $run.pid); $i++) { Start-Sleep -Seconds 1; $run = Get-Run $brief.fm.id }
+  }
+  if (-not ($run -and $run.pid)) {
+    if ((Get-StopTaskState $taskName) -ne 'Running') { Write-Output "$($brief.fm.id) is not running."; return }
+    try { Stop-ScheduledTask -TaskName $taskName -TaskPath '\Crucible\' -ErrorAction Stop } catch { Fail "Could not stop $($brief.fm.id): $($_.Exception.Message)" 1 }
+    if ((Get-StopTaskState $taskName) -eq 'Running') { Fail "Could not stop $($brief.fm.id): its scheduled task is still running." 1 }
+    Write-Output "$($brief.fm.id) never recorded its process; its scheduled task was stopped. Check Status before launching again."
+    Invoke-Board; return
+  }
+  if (-not $run.live) { Write-Output "$($brief.fm.id) is not running."; return }
   & (Join-Path ([Environment]::SystemDirectory) 'taskkill.exe') /T /F /PID $run.pid | Out-Null
+  # A failed kill keeps the record, so Status still shows the run and Stop can be retried.
+  if ($LASTEXITCODE -ne 0 -and (Get-Process -Id ([int]$run.pid) -ErrorAction SilentlyContinue)) { Fail "Could not stop $($brief.fm.id) (taskkill exit $LASTEXITCODE); it is still running." 1 }
   $null = Invoke-Ccx @('task', 'update', '-Id', $brief.fm.id, '-Note', 'Run stopped from Obsidian; partial output kept in the capture.')
   Remove-Item -LiteralPath $run.path -Force -ErrorAction SilentlyContinue
   Write-Output "Stopped $($brief.fm.id). Partial output stays in its capture; launch again to resume."

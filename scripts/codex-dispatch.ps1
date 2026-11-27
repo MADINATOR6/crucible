@@ -463,8 +463,11 @@ try {
     # agy rejects --effort when the model slug already carries a tier suffix (e.g. gemini-4-neon-medium).
     $agyEffort = if ($Effort -in @('low','medium','high','xhigh','max') -and (-not $Model -or $Model -eq 'auto' -or $Model -notmatch '-(low|medium|high|xhigh|max)$')) { @('--effort', $Effort) } else { @() }
     $sandboxFlag = if ($turbo) { '--dangerously-skip-permissions' } else { '--sandbox' }
-    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, $sandboxFlag, '--disable-slash-commands',
-      '--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel + $agyEffort
+    # agy ignores --mode plan when slash commands are disabled (it warns so), so a read-only run keeps plan mode
+    # as its write guard and only writable runs disable slash commands (GEMINI-ACCESS-1).
+    $slashFlag = if ($mode -eq 'plan') { @() } else { @('--disable-slash-commands') }
+    $arguments = @($agy.Source, '-p', $prompt, '--output-format', 'json', '--mode', $mode, $sandboxFlag) + $slashFlag +
+      @('--settings', ($base + '.settings.json'), '--print-timeout', ([string][Math]::Ceiling($TimeoutMinutes) + 'm')) + $agyModel + $agyEffort
   } elseif ($isClaude) {
     $claude = Get-Command $policy.models.claude.headless.command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $claude) { throw "$($policy.models.claude.headless.command) not found on PATH" }

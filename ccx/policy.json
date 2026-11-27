@@ -250,7 +250,7 @@
 
   "worktrees": {
     "root": ".ccx-worktrees",
-    "branchPrefix": { "claude": "claude/", "codex": "codex/" },
+    "branchPrefix": { "claude": "claude/", "codex": "codex/", "gemini": "gemini/" },
     "staleDays": 7
   },
 

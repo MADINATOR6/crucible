@@ -8,6 +8,8 @@ Judge checklist: HANDOFF.md holds the one copy, so Codex gets it through the dis
 
 Since 2026-11-01 Codex plans and Claude implements code tasks (AGENTS.md Roles; HANDOFF.md, Codex plans, Claude implements). Pass `-TaskId` on the plan dispatch so the task starts, and any ownership conflict shows, before the plan exists. Critique Codex's plan with HANDOFF.md's Plan critique (seven checks and worked examples; the same text Codex's instructions point at) before writing it into the task file; never implement a plan you have not checked against the code. Reports from either agent carry the `Untested:` line.
 
+Gemini access fixes (2026-11-27, GEMINI-ACCESS-1, user-approved): Obsidian launches start runs as a scheduled task, not WMI, so Gemini's sandboxed shell works there; read-only agy runs keep `--mode plan` (no `--disable-slash-commands`); `ccx worktree add -Agent gemini` makes `gemini/` branches.
+
 Ponytail and Caveman (2026-11-27): AGENTS.md Scope holds the Ponytail rules for all three agents (Claude also runs the `ponytail` plugin). Caveman, if installed, applies to your chat replies only, never to files, briefs, reports or the `Untested:`/`INTENT:`/`TWINS:` lines, and never as a proxy in front of Codex or agy.
 
 Gemini as primary worker (2026-11-26, GEMINI-PRIMARY; AGENTS.md has the rules): `implement`, `refactor` and `docs` default to Gemini; the owner still wins, so `-Owner claude` keeps your implementer role. Every Gemini-led task needs `ccx task review` by a non-owner before `task done` (you, while Codex is at its limit). Never let Gemini author or approve changes to its own routing.
