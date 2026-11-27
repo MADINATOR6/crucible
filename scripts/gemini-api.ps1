@@ -81,7 +81,8 @@ switch ($command) {
         if ($question) { $tail = @('--', $question) }
     }
     'transcribe' {
-        if (-not $sources.Count -or -not $out) { Stop-Usage 'Usage: gemini-api.ps1 transcribe -Source <file> -Out <file> [-Format md|text|json|srt] [-DryRun]' }
+        # One source only: with several the CLI treats -Out as a folder (Codex review 2).
+        if ($sources.Count -ne 1 -or -not $out) { Stop-Usage 'Usage: gemini-api.ps1 transcribe -Source <file> -Out <file> [-Format md|text|json|srt] [-DryRun] (one source)' }
         if ($question) { Stop-Usage '-Question is for analyze' }
         if ($format -notin @('md', 'text', 'json', 'srt')) { Stop-Usage "format not allowed: $format" }
         $outFull = [IO.Path]::GetFullPath($out)
@@ -92,6 +93,7 @@ switch ($command) {
         $outDir = [IO.Path]::GetDirectoryName($outFull)
         [void][IO.Directory]::CreateDirectory($outDir)
         $finalMedia = [CrucibleFinalPath]::Get($mediaOut.TrimEnd('\')).TrimEnd('\') + '\'
+        if (-not $finalMedia.Equals($mediaOut, [StringComparison]::OrdinalIgnoreCase)) { Stop-Usage 'media-out/ is a link; refusing to write through it' }
         $finalDir = [CrucibleFinalPath]::Get($outDir).TrimEnd('\') + '\'
         if (-not $finalDir.StartsWith($finalMedia, [StringComparison]::OrdinalIgnoreCase)) { Stop-Usage "-Out leaves media-out/ through a link: $out" }
         $toolArgs = @('transcribe') + $toolArgs + @('--format', $format, '--out', $outFull)

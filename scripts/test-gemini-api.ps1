@@ -78,6 +78,8 @@ try {
             Assert ($via.code -eq 2 -and $null -eq $via.args) 'transcript through a junction out of media-out accepted'
         } finally { if (Test-Path -LiteralPath $escape) { [IO.Directory]::Delete($escape) } }
         $good = Join-Path $repo 'media-out\gemini-api\t.md'
+        $two = Run @('transcribe', '-Source', $doc, '-Source', $doc, '-Out', $good)
+        Assert ($two.code -eq 2 -and $null -eq $two.args) 'two sources accepted (the CLI would treat -Out as a folder)'
         $ok = Run @('transcribe', '-Source', $doc, '-Out', $good, '-Format', 'srt')
         Assert ($ok.code -eq 0 -and $ok.args -eq "transcribe|-i|$doc|--format|srt|--out|$good") "args: $($ok.args)"
     }
