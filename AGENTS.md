@@ -219,6 +219,7 @@ Optional: plain Dispatch without `-TaskId` works as before. The details are in `
 - Never run `git reset --hard`, `git clean`, blanket `git checkout`/`restore`, or force-push over others' work.
 - TASK.md may be overwritten per task after checking it holds no uncommitted manual edits. Commit it before dispatch or with the task it describes.
 - Commit messages carry no trailers (no Co-Authored-By).
+- The commit author is the agent that wrote the change, so GitHub credits it as a contributor; the user stays the committer (user decision 2026-11-28). Whoever commits sets it with `--author`: `Claude <noreply@anthropic.com>`, `Codex <267193182+codex@users.noreply.github.com>` (OpenAI's official `codex` account) or `Gemini <176961590+gemini-code-assist[bot]@users.noreply.github.com>` (Google's official Gemini app; there is no Antigravity account). Mixed work names the agent that wrote most of it; the user's own edits keep the user as author. Never rewrite pushed history to change an author.
 
 # Failure Handling
 
