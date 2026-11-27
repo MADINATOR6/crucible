@@ -361,6 +361,24 @@ function ConvertTo-CcxOwnedPath {
     if ((Protect-CcxText $pathValue -Policy $Policy) -cne $pathValue) { throw (New-CcxError 'Path exceeds the safe field limit or contains sensitive data.' 2) }
     return $pathValue
 }
+# GEMINI-REVIEWER (user-approved 2026-11-27): Gemini may review and verify Claude's and Codex's work, never its own
+# work or anything that decides Gemini's routing or access. Scope enforcement keeps a task's changes inside its
+# owns, so checking owns covers what the task can have changed (no review-range tracking needed).
+$script:CcxGeminiProtected = @('ccx/policy.json', 'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1',
+    'GEMINI.md', '.agents/', 'AGENTS.md', 'CLAUDE.md')
+function Get-CcxGeminiReviewBlock {
+    param($Task)
+    if ($Task.owner -eq 'gemini') { return 'Gemini owns this task' }
+    $runs = @($Task.runs) + @($Task.lastDispatch) | Where-Object { $_ }
+    if (@($runs | Where-Object { $_.provider -eq 'gemini' -and $_.role -eq 'implement' }).Count) { return 'Gemini implemented part of this task' }
+    foreach ($owned in @($Task.owns)) {
+        foreach ($protected in $script:CcxGeminiProtected) {
+            if (Test-CcxPathOverlap -A ([string]$owned).Replace('\', '/') -B $protected) { return "the task owns $owned, which decides Gemini's routing or access" }
+        }
+    }
+    return $null
+}
+
 function Test-CcxPathOverlap {
     param([string]$A, [string]$B)
     ($A.Equals($B, [StringComparison]::OrdinalIgnoreCase) -or
@@ -1314,6 +1332,10 @@ function Invoke-CcxCmdTask {
                 $kind = if ($Parameters.Kind) { $Parameters.Kind } else { 'review' }
                 if ($Parameters.Result -notin @('pass','changes') -or $Parameters.By -notin $script:CcxOwners -or $kind -notin @('review','verifier')) { throw (New-CcxError 'Invalid review result, reviewer or kind.' 2) }
                 if ($kind -eq 'review' -and $Parameters.By -eq $task.owner) { throw (New-CcxError 'author cannot review own work' 2) }
+                if ($Parameters.By -eq 'gemini') {
+                    $block = Get-CcxGeminiReviewBlock $task
+                    if ($block) { throw (New-CcxError "Gemini may not review or verify this task: $block" 2) }
+                }
                 $task.reviews = @($task.reviews) + @(@{at=Get-CcxNow; by=$Parameters.By; kind=$kind; result=$Parameters.Result; note=$Parameters.Note})
                 if ($Parameters.Result -eq 'changes') { $task.reviewCycles++ }
                 if ($task.reviewCycles -gt $budget.maxReviewCycles) {
@@ -1353,6 +1375,10 @@ function Invoke-CcxCmdTask {
             'done' {
                 if ($task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal task cannot be completed again.' 8) }
                 $missing = @()
+                # Gemini rows count only on a task Gemini may review; this also discards older rows recorded before
+                # the guard, or made stale by an owner handoff (GEMINI-REVIEWER).
+                $geminiBlock = Get-CcxGeminiReviewBlock $task
+                $validReviews = @($task.reviews | Where-Object { $_.by -ne 'gemini' -or -not $geminiBlock })
                 if (-not $task.verification -or $task.verification.status -ne 'PASS' -or $task.verification.full -ne $true) { $missing += 'full PASS verification' }
                 $root = if ($task.worktree) { $task.worktree } else { Get-CcxRepoRoot }
                 if (-not $task.verification -or $task.verification.fingerprint -ne (Get-CcxFingerprint -Task $task -Root $root)) { $missing += 'current verification fingerprint' }
@@ -1361,10 +1387,10 @@ function Invoke-CcxCmdTask {
                         'cross-model-review' {
                             # A human task-accept approval may stand in when the other model is unavailable (logged, quoted).
                             $humanAccept = @($state.approvals.Values | Where-Object { $_.action -eq 'task-accept' -and $_.target -ceq $task.id -and $_.status -in @('approved','used') }).Count
-                            if (-not $humanAccept -and -not @($task.reviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }
+                            if (-not $humanAccept -and -not @($validReviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }
                         }
                         'independent-verifier' {
-                            if (-not @($task.reviews | Where-Object { $_.kind -eq 'verifier' -and $_.result -eq 'pass' }).Count) { $missing += $requirement }
+                            if (-not @($validReviews | Where-Object { $_.kind -eq 'verifier' -and $_.result -eq 'pass' }).Count) { $missing += $requirement }
                         }
                         'human-approval' {
                             if (-not @($state.approvals.Values | Where-Object { $_.action -eq 'task-accept' -and $_.target -ceq $task.id -and $_.status -in @('approved','used') }).Count) { $missing += $requirement }

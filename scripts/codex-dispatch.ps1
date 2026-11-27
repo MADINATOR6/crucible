@@ -22,7 +22,9 @@ param(
   [string]$CaptureDir = (Join-Path $env:USERPROFILE 'codex-captures'),
   [ValidateRange(0.01, 10080)] [double]$TimeoutMinutes = 60,
   [ValidateSet('read-only', 'workspace-write', 'danger-full-access')] [string]$Sandbox = 'workspace-write',
-  [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$')] [string]$TaskId
+  [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$')] [string]$TaskId,
+  # GEMINI-REVIEWER: run a verify or research pass on Gemini on purpose (read-only), never on its own routing.
+  [ValidateSet('gemini')] [string]$Reviewer
 )
 $ErrorActionPreference = 'Stop'
 $utf8 = New-Object System.Text.UTF8Encoding $false
@@ -165,6 +167,10 @@ try {
     throw 'Role research requires an explicit -TaskFile.'
   }
   if (-not $PSBoundParameters.ContainsKey('Sandbox') -and $Role -ne 'implement') { $Sandbox = 'read-only' }
+  if ($Reviewer) {
+    if (-not $TaskId -or $Role -eq 'implement') { throw '-Reviewer gemini needs -TaskId and -Role verify or research.' }
+    if ($Sandbox -ne 'read-only') { throw '-Reviewer gemini runs read-only; drop -Sandbox.' }
+  }
   $taskPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($TaskFile)
   $CaptureDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CaptureDir)
   if ($taskPath -match '[%"]' -or $CaptureDir -match '[%"]') {
@@ -179,9 +185,14 @@ try {
     $body = [IO.File]::ReadAllText($taskPath, $utf8) -replace '(?s)<!--.*?-->', '' -replace '(?m)^\s*#{1,6}(?:\s.*)?\r?$', ''
     if ([string]::IsNullOrWhiteSpace($body)) { throw "Task file is empty or unfilled: $taskPath" }
   }
-  $codex = Get-Command codex.cmd -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $codex) { throw 'codex.cmd not found on PATH' }
-  if ($codex.Source -match '[%"]') { throw 'codex.cmd path must not contain % or double quotes.' }
+  # codex.cmd is needed only by runs that start the Codex CLI; a Gemini or headless Claude run does not (GEMINI-REVIEWER).
+  function Resolve-CodexCli {
+    $found = Get-Command codex.cmd -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $found) { throw 'codex.cmd not found on PATH' }
+    if ($found.Source -match '[%"]') { throw 'codex.cmd path must not contain % or double quotes.' }
+    $found
+  }
+  if (-not $TaskId) { $codex = Resolve-CodexCli }
   $base = Join-Path $CaptureDir ('codex-' + [guid]::NewGuid().ToString('N'))
   if (($base.Length + 13) -ge 260) { throw "Capture path too long ($($base.Length + 13) chars). Pass a shorter -CaptureDir." }
 
@@ -240,6 +251,22 @@ try {
     $routeArgs = @{ TaskId = $TaskId; Type = $task.type; IgnoreSessionPreference = $explicit }
     if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
     $decision = Invoke-CcxRoute @routeArgs
+    if ($Reviewer -eq 'gemini') {
+      # An intentional Gemini review: Gemini's class model, read-only, the task's owner unchanged (GEMINI-REVIEWER).
+      $decision.agent = 'gemini'; $decision.provider = 'gemini'; $decision.route = 'worker'
+      $decision.model = $policy.classes[$class].geminiModel
+      $decision.reasons += 'reviewer gemini requested'
+    }
+    # Gemini never reviews, verifies or researches its own work or its own routing: intentional runs are refused,
+    # a quota fallback defers instead (FRICTION.md 2026-11-27: a fallback once let Gemini review its own access).
+    if ($Role -ne 'implement' -and ($decision.agent -eq 'gemini' -or $decision.provider -eq 'gemini')) {
+      $block = Get-CcxGeminiReviewBlock $task
+      if ($block) {
+        if ($Reviewer) { throw (New-CcxError "Gemini may not review or verify this task: $block. Use Codex or Claude." 8) }
+        $resumeText = if ($codexOut) { ' Codex resumes at ' + [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime() + '.' } else { '' }
+        throw (New-CcxError "USAGE LIMIT (recorded): Codex is unavailable and Gemini may not stand in: $block.$resumeText Wait for Codex or ask Claude." 4)
+      }
+    }
     # A cloud fallback provider may run while OpenAI Codex is at its usage limit; nothing else may.
     if ($codexOut -and $decision.agent -eq 'codex' -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
       $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
@@ -247,7 +274,8 @@ try {
     }
     # Codex takes its routes; Gemini and headless Claude take only work their task owns (never an automatic escalation).
     $runnable = ($decision.agent -eq 'codex' -and $decision.route -in @('worker','cheap','script')) -or
-                ($decision.agent -in @('gemini','claude') -and $decision.route -eq 'worker' -and $Role -eq 'implement' -and $task.owner -eq $decision.agent)
+                ($decision.agent -in @('gemini','claude') -and $decision.route -eq 'worker' -and $Role -eq 'implement' -and $task.owner -eq $decision.agent) -or
+                ($Reviewer -eq 'gemini' -and $decision.agent -eq 'gemini')
     if (-not $runnable) {
       throw (New-CcxError ("Route: $($decision.route) $($decision.agent) - " + ($decision.reasons -join '; ')) 8)
     }
@@ -274,6 +302,8 @@ try {
       Write-Output "Route: $($decision.route) $(if ($providerName) { $providerName + '/' })$Model $Effort"
     } else { Write-Output 'Route: explicit' }
     foreach ($reason in $decision.reasons) { Write-Output ('Route reason: ' + (Protect-CcxText $reason)) }
+    # Before the lock and the attempt count: a run that starts the Codex CLI needs it on PATH; Gemini and headless Claude do not.
+    if (-not ($providerName -eq 'claude' -or ($providerPolicy -and $providerPolicy.cli -in @('agy', 'gemini')))) { $codex = Resolve-CodexCli }
     $requiredApprovals = @()
     if ($Sandbox -eq 'danger-full-access') { $requiredApprovals += 'codex-full-access' }
     if ($Role -eq 'implement' -and @($policy.taskTypes[$task.type].gates) -contains 'paid-action') { $requiredApprovals += 'paid-action' }
@@ -454,6 +484,11 @@ try {
       $full = [IO.Path]::GetFullPath((Join-Path $root $path.TrimEnd('/')))
       "write_file($full$(if ($path.EndsWith('/')) { [IO.Path]::DirectorySeparatorChar }))"
     })
+    # Plugin MCP servers stay out of dispatched runs, turbo included (deny rules hold under
+    # --dangerously-skip-permissions; Claude's probe, 2026-11-27): Higgsfield spends credits (paid-action gate),
+    # and Rea can run targets and capture traffic, which needs a task's explicit scope (security review, 2026-11-28).
+    # Both stay available in interactive Antigravity, where the user approves each call.
+    $deny += @('mcp(crucible-tools_higgsfield/*)', 'mcp(crucible-tools_rea/*)')
     # Turbo drops only the terminal sandbox (tests must write); file tools stay inside the workspace either way.
     $settings = @{ useG1Credits = $false; enableTerminalSandbox = -not $turbo; toolPermission = 'request-review'; allowNonWorkspaceAccess = $false
       permissions = @{ allow = @('command(*)'); deny = $deny } }

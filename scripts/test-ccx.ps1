@@ -330,6 +330,43 @@ try {
     $records = @([IO.File]::ReadAllLines((Join-Path $env:CCX_STATE_DIR 'telemetry.jsonl')) | ForEach-Object { $json.DeserializeObject($_) })
     Assert (@($records | Where-Object { $_.kind -eq 'task-done' -and $_.accepted -and $_.firstTry }).Count -eq 1) 'accepted first-try telemetry missing'
   }
+  Case 'GR-C1 a Gemini review counts on a safe Claude- or Codex-owned task' {
+    Add-Task
+    Set-Verification
+    Check-Code (Run-Cli @('task','review','-Id','T1','-Result','pass','-By','gemini')) 0
+    Check-Code (Run-Cli @('task','done','-Id','T1')) 0
+  }
+  Case 'GR-C2 Gemini may not review its own or Gemini-implemented work; stale Gemini rows do not count' {
+    Check-Code (Run-Cli @('task','add','-Id','G1','-Title','Gemini task','-Type','docs','-Class','normal','-Risk','low','-Owner','gemini','-Owns','docs/')) 0
+    foreach ($kind in 'review','verifier') {
+      $r = Run-Cli @('task','review','-Id','G1','-Result','pass','-By','gemini','-Kind',$kind)
+      Check-Code $r 2
+      # A plain review hits the older author rule first; a verifier row reaches the Gemini guard.
+      Assert ($r.Stdout -match 'author cannot review own work|Gemini may not review or verify this task: Gemini owns this task') "own-task $kind not refused"
+    }
+    Add-Task 'T2'
+    Invoke-CcxLocked { param($state) $state.tasks.T2.lastDispatch = @{ n=1; role='implement'; provider='gemini' } } | Out-Null
+    $r = Run-Cli @('task','review','-Id','T2','-Result','pass','-By','gemini','-Kind','verifier')
+    Check-Code $r 2
+    Assert ($r.Stdout -match 'Gemini implemented part of this task') 'Gemini-implemented subject not refused'
+    # A Gemini row recorded before the task became Gemini's (here: an owner handoff) does not satisfy done.
+    Add-Task 'T3'
+    Check-Code (Run-Cli @('task','review','-Id','T3','-Result','pass','-By','gemini')) 0
+    Check-Code (Run-Cli @('task','update','-Id','T3','-Owner','gemini')) 0
+    Set-Verification -Id 'T3'
+    $r = Run-Cli @('task','done','-Id','T3')
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'cross-model-review') 'a stale Gemini review satisfied done'
+  }
+  Case 'GR-C3 protected owns are found by file, parent folder and case; unrelated paths stay eligible' {
+    foreach ($owns in @('Scripts/Codex-Dispatch.ps1', 'scripts/', 'ccx/policy.json', '.agents/plugins/crucible-tools/mcp_config.json', 'GEMINI.md', 'agents.md', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1')) {
+      $block = Get-CcxGeminiReviewBlock @{ owner = 'claude'; owns = @($owns) }
+      Assert ($block -match 'decides Gemini') "protected owns not detected: $owns"
+    }
+    foreach ($owns in @('src/app.js', 'scripts/test-ccx.ps1', 'handoffs/report.md', 'agency/')) {
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns) })) "unrelated owns blocked: $owns"
+    }
+  }
   Case 'media types validate credit caps and owned ledger folders and route gates' {
     $base = @('task','add','-Id','M1','-Title','Synthetic media','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','media-out/higgsfield/demo/')
     foreach ($cap in @($null,'0','-1','NaN','Infinity','text')) {
