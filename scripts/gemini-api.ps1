@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 # Shared Gemini API entry point for Claude, Codex and Gemini (GEMINI-API-1, user-approved 2026-11-27):
 #   gemini-api.ps1 version
 #   gemini-api.ps1 analyze -Source <file|youtube url> [-Source ...] [-Question <text>] [-DryRun]
-#   gemini-api.ps1 transcribe -Source <file> -Out <file under media-out/ or outside the repo> [-Format md|text|json|srt] [-DryRun]
+#   gemini-api.ps1 transcribe -Source <file> -Out <file under this checkout's media-out/> [-Format md|text|json|srt] [-DryRun]
 # Only these two understanding commands, on their default models, with requests not stored server-side
 # (the CLI's default). The key is GEMINI_API_KEY from the environment; it is never printed. Private paths
 # (privacy.excludePaths, secrets, workbooks) are refused before anything is sent.
@@ -85,12 +85,15 @@ switch ($command) {
         if ($question) { Stop-Usage '-Question is for analyze' }
         if ($format -notin @('md', 'text', 'json', 'srt')) { Stop-Usage "format not allowed: $format" }
         $outFull = [IO.Path]::GetFullPath($out)
-        $repoFull = [IO.Path]::GetFullPath($repo).TrimEnd('\') + '\'
-        $mediaOut = $repoFull + 'media-out\'
-        # Transcripts stay out of Git: under gitignored media-out/, or outside the repository.
-        if ($outFull.StartsWith($repoFull, [StringComparison]::OrdinalIgnoreCase) -and -not $outFull.StartsWith($mediaOut, [StringComparison]::OrdinalIgnoreCase)) {
-            Stop-Usage "-Out must be under media-out/ or outside the repository: $out"
-        }
+        $mediaOut = [IO.Path]::GetFullPath($repo).TrimEnd('\') + '\media-out\'
+        # Transcripts go only under this checkout's gitignored media-out/: never into a tracked file of this or
+        # another checkout (Codex review), and a junction inside media-out/ must not lead out of it.
+        if (-not $outFull.StartsWith($mediaOut, [StringComparison]::OrdinalIgnoreCase)) { Stop-Usage "-Out must be under media-out/: $out" }
+        $outDir = [IO.Path]::GetDirectoryName($outFull)
+        [void][IO.Directory]::CreateDirectory($outDir)
+        $finalMedia = [CrucibleFinalPath]::Get($mediaOut.TrimEnd('\')).TrimEnd('\') + '\'
+        $finalDir = [CrucibleFinalPath]::Get($outDir).TrimEnd('\') + '\'
+        if (-not $finalDir.StartsWith($finalMedia, [StringComparison]::OrdinalIgnoreCase)) { Stop-Usage "-Out leaves media-out/ through a link: $out" }
         $toolArgs = @('transcribe') + $toolArgs + @('--format', $format, '--out', $outFull)
     }
     default { Stop-Usage 'Usage: gemini-api.ps1 version | analyze ... | transcribe ...' }

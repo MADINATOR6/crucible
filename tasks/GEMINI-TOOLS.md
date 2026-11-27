@@ -4,7 +4,7 @@ Owner: claude. Reviewer: Codex. Approved by the user in chat on 2026-11-27 ("5. 
 
 ## #6 Gemini API wrapper
 - `gemini-api` v0.5.0 from Google's GitHub release, SHA256 checked against the release `checksums.txt`, installed outside the repo at `%LOCALAPPDATA%\Crucible\tools\gemini-api\v0.5.0\bin`.
-- `scripts/gemini-api.ps1`: only `version`, `analyze` and `transcribe`, on default models; refuses other commands and options, non-YouTube URLs and private paths before anything is sent; transcripts only under `media-out/` or outside the repo. Key from `GEMINI_API_KEY`, never printed (the CLI redacts it in dry runs).
+- `scripts/gemini-api.ps1`: only `version`, `analyze` and `transcribe`, on default models; refuses other commands and options, non-YouTube URLs and private paths before anything is sent; transcripts only under this checkout's `media-out/`, checked on the resolved folder (Codex review, 2026-11-28). Key from `GEMINI_API_KEY`, never printed (the CLI redacts it in dry runs).
 - `scripts/test-gemini-api.ps1`: offline, fake binary.
 
 ## #5 Antigravity MCP

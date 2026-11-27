@@ -64,9 +64,19 @@ try {
         $bad = Run @('analyze', '-Source', 'https://example.com/a.pdf')
         Assert ($bad.code -eq 2 -and $null -eq $bad.args) 'other URL accepted'
     }
-    Case 'transcripts must land under media-out/ or outside the repo' {
+    Case 'transcripts land only under this checkout''s media-out/ (Codex review)' {
         $bad = Run @('transcribe', '-Source', $doc, '-Out', (Join-Path $repo 'handoffs\t.md'))
         Assert ($bad.code -eq 2 -and $null -eq $bad.args) 'transcript into a tracked folder accepted'
+        $outside = Run @('transcribe', '-Source', $doc, '-Out', (Join-Path $scratch 'elsewhere\t.md'))
+        Assert ($outside.code -eq 2 -and $null -eq $outside.args) 'transcript outside media-out accepted (could be another checkout)'
+        [void][IO.Directory]::CreateDirectory((Join-Path $repo 'media-out'))
+        $escape = Join-Path $repo 'media-out\gemini-api-escape'
+        $null = & cmd.exe /d /c mklink /J "$escape" "$scratch" 2>&1
+        Assert (Test-Path -LiteralPath $escape) 'junction not created'
+        try {
+            $via = Run @('transcribe', '-Source', $doc, '-Out', (Join-Path $escape 't.md'))
+            Assert ($via.code -eq 2 -and $null -eq $via.args) 'transcript through a junction out of media-out accepted'
+        } finally { if (Test-Path -LiteralPath $escape) { [IO.Directory]::Delete($escape) } }
         $good = Join-Path $repo 'media-out\gemini-api\t.md'
         $ok = Run @('transcribe', '-Source', $doc, '-Out', $good, '-Format', 'srt')
         Assert ($ok.code -eq 0 -and $ok.args -eq "transcribe|-i|$doc|--format|srt|--out|$good") "args: $($ok.args)"
