@@ -640,11 +640,15 @@ function Invoke-CcxHealth {
         # Codex would send. Only pass or fail is kept, never the prompt text (Codex self-study, CODEX-UPGRADE-1).
         try {
             $agentsPath = Join-Path $Root 'AGENTS.md'
-            $lastHeading = @([IO.File]::ReadAllLines($agentsPath, $script:CcxUtf8) | Where-Object { $_ -match '^#{1,3} \S' }) | Select-Object -Last 1
+            # The last non-blank line, not the last heading: a cut after the final heading still drops text (Codex
+            # review, HARDEN-1). The prompt is JSON, which may escape quotes or symbols, so match the longest plain run.
+            $lastLine = @([IO.File]::ReadAllLines($agentsPath, $script:CcxUtf8) | Where-Object { $_.Trim() }) | Select-Object -Last 1
+            $probe = @([regex]::Matches([string]$lastLine, '[A-Za-z0-9 ,.;:()!?_-]{12,}') | ForEach-Object { $_.Value.Trim() } | Sort-Object Length -Descending) | Select-Object -First 1
+            if (-not $probe) { $probe = ([string]$lastLine).Trim() }
             $command = '"' + $codex.Source + '" debug prompt-input probe < NUL'
             $child = Invoke-CcxProcess -FileName (Join-Path ([Environment]::SystemDirectory) 'cmd.exe') -Arguments ('/d /s /c "' + $command + '"') -Root $Root -TimeoutMinutes $timeout
-            $seen = -not $child.timeout -and $child.code -eq 0 -and $lastHeading -and $child.stdout.Contains($lastHeading)
-            $checks += @{ name='codex-instructions'; result=$(if ($seen) { 'PASS' } else { 'WARN' }); details=@($(if ($seen) { "Codex sees AGENTS.md through '$lastHeading'" } else { "Codex's prompt lacks AGENTS.md's last heading '$lastHeading': raise project_doc_max_bytes or check folder trust" })) }
+            $seen = -not $child.timeout -and $child.code -eq 0 -and $probe -and $child.stdout.Contains($probe)
+            $checks += @{ name='codex-instructions'; result=$(if ($seen) { 'PASS' } else { 'WARN' }); details=@($(if ($seen) { "Codex sees AGENTS.md through its last line ('$probe')" } else { "Codex's prompt lacks AGENTS.md's last line ('$probe'): raise project_doc_max_bytes or check folder trust" })) }
         } catch { $checks += @{ name='codex-instructions'; result='WARN'; details=@('prompt check failed to run') } }
     }
     $catalogHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }

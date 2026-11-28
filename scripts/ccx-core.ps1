@@ -373,7 +373,9 @@ $script:CcxGeminiProtected = @('ccx/', 'scripts/ccx.ps1', 'scripts/ccx-core.ps1'
     'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'GEMINI.md', '.agents/', '.gemini/', '.agy/', '.geminiignore',
     'AGENTS.md', 'CLAUDE.md', 'HANDOFF.md', '.obsidian/plugins/crucible/', 'Reference/Review checklist.md',
     # Antigravity loads these skills through .agents/skills.json, fable-judge (the review checklist) among them.
-    '.claude/skills/')
+    '.claude/skills/',
+    # agy also reads its customization folder under these names, and .antigravityignore hides files from it (HARDEN-1).
+    '.agent/', '_agents/', '_agent/', '.antigravityignore')
 # Not .obsidian/community-plugins.json: it only toggles which plugins load, and the user's checkout keeps it edited,
 # which would refuse every Gemini review (Codex verifier, GEMINI-REVIEWER-4).
 function Get-CcxGeminiReviewBlock {
@@ -915,16 +917,18 @@ function Invoke-CcxRoute {
         }
         return (Complete-CcxRoute $decision $Type $TaskId)
     }
-    $altProvider = $null
+    $altProvider = $null; $codexDeferred = $false
     if ($decision.agent -eq 'codex' -and $state.agents.codex.unavailableUntil -and [DateTime]::Parse($state.agents.codex.unavailableUntil).ToUniversalTime() -gt [DateTime]::UtcNow) {
         # Codex quota is out: a ready fallback provider takes the work, else wait.
         $altProvider = Get-CcxProvider $policy 'fallback' $state
         if (-not $altProvider) {
-            $decision.route = 'defer'
+            # Deferred, but only after the checks that say stop (session overlap, lessons): a stop always outranks a
+            # wait, so -Reviewer gemini never stands in for a route that should surface (HARDEN-1).
+            $codexDeferred = $true
             $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil
-            return (Complete-CcxRoute $decision $Type $TaskId)
+        } else {
+            $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil + ': fallback provider ' + $altProvider.name
         }
-        $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil + ': fallback provider ' + $altProvider.name
     }
     $session = if ($ownTaskWork -and $effectiveClass -eq (Get-CcxClass $policy $task.class $task.risk) -and $Risk -eq $task.risk) {
         Get-CcxLearningSession $state $task
@@ -947,7 +951,7 @@ function Invoke-CcxRoute {
         }
     }
     $mythosFallback = $false
-    if ($RequestMythos) {
+    if ($RequestMythos -and -not $codexDeferred) {
         $mythos = $policy.models.mythos
         if ($Class -notin $mythos.allowedClasses) { $decision.reasons += 'mythos request ignored: class is not allowed' }
         elseif ($mythos.available -and $mythos.model) {
@@ -966,6 +970,9 @@ function Invoke-CcxRoute {
     if (-not $mythosFallback) {
         switch ($decision.agent) {
             'codex' {
+                # Deferred: no class provider or model choice stands in; the defer is returned after the stop checks.
+                # The provider is still openai, so saved stop lessons (keyed by provider) are found (Codex review).
+                if ($codexDeferred) { $decision.provider = 'openai'; break }
                 # Local models take only first attempts of their classes; a retry goes back to GPT.
                 if (-not $altProvider -and $Attempt -eq 1) {
                     $altProvider = Get-CcxProvider $policy $Class $state
@@ -1039,6 +1046,12 @@ function Invoke-CcxRoute {
                 }
             }
         }
+    }
+    if ($codexDeferred) {
+        $decision.route = 'defer'
+        return (Complete-CcxRoute $decision $Type $TaskId)
+    }
+    if (-not $mythosFallback) {
         if ($decision.agent -in @('claude','codex','gemini')) {
             $ladder = @($policy.effortLadder)
             $efforts = if ($policy.classes[$Class].effort.ContainsKey($decision.agent)) { $policy.classes[$Class].effort[$decision.agent] } else { $policy.classes[$Class].effort.codex }
