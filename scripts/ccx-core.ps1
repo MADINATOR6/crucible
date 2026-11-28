@@ -398,8 +398,9 @@ function Get-CcxGeminiReviewBlock {
                 $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
             }
         }
-        if (-not $Task.branch -and -not $Task.worktree) {
-            # A task without a worktree lives in the main checkout, whichever checkout asks (Codex review).
+        if (-not $Task.worktree) {
+            # A task without a worktree lives in the main checkout, whichever checkout asks, so its HEAD and
+            # uncommitted edits count even when a branch is recorded too (Codex reviews).
             $tips += @{ root = $main; tip = 'HEAD' }
             $subjects += @(Get-CcxChangedPaths -Root $main)
         }
@@ -1254,7 +1255,12 @@ function Start-CcxTaskInState {
     # branch, both read in the main repo (its worktree HEAD is the agent's to move); a task without a worktree starts
     # at the main checkout's HEAD, whichever checkout starts it. If any of that cannot be found (no branch, detached
     # main, failed merge-base), the start stays unrecorded and Gemini may not review the task.
-    if (-not $Task.reviewBase -and $Task.status -eq 'planned') {
+    # A first start is told apart by the sticky started mark, not by status (a task can return to planned): task add
+    # writes started=$false and every start sets it, found or not. A task older than the mark has no key and stays
+    # ineligible (Codex verifier).
+    $firstStart = $Task.ContainsKey('started') -and -not $Task.started
+    $Task.started = $true
+    if ($firstStart -and -not $Task.reviewBase) {
         try {
             $mainRoot = Get-CcxMainRoot
             if ($Task.worktree) {
@@ -1344,7 +1350,7 @@ function Invoke-CcxCmdTask {
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
                 owner=$Parameters.Owner; parent=$Parameters.Parent; dependsOn=@(Split-CcxList $Parameters.DependsOn)
-                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
+                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; started=$false; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
                 creditCap=$creditCap

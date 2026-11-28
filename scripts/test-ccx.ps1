@@ -340,6 +340,17 @@ try {
     Invoke-CcxLocked { param($state) $state.tasks.R1.Remove('reviewBase') | Out-Null } | Out-Null
     Check-Code (Run-Cli @('task','start','-Id','R1')) 0
     Assert (-not (Get-TestTask 'R1').reviewBase) 'a restart recorded a new start commit'
+    # Codex verifier: returning to planned is not a first start, and a task older than the started mark stays unrecorded.
+    Add-Task 'R2' 'notes/'
+    Check-Code (Run-Cli @('task','start','-Id','R2')) 0
+    Invoke-CcxLocked { param($state) $state.tasks.R2.Remove('reviewBase') | Out-Null } | Out-Null
+    Check-Code (Run-Cli @('task','update','-Id','R2','-Status','planned')) 0
+    Check-Code (Run-Cli @('task','start','-Id','R2')) 0
+    Assert (-not (Get-TestTask 'R2').reviewBase) 'a task reset to planned recorded a new start commit'
+    Add-Task 'R3' 'misc/'
+    Invoke-CcxLocked { param($state) $state.tasks.R3.Remove('started') | Out-Null } | Out-Null
+    Check-Code (Run-Cli @('task','start','-Id','R3')) 0
+    Assert (-not (Get-TestTask 'R3').reviewBase) 'a task older than the started mark recorded a start commit'
     Set-Verification
     Check-Code (Run-Cli @('task','review','-Id','T1','-Result','pass','-By','gemini')) 0
     Check-Code (Run-Cli @('task','done','-Id','T1')) 0
@@ -418,6 +429,14 @@ try {
       Assert ($renameOnly -match 'touches CLAUDE.md') "a rename alone hid the protected path: $renameOnly"
       Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'review range is unknown') 'a missing worktree passed'
       Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'no-such-branch'; reviewBase = $start }) -match 'review range is unknown') 'an unknown branch passed'
+      # Codex verifier: a task without a worktree also checks main's uncommitted edits when a branch is recorded.
+      $mainHead = (& $git -C $repo rev-parse HEAD).Trim()
+      Run-Git @('branch', '-f', 'gr-c4-main', $mainHead)
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead })) 'a clean main checkout blocked Gemini'
+      Write-Utf8File (Join-Path $repo 'GEMINI.md') 'edited'
+      $mainBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead }
+      & $git -C $repo checkout -q -- GEMINI.md | Out-Null
+      Assert ($mainBlock -match 'touches GEMINI.md') "an uncommitted protected edit in main was missed: $mainBlock"
     } finally { & $git -C $repo worktree remove --force $wt 2>$null | Out-Null }
   }
   Case 'media types validate credit caps and owned ledger folders and route gates' {
