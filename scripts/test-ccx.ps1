@@ -449,6 +449,19 @@ try {
       Assert ($mainBlock -match 'touches GEMINI.md') "an uncommitted protected edit in main was missed: $mainBlock"
     } finally { & $git -C $repo worktree remove --force $wt 2>$null | Out-Null }
   }
+  Case 'GR-C5 work committed between task add and the first start stays in range; re-pointing drops the start (independent verifier)' {
+    Add-Task 'P1' 'docs/'
+    Write-Utf8File (Join-Path $repo 'GEMINI.md') 'committed before the first start'
+    Run-Git @('add', 'GEMINI.md'); Run-Git @('-c', 'core.hooksPath=NUL', 'commit', '-qm', 'protected work before start')
+    Check-Code (Run-Cli @('task','start','-Id','P1')) 0
+    Assert ((Get-CcxGeminiReviewBlock (Get-TestTask 'P1')) -match 'touches GEMINI.md') 'a commit between task add and the first start fell out of range'
+    Check-Code (Run-Cli @('task','review','-Id','P1','-Result','pass','-By','gemini')) 2
+    Add-Task 'P2' 'extra2/'
+    Check-Code (Run-Cli @('task','start','-Id','P2')) 0
+    Assert ([bool](Get-TestTask 'P2').reviewBase) 'P2 start recorded no reviewBase'
+    Check-Code (Run-Cli @('task','update','-Id','P2','-Branch','elsewhere')) 0
+    Assert (-not (Get-TestTask 'P2').reviewBase) 're-pointing a started task kept its review start'
+  }
   Case 'media types validate credit caps and owned ledger folders and route gates' {
     $base = @('task','add','-Id','M1','-Title','Synthetic media','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','media-out/higgsfield/demo/')
     foreach ($cap in @($null,'0','-1','NaN','Infinity','text')) {
