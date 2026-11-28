@@ -2,7 +2,11 @@
 
 Operating state for autonomous sessions on this repo. Read first every session. Cap 400 lines; archive old entries to MEMORY-ARCHIVE.md.
 
-## Active task (2026-11-27 night, unattended from 02:13): DONE 07:10
+## Active task (2026-11-28): DONE
+- Closed, merged and pushed: GEMINI-REVIEWER-3 (2dbc37e), GEMINI-REVIEWER-4 (9f51f8a, security-review fixes), CODEX-UPGRADE-1 (3f6edad). Last task commit: 3f6edad. Worktrees for GEMINI-TOOLS, CONTRIBUTORS, GEMINI-GUIDE, GEMINI-REVIEWER(-4) and CODEX-UPGRADE-1 removed with their merged branches. Open items: HANDOFF-REPORT.md.
+- Lessons: never edit a checkout while its verify runs (done once more today, run discarded); PowerShell `-match` ignores case, so a test asserting a launcher label must use `-cmatch`; `Assert` needs `[bool]` on strings.
+
+## Previous task (2026-11-27 night, unattended from 02:13): DONE 07:10
 - Closed: UPGRADE-3R, 3R-T (merged df6108b), GEMINI-CONTEXT, GEMINI-SELF-UPGRADE-RESEARCH; UPGRADE-3, CODEX-VERIFY, 3R-VERIFY, 3R-VERIFY3 abandoned as superseded. Worktrees claude-UPGRADE-3R and claude-EXT-TOOLS-TEST removed (branches kept). Not pushed: needs the user's yes. Next steps: HANDOFF-REPORT.md.
 
 ## Night log (2026-11-27)
