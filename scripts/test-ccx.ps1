@@ -389,7 +389,12 @@ try {
     Assert ($r.Stdout -match 'cross-model-review') 'a stale Gemini review satisfied done'
   }
   Case 'GR-C3 protected owns are found by file, parent folder and case; unrelated paths stay eligible' {
-    foreach ($owns in @('Scripts/Codex-Dispatch.ps1', 'scripts/', 'ccx/policy.json', '.agents/plugins/crucible-tools/mcp_config.json', 'GEMINI.md', 'agents.md', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1')) {
+    foreach ($owns in @('Scripts/Codex-Dispatch.ps1', 'scripts/', 'ccx/policy.json', '.agents/plugins/crucible-tools/mcp_config.json', 'GEMINI.md', 'agents.md', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1',
+        # Security review (GEMINI-REVIEWER-4): the entry point, its ops module, all of ccx/, the handoff contract and
+        # Gemini's own config.
+        'scripts/ccx.ps1', 'Scripts/CCX-Ops.ps1', 'ccx/ARCHITECTURE.md', 'HANDOFF.md', '.gemini/settings.json', '.agy/rules.md', '.geminiignore',
+        # Codex verifier: the Obsidian launcher and the blind-review checklist.
+        '.obsidian/plugins/crucible/main.js', 'reference/review checklist.md', '.claude/skills/fable-judge/SKILL.md')) {
       $block = Get-CcxGeminiReviewBlock @{ owner = 'claude'; owns = @($owns) }
       Assert ($block -match 'decides Gemini') "protected owns not detected: $owns"
     }

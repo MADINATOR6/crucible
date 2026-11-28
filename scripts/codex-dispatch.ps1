@@ -256,6 +256,11 @@ try {
     $script:CcxDeferRouteLog = $Role -ne 'implement'
     try { $decision = Invoke-CcxRoute @routeArgs } finally { $script:CcxDeferRouteLog = $false }
     if ($Reviewer -eq 'gemini') {
+      # -Reviewer swaps only the provider of a route that may run, or stands in while Codex is out (defer); a route
+      # that says stop (surface, premium) keeps its refusal (security review, GEMINI-REVIEWER-4).
+      if ($decision.route -notin @('worker','cheap','script','defer')) {
+        throw (New-CcxError ("Route: $($decision.route) $($decision.agent) - " + ($decision.reasons -join '; ')) 8)
+      }
       # Same availability rules as any Gemini route: disabled, at its usage limit or agy missing stops here,
       # before the lock and the task start (Codex review, GEMINI-REVIEWER-2).
       $geminiBlocker = Get-CcxProviderBlocker -Policy $policy -Name 'gemini' -State $state

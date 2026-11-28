@@ -365,8 +365,17 @@ function ConvertTo-CcxOwnedPath {
 # work or anything that decides Gemini's routing or access. Checked against the task's owns, its uncommitted scope
 # (verify's scope stage) and, for a worktree task, everything committed on its branch since it left the base
 # branch: ccx's scope stage sees only uncommitted changes (Codex review, GEMINI-REVIEWER-2).
-$script:CcxGeminiProtected = @('ccx/policy.json', 'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1',
-    'GEMINI.md', '.agents/', 'AGENTS.md', 'CLAUDE.md')
+# Every file that routes, gates or launches Gemini, or tells it how to work (security review, GEMINI-REVIEWER-4):
+# the ccx entry point and its modules, all of ccx/, the launcher and bridge, Gemini's own config folders and the
+# shared rule files. ponytail: named files, not all of scripts/ (that would bar Gemini from every test-script review);
+# add a script here when it starts deciding Gemini's routing or access.
+$script:CcxGeminiProtected = @('ccx/', 'scripts/ccx.ps1', 'scripts/ccx-core.ps1', 'scripts/ccx-ops.ps1',
+    'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'GEMINI.md', '.agents/', '.gemini/', '.agy/', '.geminiignore',
+    'AGENTS.md', 'CLAUDE.md', 'HANDOFF.md', '.obsidian/plugins/crucible/', 'Reference/Review checklist.md',
+    # Antigravity loads these skills through .agents/skills.json, fable-judge (the review checklist) among them.
+    '.claude/skills/')
+# Not .obsidian/community-plugins.json: it only toggles which plugins load, and the user's checkout keeps it edited,
+# which would refuse every Gemini review (Codex verifier, GEMINI-REVIEWER-4).
 function Get-CcxGeminiReviewBlock {
     param($Task)
     if ($Task.owner -eq 'gemini') { return 'Gemini owns this task' }
