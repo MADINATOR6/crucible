@@ -381,21 +381,25 @@ function Get-CcxGeminiReviewBlock {
     # no recorded start (never started, started before reviewBase existed, or the start could not be found), a gone
     # branch, a worktree with no recorded branch, or a failed diff all block Gemini. --no-renames lists both names.
     if (-not $Task.reviewBase) { return 'no start commit is recorded, so the review range is unknown' }
+    # A task registered while main was detached, or before these marks existed, has no base branch to check (verifier).
+    if (-not $Task.addHead -or -not $Task.addBranch) { return 'its base branch at task add is unknown, so the review range is unknown' }
     $subjects = @()
     try {
         $main = Get-CcxMainRoot
+        # Task-side tips are diffed from reviewBase (where the task's branch began); main-side tips from addHead (main
+        # at task add), so a revert on main of a change older than addHead still shows (independent verifier).
         $tips = @()
         if ($Task.branch) {
             $ref = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.branch))).Trim()
             if (-not $ref) { return "its branch $($Task.branch) is gone, so the review range is unknown" }
-            $tips += @{ root = $main; tip = $ref }
+            $tips += @{ root = $main; tip = $ref; base = $Task.reviewBase }
         }
         if ($Task.worktree) {
             # A worktree's HEAD is the agent's to move, so it is never the only tip (security review).
             if (-not $Task.branch) { return 'its worktree has no recorded branch, so the review range is unknown' }
             # Only worktree prune clears a recorded worktree, so a missing one (moved, deleted) is abnormal (verifier).
             if (-not [IO.Directory]::Exists([string]$Task.worktree)) { return "its worktree $($Task.worktree) is missing, so the review range is unknown" }
-            $tips += @{ root = [string]$Task.worktree; tip = 'HEAD' }
+            $tips += @{ root = [string]$Task.worktree; tip = 'HEAD'; base = $Task.reviewBase }
             $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
         }
         # The main checkout always counts too, worktree or not (Codex reviews, independent verifier): a task without a
@@ -405,16 +409,15 @@ function Get-CcxGeminiReviewBlock {
         # during the task's life (fail closed); attribute main commits to tasks if that over-blocks.
         # Known limits (deliberate concealment by the task's own author, caught by the merge review and push gate,
         # not here): commits made before task add, edits hidden with git update-index --skip-worktree or
-        # --assume-unchanged, and gitignored files.
-        if ($Task.addBranch) {
-            $addRef = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.addBranch))).Trim()
-            if (-not $addRef) { return "its base branch $($Task.addBranch) is gone, so the review range is unknown" }
-            $tips += @{ root = $main; tip = $addRef }
-        }
-        $tips += @{ root = $main; tip = 'HEAD' }
+        # --assume-unchanged, and gitignored files. Diffs compare trees, so a change that nets to zero in a range
+        # is not reported: the final content is what counts.
+        $addRef = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.addBranch))).Trim()
+        if (-not $addRef) { return "its base branch $($Task.addBranch) is gone, so the review range is unknown" }
+        $tips += @{ root = $main; tip = $addRef; base = [string]$Task.addHead }
+        $tips += @{ root = $main; tip = 'HEAD'; base = [string]$Task.addHead }
         $subjects += @(Get-CcxChangedPaths -Root $main)
         foreach ($t in $tips) {
-            $subjects += @((Invoke-CcxGit -Root $t.root -Arguments @('diff', '--no-renames', '--name-only', '-z', $Task.reviewBase, $t.tip, '--')).Split([char]0) | Where-Object { $_ })
+            $subjects += @((Invoke-CcxGit -Root $t.root -Arguments @('diff', '--no-renames', '--name-only', '-z', $t.base, $t.tip, '--')).Split([char]0) | Where-Object { $_ })
         }
     } catch { return 'its committed changes cannot be listed, so the review range is unknown' }
     return (Find-CcxGeminiProtected $subjects)

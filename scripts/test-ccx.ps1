@@ -394,8 +394,9 @@ try {
       Assert ($block -match 'decides Gemini') "protected owns not detected: $owns"
     }
     $head = (& $git -C $repo rev-parse HEAD).Trim()
+    $mb = (& $git -C $repo rev-parse --abbrev-ref HEAD).Trim()
     foreach ($owns in @('src/app.js', 'scripts/test-ccx.ps1', 'handoffs/report.md', 'agency/')) {
-      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns); reviewBase = $head })) "unrelated owns blocked: $owns"
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns); reviewBase = $head; addHead = $head; addBranch = $mb })) "unrelated owns blocked: $owns"
     }
     # Codex review (GEMINI-REVIEWER-3): with no recorded start nothing proves what changed, so Gemini is refused.
     Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('src/') }) -match 'no start commit') 'a task with no recorded start passed'
@@ -409,45 +410,46 @@ try {
     $wt = Join-Path $scratch ('gr-c4-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
     Run-Git @('worktree', 'add', '-b', 'gr-c4', $wt, 'HEAD')
     $start = (& $git -C $repo rev-parse HEAD).Trim()
+    $mb = (& $git -C $repo rev-parse --abbrev-ref HEAD).Trim()
     try {
       [void][IO.Directory]::CreateDirectory((Join-Path $wt 'docs'))
       Write-Utf8File (Join-Path $wt 'docs\note.md') 'safe'
       & $git -C $wt add -- 'docs/note.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m safe | Out-Null
-      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start })) 'a safe committed change blocked Gemini'
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb })) 'a safe committed change blocked Gemini'
       Write-Utf8File (Join-Path $wt 'GEMINI.md') 'pointer'
       & $git -C $wt add -- 'GEMINI.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m protected | Out-Null
-      $block = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start }
+      $block = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }
       Assert ($block -match 'touches GEMINI.md') "a committed protected change was missed: $block"
       # Security review: the worktree's HEAD is the agent's to move; moving it back does not hide the branch's
       # commits, and a worktree task with no recorded branch is refused.
       & $git -C $wt checkout -q --detach $start | Out-Null
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start }) -match 'touches GEMINI.md') 'moving the worktree HEAD hid the branch commits'
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = $start }) -match 'no recorded branch') 'a worktree task without a branch passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches GEMINI.md') 'moving the worktree HEAD hid the branch commits'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'no recorded branch') 'a worktree task without a branch passed'
       & $git -C $wt checkout -q gr-c4 | Out-Null
       # Security reviews: the recorded branch counts even when the worktree is gone; main moving past the branch
       # (here: merging it) does not empty the range; a rename cannot hide a protected path; unknown ranges block.
       # Independent verifier: a recorded worktree that is missing (moved, deleted) refuses Gemini; only prune clears it,
       # and a pruned task keeps its branch range.
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'worktree .* is missing') 'a missing worktree passed'
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start }) -match 'touches GEMINI.md') 'branch range ignored after the worktree was pruned'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone'); reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'worktree .* is missing') 'a missing worktree passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches GEMINI.md') 'branch range ignored after the worktree was pruned'
       Run-Git @('-c', 'core.hooksPath=NUL', 'merge', '-q', '--no-edit', 'gr-c4')
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start }) -match 'touches GEMINI.md') 'merging the branch into main emptied the review range'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches GEMINI.md') 'merging the branch into main emptied the review range'
       Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }) -match 'no start commit') 'a worktree task without a recorded start passed'
       # Rename a protected file that exists on the base branch: --no-renames lists the old name too.
       & $git -C $wt rm -q --cached GEMINI.md | Out-Null; [IO.File]::Delete((Join-Path $wt 'GEMINI.md'))
       & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m 'drop GEMINI.md' | Out-Null
       & $git -C $wt mv CLAUDE.md docs/moved.md | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m rename | Out-Null
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start }) -match 'touches (CLAUDE|GEMINI).md') 'a renamed protected path was missed'
-      $renameOnly = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = (& $git -C $wt rev-parse HEAD~1).Trim() }
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches (CLAUDE|GEMINI).md') 'a renamed protected path was missed'
+      $renameOnly = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = (& $git -C $wt rev-parse HEAD~1).Trim(); addHead = $start; addBranch = $mb }
       Assert ($renameOnly -match 'touches CLAUDE.md') "a rename alone hid the protected path: $renameOnly"
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'review range is unknown') 'a missing worktree passed'
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'no-such-branch'; reviewBase = $start }) -match 'review range is unknown') 'an unknown branch passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = (Join-Path $scratch 'gone'); reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'review range is unknown') 'a missing worktree passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'no-such-branch'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'review range is unknown') 'an unknown branch passed'
       # Codex verifier: a task without a worktree also checks main's uncommitted edits when a branch is recorded.
       $mainHead = (& $git -C $repo rev-parse HEAD).Trim()
       Run-Git @('branch', '-f', 'gr-c4-main', $mainHead)
-      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead })) 'a clean main checkout blocked Gemini'
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead; addHead = $mainHead; addBranch = $mb })) 'a clean main checkout blocked Gemini'
       Write-Utf8File (Join-Path $repo 'GEMINI.md') 'edited'
-      $mainBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead }
+      $mainBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead; addHead = $mainHead; addBranch = $mb }
       & $git -C $repo checkout -q -- GEMINI.md | Out-Null
       Assert ($mainBlock -match 'touches GEMINI.md') "an uncommitted protected edit in main was missed: $mainBlock"
     } finally { & $git -C $repo worktree remove --force $wt 2>$null | Out-Null }
@@ -465,13 +467,21 @@ try {
     $p1Base = [string]$p1.addHead
     Assert ([bool]$p1.addBranch) 'task add recorded no base branch'
     Run-Git @('branch', '-f', 'gr-c5', $p1Base)
-    $wtBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; reviewBase = $p1Base }
+    $wtBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; reviewBase = $p1Base; addHead = $p1Base; addBranch = $p1.addBranch }
     Assert ($wtBlock -match 'touches GEMINI.md') "a task branch at its start hid a protected commit on main: $wtBlock"
     Run-Git @('checkout', '-q', '--detach', $p1Base)
     try {
-      $awayBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); reviewBase = $p1Base; addBranch = $p1.addBranch }
+      $awayBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); reviewBase = $p1Base; addHead = $p1Base; addBranch = $p1.addBranch }
     } finally { Run-Git @('checkout', '-q', [string]$p1.addBranch) }
     Assert ($awayBlock -match 'touches GEMINI.md') "switching the main checkout away hid a protected commit: $awayBlock"
+    # A task registered with main detached has no base branch, so Gemini is refused.
+    Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); reviewBase = $p1Base; addHead = $p1Base }) -match 'base branch at task add is unknown') 'a task with no base branch passed'
+    # A worktree task branched before addHead: a revert on main of a protected change made before task add (main
+    # back to the branch's start) still shows, since main is diffed from addHead.
+    $protected = (& $git -C $repo rev-parse HEAD).Trim()
+    Run-Git @('-c', 'core.hooksPath=NUL', 'revert', '--no-edit', $protected)
+    $revertBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; reviewBase = $p1Base; addHead = $protected; addBranch = $p1.addBranch }
+    Assert ($revertBlock -match 'touches GEMINI.md') "a revert on main of a protected change was missed: $revertBlock"
     Add-Task 'P2' 'extra2/'
     Check-Code (Run-Cli @('task','start','-Id','P2')) 0
     Assert ([bool](Get-TestTask 'P2').reviewBase) 'P2 start recorded no reviewBase'
