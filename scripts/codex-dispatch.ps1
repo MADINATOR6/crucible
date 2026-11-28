@@ -663,8 +663,14 @@ $sawErrorEvent = $false
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
   $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit|RESOURCE_EXHAUSTED|quota (?:exceeded|exhausted)'
-  $limitMessages = @($messages | Where-Object { $_ -match $limitPattern })
-  $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $limitPattern })
+  # A quota message counts only when the run did not finish: a run that exited 0 with a completed turn recovered,
+  # and must not mark the provider unavailable (Codex self-study, CODEX-UPGRADE-1). A billing spend cap does not
+  # match $limitPattern and so never reads as a quota reset.
+  $limitMessages = @()
+  if (-not ($code -eq 0 -and $hasUsage)) {
+    $limitMessages = @($messages | Where-Object { $_ -match $limitPattern })
+    $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $limitPattern })
+  }
   foreach ($message in ($limitMessages | Select-Object -Unique)) {
     Write-Output "USAGE LIMIT: $message"
     if ($message -match '(?i)try again at\s+([^\r\n]+)') { Write-Output "RESETS: $($Matches[1].Trim().TrimEnd('.'))" }

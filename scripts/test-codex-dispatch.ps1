@@ -329,6 +329,18 @@ else if (mode === 'capacity' || mode === 'http503' || mode === 'ordinary-error' 
   write('Status: PARTIAL\n');
   if (mode !== 'recovered503') process.exit(1);
 }
+else if (mode === 'recoveredQuota' || mode === 'terminalQuota') {
+  // Codex self-study (CODEX-UPGRADE-1): a quota message the run recovers from is not a usage limit.
+  event({type:'error', message:'You have hit your usage limit. Try again at 6:27 AM.'});
+  if (mode === 'recoveredQuota') {
+    fs.writeFileSync('owned.txt', 'synthetic change');
+    event({type:'turn.completed', usage:{input_tokens:10,cached_input_tokens:0,output_tokens:2}});
+    write('Status: READY_FOR_CLAUDE_REVIEW\n');
+  } else {
+    event({type:'turn.failed', error:{message:'You have hit your usage limit. Try again at 6:27 AM.'}});
+    process.exit(1);
+  }
+}
 else if (mode === 'ready' || mode === 'partial' || mode === 'stray' || mode === 'spaced') {
   fs.writeFileSync(mode === 'stray' ? 'stray.txt' : mode === 'spaced' ? 'a b.txt' : 'owned.txt', 'synthetic change');
   event({type:'turn.completed', usage:{input_tokens:100,cached_input_tokens:10,output_tokens:5}});
@@ -969,6 +981,17 @@ else {
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'recovered503'
     Assert ($r.Code -ne 4) 'recovered 503 was treated as terminal transient failure'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'recovered 503 did not spend one attempt'
+  }
+  Ccx-Case 'a recovered quota message is not a usage limit; a terminal one still is (CODEX-UPGRADE-1)' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'recoveredQuota'
+    Check-Code $r 0
+    Assert ($r.Stdout -notmatch 'USAGE LIMIT') 'a recovered quota message was reported as a usage limit'
+    Assert (-not (Read-CcxState).agents.codex.unavailableUntil) 'a recovered run marked Codex unavailable'
+    Add-CcxTask 'T2' 'other.txt'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T2')) 'terminalQuota'
+    Check-Code $r 4
+    Assert ((Read-CcxState).agents.codex.unavailableUntil) 'a terminal quota did not mark Codex unavailable'
   }
   Ccx-Case 'An early recovered 503 does not excuse a later ordinary failure (Gemini review 1.2)' {
     Add-CcxTask
