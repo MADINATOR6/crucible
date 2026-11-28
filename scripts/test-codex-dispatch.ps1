@@ -876,6 +876,11 @@ else {
     $argLog = Join-Path $scratch 'gr-d2.txt'
     $fake = Use-FakeAgy $fakeDir $argLog
     try {
+      # Codex narrow check: a refused review leaves no route in the routing log.
+      Add-CcxTask 'G9' 'g9.txt' 'gemini' 'docs'
+      $r = Run-Launcher $repo ($common + @('-TaskId','G9','-Role','verify','-Reviewer','gemini')) 'ready'
+      Check-Code $r 8
+      Assert (-not @((Read-CcxState).routingLog | Where-Object { $_.taskId -eq 'G9' }).Count) 'a refused review was logged as a route'
       $r = Run-Launcher $repo ($common + @('-TaskId','P1','-Role','verify','-Reviewer','gemini')) 'ready'
       Check-Code $r 8
       Assert ($r.Stdout -match 'Gemini may not review or verify this task' -and -not [IO.File]::Exists($argLog)) 'explicit review of a protected subject ran'

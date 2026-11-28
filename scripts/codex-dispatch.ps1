@@ -252,7 +252,9 @@ try {
     $explicit = $PSBoundParameters.ContainsKey('Effort') -or $PSBoundParameters.ContainsKey('Model')
     $routeArgs = @{ TaskId = $TaskId; Type = $task.type; IgnoreSessionPreference = $explicit }
     if ($Role -ne 'implement') { $routeArgs.Type = $Role; $routeArgs.Attempt = 1 }
-    $decision = Invoke-CcxRoute @routeArgs
+    # A review's route is logged once, after its eligibility checks below (Codex narrow check).
+    $script:CcxDeferRouteLog = $Role -ne 'implement'
+    try { $decision = Invoke-CcxRoute @routeArgs } finally { $script:CcxDeferRouteLog = $false }
     if ($Reviewer -eq 'gemini') {
       # Same availability rules as any Gemini route: disabled, at its usage limit or agy missing stops here,
       # before the lock and the task start (Codex review, GEMINI-REVIEWER-2).
@@ -267,15 +269,18 @@ try {
     # a quota fallback defers instead (FRICTION.md 2026-11-27: a fallback once let Gemini review its own access).
     if ($Role -ne 'implement' -and ($decision.agent -eq 'gemini' -or $decision.provider -eq 'gemini')) {
       $block = Get-CcxGeminiReviewBlock $task
+      # The guard reads a task without a worktree in the main checkout, so the review must run there too.
+      if (-not $block -and -not $task.worktree -and [IO.Path]::GetFullPath((Get-CcxMainRoot)).TrimEnd('\','/') -ine [IO.Path]::GetFullPath($root).TrimEnd('\','/')) {
+        $block = 'a Gemini review of a task without a worktree runs from the main checkout'
+      }
       if ($block) {
         if ($Reviewer) { throw (New-CcxError "Gemini may not review or verify this task: $block. Use Codex or Claude." 8) }
         $resumeText = if ($codexOut) { ' Codex resumes at ' + [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime() + '.' } else { '' }
         throw (New-CcxError "USAGE LIMIT (recorded): Codex is unavailable and Gemini may not stand in: $block.$resumeText Wait for Codex or ask Claude." 4)
       }
     }
-    # The routing log holds the default route; an explicit Gemini review that passed the checks above is logged
-    # again as the route that runs, so a refused review never appears as a Gemini route (Codex review).
-    if ($Reviewer -eq 'gemini') { $null = Complete-CcxRoute $decision $Role $TaskId }
+    # A review's route, logged once now that its eligibility checks passed (Codex narrow check).
+    if ($Role -ne 'implement') { $null = Complete-CcxRoute $decision $Role $TaskId }
     # A cloud fallback provider may run while OpenAI Codex is at its usage limit; nothing else may.
     if ($codexOut -and $decision.agent -eq 'codex' -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
       $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()

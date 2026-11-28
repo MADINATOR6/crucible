@@ -334,6 +334,12 @@ try {
     Add-Task
     Check-Code (Run-Cli @('task','start','-Id','T1')) 0
     Assert ([bool](Get-TestTask).reviewBase) 'task start recorded no reviewBase'
+    # Codex narrow check: only a first start records it; a restarted task that lacks one (an older task) keeps none.
+    Add-Task 'R1' 'docs/'
+    Check-Code (Run-Cli @('task','start','-Id','R1')) 0
+    Invoke-CcxLocked { param($state) $state.tasks.R1.Remove('reviewBase') | Out-Null } | Out-Null
+    Check-Code (Run-Cli @('task','start','-Id','R1')) 0
+    Assert (-not (Get-TestTask 'R1').reviewBase) 'a restart recorded a new start commit'
     Set-Verification
     Check-Code (Run-Cli @('task','review','-Id','T1','-Result','pass','-By','gemini')) 0
     Check-Code (Run-Cli @('task','done','-Id','T1')) 0

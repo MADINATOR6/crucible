@@ -778,6 +778,9 @@ function Set-CcxLearnedEffort {
 }
 function Complete-CcxRoute {
     param($Decision, [string]$Type, [string]$TaskId)
+    # The launcher defers the log of a review dispatch until its eligibility checks pass, then logs the route that
+    # runs (GEMINI-REVIEWER, Codex narrow check): a refused review never appears as a route.
+    if ($script:CcxDeferRouteLog) { return $Decision }
     try {
         Invoke-CcxLocked {
             param($state)
@@ -1246,16 +1249,21 @@ function Start-CcxTaskInState {
     # The commit the task's work starts from, recorded once: a Gemini review checks everything changed since it,
     # never a range derived from main's moving HEAD (security review, GEMINI-REVIEWER-2). A worktree task starts
     # where its branch left the base branch, so commits made there before ccx knew the task still count.
-    if (-not $Task.reviewBase) {
-        # A worktree task's start is where its branch left the base branch; if that cannot be found (detached main
-        # checkout, failed merge-base) the start stays unrecorded and Gemini may not review it, rather than using the
-        # task's own tip, which would hide its earlier commits (Codex review, GEMINI-REVIEWER-3).
+    # Recorded only on a task's first start: a restarted task that never had one keeps none, since today's commit would
+    # drop its earlier work (Codex narrow check). A worktree task starts where its recorded branch left the base
+    # branch, both read in the main repo (its worktree HEAD is the agent's to move); a task without a worktree starts
+    # at the main checkout's HEAD, whichever checkout starts it. If any of that cannot be found (no branch, detached
+    # main, failed merge-base), the start stays unrecorded and Gemini may not review the task.
+    if (-not $Task.reviewBase -and $Task.status -eq 'planned') {
         try {
+            $mainRoot = Get-CcxMainRoot
             if ($Task.worktree) {
-                $baseBranch = (Invoke-CcxGit -Root (Get-CcxMainRoot) -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
-                if ($baseBranch -and $baseBranch -ne 'HEAD') { $Task.reviewBase = (Invoke-CcxGit -Root $root -Arguments @('merge-base', 'HEAD', $baseBranch)).Trim() }
+                $baseBranch = (Invoke-CcxGit -Root $mainRoot -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
+                if ($Task.branch -and $baseBranch -and $baseBranch -ne 'HEAD') {
+                    $Task.reviewBase = (Invoke-CcxGit -Root $mainRoot -Arguments @('merge-base', ('refs/heads/' + $Task.branch), $baseBranch)).Trim()
+                }
             } else {
-                $Task.reviewBase = (Invoke-CcxGit -Root $root -Arguments @('rev-parse', 'HEAD')).Trim()
+                $Task.reviewBase = (Invoke-CcxGit -Root $mainRoot -Arguments @('rev-parse', 'HEAD')).Trim()
             }
         } catch { }
     }
