@@ -585,6 +585,7 @@ try {
   $messages = New-Object 'System.Collections.Generic.List[string]'
   [long]$inputTokens = 0; [long]$cachedTokens = 0; [long]$outputTokens = 0
   $hasUsage = $false
+  $codexCompleted = $false  # Codex's own turn.completed; other providers report usage on failed results too
   $lastMessage = $null
   $terminalError = $null  # the turn.failed message itself; $messages is de-duplicated for display
   $lastErrorEvent = $null
@@ -634,7 +635,7 @@ $sawErrorEvent = $false
   foreach ($line in $(if ($isGemini -or $isAgy -or $isClaude) { @() } else { [IO.File]::ReadLines($base + '.events.jsonl', $utf8) })) {
     try { $event = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($event.type -eq 'turn.completed' -and $event.usage) {
-      $hasUsage = $true
+      $hasUsage = $true; $codexCompleted = $true
       $inputTokens += $event.usage.input_tokens
       $cachedTokens += $event.usage.cached_input_tokens
       $outputTokens += $event.usage.output_tokens
@@ -663,11 +664,12 @@ $sawErrorEvent = $false
   if ($hasUsage) { Write-Output "Codex tokens: input=$inputTokens (cached=$cachedTokens) output=$outputTokens" }
   else { Write-Output 'Codex tokens: unknown (no turn.completed event)' }
   $limitPattern = 'hit your usage limit|Quota exceeded|usage not included|usage limit reached|hit your limit|RESOURCE_EXHAUSTED|quota (?:exceeded|exhausted)'
-  # A quota message counts only when the run did not finish: a run that exited 0 with a completed turn recovered,
-  # and must not mark the provider unavailable (Codex self-study, CODEX-UPGRADE-1). A billing spend cap does not
-  # match $limitPattern and so never reads as a quota reset.
+  # A quota message counts only when the run did not finish: a Codex run that exited 0 with a completed turn
+  # recovered, and must not mark the provider unavailable (Codex self-study, CODEX-UPGRADE-1). Only Codex's own
+  # turn.completed proves it: Claude and agy report usage on failed results too (Codex review). A billing spend cap
+  # does not match $limitPattern and so never reads as a quota reset.
   $limitMessages = @()
-  if (-not ($code -eq 0 -and $hasUsage)) {
+  if (-not ($code -eq 0 -and $codexCompleted)) {
     $limitMessages = @($messages | Where-Object { $_ -match $limitPattern })
     $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $limitPattern })
   }

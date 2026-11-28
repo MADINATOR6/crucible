@@ -986,12 +986,13 @@ else {
     Add-CcxTask
     $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'recoveredQuota'
     Check-Code $r 0
-    Assert ($r.Stdout -notmatch 'USAGE LIMIT') 'a recovered quota message was reported as a usage limit'
+    # The launcher's own classification line, case-sensitive: the run's error text ("hit your usage limit") is still shown.
+    Assert ($r.Stdout -cnotmatch 'USAGE LIMIT:') 'a recovered quota message was reported as a usage limit'
     Assert (-not (Read-CcxState).agents.codex.unavailableUntil) 'a recovered run marked Codex unavailable'
     Add-CcxTask 'T2' 'other.txt'
     $r = Run-Launcher $repo ($common + @('-TaskId','T2')) 'terminalQuota'
     Check-Code $r 4
-    Assert ((Read-CcxState).agents.codex.unavailableUntil) 'a terminal quota did not mark Codex unavailable'
+    Assert ([bool](Read-CcxState).agents.codex.unavailableUntil) 'a terminal quota did not mark Codex unavailable'
   }
   Ccx-Case 'An early recovered 503 does not excuse a later ordinary failure (Gemini review 1.2)' {
     Add-CcxTask
@@ -1121,6 +1122,18 @@ else {
       $state = Read-CcxState
       Assert ($state.tasks.T1.dispatches -eq 1) 'protected change refunded by the quota error'
       Assert ([bool]$state.providerLimits.gemini) 'quota reset no longer recorded'
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
+  Ccx-Case 'an agy quota error that reports usage and exits 0 is still a usage limit (Codex review, CODEX-UPGRADE-1)' {
+    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+    $policy.providers.gemini.command = 'agy.cmd'
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    Write-Utf8File (Join-Path $fakeDir 'agy.cmd') ("@echo off`r`necho {`"status`":`"ERROR`",`"error`":{`"message`":`"RESOURCE_EXHAUSTED: quota exceeded. Please retry in 2h5m.`"},`"usage`":{`"input_tokens`":10,`"output_tokens`":2}}`r`nexit /b 0`r`n")
+    try {
+      Add-CcxTask 'T1' 'owned.txt' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 4
+      Assert ([bool](Read-CcxState).providerLimits.gemini) 'a quota error with usage lost its cooldown'
     } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
   }
   Ccx-Case 'Codex limit dispatches the class model through agy' {
