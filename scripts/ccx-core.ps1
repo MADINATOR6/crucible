@@ -393,15 +393,24 @@ function Get-CcxGeminiReviewBlock {
         if ($Task.worktree) {
             # A worktree's HEAD is the agent's to move, so it is never the only tip (security review).
             if (-not $Task.branch) { return 'its worktree has no recorded branch, so the review range is unknown' }
-            if ([IO.Directory]::Exists([string]$Task.worktree)) {
-                $tips += @{ root = [string]$Task.worktree; tip = 'HEAD' }
-                $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
-            }
+            # Only worktree prune clears a recorded worktree, so a missing one (moved, deleted) is abnormal (verifier).
+            if (-not [IO.Directory]::Exists([string]$Task.worktree)) { return "its worktree $($Task.worktree) is missing, so the review range is unknown" }
+            $tips += @{ root = [string]$Task.worktree; tip = 'HEAD' }
+            $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
         }
         # The main checkout always counts too, worktree or not (Codex reviews, independent verifier): a task without a
         # worktree lives there, a worktree task's agent can commit there, and a branch merged into main and then
-        # rewound leaves its change on main. ponytail: refuses Gemini whenever any protected file lands on main during
-        # the task's life (fail closed); attribute main commits to tasks if that over-blocks.
+        # rewound leaves its change on main. Both main's HEAD and the branch it had at task add count, so switching
+        # the main checkout away hides nothing. ponytail: refuses Gemini whenever any protected file lands on main
+        # during the task's life (fail closed); attribute main commits to tasks if that over-blocks.
+        # Known limits (deliberate concealment by the task's own author, caught by the merge review and push gate,
+        # not here): commits made before task add, edits hidden with git update-index --skip-worktree or
+        # --assume-unchanged, and gitignored files.
+        if ($Task.addBranch) {
+            $addRef = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.addBranch))).Trim()
+            if (-not $addRef) { return "its base branch $($Task.addBranch) is gone, so the review range is unknown" }
+            $tips += @{ root = $main; tip = $addRef }
+        }
         $tips += @{ root = $main; tip = 'HEAD' }
         $subjects += @(Get-CcxChangedPaths -Root $main)
         foreach ($t in $tips) {
@@ -1348,12 +1357,17 @@ function Invoke-CcxCmdTask {
             # Main's HEAD at registration: the earliest point ccx can tie to the task, so commits made between add and
             # the first start stay in a Gemini review's range (independent verifier). Unreadable: none, so ineligible.
             # ponytail: commits made before task add cannot be tied to the task; register before starting work.
-            $addHead = $null
-            try { $addHead = (Invoke-CcxGit -Root (Get-CcxMainRoot) -Arguments @('rev-parse', 'HEAD')).Trim() } catch { }
+            $addHead = $null; $addBranch = $null
+            try {
+                $addMain = Get-CcxMainRoot
+                $addHead = (Invoke-CcxGit -Root $addMain -Arguments @('rev-parse', 'HEAD')).Trim()
+                $addBranch = (Invoke-CcxGit -Root $addMain -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
+                if ($addBranch -eq 'HEAD') { $addBranch = $null }
+            } catch { }
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
                 owner=$Parameters.Owner; parent=$Parameters.Parent; dependsOn=@(Split-CcxList $Parameters.DependsOn)
-                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; started=$false; addHead=$addHead; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
+                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; started=$false; addHead=$addHead; addBranch=$addBranch; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
                 creditCap=$creditCap

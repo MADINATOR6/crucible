@@ -426,7 +426,10 @@ try {
       & $git -C $wt checkout -q gr-c4 | Out-Null
       # Security reviews: the recorded branch counts even when the worktree is gone; main moving past the branch
       # (here: merging it) does not empty the range; a rename cannot hide a protected path; unknown ranges block.
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'touches GEMINI.md') 'branch range ignored when the worktree is gone'
+      # Independent verifier: a recorded worktree that is missing (moved, deleted) refuses Gemini; only prune clears it,
+      # and a pruned task keeps its branch range.
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'worktree .* is missing') 'a missing worktree passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start }) -match 'touches GEMINI.md') 'branch range ignored after the worktree was pruned'
       Run-Git @('-c', 'core.hooksPath=NUL', 'merge', '-q', '--no-edit', 'gr-c4')
       Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start }) -match 'touches GEMINI.md') 'merging the branch into main emptied the review range'
       Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }) -match 'no start commit') 'a worktree task without a recorded start passed'
@@ -456,12 +459,19 @@ try {
     Check-Code (Run-Cli @('task','start','-Id','P1')) 0
     Assert ((Get-CcxGeminiReviewBlock (Get-TestTask 'P1')) -match 'touches GEMINI.md') 'a commit between task add and the first start fell out of range'
     Check-Code (Run-Cli @('task','review','-Id','P1','-Result','pass','-By','gemini')) 2
-    # A worktree task whose branch sits at its start (made from an old base, or rewound after a merge) still sees a
-    # protected commit on main.
-    $p1Base = [string](Get-TestTask 'P1').addHead
+    # A task whose branch sits at its start (made from an old base, or rewound after a merge) still sees a protected
+    # commit on main, and so it does after the main checkout switches away from its branch (independent verifier).
+    $p1 = Get-TestTask 'P1'
+    $p1Base = [string]$p1.addHead
+    Assert ([bool]$p1.addBranch) 'task add recorded no base branch'
     Run-Git @('branch', '-f', 'gr-c5', $p1Base)
-    $wtBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; worktree = (Join-Path $scratch 'gone-c5'); reviewBase = $p1Base }
-    Assert ($wtBlock -match 'touches GEMINI.md') "a worktree task missed a protected commit on main: $wtBlock"
+    $wtBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; reviewBase = $p1Base }
+    Assert ($wtBlock -match 'touches GEMINI.md') "a task branch at its start hid a protected commit on main: $wtBlock"
+    Run-Git @('checkout', '-q', '--detach', $p1Base)
+    try {
+      $awayBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); reviewBase = $p1Base; addBranch = $p1.addBranch }
+    } finally { Run-Git @('checkout', '-q', [string]$p1.addBranch) }
+    Assert ($awayBlock -match 'touches GEMINI.md') "switching the main checkout away hid a protected commit: $awayBlock"
     Add-Task 'P2' 'extra2/'
     Check-Code (Run-Cli @('task','start','-Id','P2')) 0
     Assert ([bool](Get-TestTask 'P2').reviewBase) 'P2 start recorded no reviewBase'
