@@ -330,6 +330,164 @@ try {
     $records = @([IO.File]::ReadAllLines((Join-Path $env:CCX_STATE_DIR 'telemetry.jsonl')) | ForEach-Object { $json.DeserializeObject($_) })
     Assert (@($records | Where-Object { $_.kind -eq 'task-done' -and $_.accepted -and $_.firstTry }).Count -eq 1) 'accepted first-try telemetry missing'
   }
+  Case 'GR-C1 a Gemini review counts on a safe Claude- or Codex-owned task' {
+    Add-Task
+    Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Assert ([bool](Get-TestTask).reviewBase) 'task start recorded no reviewBase'
+    # Codex narrow check: only a first start records it; a restarted task that lacks one (an older task) keeps none.
+    Add-Task 'R1' 'docs/'
+    Check-Code (Run-Cli @('task','start','-Id','R1')) 0
+    Invoke-CcxLocked { param($state) $state.tasks.R1.Remove('reviewBase') | Out-Null } | Out-Null
+    Check-Code (Run-Cli @('task','start','-Id','R1')) 0
+    Assert (-not (Get-TestTask 'R1').reviewBase) 'a restart recorded a new start commit'
+    # Codex verifier: returning to planned is not a first start, and a task older than the started mark stays unrecorded.
+    Add-Task 'R2' 'notes/'
+    Check-Code (Run-Cli @('task','start','-Id','R2')) 0
+    Invoke-CcxLocked { param($state) $state.tasks.R2.Remove('reviewBase') | Out-Null } | Out-Null
+    Check-Code (Run-Cli @('task','update','-Id','R2','-Status','planned')) 0
+    Check-Code (Run-Cli @('task','start','-Id','R2')) 0
+    Assert (-not (Get-TestTask 'R2').reviewBase) 'a task reset to planned recorded a new start commit'
+    Add-Task 'R3' 'misc/'
+    Invoke-CcxLocked { param($state) $state.tasks.R3.Remove('started') | Out-Null } | Out-Null
+    Check-Code (Run-Cli @('task','start','-Id','R3')) 0
+    Assert (-not (Get-TestTask 'R3').reviewBase) 'a task older than the started mark recorded a start commit'
+    Add-Task 'R4' 'extra/'
+    Check-Code (Run-Cli @('task','update','-Id','R4','-Status','active')) 0
+    Check-Code (Run-Cli @('task','start','-Id','R4')) 0
+    Assert (-not (Get-TestTask 'R4').reviewBase) 'a task activated by task update recorded a later start commit'
+    # A task blocked without a start (the block-task event) and reset to planned is not on its first start either.
+    Add-Task 'R5' 'more/'
+    Invoke-CcxLocked { param($state) $state.tasks.R5.status = 'blocked' } | Out-Null
+    Check-Code (Run-Cli @('task','update','-Id','R5','-Status','planned')) 0
+    Check-Code (Run-Cli @('task','start','-Id','R5')) 0
+    Assert (-not (Get-TestTask 'R5').reviewBase) 'a blocked task reset to planned recorded a later start commit'
+    Set-Verification
+    Check-Code (Run-Cli @('task','review','-Id','T1','-Result','pass','-By','gemini')) 0
+    Check-Code (Run-Cli @('task','done','-Id','T1')) 0
+  }
+  Case 'GR-C2 Gemini may not review its own or Gemini-implemented work; stale Gemini rows do not count' {
+    Check-Code (Run-Cli @('task','add','-Id','G1','-Title','Gemini task','-Type','docs','-Class','normal','-Risk','low','-Owner','gemini','-Owns','docs/')) 0
+    foreach ($kind in 'review','verifier') {
+      $r = Run-Cli @('task','review','-Id','G1','-Result','pass','-By','gemini','-Kind',$kind)
+      Check-Code $r 2
+      # A plain review hits the older author rule first; a verifier row reaches the Gemini guard.
+      Assert ($r.Stdout -match 'author cannot review own work|Gemini may not review or verify this task: Gemini owns this task') "own-task $kind not refused"
+    }
+    Add-Task 'T2'
+    Invoke-CcxLocked { param($state) $state.tasks.T2.lastDispatch = @{ n=1; role='implement'; provider='gemini' } } | Out-Null
+    $r = Run-Cli @('task','review','-Id','T2','-Result','pass','-By','gemini','-Kind','verifier')
+    Check-Code $r 2
+    Assert ($r.Stdout -match 'Gemini implemented part of this task') 'Gemini-implemented subject not refused'
+    # A Gemini row recorded before the task became Gemini's (here: an owner handoff) does not satisfy done.
+    Add-Task 'T3' 'docs/'
+    Check-Code (Run-Cli @('task','start','-Id','T3')) 0
+    Check-Code (Run-Cli @('task','review','-Id','T3','-Result','pass','-By','gemini')) 0
+    Check-Code (Run-Cli @('task','update','-Id','T3','-Owner','gemini')) 0
+    Set-Verification -Id 'T3'
+    $r = Run-Cli @('task','done','-Id','T3')
+    Check-Code $r 8
+    Assert ($r.Stdout -match 'cross-model-review') 'a stale Gemini review satisfied done'
+  }
+  Case 'GR-C3 protected owns are found by file, parent folder and case; unrelated paths stay eligible' {
+    foreach ($owns in @('Scripts/Codex-Dispatch.ps1', 'scripts/', 'ccx/policy.json', '.agents/plugins/crucible-tools/mcp_config.json', 'GEMINI.md', 'agents.md', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1')) {
+      $block = Get-CcxGeminiReviewBlock @{ owner = 'claude'; owns = @($owns) }
+      Assert ($block -match 'decides Gemini') "protected owns not detected: $owns"
+    }
+    $head = (& $git -C $repo rev-parse HEAD).Trim()
+    $mb = (& $git -C $repo rev-parse --abbrev-ref HEAD).Trim()
+    foreach ($owns in @('src/app.js', 'scripts/test-ccx.ps1', 'handoffs/report.md', 'agency/')) {
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns); reviewBase = $head; addHead = $head; addBranch = $mb })) "unrelated owns blocked: $owns"
+    }
+    # Codex review (GEMINI-REVIEWER-3): with no recorded start nothing proves what changed, so Gemini is refused.
+    Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('src/') }) -match 'no start commit') 'a task with no recorded start passed'
+    # Codex review (GEMINI-REVIEWER-2): the Gemini-implemented mark is sticky, so a trimmed run history cannot clear it.
+    Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('src/'); geminiImplemented = $true }) -match 'Gemini implemented') 'sticky Gemini-implemented mark ignored'
+  }
+  Case 'GR-C4 a protected file committed on a task branch blocks Gemini though the task owns something else (Codex review)' {
+    # A protected file already on the base branch, for the rename case below.
+    Write-Utf8File (Join-Path $repo 'CLAUDE.md') 'rules'
+    Run-Git @('add', 'CLAUDE.md'); Run-Git @('-c', 'core.hooksPath=NUL', 'commit', '-qm', 'base rules')
+    $wt = Join-Path $scratch ('gr-c4-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
+    Run-Git @('worktree', 'add', '-b', 'gr-c4', $wt, 'HEAD')
+    $start = (& $git -C $repo rev-parse HEAD).Trim()
+    $mb = (& $git -C $repo rev-parse --abbrev-ref HEAD).Trim()
+    try {
+      [void][IO.Directory]::CreateDirectory((Join-Path $wt 'docs'))
+      Write-Utf8File (Join-Path $wt 'docs\note.md') 'safe'
+      & $git -C $wt add -- 'docs/note.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m safe | Out-Null
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb })) 'a safe committed change blocked Gemini'
+      Write-Utf8File (Join-Path $wt 'GEMINI.md') 'pointer'
+      & $git -C $wt add -- 'GEMINI.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m protected | Out-Null
+      $block = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }
+      Assert ($block -match 'touches GEMINI.md') "a committed protected change was missed: $block"
+      # Security review: the worktree's HEAD is the agent's to move; moving it back does not hide the branch's
+      # commits, and a worktree task with no recorded branch is refused.
+      & $git -C $wt checkout -q --detach $start | Out-Null
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches GEMINI.md') 'moving the worktree HEAD hid the branch commits'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'no recorded branch') 'a worktree task without a branch passed'
+      & $git -C $wt checkout -q gr-c4 | Out-Null
+      # Security reviews: the recorded branch counts even when the worktree is gone; main moving past the branch
+      # (here: merging it) does not empty the range; a rename cannot hide a protected path; unknown ranges block.
+      # Independent verifier: a recorded worktree that is missing (moved, deleted) refuses Gemini; only prune clears it,
+      # and a pruned task keeps its branch range.
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone'); reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'worktree .* is missing') 'a missing worktree passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches GEMINI.md') 'branch range ignored after the worktree was pruned'
+      Run-Git @('-c', 'core.hooksPath=NUL', 'merge', '-q', '--no-edit', 'gr-c4')
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches GEMINI.md') 'merging the branch into main emptied the review range'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }) -match 'no start commit') 'a worktree task without a recorded start passed'
+      # Rename a protected file that exists on the base branch: --no-renames lists the old name too.
+      & $git -C $wt rm -q --cached GEMINI.md | Out-Null; [IO.File]::Delete((Join-Path $wt 'GEMINI.md'))
+      & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m 'drop GEMINI.md' | Out-Null
+      & $git -C $wt mv CLAUDE.md docs/moved.md | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m rename | Out-Null
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'touches (CLAUDE|GEMINI).md') 'a renamed protected path was missed'
+      $renameOnly = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; branch = 'gr-c4'; reviewBase = (& $git -C $wt rev-parse HEAD~1).Trim(); addHead = $start; addBranch = $mb }
+      Assert ($renameOnly -match 'touches CLAUDE.md') "a rename alone hid the protected path: $renameOnly"
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = (Join-Path $scratch 'gone'); reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'review range is unknown') 'a missing worktree passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'no-such-branch'; reviewBase = $start; addHead = $start; addBranch = $mb }) -match 'review range is unknown') 'an unknown branch passed'
+      # Codex verifier: a task without a worktree also checks main's uncommitted edits when a branch is recorded.
+      $mainHead = (& $git -C $repo rev-parse HEAD).Trim()
+      Run-Git @('branch', '-f', 'gr-c4-main', $mainHead)
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead; addHead = $mainHead; addBranch = $mb })) 'a clean main checkout blocked Gemini'
+      Write-Utf8File (Join-Path $repo 'GEMINI.md') 'edited'
+      $mainBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4-main'; reviewBase = $mainHead; addHead = $mainHead; addBranch = $mb }
+      & $git -C $repo checkout -q -- GEMINI.md | Out-Null
+      Assert ($mainBlock -match 'touches GEMINI.md') "an uncommitted protected edit in main was missed: $mainBlock"
+    } finally { & $git -C $repo worktree remove --force $wt 2>$null | Out-Null }
+  }
+  Case 'GR-C5 work committed between task add and the first start stays in range; re-pointing drops the start (independent verifier)' {
+    Add-Task 'P1' 'docs/'
+    Write-Utf8File (Join-Path $repo 'GEMINI.md') 'committed before the first start'
+    Run-Git @('add', 'GEMINI.md'); Run-Git @('-c', 'core.hooksPath=NUL', 'commit', '-qm', 'protected work before start')
+    Check-Code (Run-Cli @('task','start','-Id','P1')) 0
+    Assert ((Get-CcxGeminiReviewBlock (Get-TestTask 'P1')) -match 'touches GEMINI.md') 'a commit between task add and the first start fell out of range'
+    Check-Code (Run-Cli @('task','review','-Id','P1','-Result','pass','-By','gemini')) 2
+    # A task whose branch sits at its start (made from an old base, or rewound after a merge) still sees a protected
+    # commit on main, and so it does after the main checkout switches away from its branch (independent verifier).
+    $p1 = Get-TestTask 'P1'
+    $p1Base = [string]$p1.addHead
+    Assert ([bool]$p1.addBranch) 'task add recorded no base branch'
+    Run-Git @('branch', '-f', 'gr-c5', $p1Base)
+    $wtBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; reviewBase = $p1Base; addHead = $p1Base; addBranch = $p1.addBranch }
+    Assert ($wtBlock -match 'touches GEMINI.md') "a task branch at its start hid a protected commit on main: $wtBlock"
+    Run-Git @('checkout', '-q', '--detach', $p1Base)
+    try {
+      $awayBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); reviewBase = $p1Base; addHead = $p1Base; addBranch = $p1.addBranch }
+    } finally { Run-Git @('checkout', '-q', [string]$p1.addBranch) }
+    Assert ($awayBlock -match 'touches GEMINI.md') "switching the main checkout away hid a protected commit: $awayBlock"
+    # A task registered with main detached has no base branch, so Gemini is refused.
+    Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); reviewBase = $p1Base; addHead = $p1Base }) -match 'base branch at task add is unknown') 'a task with no base branch passed'
+    # A worktree task branched before addHead: a revert on main of a protected change made before task add (main
+    # back to the branch's start) still shows, since main is diffed from addHead.
+    $protected = (& $git -C $repo rev-parse HEAD).Trim()
+    Run-Git @('-c', 'core.hooksPath=NUL', 'revert', '--no-edit', $protected)
+    $revertBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; reviewBase = $p1Base; addHead = $protected; addBranch = $p1.addBranch }
+    Assert ($revertBlock -match 'touches GEMINI.md') "a revert on main of a protected change was missed: $revertBlock"
+    Add-Task 'P2' 'extra2/'
+    Check-Code (Run-Cli @('task','start','-Id','P2')) 0
+    Assert ([bool](Get-TestTask 'P2').reviewBase) 'P2 start recorded no reviewBase'
+    Check-Code (Run-Cli @('task','update','-Id','P2','-Branch','elsewhere')) 0
+    Assert (-not (Get-TestTask 'P2').reviewBase) 're-pointing a started task kept its review start'
+  }
   Case 'media types validate credit caps and owned ledger folders and route gates' {
     $base = @('task','add','-Id','M1','-Title','Synthetic media','-Type','media-generate','-Class','normal','-Risk','low','-Owner','codex','-Owns','media-out/higgsfield/demo/')
     foreach ($cap in @($null,'0','-1','NaN','Infinity','text')) {

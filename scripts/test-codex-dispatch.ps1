@@ -51,11 +51,12 @@ function Run-Launcher {
   Assert (($arguments.Count % 2) -eq 0) 'test harness arguments must be name/value pairs'
   $parts = New-Object 'System.Collections.Generic.List[string]'
   for ($i = 0; $i -lt $arguments.Count; $i += 2) {
-    Assert ($arguments[$i] -in @('-CaptureDir', '-TimeoutMinutes', '-Sandbox', '-Role', '-TaskFile', '-Effort', '-Model', '-TaskId')) 'unexpected test harness parameter'
+    Assert ($arguments[$i] -in @('-CaptureDir', '-TimeoutMinutes', '-Sandbox', '-Role', '-TaskFile', '-Effort', '-Model', '-TaskId', '-Reviewer')) 'unexpected test harness parameter'
     $parts.Add($arguments[$i])
     $parts.Add((Quote-Ps $arguments[$i + 1]))
   }
   $argText = $parts -join ' '
+  # noCodex: only the fake agy (scratch\agybin) is on PATH, no codex.cmd (GEMINI-REVIEWER GR-D3).
   $guard = if ($pathMode -eq 'fake') {
     "if ((Get-Command codex.cmd -CommandType Application -ErrorAction SilentlyContinue).Source -cne $(Quote-Ps $fakeCmd)) { throw 'SAFETY: fake codex.cmd is not first on PATH' };"
   } else {
@@ -74,6 +75,7 @@ function Run-Launcher {
   $info.WorkingDirectory = $cwd
   $systemPath = (Join-Path $env:SystemRoot 'System32') + ';' + $env:SystemRoot + ';' + (Split-Path $git -Parent)
   if ($pathMode -eq 'fake') { $systemPath = (Join-Path $scratch 'fakebin') + ';' + $systemPath }
+  if ($pathMode -eq 'noCodex') { $systemPath = (Join-Path $scratch 'agybin') + ';' + $systemPath }
   $info.EnvironmentVariables['PATH'] = $systemPath
   $info.EnvironmentVariables['FAKE_MODE'] = $mode
   $info.EnvironmentVariables['FAKE_LOG'] = $fakeLog
@@ -837,6 +839,96 @@ else {
       Assert ($args -match '"--mode" "plan"' -and $args -notmatch 'disable-slash-commands' -and $args -match '"--sandbox"') "read-only agy flags wrong: $args"
     } finally { Remove-Item -LiteralPath $fakeGemini -Force }
   }
+  # GEMINI-REVIEWER: Gemini as an intentional reviewer, never of its own routing.
+  $agyReply = "@echo off`r`necho %*>`"{0}`"`r`necho {{`"status`":`"SUCCESS`",`"response`":`"Status: READY_FOR_CLAUDE_REVIEW`"}}`r`n"
+  function Use-FakeAgy([string]$Dir, [string]$ArgLog) {
+    $text = [IO.File]::ReadAllText($env:CCX_POLICY).Replace('"command": "agy.exe"', '"command": "agy.cmd"')
+    Write-Utf8File $env:CCX_POLICY $text
+    [void][IO.Directory]::CreateDirectory($Dir)
+    $fake = Join-Path $Dir 'agy.cmd'
+    Write-Utf8File $fake ($agyReply -f $ArgLog)
+    $fake
+  }
+  foreach ($reviewRole in 'verify', 'research') {
+    Ccx-Case "GR-D1 -Reviewer gemini runs a read-only $reviewRole on Gemini, spends no attempt, denies Higgsfield" {
+      Add-CcxTask
+      # A Gemini review needs a started task: its recorded start commit bounds what is reviewed (GEMINI-REVIEWER-3).
+      Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
+      $argLog = Join-Path $scratch "gr-d1-$reviewRole.txt"
+      $fake = Use-FakeAgy $fakeDir $argLog
+      try {
+        $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role',$reviewRole,'-Reviewer','gemini')) 'ready'
+        Check-Code $r 0
+        $args = [IO.File]::ReadAllText($argLog)
+        Assert ($args -match '"--mode" "plan"' -and $args -match '"--sandbox"' -and $args -notmatch 'dangerously' -and $args -match '"--model" "gemini-4-neon-medium"') "agy flags wrong: $args"
+        Assert ($r.Stdout -match 'reviewer gemini requested') 'route reason missing'
+        $task = (Read-CcxState).tasks.T1
+        Assert ($task.lastDispatch.provider -eq 'gemini' -and $task.lastDispatch.role -eq $reviewRole -and $task.owner -eq 'codex') 'provider, role or owner wrong'
+        Assert ([int]$task.dispatches -eq 0) 'a review spent an implementation attempt'
+        $settingsPath = [regex]::Match($args, '"--settings" "([^"]+)"').Groups[1].Value
+        $settings = [IO.File]::ReadAllText($settingsPath) | ConvertFrom-Json
+        Assert (@($settings.permissions.deny) -contains 'mcp(crucible-tools_higgsfield/*)' -and @($settings.permissions.deny) -contains 'mcp(crucible-tools_rea/*)') 'plugin MCP denies missing from agy settings'
+      } finally { Remove-Item -LiteralPath $fake -Force }
+    }
+  }
+  Ccx-Case 'GR-D2 Gemini never reviews its own routing: explicit refused, fallback deferred, safe fallback runs, bad combinations fail' {
+    Add-CcxTask 'P1' 'scripts/crucible.ps1'
+    $argLog = Join-Path $scratch 'gr-d2.txt'
+    $fake = Use-FakeAgy $fakeDir $argLog
+    try {
+      # Codex narrow check: a refused review leaves no route in the routing log.
+      Add-CcxTask 'G9' 'g9.txt' 'gemini' 'docs'
+      $r = Run-Launcher $repo ($common + @('-TaskId','G9','-Role','verify','-Reviewer','gemini')) 'ready'
+      Check-Code $r 8
+      Assert (-not @((Read-CcxState).routingLog | Where-Object { $_.taskId -eq 'G9' }).Count) 'a refused review was logged as a route'
+      $r = Run-Launcher $repo ($common + @('-TaskId','P1','-Role','verify','-Reviewer','gemini')) 'ready'
+      Check-Code $r 8
+      Assert ($r.Stdout -match 'Gemini may not review or verify this task' -and -not [IO.File]::Exists($argLog)) 'explicit review of a protected subject ran'
+      $state = Read-CcxState
+      $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
+      Write-CcxState $state
+      $r = Run-Launcher $repo ($common + @('-TaskId','P1','-Role','verify')) 'ready'
+      Check-Code $r 4
+      Assert ($r.Stdout -match 'Gemini may not stand in' -and -not [IO.File]::Exists($argLog)) 'fallback review of a protected subject ran'
+      Add-CcxTask 'S1' 'owned.txt'
+      # A planned task has no recorded start yet, so even a safe fallback review defers; started, it runs.
+      $r = Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify')) 'ready'
+      Check-Code $r 4
+      Assert ($r.Stdout -match 'no start commit' -and -not [IO.File]::Exists($argLog)) 'a never-started task was reviewed by Gemini'
+      Check-Code (Run-Ccx @('task','start','-Id','S1')) 0
+      $r = Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify')) 'ready'
+      Check-Code $r 0
+      Assert ([IO.File]::Exists($argLog)) 'safe fallback did not run Gemini'
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','S1','-Role','implement','-Reviewer','gemini')) 'ready') 1
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify','-Reviewer','gemini','-Sandbox','workspace-write')) 'ready') 1
+      Check-Code (Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify','-Reviewer','gemini','-Model','gemini-4-neon-high')) 'ready') 1
+      # Codex review (GEMINI-REVIEWER-2): an explicit review obeys Gemini's availability like any Gemini route.
+      $policyNow = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+      $policyNow.providers.gemini.enabled = $false
+      Write-Utf8File $env:CCX_POLICY ($policyNow | ConvertTo-Json -Depth 20)
+      [IO.File]::Delete($argLog)
+      $r = Run-Launcher $repo ($common + @('-TaskId','S1','-Role','research','-Reviewer','gemini')) 'ready'
+      Check-Code $r 8
+      Assert ($r.Stdout -match 'Gemini cannot review now: disabled in policy' -and -not [IO.File]::Exists($argLog)) 'a disabled Gemini still reviewed'
+    } finally { Remove-Item -LiteralPath $fake -Force }
+  }
+  Ccx-Case 'GR-D3 without codex.cmd a Gemini review runs and a Codex run reports the missing CLI before it starts' {
+    Add-CcxTask
+    Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
+    $argLog = Join-Path $scratch 'gr-d3.txt'
+    $fake = Use-FakeAgy (Join-Path $scratch 'agybin') $argLog
+    try {
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1','-Role','verify','-Reviewer','gemini')) 'ready' 'noCodex'
+      Check-Code $r 0
+      Assert ([IO.File]::Exists($argLog)) 'Gemini review did not run without codex.cmd'
+      Add-CcxTask 'C1' 'other.txt'
+      $r = Run-Launcher $repo ($common + @('-TaskId','C1')) 'ready' 'noCodex'
+      Check-Code $r 1
+      Assert ($r.Stdout -match 'codex.cmd not found on PATH') 'missing Codex CLI not reported'
+      $c1 = (Read-CcxState).tasks.C1
+      Assert ($c1.status -eq 'planned' -and [int]$c1.dispatches -eq 0) 'a run without the Codex CLI started the task'
+    } finally { Remove-Item -LiteralPath $fake -Force }
+  }
   foreach ($mode in @('capacity', 'http503')) {
     $caseName = if ($mode -eq 'capacity') { 'Terminal capacity and provider 503 preserve output and attempt balance' } else { 'Provider HTTP 503 on stderr preserves output and attempt balance' }
     Ccx-Case $caseName {
@@ -901,7 +993,8 @@ else {
       $args = [IO.File]::ReadAllText($script:agyArgLog)
       Assert ($args -match '"--sandbox"' -and $args -notmatch 'dangerously' -and $args -match 'read-only and offline') "normal agy run lost its sandbox: $args"
       $s = Get-AgySettings
-      $denies = @($s.permissions.deny | ForEach-Object { $_ -replace '^write_file\((.*)\)$', '$1' })
+      # File denies only; the MCP deny (Higgsfield, GEMINI-REVIEWER) is not a path.
+      $denies = @($s.permissions.deny | Where-Object { $_ -like 'write_file(*' } | ForEach-Object { $_ -replace '^write_file\((.*)\)$', '$1' })
       Assert (@($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny) -notcontains 'command(*)' -and $s.enableTerminalSandbox -eq $true) 'shell not allowed inside the sandbox'
       Assert ($denies.Count -gt 0 -and -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted($_) }).Count) "deny paths not absolute: $($denies -join '; ')"
       Assert (-not @($denies | Where-Object { $_ -match '[\\/]scripts[\\/]?$' }).Count -and @($denies | Where-Object { $_ -match '[\\/]\.obsidian[\\/]$' }).Count) "owned scripts/ still denied or .obsidian/ not denied: $($denies -join '; ')"
@@ -952,6 +1045,7 @@ else {
       Assert ($args -match '"--dangerously-skip-permissions"' -and $args -notmatch '"--sandbox"' -and $args -match 'full access') "turbo flags wrong: $args"
       $s = Get-AgySettings
       Assert ($s.enableTerminalSandbox -eq $false -and $s.allowNonWorkspaceAccess -eq $false -and $s.useG1Credits -eq $false -and @($s.permissions.allow) -contains 'command(*)' -and @($s.permissions.deny).Count) 'turbo settings wrong'
+      Assert (@($s.permissions.deny) -contains 'mcp(crucible-tools_higgsfield/*)' -and @($s.permissions.deny) -contains 'mcp(crucible-tools_rea/*)') 'turbo run lost the plugin MCP denies (GEMINI-REVIEWER)'
       # One approval, one turbo run.
       Check-Code (Run-Launcher $repo $turboArgs 'ready') 10
     } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }

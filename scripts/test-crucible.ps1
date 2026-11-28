@@ -299,7 +299,10 @@ if (kind === 'agy') {
     $text = Get-Content $settings.FullName -Raw
     Assert ($text -notmatch 'command\([^)]*(playwright|node --test)') 'code-executing check offered to Gemini'
     # Deny paths are absolute since UPGRADE-3 (agy's sandbox rejects relative ones).
-    $denies = @(($text | ConvertFrom-Json).permissions.deny)
+    # File denies only; the plugin MCP denies (GEMINI-REVIEWER) are not paths, and must be present too.
+    $allDenies = @(($text | ConvertFrom-Json).permissions.deny)
+    Assert ($allDenies -contains 'mcp(crucible-tools_higgsfield/*)' -and $allDenies -contains 'mcp(crucible-tools_rea/*)') 'brief run lost the plugin MCP denies'
+    $denies = @($allDenies | Where-Object { $_ -like 'write_file(*' })
     Assert (@($denies | Where-Object { $_ -match '^write_file\(.*[\\/]\.obsidian[\\/]\)$' }).Count -and @($denies | Where-Object { $_ -match '^write_file\(.*[\\/]scripts[\\/]\)$' }).Count -and
       -not @($denies | Where-Object { -not [IO.Path]::IsPathRooted(($_ -replace '^write_file\((.*)\)$', '$1')) }).Count -and $text -notmatch 'edit_file') "launcher stack not write-protected with absolute agy paths: $($denies -join '; ')"
     $claudeArgs = Get-Content (Join-Path $scratch 'claude-args.log') -Raw

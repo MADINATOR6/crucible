@@ -361,6 +361,76 @@ function ConvertTo-CcxOwnedPath {
     if ((Protect-CcxText $pathValue -Policy $Policy) -cne $pathValue) { throw (New-CcxError 'Path exceeds the safe field limit or contains sensitive data.' 2) }
     return $pathValue
 }
+# GEMINI-REVIEWER (user-approved 2026-11-27): Gemini may review and verify Claude's and Codex's work, never its own
+# work or anything that decides Gemini's routing or access. Checked against the task's owns, its uncommitted scope
+# (verify's scope stage) and, for a worktree task, everything committed on its branch since it left the base
+# branch: ccx's scope stage sees only uncommitted changes (Codex review, GEMINI-REVIEWER-2).
+$script:CcxGeminiProtected = @('ccx/policy.json', 'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'scripts/ccx-core.ps1',
+    'GEMINI.md', '.agents/', 'AGENTS.md', 'CLAUDE.md')
+function Get-CcxGeminiReviewBlock {
+    param($Task)
+    if ($Task.owner -eq 'gemini') { return 'Gemini owns this task' }
+    # geminiImplemented is sticky: the run history keeps only the latest runs (Codex review, GEMINI-REVIEWER-2).
+    $runs = @($Task.runs) + @($Task.lastDispatch) | Where-Object { $_ }
+    if ($Task.geminiImplemented -or @($runs | Where-Object { $_.provider -eq 'gemini' -and $_.role -eq 'implement' }).Count) { return 'Gemini implemented part of this task' }
+    # 1. What the task may change: its owns.
+    $block = Find-CcxGeminiProtected @($Task.owns | ForEach-Object { ([string]$_).Replace('\', '/') })
+    if ($block) { return $block }
+    # 2. What it did change: everything since its recorded start commit on every tip it has (its branch, read from the
+    # main repo, and its worktree's HEAD), plus uncommitted changes. Fails closed (security reviews, Codex review):
+    # no recorded start (never started, started before reviewBase existed, or the start could not be found), a gone
+    # branch, a worktree with no recorded branch, or a failed diff all block Gemini. --no-renames lists both names.
+    if (-not $Task.reviewBase) { return 'no start commit is recorded, so the review range is unknown' }
+    # A task registered while main was detached, or before these marks existed, has no base branch to check (verifier).
+    if (-not $Task.addHead -or -not $Task.addBranch) { return 'its base branch at task add is unknown, so the review range is unknown' }
+    $subjects = @()
+    try {
+        $main = Get-CcxMainRoot
+        # Task-side tips are diffed from reviewBase (where the task's branch began); main-side tips from addHead (main
+        # at task add), so a revert on main of a change older than addHead still shows (independent verifier).
+        $tips = @()
+        if ($Task.branch) {
+            $ref = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.branch))).Trim()
+            if (-not $ref) { return "its branch $($Task.branch) is gone, so the review range is unknown" }
+            $tips += @{ root = $main; tip = $ref; base = $Task.reviewBase }
+        }
+        if ($Task.worktree) {
+            # A worktree's HEAD is the agent's to move, so it is never the only tip (security review).
+            if (-not $Task.branch) { return 'its worktree has no recorded branch, so the review range is unknown' }
+            # Only worktree prune clears a recorded worktree, so a missing one (moved, deleted) is abnormal (verifier).
+            if (-not [IO.Directory]::Exists([string]$Task.worktree)) { return "its worktree $($Task.worktree) is missing, so the review range is unknown" }
+            $tips += @{ root = [string]$Task.worktree; tip = 'HEAD'; base = $Task.reviewBase }
+            $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
+        }
+        # The main checkout always counts too, worktree or not (Codex reviews, independent verifier): a task without a
+        # worktree lives there, a worktree task's agent can commit there, and a branch merged into main and then
+        # rewound leaves its change on main. Both main's HEAD and the branch it had at task add count, so switching
+        # the main checkout away hides nothing. ponytail: refuses Gemini whenever any protected file lands on main
+        # during the task's life (fail closed); attribute main commits to tasks if that over-blocks.
+        # Known limits (deliberate concealment by the task's own author, caught by the merge review and push gate,
+        # not here): commits made before task add, edits hidden with git update-index --skip-worktree or
+        # --assume-unchanged, and gitignored files. Diffs compare trees, so a change that nets to zero in a range
+        # is not reported: the final content is what counts.
+        $addRef = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.addBranch))).Trim()
+        if (-not $addRef) { return "its base branch $($Task.addBranch) is gone, so the review range is unknown" }
+        $tips += @{ root = $main; tip = $addRef; base = [string]$Task.addHead }
+        $tips += @{ root = $main; tip = 'HEAD'; base = [string]$Task.addHead }
+        $subjects += @(Get-CcxChangedPaths -Root $main)
+        foreach ($t in $tips) {
+            $subjects += @((Invoke-CcxGit -Root $t.root -Arguments @('diff', '--no-renames', '--name-only', '-z', $t.base, $t.tip, '--')).Split([char]0) | Where-Object { $_ })
+        }
+    } catch { return 'its committed changes cannot be listed, so the review range is unknown' }
+    return (Find-CcxGeminiProtected $subjects)
+}
+function Find-CcxGeminiProtected([string[]]$Subjects) {
+    foreach ($subject in $Subjects) {
+        foreach ($protected in $script:CcxGeminiProtected) {
+            if (Test-CcxPathOverlap -A $subject -B $protected) { return "the task touches $subject, which decides Gemini's routing or access" }
+        }
+    }
+    return $null
+}
+
 function Test-CcxPathOverlap {
     param([string]$A, [string]$B)
     ($A.Equals($B, [StringComparison]::OrdinalIgnoreCase) -or
@@ -721,6 +791,9 @@ function Set-CcxLearnedEffort {
 }
 function Complete-CcxRoute {
     param($Decision, [string]$Type, [string]$TaskId)
+    # The launcher defers the log of a review dispatch until its eligibility checks pass, then logs the route that
+    # runs (GEMINI-REVIEWER, Codex narrow check): a refused review never appears as a route.
+    if ($script:CcxDeferRouteLog) { return $Decision }
     try {
         Invoke-CcxLocked {
             param($state)
@@ -1162,6 +1235,12 @@ function Assert-CcxTaskOwnership {
         }
     }
 }
+function Clear-CcxReviewBaseOnRepoint($Task, [string]$Field, [string]$Value) {
+    # Called whenever worktree or branch is being set. Pointing a started task elsewhere (or clearing it) would move
+    # the tips a Gemini review diffs, so its recorded start is dropped and Gemini may no longer review it
+    # (independent verifier).
+    if ($Task.reviewBase -and $Value -cne [string]$Task[$Field]) { $Task.Remove('reviewBase') | Out-Null }
+}
 function Start-CcxTaskInState {
     # Shared task-start logic (CLI, launcher, worktree add): ownership check, baseline, active.
     param($State, $Task, [string]$Worktree, [string]$Branch)
@@ -1176,8 +1255,8 @@ function Start-CcxTaskInState {
         $pristine = $Task.status -eq 'planned' -and [string]$Task.updated -eq [string]$Task.created
         if (-not $pristine) { $Task.baselines[[IO.Path]::GetFullPath($previousRoot).TrimEnd('\','/').ToLowerInvariant()] = @($Task.baselineDirty) }
     }
-    if ($Worktree) { Assert-CcxExactField $Worktree 'Worktree'; $Task.worktree = $Worktree }
-    if ($Branch) { Assert-CcxExactField $Branch 'Branch'; $Task.branch = $Branch }
+    if ($Worktree) { Assert-CcxExactField $Worktree 'Worktree'; Clear-CcxReviewBaseOnRepoint $Task 'worktree' $Worktree; $Task.worktree = $Worktree }
+    if ($Branch) { Assert-CcxExactField $Branch 'Branch'; Clear-CcxReviewBaseOnRepoint $Task 'branch' $Branch; $Task.branch = $Branch }
     $root = if ($Task.worktree) { $Task.worktree } else { Get-CcxRepoRoot }
     $key = [IO.Path]::GetFullPath($root).TrimEnd('\','/').ToLowerInvariant()
     # One baseline per worktree, taken the first time the task is there: restarts, resets to planned,
@@ -1186,6 +1265,24 @@ function Start-CcxTaskInState {
         $Task.baselines[$key] = @(Get-CcxChangedPaths -Root $root | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $Task.owns) })
     }
     $Task.baselineDirty = @($Task.baselines[$key])
+    # The commit the task's work starts from (reviewBase), recorded once on a first start: a Gemini review checks
+    # everything changed since it (security reviews, Codex reviews, independent verifier). It comes from main's HEAD
+    # at task add (addHead), never from HEAD at the start, so commits made after registration stay in range. A task
+    # without a worktree starts at addHead; a worktree task where its recorded branch meets addHead, read in the main
+    # repo (its worktree HEAD is the agent's to move). A first start is told apart by the sticky started mark, not by
+    # status: task add writes started=$false, every start sets it, and task update sets it on any move to or from a
+    # non-planned status. A task older than the mark or addHead, or whose start cannot be found (no branch, failed
+    # merge-base), gets none and Gemini may not review it.
+    $firstStart = $Task.ContainsKey('started') -and -not $Task.started -and $Task.status -eq 'planned'
+    $Task.started = $true
+    if ($firstStart -and -not $Task.reviewBase -and $Task.addHead) {
+        try {
+            if (-not $Task.worktree) { $Task.reviewBase = [string]$Task.addHead }
+            elseif ($Task.branch) {
+                $Task.reviewBase = (Invoke-CcxGit -Root (Get-CcxMainRoot) -Arguments @('merge-base', [string]$Task.addHead, ('refs/heads/' + $Task.branch))).Trim()
+            }
+        } catch { }
+    }
     $Task.status = 'active'
     $Task.updated = Get-CcxNow
 }
@@ -1260,10 +1357,20 @@ function Invoke-CcxCmdTask {
             $addRoot = Get-CcxRepoRoot
             $addKey = [IO.Path]::GetFullPath($addRoot).TrimEnd('\','/').ToLowerInvariant()
             $addDirty = @(Get-CcxChangedPaths -Root $addRoot | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $owns) })
+            # Main's HEAD at registration: the earliest point ccx can tie to the task, so commits made between add and
+            # the first start stay in a Gemini review's range (independent verifier). Unreadable: none, so ineligible.
+            # ponytail: commits made before task add cannot be tied to the task; register before starting work.
+            $addHead = $null; $addBranch = $null
+            try {
+                $addMain = Get-CcxMainRoot
+                $addHead = (Invoke-CcxGit -Root $addMain -Arguments @('rev-parse', 'HEAD')).Trim()
+                $addBranch = (Invoke-CcxGit -Root $addMain -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
+                if ($addBranch -eq 'HEAD') { $addBranch = $null }
+            } catch { }
             $task = @{
                 id=$Parameters.Id; title=$Parameters.Title; type=$Parameters.Type; class=$Parameters.Class; risk=$Parameters.Risk
                 owner=$Parameters.Owner; parent=$Parameters.Parent; dependsOn=@(Split-CcxList $Parameters.DependsOn)
-                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
+                owns=$owns; taskFile=$Parameters.TaskFile; status='planned'; started=$false; addHead=$addHead; addBranch=$addBranch; worktree=$null; branch=$null; baselineDirty=$addDirty; baselines=@{ $addKey = $addDirty }
                 created=$now; updated=$now; checkpoints=@(); dispatches=0; modelEscalations=0; attemptBase=0; reviewCycles=0
                 tokens=@{input=0; cached=0; output=0}; budget=@{}; lastDispatch=$null; verification=$null; reviews=@(); merge='none'
                 creditCap=$creditCap
@@ -1291,6 +1398,9 @@ function Invoke-CcxCmdTask {
                 if ($Parameters.Status) {
                     if ($Parameters.Status -notin @('planned','active','verifying','blocked','abandoned') -or $task.status -in @('done','abandoned')) { throw (New-CcxError 'Status transition refused; use task done for completion.' 2) }
                     if ($Parameters.Status -in @('active','verifying','blocked')) { Assert-CcxTaskOwnership $state $task }
+                    # Work may begin without a start here, or may have begun before (block-task sets blocked), so a
+                    # later start is not a first start (Codex verifier).
+                    if (($Parameters.Status -ne 'planned' -or $task.status -ne 'planned') -and $task.ContainsKey('started')) { $task.started = $true }
                     $task.status = $Parameters.Status
                 }
                 if ($Parameters.Merge) {
@@ -1298,7 +1408,7 @@ function Invoke-CcxCmdTask {
                     $task.merge = $Parameters.Merge
                 }
                 foreach ($field in @('Worktree','Branch')) {
-                    if ($Parameters.ContainsKey($field)) { Assert-CcxExactField $Parameters[$field] $field; $task[$field.ToLowerInvariant()] = $Parameters[$field] }
+                    if ($Parameters.ContainsKey($field)) { Assert-CcxExactField $Parameters[$field] $field; Clear-CcxReviewBaseOnRepoint $task $field.ToLowerInvariant() $Parameters[$field]; $task[$field.ToLowerInvariant()] = $Parameters[$field] }
                 }
                 if ($Parameters.Owner -and $Parameters.Owner -ne $task.owner) {
                     # A user handoff, not an escalation: no escalation cap, and the new owner gets its own attempts.
@@ -1314,6 +1424,10 @@ function Invoke-CcxCmdTask {
                 $kind = if ($Parameters.Kind) { $Parameters.Kind } else { 'review' }
                 if ($Parameters.Result -notin @('pass','changes') -or $Parameters.By -notin $script:CcxOwners -or $kind -notin @('review','verifier')) { throw (New-CcxError 'Invalid review result, reviewer or kind.' 2) }
                 if ($kind -eq 'review' -and $Parameters.By -eq $task.owner) { throw (New-CcxError 'author cannot review own work' 2) }
+                if ($Parameters.By -eq 'gemini') {
+                    $block = Get-CcxGeminiReviewBlock $task
+                    if ($block) { throw (New-CcxError "Gemini may not review or verify this task: $block" 2) }
+                }
                 $task.reviews = @($task.reviews) + @(@{at=Get-CcxNow; by=$Parameters.By; kind=$kind; result=$Parameters.Result; note=$Parameters.Note})
                 if ($Parameters.Result -eq 'changes') { $task.reviewCycles++ }
                 if ($task.reviewCycles -gt $budget.maxReviewCycles) {
@@ -1353,6 +1467,10 @@ function Invoke-CcxCmdTask {
             'done' {
                 if ($task.status -in @('done','abandoned')) { throw (New-CcxError 'Terminal task cannot be completed again.' 8) }
                 $missing = @()
+                # Gemini rows count only on a task Gemini may review; this also discards older rows recorded before
+                # the guard, or made stale by an owner handoff (GEMINI-REVIEWER).
+                $geminiBlock = Get-CcxGeminiReviewBlock $task
+                $validReviews = @($task.reviews | Where-Object { $_.by -ne 'gemini' -or -not $geminiBlock })
                 if (-not $task.verification -or $task.verification.status -ne 'PASS' -or $task.verification.full -ne $true) { $missing += 'full PASS verification' }
                 $root = if ($task.worktree) { $task.worktree } else { Get-CcxRepoRoot }
                 if (-not $task.verification -or $task.verification.fingerprint -ne (Get-CcxFingerprint -Task $task -Root $root)) { $missing += 'current verification fingerprint' }
@@ -1361,10 +1479,10 @@ function Invoke-CcxCmdTask {
                         'cross-model-review' {
                             # A human task-accept approval may stand in when the other model is unavailable (logged, quoted).
                             $humanAccept = @($state.approvals.Values | Where-Object { $_.action -eq 'task-accept' -and $_.target -ceq $task.id -and $_.status -in @('approved','used') }).Count
-                            if (-not $humanAccept -and -not @($task.reviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }
+                            if (-not $humanAccept -and -not @($validReviews | Where-Object { $_.kind -eq 'review' -and $_.result -eq 'pass' -and $_.by -ne $task.owner }).Count) { $missing += $requirement }
                         }
                         'independent-verifier' {
-                            if (-not @($task.reviews | Where-Object { $_.kind -eq 'verifier' -and $_.result -eq 'pass' }).Count) { $missing += $requirement }
+                            if (-not @($validReviews | Where-Object { $_.kind -eq 'verifier' -and $_.result -eq 'pass' }).Count) { $missing += $requirement }
                         }
                         'human-approval' {
                             if (-not @($state.approvals.Values | Where-Object { $_.action -eq 'task-accept' -and $_.target -ceq $task.id -and $_.status -in @('approved','used') }).Count) { $missing += $requirement }
