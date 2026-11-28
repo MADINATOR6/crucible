@@ -332,6 +332,8 @@ try {
   }
   Case 'GR-C1 a Gemini review counts on a safe Claude- or Codex-owned task' {
     Add-Task
+    Check-Code (Run-Cli @('task','start','-Id','T1')) 0
+    Assert ([bool](Get-TestTask).reviewBase) 'task start recorded no reviewBase'
     Set-Verification
     Check-Code (Run-Cli @('task','review','-Id','T1','-Result','pass','-By','gemini')) 0
     Check-Code (Run-Cli @('task','done','-Id','T1')) 0
@@ -350,7 +352,8 @@ try {
     Check-Code $r 2
     Assert ($r.Stdout -match 'Gemini implemented part of this task') 'Gemini-implemented subject not refused'
     # A Gemini row recorded before the task became Gemini's (here: an owner handoff) does not satisfy done.
-    Add-Task 'T3'
+    Add-Task 'T3' 'docs/'
+    Check-Code (Run-Cli @('task','start','-Id','T3')) 0
     Check-Code (Run-Cli @('task','review','-Id','T3','-Result','pass','-By','gemini')) 0
     Check-Code (Run-Cli @('task','update','-Id','T3','-Owner','gemini')) 0
     Set-Verification -Id 'T3'
@@ -363,9 +366,12 @@ try {
       $block = Get-CcxGeminiReviewBlock @{ owner = 'claude'; owns = @($owns) }
       Assert ($block -match 'decides Gemini') "protected owns not detected: $owns"
     }
+    $head = (& $git -C $repo rev-parse HEAD).Trim()
     foreach ($owns in @('src/app.js', 'scripts/test-ccx.ps1', 'handoffs/report.md', 'agency/')) {
-      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns) })) "unrelated owns blocked: $owns"
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @($owns); reviewBase = $head })) "unrelated owns blocked: $owns"
     }
+    # Codex review (GEMINI-REVIEWER-3): with no recorded start nothing proves what changed, so Gemini is refused.
+    Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('src/') }) -match 'no start commit') 'a task with no recorded start passed'
     # Codex review (GEMINI-REVIEWER-2): the Gemini-implemented mark is sticky, so a trimmed run history cannot clear it.
     Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('src/'); geminiImplemented = $true }) -match 'Gemini implemented') 'sticky Gemini-implemented mark ignored'
   }

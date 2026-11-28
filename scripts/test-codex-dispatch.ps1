@@ -852,6 +852,8 @@ else {
   foreach ($reviewRole in 'verify', 'research') {
     Ccx-Case "GR-D1 -Reviewer gemini runs a read-only $reviewRole on Gemini, spends no attempt, denies Higgsfield" {
       Add-CcxTask
+      # A Gemini review needs a started task: its recorded start commit bounds what is reviewed (GEMINI-REVIEWER-3).
+      Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
       $argLog = Join-Path $scratch "gr-d1-$reviewRole.txt"
       $fake = Use-FakeAgy $fakeDir $argLog
       try {
@@ -884,6 +886,11 @@ else {
       Check-Code $r 4
       Assert ($r.Stdout -match 'Gemini may not stand in' -and -not [IO.File]::Exists($argLog)) 'fallback review of a protected subject ran'
       Add-CcxTask 'S1' 'owned.txt'
+      # A planned task has no recorded start yet, so even a safe fallback review defers; started, it runs.
+      $r = Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify')) 'ready'
+      Check-Code $r 4
+      Assert ($r.Stdout -match 'no start commit' -and -not [IO.File]::Exists($argLog)) 'a never-started task was reviewed by Gemini'
+      Check-Code (Run-Ccx @('task','start','-Id','S1')) 0
       $r = Run-Launcher $repo ($common + @('-TaskId','S1','-Role','verify')) 'ready'
       Check-Code $r 0
       Assert ([IO.File]::Exists($argLog)) 'safe fallback did not run Gemini'
@@ -902,6 +909,7 @@ else {
   }
   Ccx-Case 'GR-D3 without codex.cmd a Gemini review runs and a Codex run reports the missing CLI before it starts' {
     Add-CcxTask
+    Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
     $argLog = Join-Path $scratch 'gr-d3.txt'
     $fake = Use-FakeAgy (Join-Path $scratch 'agybin') $argLog
     try {

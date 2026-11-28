@@ -262,8 +262,6 @@ try {
       $decision.agent = 'gemini'; $decision.provider = 'gemini'; $decision.route = 'worker'
       $decision.model = $policy.classes[$class].geminiModel
       $decision.reasons += 'reviewer gemini requested'
-      # The routing log recorded the default route above; record the route that actually runs (Codex review).
-      $null = Complete-CcxRoute $decision $Role $TaskId
     }
     # Gemini never reviews, verifies or researches its own work or its own routing: intentional runs are refused,
     # a quota fallback defers instead (FRICTION.md 2026-11-27: a fallback once let Gemini review its own access).
@@ -275,6 +273,9 @@ try {
         throw (New-CcxError "USAGE LIMIT (recorded): Codex is unavailable and Gemini may not stand in: $block.$resumeText Wait for Codex or ask Claude." 4)
       }
     }
+    # The routing log holds the default route; an explicit Gemini review that passed the checks above is logged
+    # again as the route that runs, so a refused review never appears as a Gemini route (Codex review).
+    if ($Reviewer -eq 'gemini') { $null = Complete-CcxRoute $decision $Role $TaskId }
     # A cloud fallback provider may run while OpenAI Codex is at its usage limit; nothing else may.
     if ($codexOut -and $decision.agent -eq 'codex' -and ($explicit -or -not $decision.provider -or $decision.provider -eq 'openai')) {
       $resume = [DateTime]::Parse($state.agents.codex.unavailableUntil).ToLocalTime()
