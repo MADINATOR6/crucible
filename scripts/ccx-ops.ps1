@@ -636,6 +636,16 @@ function Invoke-CcxHealth {
                 $checks += @{ name=$check.name; result=$(if ($ok) { 'PASS' } else { 'FAIL' }); details=@($detail) }
             } catch { $checks += @{ name=$check.name; result='FAIL'; details=@('CLI check failed') } }
         }
+        # Codex silently cut AGENTS.md at 32 KiB before 2026-11-27: check that its last heading reaches the prompt
+        # Codex would send. Only pass or fail is kept, never the prompt text (Codex self-study, CODEX-UPGRADE-1).
+        try {
+            $agentsPath = Join-Path $Root 'AGENTS.md'
+            $lastHeading = @([IO.File]::ReadAllLines($agentsPath, $script:CcxUtf8) | Where-Object { $_ -match '^#{1,3} \S' }) | Select-Object -Last 1
+            $command = '"' + $codex.Source + '" debug prompt-input probe < NUL'
+            $child = Invoke-CcxProcess -FileName (Join-Path ([Environment]::SystemDirectory) 'cmd.exe') -Arguments ('/d /s /c "' + $command + '"') -Root $Root -TimeoutMinutes $timeout
+            $seen = -not $child.timeout -and $child.code -eq 0 -and $lastHeading -and $child.stdout.Contains($lastHeading)
+            $checks += @{ name='codex-instructions'; result=$(if ($seen) { 'PASS' } else { 'WARN' }); details=@($(if ($seen) { "Codex sees AGENTS.md through '$lastHeading'" } else { "Codex's prompt lacks AGENTS.md's last heading '$lastHeading': raise project_doc_max_bytes or check folder trust" })) }
+        } catch { $checks += @{ name='codex-instructions'; result='WARN'; details=@('prompt check failed to run') } }
     }
     $catalogHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
     try {
