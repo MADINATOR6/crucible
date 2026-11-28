@@ -371,7 +371,9 @@ function ConvertTo-CcxOwnedPath {
 # add a script here when it starts deciding Gemini's routing or access.
 $script:CcxGeminiProtected = @('ccx/', 'scripts/ccx.ps1', 'scripts/ccx-core.ps1', 'scripts/ccx-ops.ps1',
     'scripts/codex-dispatch.ps1', 'scripts/crucible.ps1', 'GEMINI.md', '.agents/', '.gemini/', '.agy/', '.geminiignore',
-    'AGENTS.md', 'CLAUDE.md', 'HANDOFF.md', '.obsidian/plugins/crucible/', 'Reference/Review checklist.md')
+    'AGENTS.md', 'CLAUDE.md', 'HANDOFF.md', '.obsidian/plugins/crucible/', 'Reference/Review checklist.md',
+    # Antigravity loads these skills through .agents/skills.json, fable-judge (the review checklist) among them.
+    '.claude/skills/')
 # Not .obsidian/community-plugins.json: it only toggles which plugins load, and the user's checkout keeps it edited,
 # which would refuse every Gemini review (Codex verifier, GEMINI-REVIEWER-4).
 function Get-CcxGeminiReviewBlock {
