@@ -375,25 +375,31 @@ try {
     Run-Git @('add', 'CLAUDE.md'); Run-Git @('-c', 'core.hooksPath=NUL', 'commit', '-qm', 'base rules')
     $wt = Join-Path $scratch ('gr-c4-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
     Run-Git @('worktree', 'add', '-b', 'gr-c4', $wt, 'HEAD')
+    $start = (& $git -C $repo rev-parse HEAD).Trim()
     try {
       [void][IO.Directory]::CreateDirectory((Join-Path $wt 'docs'))
       Write-Utf8File (Join-Path $wt 'docs\note.md') 'safe'
       & $git -C $wt add -- 'docs/note.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m safe | Out-Null
-      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt })) 'a safe committed change blocked Gemini'
+      Assert ($null -eq (Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = $start })) 'a safe committed change blocked Gemini'
       Write-Utf8File (Join-Path $wt 'GEMINI.md') 'pointer'
       & $git -C $wt add -- 'GEMINI.md' | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m protected | Out-Null
-      $block = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }
+      $block = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = $start }
       Assert ($block -match 'touches GEMINI.md') "a committed protected change was missed: $block"
-      # Security review: the recorded branch counts even when the worktree is gone; a rename cannot hide a
-      # protected path; an unknown range blocks instead of passing.
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone') }) -match 'touches GEMINI.md') 'branch range ignored when the worktree is gone'
+      # Security reviews: the recorded branch counts even when the worktree is gone; main moving past the branch
+      # (here: merging it) does not empty the range; a rename cannot hide a protected path; unknown ranges block.
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'touches GEMINI.md') 'branch range ignored when the worktree is gone'
+      Run-Git @('-c', 'core.hooksPath=NUL', 'merge', '-q', '--no-edit', 'gr-c4')
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c4'; reviewBase = $start }) -match 'touches GEMINI.md') 'merging the branch into main emptied the review range'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }) -match 'no start commit') 'a worktree task without a recorded start passed'
       # Rename a protected file that exists on the base branch: --no-renames lists the old name too.
       & $git -C $wt rm -q --cached GEMINI.md | Out-Null; [IO.File]::Delete((Join-Path $wt 'GEMINI.md'))
       & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m 'drop GEMINI.md' | Out-Null
       & $git -C $wt mv CLAUDE.md docs/moved.md | Out-Null; & $git -C $wt -c user.name=t -c user.email=t@t commit -q -m rename | Out-Null
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt }) -match 'touches CLAUDE.md') 'a renamed protected path was missed'
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = (Join-Path $scratch 'gone') }) -match 'review range is unknown') 'a missing worktree passed'
-      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'no-such-branch' }) -match 'review range is unknown') 'an unknown branch passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = $start }) -match 'touches (CLAUDE|GEMINI).md') 'a renamed protected path was missed'
+      $renameOnly = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = $wt; reviewBase = (& $git -C $wt rev-parse HEAD~1).Trim() }
+      Assert ($renameOnly -match 'touches CLAUDE.md') "a rename alone hid the protected path: $renameOnly"
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); worktree = (Join-Path $scratch 'gone'); reviewBase = $start }) -match 'review range is unknown') 'a missing worktree passed'
+      Assert ((Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'no-such-branch'; reviewBase = $start }) -match 'review range is unknown') 'an unknown branch passed'
     } finally { & $git -C $repo worktree remove --force $wt 2>$null | Out-Null }
   }
   Case 'media types validate credit caps and owned ledger folders and route gates' {

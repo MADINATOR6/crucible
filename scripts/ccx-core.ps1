@@ -374,18 +374,32 @@ function Get-CcxGeminiReviewBlock {
     $runs = @($Task.runs) + @($Task.lastDispatch) | Where-Object { $_ }
     if ($Task.geminiImplemented -or @($runs | Where-Object { $_.provider -eq 'gemini' -and $_.role -eq 'implement' }).Count) { return 'Gemini implemented part of this task' }
     $subjects = @($Task.owns | ForEach-Object { ([string]$_).Replace('\', '/') })
-    # Fails closed (security review): an unknown base, a missing branch or worktree, or a failed diff blocks Gemini.
-    # The range comes from the task's branch in the main repo when recorded, so a removed worktree still counts;
-    # --no-renames lists both names of a renamed file, so a protected path cannot hide behind a rename.
-    if ($Task.branch -or $Task.worktree) {
+    # Everything the task changed since its recorded start commit, on every tip it has (its branch and its worktree's
+    # HEAD), plus uncommitted changes. Fails closed (security reviews): a started task with no recorded start, a gone
+    # branch or worktree, or a failed diff blocks Gemini. --no-renames lists both names of a renamed file.
+    if ($Task.reviewBase -or $Task.branch -or $Task.worktree) {
+        if (-not $Task.reviewBase) { return 'no start commit is recorded, so the review range is unknown' }
         try {
             $main = Get-CcxMainRoot
-            $base = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
-            if (-not $base -or $base -eq 'HEAD') { return 'the base branch is unknown (detached HEAD), so the review range is unknown' }
-            if ($Task.branch) { $diffRoot = $main; $tip = [string]$Task.branch }
-            elseif ([IO.Directory]::Exists([string]$Task.worktree)) { $diffRoot = [string]$Task.worktree; $tip = 'HEAD' }
-            else { return 'its worktree is gone and no branch is recorded, so the review range is unknown' }
-            $subjects += @((Invoke-CcxGit -Root $diffRoot -Arguments @('diff', '--no-renames', '--name-only', '-z', ($base + '...' + $tip), '--')).Split([char]0) | Where-Object { $_ })
+            $tips = @()
+            if ($Task.branch) {
+                $ref = (Invoke-CcxGit -Root $main -Arguments @('rev-parse', '--verify', '--quiet', ('refs/heads/' + $Task.branch))).Trim()
+                if (-not $ref) { return "its branch $($Task.branch) is gone, so the review range is unknown" }
+                $tips += @{ root = $main; tip = $ref }
+            }
+            if ($Task.worktree) {
+                if ([IO.Directory]::Exists([string]$Task.worktree)) {
+                    $tips += @{ root = [string]$Task.worktree; tip = 'HEAD' }
+                    $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
+                } elseif (-not $Task.branch) { return 'its worktree is gone and no branch is recorded, so the review range is unknown' }
+            }
+            if (-not $Task.branch -and -not $Task.worktree) {
+                $tips += @{ root = (Get-CcxRepoRoot); tip = 'HEAD' }
+                $subjects += @(Get-CcxChangedPaths)
+            }
+            foreach ($t in $tips) {
+                $subjects += @((Invoke-CcxGit -Root $t.root -Arguments @('diff', '--no-renames', '--name-only', '-z', $Task.reviewBase, $t.tip, '--')).Split([char]0) | Where-Object { $_ })
+            }
         } catch { return 'its committed changes cannot be listed, so the review range is unknown' }
     }
     foreach ($subject in $subjects) {
@@ -1221,6 +1235,19 @@ function Start-CcxTaskInState {
         $Task.baselines[$key] = @(Get-CcxChangedPaths -Root $root | Where-Object { -not (Test-CcxPathOwned -Path $_ -Owns $Task.owns) })
     }
     $Task.baselineDirty = @($Task.baselines[$key])
+    # The commit the task's work starts from, recorded once: a Gemini review checks everything changed since it,
+    # never a range derived from main's moving HEAD (security review, GEMINI-REVIEWER-2). A worktree task starts
+    # where its branch left the base branch, so commits made there before ccx knew the task still count.
+    if (-not $Task.reviewBase) {
+        $head = (Invoke-CcxGit -Root $root -Arguments @('rev-parse', 'HEAD')).Trim()
+        if ($Task.worktree) {
+            try {
+                $baseBranch = (Invoke-CcxGit -Root (Get-CcxMainRoot) -Arguments @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
+                if ($baseBranch -and $baseBranch -ne 'HEAD') { $head = (Invoke-CcxGit -Root $root -Arguments @('merge-base', 'HEAD', $baseBranch)).Trim() }
+            } catch { }
+        }
+        $Task.reviewBase = $head
+    }
     $Task.status = 'active'
     $Task.updated = Get-CcxNow
 }
