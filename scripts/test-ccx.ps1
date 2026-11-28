@@ -456,6 +456,12 @@ try {
     Check-Code (Run-Cli @('task','start','-Id','P1')) 0
     Assert ((Get-CcxGeminiReviewBlock (Get-TestTask 'P1')) -match 'touches GEMINI.md') 'a commit between task add and the first start fell out of range'
     Check-Code (Run-Cli @('task','review','-Id','P1','-Result','pass','-By','gemini')) 2
+    # A worktree task whose branch sits at its start (made from an old base, or rewound after a merge) still sees a
+    # protected commit on main.
+    $p1Base = [string](Get-TestTask 'P1').addHead
+    Run-Git @('branch', '-f', 'gr-c5', $p1Base)
+    $wtBlock = Get-CcxGeminiReviewBlock @{ owner = 'codex'; owns = @('docs/'); branch = 'gr-c5'; worktree = (Join-Path $scratch 'gone-c5'); reviewBase = $p1Base }
+    Assert ($wtBlock -match 'touches GEMINI.md') "a worktree task missed a protected commit on main: $wtBlock"
     Add-Task 'P2' 'extra2/'
     Check-Code (Run-Cli @('task','start','-Id','P2')) 0
     Assert ([bool](Get-TestTask 'P2').reviewBase) 'P2 start recorded no reviewBase'

@@ -398,12 +398,12 @@ function Get-CcxGeminiReviewBlock {
                 $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
             }
         }
-        if (-not $Task.worktree) {
-            # A task without a worktree lives in the main checkout, whichever checkout asks, so its HEAD and
-            # uncommitted edits count even when a branch is recorded too (Codex reviews).
-            $tips += @{ root = $main; tip = 'HEAD' }
-            $subjects += @(Get-CcxChangedPaths -Root $main)
-        }
+        # The main checkout always counts too, worktree or not (Codex reviews, independent verifier): a task without a
+        # worktree lives there, a worktree task's agent can commit there, and a branch merged into main and then
+        # rewound leaves its change on main. ponytail: refuses Gemini whenever any protected file lands on main during
+        # the task's life (fail closed); attribute main commits to tasks if that over-blocks.
+        $tips += @{ root = $main; tip = 'HEAD' }
+        $subjects += @(Get-CcxChangedPaths -Root $main)
         foreach ($t in $tips) {
             $subjects += @((Invoke-CcxGit -Root $t.root -Arguments @('diff', '--no-renames', '--name-only', '-z', $Task.reviewBase, $t.tip, '--')).Split([char]0) | Where-Object { $_ })
         }
@@ -1227,7 +1227,7 @@ function Clear-CcxReviewBaseOnRepoint($Task, [string]$Field, [string]$Value) {
     # Called whenever worktree or branch is being set. Pointing a started task elsewhere (or clearing it) would move
     # the tips a Gemini review diffs, so its recorded start is dropped and Gemini may no longer review it
     # (independent verifier).
-    if ($Task.reviewBase -and $Value -ne [string]$Task[$Field]) { $Task.Remove('reviewBase') | Out-Null }
+    if ($Task.reviewBase -and $Value -cne [string]$Task[$Field]) { $Task.Remove('reviewBase') | Out-Null }
 }
 function Start-CcxTaskInState {
     # Shared task-start logic (CLI, launcher, worktree add): ownership check, baseline, active.
