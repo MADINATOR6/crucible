@@ -388,10 +388,13 @@ function Get-CcxGeminiReviewBlock {
                 $tips += @{ root = $main; tip = $ref }
             }
             if ($Task.worktree) {
+                # A worktree's HEAD is the agent's to move, so it is never the only tip: a worktree task must
+                # record its branch, read from the main repo above (security review).
+                if (-not $Task.branch) { return 'its worktree has no recorded branch, so the review range is unknown' }
                 if ([IO.Directory]::Exists([string]$Task.worktree)) {
                     $tips += @{ root = [string]$Task.worktree; tip = 'HEAD' }
                     $subjects += @(Get-CcxChangedPaths -Root $Task.worktree)
-                } elseif (-not $Task.branch) { return 'its worktree is gone and no branch is recorded, so the review range is unknown' }
+                }
             }
             if (-not $Task.branch -and -not $Task.worktree) {
                 $tips += @{ root = (Get-CcxRepoRoot); tip = 'HEAD' }
