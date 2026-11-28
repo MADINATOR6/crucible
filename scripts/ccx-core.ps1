@@ -1258,7 +1258,8 @@ function Start-CcxTaskInState {
     # A first start is told apart by the sticky started mark, not by status (a task can return to planned): task add
     # writes started=$false and every start sets it, found or not. A task older than the mark has no key and stays
     # ineligible (Codex verifier).
-    $firstStart = $Task.ContainsKey('started') -and -not $Task.started
+    # Only a planned task can have a first start; task update sets the mark on any move to or from another status.
+    $firstStart = $Task.ContainsKey('started') -and -not $Task.started -and $Task.status -eq 'planned'
     $Task.started = $true
     if ($firstStart -and -not $Task.reviewBase) {
         try {
@@ -1378,6 +1379,9 @@ function Invoke-CcxCmdTask {
                 if ($Parameters.Status) {
                     if ($Parameters.Status -notin @('planned','active','verifying','blocked','abandoned') -or $task.status -in @('done','abandoned')) { throw (New-CcxError 'Status transition refused; use task done for completion.' 2) }
                     if ($Parameters.Status -in @('active','verifying','blocked')) { Assert-CcxTaskOwnership $state $task }
+                    # Work may begin without a start here, or may have begun before (block-task sets blocked), so a
+                    # later start is not a first start (Codex verifier).
+                    if (($Parameters.Status -ne 'planned' -or $task.status -ne 'planned') -and $task.ContainsKey('started')) { $task.started = $true }
                     $task.status = $Parameters.Status
                 }
                 if ($Parameters.Merge) {

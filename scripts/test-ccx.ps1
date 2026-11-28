@@ -351,6 +351,16 @@ try {
     Invoke-CcxLocked { param($state) $state.tasks.R3.Remove('started') | Out-Null } | Out-Null
     Check-Code (Run-Cli @('task','start','-Id','R3')) 0
     Assert (-not (Get-TestTask 'R3').reviewBase) 'a task older than the started mark recorded a start commit'
+    Add-Task 'R4' 'extra/'
+    Check-Code (Run-Cli @('task','update','-Id','R4','-Status','active')) 0
+    Check-Code (Run-Cli @('task','start','-Id','R4')) 0
+    Assert (-not (Get-TestTask 'R4').reviewBase) 'a task activated by task update recorded a later start commit'
+    # A task blocked without a start (the block-task event) and reset to planned is not on its first start either.
+    Add-Task 'R5' 'more/'
+    Invoke-CcxLocked { param($state) $state.tasks.R5.status = 'blocked' } | Out-Null
+    Check-Code (Run-Cli @('task','update','-Id','R5','-Status','planned')) 0
+    Check-Code (Run-Cli @('task','start','-Id','R5')) 0
+    Assert (-not (Get-TestTask 'R5').reviewBase) 'a blocked task reset to planned recorded a later start commit'
     Set-Verification
     Check-Code (Run-Cli @('task','review','-Id','T1','-Result','pass','-By','gemini')) 0
     Check-Code (Run-Cli @('task','done','-Id','T1')) 0
