@@ -313,6 +313,12 @@ else if (mode === 'emptyTurnFailed503') {
   event({type:'error', message:'HTTP 503 Service Unavailable'});
   process.exit(1);
 }
+else if (mode === 'quotaThenOther') {
+  // HARDEN-1 (Codex review): an earlier quota warning, then an unrelated failure that ends the run.
+  event({type:'error', message:usage});
+  event({type:'turn.failed', error:{message:'invalid_request_error'}});
+  process.exit(1);
+}
 else if (mode === 'early503') {
   // A 5xx the provider recovered from, then a failure that is the task's own: not transient.
   event({type:'error', message:'Reconnecting... HTTP 503 Service Unavailable'});
@@ -993,6 +999,14 @@ else {
     $r = Run-Launcher $repo ($common + @('-TaskId','T2')) 'terminalQuota'
     Check-Code $r 4
     Assert ([bool](Read-CcxState).agents.codex.unavailableUntil) 'a terminal quota did not mark Codex unavailable'
+  }
+  Ccx-Case 'an earlier quota warning does not make an unrelated ending failure a usage limit (HARDEN-1)' {
+    Add-CcxTask
+    $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'quotaThenOther'
+    Check-Code $r 1
+    Assert ($r.Stdout -cnotmatch 'USAGE LIMIT:') 'an earlier quota warning classified the run as a usage limit'
+    Assert (-not (Read-CcxState).agents.codex.unavailableUntil) 'an unrelated failure marked Codex unavailable'
+    Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'an unrelated failure refunded the attempt'
   }
   Ccx-Case 'An early recovered 503 does not excuse a later ordinary failure (Gemini review 1.2)' {
     Add-CcxTask

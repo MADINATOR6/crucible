@@ -394,7 +394,9 @@ try {
         # Gemini's own config.
         'scripts/ccx.ps1', 'Scripts/CCX-Ops.ps1', 'ccx/ARCHITECTURE.md', 'HANDOFF.md', '.gemini/settings.json', '.agy/rules.md', '.geminiignore',
         # Codex verifier: the Obsidian launcher and the blind-review checklist.
-        '.obsidian/plugins/crucible/main.js', 'reference/review checklist.md', '.claude/skills/fable-judge/SKILL.md')) {
+        '.obsidian/plugins/crucible/main.js', 'reference/review checklist.md', '.claude/skills/fable-judge/SKILL.md',
+        # HARDEN-1: agy's other customization folder names and its ignore file.
+        '.agent/rules/x.md', '_agents/hooks.json', '_agent/plugins/p/mcp_config.json', '.antigravityignore')) {
       $block = Get-CcxGeminiReviewBlock @{ owner = 'claude'; owns = @($owns) }
       Assert ($block -match 'decides Gemini') "protected owns not detected: $owns"
     }
@@ -578,6 +580,11 @@ try {
   Case 'Codex unavailability defers and cross-model review validates author' {
     Invoke-CcxLocked { param($state) $state.agents.codex.unavailableUntil = [DateTime]::UtcNow.AddHours(1).ToString('yyyy-MM-ddTHH:mm:ssZ') } | Out-Null
     Assert ((Cli-Json @('route','-Type','implement')).route -eq 'defer') 'unavailable Codex did not defer'
+    # HARDEN-1: a stop outranks the wait; a delegated task overlapping its lead session surfaces even while Codex is out.
+    Check-Code (Run-Cli @('task','add','-Id','ROOT','-Title','Session','-Type','implement','-Class','normal','-Risk','low','-Owner','claude','-Owns','root.txt')) 0
+    Check-Code (Run-Cli @('task','add','-Id','KID','-Title','Overlap','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','root.txt,kid.md','-TaskFile','kid.md','-Parent','ROOT','-Key','harden')) 0
+    $kidRoute = Cli-Json @('route','-TaskId','KID','-Type','implement')
+    Assert ($kidRoute.route -eq 'surface') "a Codex-out defer hid a session overlap: $($kidRoute.route)"
     Check-Code (Run-Cli @('route','-Type','review')) 2
     $r = Cli-Json @('route','-Type','review','-AuthoredBy','codex')
     Assert ($r.agent -eq 'claude') 'cross-model review chose the author'

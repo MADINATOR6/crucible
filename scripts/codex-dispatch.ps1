@@ -668,10 +668,17 @@ $sawErrorEvent = $false
   # recovered, and must not mark the provider unavailable (Codex self-study, CODEX-UPGRADE-1). Only Codex's own
   # turn.completed proves it: Claude and agy report usage on failed results too (Codex review). A billing spend cap
   # does not match $limitPattern and so never reads as a quota reset.
+  # Only the failure that ended the run decides, as for transient failures: the ending error and the last stderr line.
+  # An earlier quota warning followed by an unrelated failure is that failure (Codex review, HARDEN-1). With no
+  # ending error at all, every stderr line still counts, so a quota exit that only printed to stderr is not missed.
+  $stderrLines = @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_.Trim() })
+  $lastStderr = $stderrLines | Select-Object -Last 1
+  # The error that ended the turn decides; de-duplication must not let an earlier message stand in for it (Codex review).
+  $endingError = if ($sawTerminalError) { $terminalError } elseif ($sawErrorEvent) { $lastErrorEvent } else { @($messages) | Select-Object -Last 1 }
   $limitMessages = @()
   if (-not ($code -eq 0 -and $codexCompleted)) {
-    $limitMessages = @($messages | Where-Object { $_ -match $limitPattern })
-    $limitMessages += @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_ -match $limitPattern })
+    $limitCandidates = if ($endingError) { @($endingError) + @($lastStderr) } else { $stderrLines }
+    $limitMessages = @($limitCandidates | Where-Object { $_ -and $_ -match $limitPattern })
   }
   foreach ($message in ($limitMessages | Select-Object -Unique)) {
     Write-Output "USAGE LIMIT: $message"
@@ -686,9 +693,6 @@ $sawErrorEvent = $false
   # as transient. Parse the terminal turn.failed reason per provider if that shows up in FRICTION.md.
   $transientMessages = @()
   if ($limitMessages.Count -eq 0 -and $code -ne 0 -and -not $hasUsage -and -not $timedOut -and -not $protectedChanged.Count) {
-    $lastStderr = @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_.Trim() }) | Select-Object -Last 1
-    # The error that ended the turn decides; de-duplication must not let an earlier 503 stand in for it (Codex review).
-    $endingError = if ($sawTerminalError) { $terminalError } elseif ($sawErrorEvent) { $lastErrorEvent } else { @($messages) | Select-Object -Last 1 }
     $transientMessages = @(@($endingError) + @($lastStderr) | Where-Object { $_ -and $_ -match $transientPattern })
   }
   foreach ($message in ($transientMessages | Select-Object -Unique)) { Write-Output "TRANSIENT PROVIDER FAILURE: $message (no attempt used)" }
