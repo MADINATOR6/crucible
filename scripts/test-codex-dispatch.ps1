@@ -912,6 +912,19 @@ else {
       Assert ($r.Stdout -match 'Gemini cannot review now: disabled in policy' -and -not [IO.File]::Exists($argLog)) 'a disabled Gemini still reviewed'
     } finally { Remove-Item -LiteralPath $fake -Force }
   }
+  Ccx-Case 'GR-D4 -Reviewer gemini never overrides a route that says stop (security review, GEMINI-REVIEWER-4)' {
+    $argLog = Join-Path $scratch 'gr-d4.txt'
+    $fake = Use-FakeAgy $fakeDir $argLog
+    try {
+      # A delegated research task whose owns overlap its lead session routes to surface.
+      Check-Code (Run-Ccx @('task','add','-Id','ROOT','-Title','Synthetic session','-Type','implement','-Class','normal','-Risk','low','-Owner','claude','-Owns','session-root.txt')) 0
+      New-Task (Join-Path $repo 'child.md')
+      Check-Code (Run-Ccx @('task','add','-Id','CHILD','-Title','Overlapping delegate','-Type','research','-Class','normal','-Risk','low','-Owner','codex','-Owns','session-root.txt,child.md','-TaskFile','child.md','-Parent','ROOT','-Key','gr-d4')) 0
+      $r = Run-Launcher $repo ($common + @('-TaskId','CHILD','-Role','research','-Reviewer','gemini')) 'ready'
+      Check-Code $r 8
+      Assert ($r.Stdout -match 'Route: surface' -and -not [IO.File]::Exists($argLog)) "a surface route ran Gemini: $($r.Stdout)"
+    } finally { Remove-Item -LiteralPath $fake -Force }
+  }
   Ccx-Case 'GR-D3 without codex.cmd a Gemini review runs and a Codex run reports the missing CLI before it starts' {
     Add-CcxTask
     Check-Code (Run-Ccx @('task','start','-Id','T1')) 0
