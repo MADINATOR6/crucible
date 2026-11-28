@@ -586,6 +586,7 @@ try {
   [long]$inputTokens = 0; [long]$cachedTokens = 0; [long]$outputTokens = 0
   $hasUsage = $false
   $codexCompleted = $false  # Codex's own turn.completed; other providers report usage on failed results too
+  $errorDetail = $false     # a provider reported its own error text (not a status the launcher made up)
   $lastMessage = $null
   $terminalError = $null  # the turn.failed message itself; $messages is de-duplicated for display
   $lastErrorEvent = $null
@@ -596,7 +597,7 @@ $sawErrorEvent = $false
     try {
       $result = [IO.File]::ReadAllText($base + '.events.jsonl', $utf8) | ConvertFrom-Json -ErrorAction Stop
       if ($result.response) { [IO.File]::WriteAllText($base + '.report.md', [string]$result.response, $utf8) }
-      if ($result.error -and $result.error.message) { $messages.Add([string]$result.error.message) }
+      if ($result.error -and $result.error.message) { $messages.Add([string]$result.error.message); $errorDetail = $true }
       foreach ($entry in @($result.stats.models.PSObject.Properties)) {
         $hasUsage = $true
         $inputTokens += [long]$entry.Value.tokens.prompt
@@ -610,7 +611,10 @@ $sawErrorEvent = $false
     try {
       $result = [IO.File]::ReadAllText($base + '.events.jsonl', $utf8) | ConvertFrom-Json -ErrorAction Stop
       if ($result.status -eq 'SUCCESS' -and $result.response) { [IO.File]::WriteAllText($base + '.report.md', [string]$result.response, $utf8) }
-      elseif ($result.status -ne 'SUCCESS') { $messages.Add([string]$(if ($result.error.message) { $result.error.message } elseif ($result.error) { $result.error } else { "agy status $($result.status)" })) }
+      elseif ($result.status -ne 'SUCCESS') {
+        $agyDetail = if ($result.error.message) { [string]$result.error.message } elseif ($result.error) { [string]$result.error } else { $null }
+        if ($agyDetail) { $messages.Add($agyDetail); $errorDetail = $true } else { $messages.Add("agy status $($result.status)") }
+      }
       if ($result.usage) {
         $hasUsage = $true
         $inputTokens += [long]$result.usage.input_tokens; $cachedTokens += [long]$result.usage.cache_read_tokens
@@ -622,7 +626,7 @@ $sawErrorEvent = $false
     # claude -p --output-format json prints one result object: result, is_error, usage.
     try {
       $result = [IO.File]::ReadAllText($base + '.events.jsonl', $utf8) | ConvertFrom-Json -ErrorAction Stop
-      if ($result.is_error) { $messages.Add([string]$result.result) }
+      if ($result.is_error) { $messages.Add([string]$result.result); if ($result.result) { $errorDetail = $true } }
       elseif ($result.result) { [IO.File]::WriteAllText($base + '.report.md', [string]$result.result, $utf8) }
       if ($result.usage) {
         $hasUsage = $true
@@ -671,13 +675,16 @@ $sawErrorEvent = $false
   # Only the failure that ended the run decides, as for transient failures: the ending error and the last stderr line.
   # An earlier quota warning followed by an unrelated failure is that failure (Codex review, HARDEN-1). With no
   # ending error at all, every stderr line still counts, so a quota exit that only printed to stderr is not missed.
+  # "Ending error" means one the provider reported, even an empty Codex turn.failed; never a status the launcher made
+  # up for agy (Codex review).
   $stderrLines = @([IO.File]::ReadLines($base + '.stderr.log', $utf8) | Where-Object { $_.Trim() })
   $lastStderr = $stderrLines | Select-Object -Last 1
   # The error that ended the turn decides; de-duplication must not let an earlier message stand in for it (Codex review).
   $endingError = if ($sawTerminalError) { $terminalError } elseif ($sawErrorEvent) { $lastErrorEvent } else { @($messages) | Select-Object -Last 1 }
   $limitMessages = @()
   if (-not ($code -eq 0 -and $codexCompleted)) {
-    $limitCandidates = if ($endingError) { @($endingError) + @($lastStderr) } else { $stderrLines }
+    $hasEndingError = $sawTerminalError -or $sawErrorEvent -or $errorDetail
+    $limitCandidates = if ($hasEndingError) { @($endingError) + @($lastStderr) } else { @($messages) + $stderrLines }
     $limitMessages = @($limitCandidates | Where-Object { $_ -and $_ -match $limitPattern })
   }
   foreach ($message in ($limitMessages | Select-Object -Unique)) {

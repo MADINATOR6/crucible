@@ -585,6 +585,11 @@ try {
     Check-Code (Run-Cli @('task','add','-Id','KID','-Title','Overlap','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','root.txt,kid.md','-TaskFile','kid.md','-Parent','ROOT','-Key','harden')) 0
     $kidRoute = Cli-Json @('route','-TaskId','KID','-Type','implement')
     Assert ($kidRoute.route -eq 'surface') "a Codex-out defer hid a session overlap: $($kidRoute.route)"
+    # Codex review: a saved stop lesson (keyed by provider openai) still surfaces while Codex is out.
+    Check-Code (Run-Cli @('task','add','-Id','KID2','-Title','Lesson','-Type','implement','-Class','normal','-Risk','low','-Owner','codex','-Owns','kid2.md','-TaskFile','kid2.md','-Parent','ROOT','-Key','harden')) 0
+    Check-Code (Run-Cli @('task','learn','-Id','KID2','-Kind','tool-unavailable','-Target','browser','-Note','Inspected tool list','-Reason','Synthetic browser absence')) 0
+    $lessonRoute = Cli-Json @('route','-TaskId','KID2','-Type','implement')
+    Assert ($lessonRoute.route -eq 'surface') "a Codex-out defer hid a saved stop lesson: $($lessonRoute.route)"
     Check-Code (Run-Cli @('route','-Type','review')) 2
     $r = Cli-Json @('route','-Type','review','-AuthoredBy','codex')
     Assert ($r.agent -eq 'claude') 'cross-model review chose the author'

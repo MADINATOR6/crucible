@@ -926,8 +926,9 @@ function Invoke-CcxRoute {
             # wait, so -Reviewer gemini never stands in for a route that should surface (HARDEN-1).
             $codexDeferred = $true
             $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil
+        } else {
+            $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil + ': fallback provider ' + $altProvider.name
         }
-        $decision.reasons += 'Codex unavailable until ' + $state.agents.codex.unavailableUntil + ': fallback provider ' + $altProvider.name
     }
     $session = if ($ownTaskWork -and $effectiveClass -eq (Get-CcxClass $policy $task.class $task.risk) -and $Risk -eq $task.risk) {
         Get-CcxLearningSession $state $task
@@ -970,7 +971,8 @@ function Invoke-CcxRoute {
         switch ($decision.agent) {
             'codex' {
                 # Deferred: no class provider or model choice stands in; the defer is returned after the stop checks.
-                if ($codexDeferred) { break }
+                # The provider is still openai, so saved stop lessons (keyed by provider) are found (Codex review).
+                if ($codexDeferred) { $decision.provider = 'openai'; break }
                 # Local models take only first attempts of their classes; a retry goes back to GPT.
                 if (-not $altProvider -and $Attempt -eq 1) {
                     $altProvider = Get-CcxProvider $policy $Class $state

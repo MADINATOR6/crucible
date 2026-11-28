@@ -319,6 +319,13 @@ else if (mode === 'quotaThenOther') {
   event({type:'turn.failed', error:{message:'invalid_request_error'}});
   process.exit(1);
 }
+else if (mode === 'emptyTurnFailedQuotaStderr') {
+  // Codex review: an empty turn.failed still ends the run, so an earlier stderr quota line does not decide.
+  process.stderr.write(usage + '\n');
+  event({type:'turn.failed', error:{message:''}});
+  process.stderr.write('ordinary failure\n');
+  process.exit(1);
+}
 else if (mode === 'early503') {
   // A 5xx the provider recovered from, then a failure that is the task's own: not transient.
   event({type:'error', message:'Reconnecting... HTTP 503 Service Unavailable'});
@@ -1007,6 +1014,10 @@ else {
     Assert ($r.Stdout -cnotmatch 'USAGE LIMIT:') 'an earlier quota warning classified the run as a usage limit'
     Assert (-not (Read-CcxState).agents.codex.unavailableUntil) 'an unrelated failure marked Codex unavailable'
     Assert ((Read-CcxState).tasks.T1.dispatches -eq 1) 'an unrelated failure refunded the attempt'
+    Add-CcxTask 'T2' 'other.txt'
+    $r = Run-Launcher $repo ($common + @('-TaskId','T2')) 'emptyTurnFailedQuotaStderr'
+    Check-Code $r 1
+    Assert (-not (Read-CcxState).agents.codex.unavailableUntil) 'an empty turn.failed let an earlier stderr quota line decide'
   }
   Ccx-Case 'An early recovered 503 does not excuse a later ordinary failure (Gemini review 1.2)' {
     Add-CcxTask
@@ -1148,6 +1159,18 @@ else {
       $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
       Check-Code $r 4
       Assert ([bool](Read-CcxState).providerLimits.gemini) 'a quota error with usage lost its cooldown'
+    } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
+  }
+  Ccx-Case 'an agy run with no error detail is judged by all of stderr (Codex review, HARDEN-1)' {
+    $policy = [IO.File]::ReadAllText($env:CCX_POLICY) | ConvertFrom-Json
+    $policy.providers.gemini.command = 'agy.cmd'
+    Write-Utf8File $env:CCX_POLICY ($policy | ConvertTo-Json -Depth 40)
+    Write-Utf8File (Join-Path $fakeDir 'agy.cmd') ("@echo off`r`necho RESOURCE_EXHAUSTED: quota exceeded. Please retry in 2h5m. 1>&2`r`necho cleanup finished 1>&2`r`nexit /b 1`r`n")
+    try {
+      Add-CcxTask 'T1' 'owned.txt' 'gemini'
+      $r = Run-Launcher $repo ($common + @('-TaskId','T1')) 'ready'
+      Check-Code $r 4
+      Assert ([bool](Read-CcxState).providerLimits.gemini) 'a stderr-only agy quota error lost its cooldown'
     } finally { Remove-Item -LiteralPath (Join-Path $fakeDir 'agy.cmd') -Force }
   }
   Ccx-Case 'Codex limit dispatches the class model through agy' {
