@@ -3,7 +3,7 @@
 Owner: claude (implements). Source: automated security review of the GEMINI-REVIEWER push (2dbc37e), two medium findings. Approved under the user's chat instructions ("push what needs to be pushed and merge what needs to be merged", "follow the recommendations"). Gemini authored none of it and may not review it.
 
 ## Findings and decisions
-- Protected list incomplete. Added the files that route, gate or launch Gemini or tell it how to work: `ccx/` (was `ccx/policy.json`), `scripts/ccx.ps1`, `scripts/ccx-ops.ps1`, `.gemini/`, `.agy/`, `.geminiignore`, `HANDOFF.md`. Not adopted: all of `policy.agentProtectedPaths` (it holds `scripts/`, which would bar Gemini from every test-script review); marked with a `ponytail:` comment.
+- Protected list incomplete. Added the files that route, gate or launch Gemini or tell it how to work: `ccx/` (was `ccx/policy.json`), `scripts/ccx.ps1`, `scripts/ccx-ops.ps1`, `.gemini/`, `.agy/`, `.geminiignore`, `HANDOFF.md`. Codex's verifier added `.obsidian/plugins/crucible/` (the Obsidian launcher) and `Reference/Review checklist.md` (embedded in every blind-review pack). Not adopted: `.obsidian/community-plugins.json` (it only toggles plugins, and the user's checkout keeps it edited, which would refuse every Gemini review); all of `policy.agentProtectedPaths` (it holds `scripts/`, which would bar Gemini from every test-script review); marked with a `ponytail:` comment.
 - `-Reviewer gemini` overrode any route. It now keeps the refusal of a `surface` or `premium` route and stands in only for `worker`, `cheap`, `script` or `defer` (Codex out, its purpose).
 
 ## Write allowlist
